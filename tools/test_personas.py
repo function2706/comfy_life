@@ -23,7 +23,7 @@ def main():
         st["override"] = {"activity": "relax", "label": "テスト", "location": "リビング", "until": 9e12}
         app.set_params({"affection": 80, "mood": 70, "sleepiness": 0, "boredom": 10, "shyness": 5})
         print("personas:", ", ".join(p["name"] for p in app.boot_view()["personas"]))
-        assert len(app.personas) >= 10
+        assert len(app.personas) >= 13
 
         char = app.char()
         common = None

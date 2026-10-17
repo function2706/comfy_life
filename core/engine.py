@@ -24,7 +24,8 @@ MAX_CATCHUP_SEC = 14 * 24 * 3600
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_JA = "月火水木金土日"
 LOG_KEEP_IN_VIEW = 60
-PERSONA_ORDER = ["teinei", "osananajimi", "ottori", "ojousama", "tsundere", "cool", "genki", "uchiki", "boyish", "amaenbo"]
+PERSONA_ORDER = ["teinei", "osananajimi", "ottori", "ojousama", "kedakai", "tsundere", "cool", "otokomae",
+                 "genki", "tenshin", "uchiki", "boyish", "amaenbo"]
 
 
 def hm(s):
