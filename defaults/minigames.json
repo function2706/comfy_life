@@ -909,5 +909,545 @@
     }
    ]
   }
+ },
+ {
+  "id": "koikoi",
+  "kind": "koikoi",
+  "name": "花札こいこい",
+  "icon": "🎴",
+  "desc": "場と同じ月の札を出して取り合い、役ができたら「あがり」か「こいこい」。3回戦の合計文数で勝負（7文以上は倍、こいこい返しも倍）。",
+  "require": "free=true",
+  "when": "",
+  "match": "points",
+  "rounds": 3,
+  "double_7": true,
+  "skill": 0.7,
+  "err": 0.05,
+  "pos": "hanafuda, playing cards, table, sitting, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -12,
+    "mood": 2
+   },
+   "round_win": {
+    "mood": -1
+   },
+   "round_lose": {
+    "mood": 3
+   },
+   "round_draw": {},
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "花札ですか？ おばあちゃんとよくやってたんです。こいこい、負けませんよ！",
+     "pos": "smile, holding cards"
+    }
+   ],
+   "her_koi": [
+    {
+     "text": "こいこい！ ……まだまだいきますよ？",
+     "pos": "confident smile, pointing at viewer"
+    },
+    {
+     "text": "こ、こいこい……！ 欲張りすぎかな……",
+     "when": "mood<50",
+     "pos": "nervous smile"
+    }
+   ],
+   "my_koi": [
+    {
+     "text": "えっ、こいこいするんですか！？ 強気ですね……",
+     "pos": "surprised"
+    }
+   ],
+   "round_win": [
+    {
+     "text": "うぅ、{yaku}……{points}文も取られちゃいました。",
+     "pos": "pout"
+    }
+   ],
+   "round_lose": [
+    {
+     "text": "あがりです！ {yaku}で{points}文♪",
+     "pos": "cheering, showing cards"
+    }
+   ],
+   "round_draw": [
+    {
+     "text": "流れちゃいましたね。次いきましょう！",
+     "pos": "smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "{me}文対{her}文……{call}の勝ちです。花札、強いんですね。",
+     "pos": "pout, smile"
+    }
+   ],
+   "lose": [
+    {
+     "text": "{her}文対{me}文で私の勝ち！ おばあちゃん直伝です。",
+     "pos": "smug, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "同点！？ じゃあ、また今度決着つけましょう。",
+     "pos": "laughing"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "poker",
+  "kind": "poker",
+  "name": "脱衣ポーカー",
+  "icon": "🃏",
+  "desc": "5枚配って1回だけ交換（ファイブカードドロー）。交換後に「勝負」か「倍プッシュ」。倍プッシュは{name}が降りることもあるが、受けて立たれたら2枚分。",
+  "require": "free=true",
+  "when": "affection>=50",
+  "lives": 3,
+  "call_line": 0.4,
+  "hint_honesty": 0.6,
+  "skill": 0.7,
+  "err": 0.03,
+  "pos": "playing cards, poker, table, sitting, holding cards, looking at viewer, upper body",
+  "neg": "",
+  "stages": [
+   {
+    "label": "いつもの服",
+    "mode": "add",
+    "pos": "",
+    "neg": "",
+    "remove": ""
+   },
+   {
+    "label": "靴下を脱いだ",
+    "mode": "add",
+    "pos": "barefoot",
+    "neg": "socks, shoes",
+    "remove": ""
+   },
+   {
+    "label": "リボンをほどいた",
+    "mode": "add",
+    "pos": "hair down",
+    "neg": "hair ribbon, ponytail",
+    "remove": "hair ribbon, side ponytail"
+   },
+   {
+    "label": "キャミソール姿",
+    "mode": "replace",
+    "pos": "camisole, shorts, bare shoulders, barefoot, hair down",
+    "neg": "",
+    "remove": ""
+   }
+  ],
+  "giveup": {
+   "label": "降参",
+   "mode": "replace",
+   "pos": "wrapped in blanket, camisole, bare shoulders, hair down",
+   "neg": "",
+   "remove": ""
+  },
+  "effects": {
+   "start": {
+    "heart": 5,
+    "boredom": -12
+   },
+   "round_win": {
+    "shyness": 15,
+    "heart": 5
+   },
+   "round_lose": {
+    "mood": 3
+   },
+   "round_draw": {},
+   "win": {
+    "affection": 3,
+    "shyness": 20,
+    "heart": 10
+   },
+   "lose": {
+    "mood": 8,
+    "affection": 1
+   },
+   "quit": {}
+  },
+  "lines": {
+   "refuse": [
+    {
+     "text": "だ、脱衣ポーカー……！？ そういうのはまだ早いです！",
+     "pos": "flustered, blush, waving hands"
+    }
+   ],
+   "start": [
+    {
+     "text": "ポーカーフェイスなら得意なんですよ？ ……たぶん。",
+     "pos": "smug, smile, holding cards"
+    }
+   ],
+   "her_strong": [
+    {
+     "text": "ふふっ……（にこにこしている）",
+     "pos": "smug smile"
+    },
+    {
+     "text": "今回は自信ありますよ？",
+     "pos": "confident smile"
+    }
+   ],
+   "her_weak": [
+    {
+     "text": "……（カードを見て一瞬固まった）",
+     "pos": "nervous, sweat"
+    },
+    {
+     "text": "う、うーん……",
+     "pos": "troubled expression"
+    }
+   ],
+   "her_fold": [
+    {
+     "text": "う……降ります。今回はやめておきます……",
+     "pos": "pout, putting down cards"
+    }
+   ],
+   "round_win": [
+    {
+     "text": "{her_hand}に{my_hand}……うぅ、「{stage}」です……",
+     "pos": "embarrassed, blush, looking away"
+    },
+    {
+     "text": "こ、これ以上は……次で最後ですからね……！",
+     "when": "game_stage>=3",
+     "priority": 1,
+     "pos": "full-face blush, arms crossed"
+    }
+   ],
+   "round_lose": [
+    {
+     "text": "{her_hand}！ 私の勝ちですね♪",
+     "pos": "cheering, showing cards"
+    },
+    {
+     "text": "あと1回で私の勝ちですよ？",
+     "when": "lives<=1",
+     "priority": 1,
+     "pos": "teasing smile, leaning forward"
+    }
+   ],
+   "round_draw": [
+    {
+     "text": "引き分け！？ ……ドキドキしました。",
+     "pos": "relieved smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "も、もう無理です、降参です……！",
+     "pos": "full-face blush, looking away"
+    }
+   ],
+   "lose": [
+    {
+     "text": "私の勝ちですね！ ポーカーフェイス、効いてました？",
+     "pos": "victory pose, wink"
+    }
+   ],
+   "quit": [
+    {
+     "text": "やめちゃうんですか？ ……ちょっとほっとしました。",
+     "pos": "relieved smile"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "blackjack",
+  "kind": "blackjack",
+  "name": "ブラックジャック",
+  "icon": "♠️",
+  "desc": "{name}がディーラー。21を超えないように引いて、ディーラーより21に近ければ勝ち。先に{target}勝したほうの勝ち。",
+  "require": "free=true",
+  "when": "",
+  "match": "wins",
+  "target": 5,
+  "dealer_stand": 17,
+  "natural_steps": 2,
+  "pos": "playing cards, blackjack, dealer, table, sitting, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "round_win": {},
+   "round_lose": {
+    "mood": 2
+   },
+   "round_draw": {},
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "今日は私がディーラーです。いらっしゃいませ♪",
+     "pos": "smile, holding cards, dealer"
+    }
+   ],
+   "round_win": [
+    {
+     "text": "{why}……{call}の勝ちです。",
+     "pos": "pout"
+    }
+   ],
+   "round_lose": [
+    {
+     "text": "{why}！ ディーラーの勝ちです♪",
+     "pos": "smile, wink"
+    }
+   ],
+   "round_draw": [
+    {
+     "text": "{why}ですね。",
+     "pos": "smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "{me}勝{her}敗……{call}、カジノでも稼げそうですね。",
+     "pos": "pout, smile"
+    }
+   ],
+   "lose": [
+    {
+     "text": "{her}勝で私の勝ち！ 胴元は強いんです。",
+     "pos": "smug, v"
+    }
+   ],
+   "quit": [
+    {
+     "text": "またのお越しをお待ちしてます♪",
+     "pos": "smile, bowing"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "concentration",
+  "kind": "concentration",
+  "name": "神経衰弱",
+  "icon": "🂠",
+  "desc": "裏向きの札を2枚ずつめくって同じ数字を当てる。当たったらもう一度。多く取ったほうの勝ち。{name}の記憶力は眠気に弱い。",
+  "require": "free=true",
+  "when": "",
+  "pairs": 12,
+  "cols": 6,
+  "skill": 0.6,
+  "err": 0.05,
+  "pos": "playing cards, table, sitting, concentrating, looking down, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "神経衰弱ですね。記憶力勝負なら負けませんよ！",
+     "pos": "determined, smile"
+    }
+   ],
+   "my_pair": [
+    {
+     "text": "あっ、覚えてたんですね……",
+     "pos": "surprised"
+    }
+   ],
+   "her_combo": [
+    {
+     "text": "ふふ、ちゃんと覚えてましたよ♪",
+     "pos": "smug, smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "{me}組対{her}組……{call}の勝ちです。記憶力すごいですね。",
+     "pos": "pout, smile"
+    }
+   ],
+   "lose": [
+    {
+     "text": "{her}組対{me}組で私の勝ち！",
+     "pos": "cheering, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "{me}組ずつで引き分けです！",
+     "pos": "laughing"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "oldmaid",
+  "kind": "oldmaid",
+  "name": "ババ抜き",
+  "icon": "🤡",
+  "desc": "二人でババ抜き。{name}の札に指をかけると表情が変わる……かも。最後にジョーカーを持っていたほうの負け。",
+  "require": "free=true",
+  "when": "",
+  "hint_honesty": 0.65,
+  "pos": "playing cards, holding cards, fan of cards, sitting, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "ババ抜きですね！ 顔に出ないように気をつけなきゃ……",
+     "pos": "smile, holding cards"
+    }
+   ],
+   "peek_joker": [
+    {
+     "text": "……（ぱっと笑顔になった）",
+     "pos": "wide smile, holding cards"
+    },
+    {
+     "text": "それ、引くんですか？ ……ふふ",
+     "pos": "teasing smile"
+    }
+   ],
+   "peek_safe": [
+    {
+     "text": "……（ちょっと眉が下がった）",
+     "pos": "worried, holding cards"
+    },
+    {
+     "text": "あっ、そ、それは……",
+     "pos": "nervous, sweat"
+    }
+   ],
+   "my_joker": [
+    {
+     "text": "ふふっ、引きましたね？",
+     "pos": "laughing, covering mouth"
+    }
+   ],
+   "her_joker": [
+    {
+     "text": "……（平静を装っている）",
+     "pos": "forced smile, sweat"
+    }
+   ],
+   "win": [
+    {
+     "text": "うぅ……最後にジョーカーが残っちゃいました。",
+     "pos": "pout, holding joker card"
+    }
+   ],
+   "lose": [
+    {
+     "text": "やった、あがりです！ ジョーカーは{call}のものですね♪",
+     "pos": "cheering, v"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
  }
 ]

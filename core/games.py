@@ -13,14 +13,18 @@ from datetime import datetime
 
 from . import boardgames as BG
 from . import cond
+from . import cards as CD
+from . import hanafuda as HF
 from . import mahjong as MJ
 from . import yacht as YT
 
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
 HANDS = ("rock", "scissors", "paper")
 DIRS = ("up", "down", "left", "right")
-KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht")
-STRIP_KINDS = ("yakyuken", "mahjong")
+CARD_KINDS = ("koikoi", "poker", "blackjack", "concentration", "oldmaid")
+ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着する (脱衣 or 勝ち数/合計点)
+KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht") + CARD_KINDS
+STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
 BOARD_KINDS = ("connect4", "hex", "reversi")
 
 
@@ -126,6 +130,10 @@ class Games:
             label = s.get("label", "")
         return {"pos": pos, "neg": neg, "remove": remove, "label": label}
 
+    @staticmethod
+    def _is_strip(g):
+        return g.get("kind") in STRIP_KINDS or bool(g.get("stages"))
+
     def _strip(self, g, char, st, game, steps):
         """キャラが steps 段階脱ぐ. 脱ぎきったら降参して True."""
         n = len(g.get("stages") or [])
@@ -162,12 +170,15 @@ class Games:
                                 for h in HANDS}
                 out["dirs"] = {d: {"name": self._dir_name(g, d), "icon": (g.get("dirs") or {}).get(d, {}).get("icon", "")}
                                for d in DIRS}
-            if kind in STRIP_KINDS:
-                out.update(stage=cur.get("stage", 0), stages=len(g.get("stages") or []),
+            if self._is_strip(g):
+                out.update(strip=True, stage=cur.get("stage", 0), stages=len(g.get("stages") or []),
                            stage_label=(cur.get("outfit") or {}).get("label", ""),
                            lives=cur.get("lives", 0), lives_max=int(g.get("lives", 3)))
-            if kind == "acchimuite":
-                out.update(me=cur.get("me", 0), her=cur.get("her", 0), target=int(g.get("target", 3)))
+            if kind == "acchimuite" or (kind in ROUND_KINDS and not self._is_strip(g)):
+                out.update(me=cur.get("me", 0), her=cur.get("her", 0), target=int(g.get("target", 3)),
+                           rounds=int(g.get("rounds", 0)), match=g.get("match", "wins"))
+            if kind in CARD_KINDS:
+                out["cards"] = self._cards_view(g, cur)
             if kind == "mahjong":
                 out["mj"] = self._mj_view(cur)
             if kind in BOARD_KINDS:
@@ -198,7 +209,7 @@ class Games:
                 entry, job = self._record(cid, char, st, g, line, {}, "", None, "")
                 self._save(cid)
                 return {"entry": entry, "job": job, "refused": True}
-            if kind in STRIP_KINDS:
+            if self._is_strip(g):
                 game["outfit"] = self.stage_outfit(g, char, st, 0)
             if kind in ("yakyuken", "acchimuite"):
                 self._decide_next(g, game)
@@ -213,6 +224,8 @@ class Games:
                 hint = self._board_start(char, st, g, game)
             elif kind == "yacht":
                 hint = self._yacht_start(char, st, g, game)
+            elif kind in CARD_KINDS:
+                hint = self._cards_start(cid, char, st, g, game)
             else:
                 hint = self._hint_text(char, st, g, game)
             self._save(cid)
@@ -253,6 +266,8 @@ class Games:
                 r = self._move_board(cid, char, st, g, game, payload)
             elif kind == "yacht":
                 r = self._move_yacht(cid, char, st, g, game, payload)
+            elif kind in CARD_KINDS:
+                r = self._move_cards(cid, char, st, g, game, payload)
             else:
                 raise ValueError("未対応のゲームです: %s" % kind)
             self._save(cid)
@@ -805,3 +820,501 @@ class Games:
             diff = YT.totals(y["sheet"]["p"])["total"] - YT.totals(y["sheet"]["a"])["total"]
             hint = self._say(char, st, g, "mid", game, advantage=diff)
         return {"entry": None, "job": None, "hint": hint, "ended": None}
+
+    # ================================================================== カード系 共通
+    # game["cd"] にゲームごとの状態を持つ. phase = "round_end" で局の結果を見せ, act=next で次へ.
+    def _cards_start(self, cid, char, st, g, game):
+        game["phase"] = "cards"
+        game["cd"] = {"round": 0}
+        return getattr(self, "_%s_deal" % g["kind"])(cid, char, st, g, game)
+
+    def _cards_view(self, g, game):
+        return getattr(self, "_%s_view" % g["kind"])(g, game, game.get("cd") or {})
+
+    def _move_cards(self, cid, char, st, g, game, payload):
+        d = game["cd"]
+        game.pop("_entry", None)
+        game.pop("_job", None)
+        act = payload.get("act")
+        hint = None
+        if act == "next":
+            if d.get("phase") != "round_end":
+                raise ValueError("まだ勝負の途中です")
+            if game.get("over"):
+                st["game"] = None
+                return {"entry": None, "job": None, "ended": "closed"}
+            hint = getattr(self, "_%s_deal" % g["kind"])(cid, char, st, g, game)
+        else:
+            if game.get("over"):
+                raise ValueError("この勝負は終わっています")
+            hint = getattr(self, "_%s_move" % g["kind"])(cid, char, st, g, game, d, act, payload)
+        return {"entry": game.pop("_entry", None), "job": game.pop("_job", None), "hint": hint,
+                "ended": game.get("over") if st.get("game") is game else None}
+
+    def _round_end(self, cid, char, st, g, game, winner, steps=1, pts=None, extra=None, label="", act_pos=""):
+        """1 局の決着. 脱衣 (stages あり) / 勝ち数 (match=wins) / 合計点 (match=points) を共通で処理."""
+        d = game["cd"]
+        d["phase"] = "round_end"
+        extra = dict(extra or {})
+        ended = None
+        if self._is_strip(g):
+            if winner == "p":
+                ended = "win" if self._strip(g, char, st, game, steps) else None
+            elif winner == "a":
+                game["lives"] -= steps
+                if game["lives"] <= 0:
+                    game["lives"], ended = 0, "lose"
+        else:
+            if g.get("match") == "points":
+                if winner in ("p", "a"):
+                    game["me" if winner == "p" else "her"] += pts if pts is not None else steps
+                if d["round"] >= int(g.get("rounds", 3)):
+                    ended = "win" if game["me"] > game["her"] else "lose" if game["me"] < game["her"] else "draw"
+            else:
+                if winner in ("p", "a"):
+                    game["me" if winner == "p" else "her"] += 1
+                tgt = int(g.get("target", 3))
+                ended = "win" if game["me"] >= tgt else "lose" if game["her"] >= tgt else None
+        extra.update(stage=(game.get("outfit") or {}).get("label", ""), me=game.get("me", 0), her=game.get("her", 0))
+        if ended:
+            game["over"] = ended
+            event = ended
+        else:
+            event = {"p": "round_win", "a": "round_lose"}.get(winner, "round_draw")
+        ctx = self._ctx(char, st, datetime.now(), game, **{k: v for k, v in extra.items() if isinstance(v, (int, float, bool))})
+        line = self._line(g, event, ctx)
+        entry, job = self._record(cid, char, st, g, line, extra, act_pos, event, label)
+        game["_entry"], game["_job"] = entry, job
+        return ended
+
+    # ================================================================== ポーカー
+    def _poker_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        deck = CD.new_deck()
+        d.update(round=d["round"] + 1, deck=deck[10:], hands={"p": deck[:5], "a": deck[5:10]},
+                 phase="exchange", result=None, her_ex=None, raised=False)
+        return None
+
+    def _poker_view(self, g, game, d):
+        show = d.get("phase") == "round_end"
+        out = {"phase": d.get("phase"), "round": d.get("round"), "hand": d.get("hands", {}).get("p", []),
+               "her_count": len(d.get("hands", {}).get("a", [])), "her_ex": d.get("her_ex"),
+               "result": d.get("result"), "over": game.get("over"),
+               "my_name": CD.poker_eval(d["hands"]["p"])[2] if d.get("hands") else ""}
+        if show:
+            out["her_hand"] = d["hands"]["a"]
+        return out
+
+    def _poker_move(self, cid, char, st, g, game, d, act, payload):
+        skill, err = self._skill(g, st)
+        if act == "exchange":
+            if d["phase"] != "exchange":
+                raise ValueError("交換はもう終わっています")
+            idx = sorted({int(i) for i in payload.get("discard") or [] if 0 <= int(i) < 5})
+            for i in idx:
+                d["hands"]["p"][i] = d["deck"].pop()
+            dis = CD.poker_exchange(d["hands"]["a"], err)
+            for i in dis:
+                d["hands"]["a"][i] = d["deck"].pop()
+            d["her_ex"] = len(dis)
+            d["phase"] = "bet"
+            strong = CD.poker_strength(d["hands"]["a"]) >= 0.6
+            if random.random() >= float(g.get("hint_honesty", 0.6)):
+                strong = not strong               # ブラフ
+            return self._say(char, st, g, "her_strong" if strong else "her_weak", game)
+        if act in ("call", "raise"):
+            if d["phase"] != "bet":
+                raise ValueError("今は勝負できません")
+            mine, hers = d["hands"]["p"], d["hands"]["a"]
+            if act == "raise":
+                d["raised"] = True
+                s = CD.poker_strength(hers)
+                if s + random.uniform(-0.15, 0.15) < float(g.get("call_line", 0.4)):
+                    d["result"] = {"winner": "p", "fold": True, "my": CD.poker_eval(mine)[2], "her": CD.poker_eval(hers)[2]}
+                    line_extra = {"my_hand": d["result"]["my"], "her_hand": d["result"]["her"]}
+                    hint = self._say(char, st, g, "her_fold", game)
+                    self._round_end(cid, char, st, g, game, "p", 1, extra=line_extra, label="（第%d回戦 %sが降りた）" % (d["round"], char.get("name", "")))
+                    return hint
+            res = CD.poker_compare(mine, hers)
+            winner = "p" if res > 0 else "a" if res < 0 else None
+            steps = 2 if d["raised"] else 1
+            d["result"] = {"winner": winner, "fold": False, "my": CD.poker_eval(mine)[2], "her": CD.poker_eval(hers)[2],
+                           "steps": steps}
+            self._round_end(cid, char, st, g, game, winner, steps, extra={"my_hand": d["result"]["my"], "her_hand": d["result"]["her"]},
+                            label="（第%d回戦%s）" % (d["round"], " 倍プッシュ" if d["raised"] else ""),
+                            act_pos="holding cards, showing cards")
+            return None
+        raise ValueError("不明な操作です: %s" % act)
+
+    # ================================================================== ブラックジャック
+    def _blackjack_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        deck = CD.new_deck()
+        d.update(round=d["round"] + 1, deck=deck[4:], hands={"p": deck[:2], "a": deck[2:4]},
+                 phase="play", result=None, doubled=False)
+        if CD.bj_natural(d["hands"]["p"]) or CD.bj_natural(d["hands"]["a"]):
+            self._bj_settle(cid, char, st, g, game, d)
+        return None
+
+    def _blackjack_view(self, g, game, d):
+        hands = d.get("hands", {"p": [], "a": []})
+        show = d.get("phase") == "round_end"
+        return {"phase": d.get("phase"), "round": d.get("round"), "hand": hands["p"], "value": CD.bj_value(hands["p"]),
+                "dealer": hands["a"] if show else hands["a"][:1] + ["??"] * (len(hands["a"]) - 1),
+                "dealer_value": CD.bj_value(hands["a"]) if show else CD.bj_value(hands["a"][:1]),
+                "can_double": d.get("phase") == "play" and len(hands["p"]) == 2,
+                "result": d.get("result"), "over": game.get("over")}
+
+    def _bj_settle(self, cid, char, st, g, game, d):
+        p, a = d["hands"]["p"], d["hands"]["a"]
+        pv = CD.bj_value(p)
+        if pv <= 21 and not CD.bj_natural(p):
+            while CD.bj_value(a) < int(g.get("dealer_stand", 17)):
+                a.append(d["deck"].pop())
+        av = CD.bj_value(a)
+        pn, an = CD.bj_natural(p), CD.bj_natural(a)
+        steps = 2 if d["doubled"] else 1
+        if pv > 21:
+            winner, why = "a", "バースト"
+        elif pn and not an:
+            winner, why, steps = "p", "ブラックジャック", int(g.get("natural_steps", 2))
+        elif an and not pn:
+            winner, why = "a", "ディーラーのブラックジャック"
+        elif av > 21:
+            winner, why = "p", "ディーラーのバースト"
+        elif pv > av:
+            winner, why = "p", "%d 対 %d" % (pv, av)
+        elif pv < av:
+            winner, why = "a", "%d 対 %d" % (pv, av)
+        else:
+            winner, why = None, "%d で引き分け" % pv
+        d["result"] = {"winner": winner, "why": why, "steps": steps, "me": pv, "her": av}
+        self._round_end(cid, char, st, g, game, winner, steps, extra={"why": why, "my_value": pv, "her_value": av},
+                        label="（第%d回戦 %s）" % (d["round"], why), act_pos="holding cards, dealer")
+
+    def _blackjack_move(self, cid, char, st, g, game, d, act, payload):
+        if d["phase"] != "play":
+            raise ValueError("今は操作できません")
+        p = d["hands"]["p"]
+        if act == "hit":
+            p.append(d["deck"].pop())
+            if CD.bj_value(p) >= 21:
+                self._bj_settle(cid, char, st, g, game, d)
+        elif act == "double":
+            if len(p) != 2:
+                raise ValueError("ダブルは最初の 2 枚のときだけです")
+            d["doubled"] = True
+            p.append(d["deck"].pop())
+            self._bj_settle(cid, char, st, g, game, d)
+        elif act == "stand":
+            self._bj_settle(cid, char, st, g, game, d)
+        else:
+            raise ValueError("不明な操作です: %s" % act)
+        return None
+
+    # ================================================================== こいこい
+    def _koikoi_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        hands, field, deck = HF.deal()
+        dealer = "a" if d.get("dealer") == "p" else "p"
+        d.update(round=d["round"] + 1, hands=hands, field=field, deck=deck, caps={"p": [], "a": []},
+                 dealer=dealer, phase="p_play", koi={"p": 0, "a": 0}, prev={"p": 0, "a": 0},
+                 sel=None, drawn=None, result=None, log=[])
+        if dealer == "a":
+            return self._kk_ai_turn(cid, char, st, g, game, d)
+        return None
+
+    def _koikoi_view(self, g, game, d):
+        caps = d.get("caps", {"p": [], "a": []})
+        sel = d.get("sel")
+        drawn = d.get("drawn")
+        choosing = drawn if d.get("phase") == "p_choose_draw" else sel if d.get("phase") == "p_choose_hand" else None
+        return {"phase": d.get("phase"), "round": d.get("round"), "rounds": int(g.get("rounds", 3)),
+                "hand": sorted(d.get("hands", {}).get("p", [])), "her_count": len(d.get("hands", {}).get("a", [])),
+                "field": d.get("field", []), "deck": len(d.get("deck", [])), "caps": caps,
+                "yaku": {k: HF.yaku(v) for k, v in caps.items()}, "points": {k: HF.points(v) for k, v in caps.items()},
+                "koi": d.get("koi"), "dealer": d.get("dealer"), "choosing": choosing,
+                "targets": HF.matches(choosing, d.get("field", [])) if choosing is not None else [],
+                "result": d.get("result"), "log": d.get("log", [])[-6:], "over": game.get("over")}
+
+    def _kk_capture(self, d, who, card, target):
+        got, d["field"] = HF.capture(card, d["field"], target)
+        d["caps"][who] += got
+        return got
+
+    def _kk_log(self, d, who, card, got, char):
+        name = "あなた" if who == "p" else char.get("name", "")
+        if got:
+            d["log"].append("%s: %s で %s を取った" % (name, HF.card_label(card),
+                                                    "・".join(HF.card_label(c) for c in got if c != card)))
+        else:
+            d["log"].append("%s: %s を場に出した" % (name, HF.card_label(card)))
+
+    def _koikoi_move(self, cid, char, st, g, game, d, act, payload):
+        ph = d["phase"]
+        if act == "play":
+            if ph != "p_play":
+                raise ValueError("今は札を出せません")
+            card = int(payload.get("card"))
+            if card not in d["hands"]["p"]:
+                raise ValueError("その札は手札にありません")
+            m = HF.matches(card, d["field"])
+            if len(m) == 2 and payload.get("target") is None:
+                d["sel"], d["phase"] = card, "p_choose_hand"
+                return None
+            d["hands"]["p"].remove(card)
+            got = self._kk_capture(d, "p", card, payload.get("target"))
+            self._kk_log(d, "p", card, got, char)
+            return self._kk_player_draw(cid, char, st, g, game, d)
+        if act == "target":
+            t = int(payload.get("target"))
+            if ph == "p_choose_hand":
+                card = d.pop("sel")
+                d["sel"] = None
+                d["hands"]["p"].remove(card)
+                got = self._kk_capture(d, "p", card, t)
+                self._kk_log(d, "p", card, got, char)
+                return self._kk_player_draw(cid, char, st, g, game, d)
+            if ph == "p_choose_draw":
+                card = d["drawn"]
+                d["drawn"] = None
+                got = self._kk_capture(d, "p", card, t)
+                self._kk_log(d, "p", card, got, char)
+                return self._kk_after_player(cid, char, st, g, game, d)
+            raise ValueError("今は取る札を選べません")
+        if act == "cancel" and ph == "p_choose_hand":
+            d["sel"], d["phase"] = None, "p_play"
+            return None
+        if act in ("koi", "stop"):
+            if ph != "p_koi":
+                raise ValueError("今はこいこいの判断はできません")
+            if act == "stop":
+                return self._kk_agari(cid, char, st, g, game, d, "p")
+            d["koi"]["p"] += 1
+            d["prev"]["p"] = HF.points(d["caps"]["p"])
+            hint = self._say(char, st, g, "my_koi", game)
+            return self._kk_ai_turn(cid, char, st, g, game, d) or hint
+        raise ValueError("不明な操作です: %s" % act)
+
+    def _kk_player_draw(self, cid, char, st, g, game, d):
+        card = d["deck"].pop(0)
+        m = HF.matches(card, d["field"])
+        if len(m) == 2:
+            d["drawn"], d["phase"] = card, "p_choose_draw"
+            return None
+        got = self._kk_capture(d, "p", card, None)
+        self._kk_log(d, "p", card, got, char)
+        return self._kk_after_player(cid, char, st, g, game, d)
+
+    def _kk_after_player(self, cid, char, st, g, game, d):
+        pts = HF.points(d["caps"]["p"])
+        if pts > d["prev"]["p"]:
+            if not d["hands"]["p"]:          # 最後の 1 枚なら自動であがり
+                return self._kk_agari(cid, char, st, g, game, d, "p")
+            d["phase"] = "p_koi"
+            return None
+        return self._kk_ai_turn(cid, char, st, g, game, d)
+
+    def _kk_ai_turn(self, cid, char, st, g, game, d):
+        if not d["hands"]["a"]:
+            return self._kk_nagare(cid, char, st, g, game, d)
+        skill, err = self._skill(g, st)
+        card, target = HF.choose_play(d["hands"]["a"], d["field"], d["caps"]["a"], d["caps"]["p"], err)
+        d["hands"]["a"].remove(card)
+        got = self._kk_capture(d, "a", card, target)
+        self._kk_log(d, "a", card, got, char)
+        dc = d["deck"].pop(0)
+        got = self._kk_capture(d, "a", dc, HF.choose_target(dc, d["field"], d["caps"]["a"], d["caps"]["p"]))
+        self._kk_log(d, "a", dc, got, char)
+        hint = None
+        pts = HF.points(d["caps"]["a"])
+        if pts > d["prev"]["a"]:
+            if not d["hands"]["a"] or not HF.decide_koi(d["caps"]["a"], d["caps"]["p"], len(d["hands"]["a"]),
+                                                       st["params"].get("mood", 50)):
+                return self._kk_agari(cid, char, st, g, game, d, "a")
+            d["koi"]["a"] += 1
+            d["prev"]["a"] = pts
+            d["log"].append("%s: こいこい！" % char.get("name", ""))
+            hint = self._say(char, st, g, "her_koi", game)
+        if not d["hands"]["p"]:
+            return self._kk_nagare(cid, char, st, g, game, d) or hint
+        d["phase"] = "p_play"
+        return hint
+
+    def _kk_agari(self, cid, char, st, g, game, d, who):
+        caps = d["caps"][who]
+        ys = HF.yaku(caps)
+        pts = sum(p for _, p in ys)
+        mult = 1
+        if g.get("double_7", True) and pts >= 7:
+            mult *= 2
+        other = "a" if who == "p" else "p"
+        if d["koi"][other]:
+            mult *= 2                      # こいこい返し
+        total = pts * mult
+        d["result"] = {"winner": who, "yaku": ys, "points": pts, "mult": mult, "total": total}
+        steps = 1
+        for lo, k in g.get("point_steps") or [[1, 1], [7, 2], [14, 3]]:
+            if total >= lo:
+                steps = k
+        yaku_text = "・".join(n for n, _ in ys)
+        self._round_end(cid, char, st, g, game, who, steps, pts=total,
+                        extra={"yaku": yaku_text, "points": total},
+                        label="（第%d局 %sのあがり %d文）" % (d["round"], "あなた" if who == "p" else char.get("name", ""), total),
+                        act_pos="hanafuda, holding cards")
+        return None
+
+    def _kk_nagare(self, cid, char, st, g, game, d):
+        d["result"] = {"winner": None, "yaku": [], "points": 0, "total": 0}
+        self._round_end(cid, char, st, g, game, None, 0, pts=0, label="（第%d局 流れ）" % d["round"])
+        return None
+
+    # ================================================================== 神経衰弱
+    def _concentration_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        d.update(round=1, cards=CD.concentration_deck(int(g.get("pairs", 12))), taken={}, up=[],
+                 memory={}, phase="p_turn", her_steps=[], result=None)
+        return None
+
+    def _concentration_view(self, g, game, d):
+        cards = d.get("cards", [])
+        taken = {int(k): v for k, v in (d.get("taken") or {}).items()}
+        shown = set(d.get("up", []))
+        return {"phase": d.get("phase"), "n": len(cards), "cols": int(g.get("cols", 6)),
+                "faces": [cards[i] if (i in shown or i in taken) else None for i in range(len(cards))],
+                "taken": taken, "up": d.get("up", []), "her_steps": d.get("her_steps", []),
+                "me": game.get("me", 0), "her": game.get("her", 0), "over": game.get("over")}
+
+    def _cc_remember(self, g, st, d, idx):
+        skill, _ = self._skill(g, st)
+        if random.random() < 0.35 + 0.6 * skill:
+            d["memory"][str(idx)] = d["cards"][idx]
+
+    def _concentration_move(self, cid, char, st, g, game, d, act, payload):
+        taken = d["taken"]
+        if act == "flip":
+            if d["phase"] != "p_turn":
+                raise ValueError("今はめくれません")
+            i = int(payload.get("idx"))
+            if str(i) in taken or i in d["up"] or not 0 <= i < len(d["cards"]):
+                raise ValueError("その札はめくれません")
+            d["up"].append(i)
+            self._cc_remember(g, st, d, i)
+            if len(d["up"]) < 2:
+                return None
+            a, b = d["up"]
+            if CD.same_pair(d["cards"][a], d["cards"][b]):
+                taken[str(a)] = taken[str(b)] = "p"
+                game["me"] += 1
+                d["up"] = []
+                return self._cc_check_end(cid, char, st, g, game, d) or self._say(char, st, g, "my_pair", game)
+            d["phase"] = "p_miss"
+            return None
+        if act == "ok":
+            if d["phase"] != "p_miss":
+                raise ValueError("今は進められません")
+            d["up"] = []
+            return self._cc_ai_turn(cid, char, st, g, game, d)
+        raise ValueError("不明な操作です: %s" % act)
+
+    def _cc_ai_turn(self, cid, char, st, g, game, d):
+        skill, err = self._skill(g, st)
+        forget = 0.05 + err + (1 - skill) * 0.15
+        d["memory"] = {k: v for k, v in d["memory"].items() if random.random() > forget}
+        steps, hint = [], None
+        while len(d["taken"]) < len(d["cards"]):
+            taken = {int(k) for k in d["taken"]}
+            mem = {int(k): v for k, v in d["memory"].items()}
+            a = CD.cc_ai_pick(d["cards"], taken, mem)
+            self._cc_remember(g, st, d, a)
+            mem = {int(k): v for k, v in d["memory"].items()}
+            b = CD.cc_ai_pick(d["cards"], taken, mem, first=a)
+            self._cc_remember(g, st, d, b)
+            ok = CD.same_pair(d["cards"][a], d["cards"][b])
+            steps.append({"a": a, "b": b, "ca": d["cards"][a], "cb": d["cards"][b], "match": ok})
+            if not ok:
+                break
+            d["taken"][str(a)] = d["taken"][str(b)] = "a"
+            game["her"] += 1
+        d["her_steps"] = steps
+        d["phase"] = "p_turn"
+        if sum(1 for s in steps if s["match"]) >= 2:
+            hint = self._say(char, st, g, "her_combo", game)
+        return self._cc_check_end(cid, char, st, g, game, d) or hint
+
+    def _cc_check_end(self, cid, char, st, g, game, d):
+        if len(d["taken"]) < len(d["cards"]):
+            return None
+        me, her = game["me"], game["her"]
+        result = "win" if me > her else "lose" if me < her else "draw"
+        game["over"] = result
+        d["phase"] = "round_end"
+        line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+        entry, job = self._record(cid, char, st, g, line, {"me": me, "her": her}, "", result, "（%d対%d）" % (me, her))
+        game["_entry"], game["_job"] = entry, job
+        return None
+
+    # ================================================================== ババ抜き
+    def _oldmaid_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        deck = CD.new_deck(jokers=1)
+        p, _ = CD.remove_pairs(deck[0::2])
+        a, _ = CD.remove_pairs(deck[1::2])
+        d.update(round=1, hands={"p": p, "a": a}, phase="p_draw", peek=None, log=[], result=None)
+        return None
+
+    def _oldmaid_view(self, g, game, d):
+        hands = d.get("hands", {"p": [], "a": []})
+        order = "A23456789TJQKX"
+        return {"phase": d.get("phase"), "hand": sorted(hands["p"], key=lambda c: order.index(c[0])),
+                "her_count": len(hands["a"]), "peek": d.get("peek"), "log": d.get("log", [])[-4:],
+                "her_hand": hands["a"] if game.get("over") else None, "over": game.get("over")}
+
+    def _oldmaid_move(self, cid, char, st, g, game, d, act, payload):
+        if d["phase"] != "p_draw":
+            raise ValueError("今は引けません")
+        a, p = d["hands"]["a"], d["hands"]["p"]
+        i = int(payload.get("idx", -1))
+        if not 0 <= i < len(a):
+            raise ValueError("その札は選べません")
+        if act == "peek":
+            d["peek"] = i
+            joker = a[i] == CD.JOKER
+            if random.random() >= float(g.get("hint_honesty", 0.65)):
+                joker = not joker            # 表情でごまかす
+            return self._say(char, st, g, "peek_joker" if joker else "peek_safe", game)
+        if act != "draw":
+            raise ValueError("不明な操作です: %s" % act)
+        d["peek"] = None
+        card = a.pop(i)
+        p.append(card)
+        p[:], removed = CD.remove_pairs(p)
+        d["log"].append("あなた: %s を引いた%s" % ("ジョーカー" if card == CD.JOKER else card,
+                                               "（ペアで捨てた）" if removed else ""))
+        hint = self._say(char, st, g, "my_joker", game) if card == CD.JOKER else None
+        end = self._om_check_end(cid, char, st, g, game, d)
+        if end is not None or game.get("over"):
+            return hint
+        j = random.randrange(len(p))
+        card = p.pop(j)
+        a.append(card)
+        a[:], removed = CD.remove_pairs(a)
+        d["log"].append("%s: あなたの %s を引いた%s" % (char.get("name", ""), "ジョーカー" if card == CD.JOKER else card,
+                                                  "（ペアで捨てた）" if removed else ""))
+        if card == CD.JOKER:
+            hint = self._say(char, st, g, "her_joker", game)
+        self._om_check_end(cid, char, st, g, game, d)
+        return hint
+
+    def _om_check_end(self, cid, char, st, g, game, d):
+        p, a = d["hands"]["p"], d["hands"]["a"]
+        if p and a:
+            return None
+        result = "win" if not p else "lose"
+        game["over"] = result
+        d["phase"] = "round_end"
+        line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+        entry, job = self._record(cid, char, st, g, line, {}, "holding cards, joker card" if result == "win" else "", result,
+                                  "（%s）" % ("あなたの勝ち" if result == "win" else "あなたの負け"))
+        game["_entry"], game["_job"] = entry, job
+        return result

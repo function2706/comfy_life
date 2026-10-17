@@ -156,7 +156,7 @@ def main():
             app.games.quit()
 
         v = app.state_view()["games"]
-        assert v["current"] is None and len(v["list"]) == 7
+        assert v["current"] is None and len(v["list"]) >= 7
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import shutil
+import time
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULTS = os.path.join(BASE, "defaults")
@@ -27,7 +28,15 @@ def save(p, obj):
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, p)
+    # Windows ではウイルス対策ソフトなどが直前のファイルを一瞬つかんでいて置き換えに失敗することがある
+    for i in range(10):
+        try:
+            os.replace(tmp, p)
+            return
+        except PermissionError:
+            if i == 9:
+                raise
+            time.sleep(0.05 * (i + 1))
 
 
 def deep_merge(base, over):
