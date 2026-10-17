@@ -786,6 +786,190 @@
   ],
   "mg.oldmaid.interrupted.default": [
    "あ、そろそろ行かなきゃ……続きはまた今度ね。"
+  ],
+  "look.activity_breakfast_or_lunch_or_dinner": [
+   "（{name}は{activity_label}。幸せそうに頬をゆるめて、おいしそうに頬張っている）"
+  ],
+  "look.activity_cooking": [
+   "（{name}は台所に立って、楽しそうに料理をしている。ときどき味見をしては満足げにうなずく）"
+  ],
+  "look.activity_morning_or_getready": [
+   "（鏡の前で、のんびりと髪を整えている）"
+  ],
+  "look.activity_night": [
+   "（ベッドにもたれて本を読んでいる。ページをめくる音だけが聞こえる）"
+  ],
+  "look.activity_hobby": [
+   "（スケッチブックに向かって、真剣な顔でペンを走らせている）"
+  ],
+  "look.activity_game": [
+   "（コントローラーを握って、画面に夢中になっている。ときどき「あぁっ」と声が出る）"
+  ],
+  "look.activity_movie": [
+   "（ブランケットにくるまって、画面の光に照らされながら映画に見入っている）"
+  ],
+  "look.outing_true": [
+   "（隣にぴったり寄り添って歩きながら、楽しそうにあたりを見回している）"
+  ],
+  "look.free_true__sleepiness_ge_60__activity_relax": [
+   "（ソファにもたれて、とろんとした目でうたた寝しかけている……）"
+  ],
+  "look.free_true__boredom_ge_60": [
+   "（ぼんやり窓の外を眺めている。ちらっとこちらを見ては、構ってほしそうにしている）"
+  ],
+  "look.free_true__loneliness_ge_60": [
+   "（クッションをぎゅっと抱えて、ちらちらとこちらを気にしている）"
+  ],
+  "look.health_lt_50__asleep_false": [
+   "（顔が少し赤い。ぐったりして、具合が悪そうだ……）"
+  ],
+  "look.free_true__affection_ge_70": [
+   "（目が合うと、ふにゃっとうれしそうに微笑んだ）"
+  ],
+  "peek_face.default": [
+   "な、なぁに……？ そんなに近くで……",
+   "ん〜？ どうしたの、そんなにのぞきこんで。"
+  ],
+  "peek_face.affection_ge_60": [
+   "……{call}の目、近くで見るときれいだね。もっと見ててもいい？"
+  ],
+  "peek_face.shyness_ge_50": [
+   "（目が合った瞬間、ぱっと顔をそらされた。頬が赤い）"
+  ],
+  "peek_face.mood_lt_35": [
+   "……むぅ。今はあんまり見ないで。"
+  ],
+  "watch_quietly.free_true": [
+   "（{name}はこちらに気づかず、{activity_label}。小さく鼻歌を歌っている）"
+  ],
+  "watch_quietly.free_true__mood_ge_60": [
+   "（気づかないまま、ふふっと思い出し笑いをしている）"
+  ],
+  "watch_quietly.free_true__mood_lt_40": [
+   "（ため息をひとつ。頬をふくらませて、何か考え事をしているようだ）"
+  ],
+  "watch_quietly.free_true__affection_ge_75": [
+   "（{call}の写真を眺めて、ひとりで照れている……）"
+  ],
+  "watch_quietly.asleep_true": [
+   "（ぬいぐるみを抱えて、すやすやと眠っている。起こさないようにそっと離れた）"
+  ],
+  "watch_quietly.away_true": [
+   "（{location}で{activity_label}。{call}のことは見えていない）"
+  ],
+  "watch_quietly.busy_true": [
+   "（{activity_label}……。そっとしておこう）"
+  ],
+  "full_body.default": [
+   "どうしたの、じっと見て。……この服、変かなぁ？"
+  ],
+  "full_body.mood_ge_60": [
+   "えへへ、今日の服、ちょっと気に入ってるの。かわいいでしょ？"
+  ],
+  "full_body.shyness_ge_40": [
+   "そ、そんなに上から下まで見ないで……照れちゃう……"
+  ],
+  "full_body.affection_ge_70": [
+   "……似合ってるって、言ってほしいなぁ？"
+  ],
+  "sleeping_face.default": [
+   "（すうすうと穏やかな寝息。あどけない寝顔だ）"
+  ],
+  "sleeping_face.mood_ge_60": [
+   "（寝顔がふにゃりとほころんだ。いい夢を見ているらしい）"
+  ],
+  "sleeping_face.affection_ge_70": [
+   "（むにゃむにゃ……「{call}……行かないで……」と寝言をつぶやいた）"
+  ],
+  "sleeping_face.health_lt_50": [
+   "（眉を寄せて、少し寝苦しそうだ）"
+  ],
+  "end_activity.default": [
+   "そうだね、今日はここまでにしよっか。"
+  ],
+  "end_activity.boredom_lt_30": [
+   "え〜、もう終わり？ ……また今度、続きしようね。約束だよ？"
+  ],
+  "picnic.default": [
+   "お弁当、作っていくね！ 晴れてよかったぁ……"
+  ],
+  "picnic.season_winter": [
+   "ちょっと寒いけど、ひなたは気持ちいいね。……くっついてたら、もっとあったかいかも。"
+  ],
+  "picnic.season_spring": [
+   "桜、きれい……！ お花見ピクニックだね。"
+  ],
+  "picnic.energy_lt_25": [
+   "うーん、今日は外に出る元気がなくて……おうちでくっついてたいな。"
+  ],
+  "hiking.default": [
+   "山、いいね！ ……頂上まで、手引っぱってくれる？"
+  ],
+  "hiking.season_autumn": [
+   "紅葉、すごくきれい……一緒に来られてよかった。"
+  ],
+  "hiking.energy_lt_40": [
+   "はぁ、はぁ……ちょ、ちょっと休憩させて……おんぶ、とか……だめ？"
+  ],
+  "hiking.energy_lt_20": [
+   "今日は山はちょっと……体力が持たなそうなの。"
+  ],
+  "beach.default": [
+   "海……！ 潮風、気持ちいいね。"
+  ],
+  "beach.season_summer": [
+   "夏の海、最高だね！ 足だけでも入っちゃおうかな。一緒に入ろ？"
+  ],
+  "beach.season_winter": [
+   "冬の海も、静かでいいね……ちょっと寒いけど。腕、借りてもいい？"
+  ],
+  "beach.phase_evening": [
+   "夕日が海に沈んでいく……きれい。ずっと一緒に見てたいな。"
+  ],
+  "amusement.default": [
+   "遊園地！ 絶叫系、乗れる？ {fp}は……怖いけど乗りたいな。手、握っててね？"
+  ],
+  "amusement.affection_ge_70": [
+   "観覧車、最後に乗ろうね。……てっぺんで、ね。"
+  ],
+  "amusement.energy_lt_25": [
+   "今日は人混みに行く元気がなくて……ごめんね。"
+  ],
+  "aquarium.default": [
+   "見て、クラゲ……ふわふわしてて、ずっと見ていられるね。"
+  ],
+  "aquarium.mood_ge_60": [
+   "ペンギン！ よちよち歩いてる……かわいい〜……！"
+  ],
+  "aquarium.affection_ge_65": [
+   "暗いから……手、つないでてもいい？ ……離しちゃだめだよ？"
+  ],
+  "cafe.default": [
+   "このケーキ、半分こしない？ どっちも食べたくて……ひとくち、あーんしてくれる？"
+  ],
+  "cafe.mood_ge_55": [
+   "新作のラテ、気になってたの！ えへへ、うれしい。"
+  ],
+  "cafe.satiety_lt_30": [
+   "お腹ぺこぺこだったの、うれしい……！"
+  ],
+  "stargazing.default": [
+   "わぁ……星、こんなに見えるんだね。"
+  ],
+  "stargazing.season_winter": [
+   "冬の星空って、空気が澄んでて一番きれいなんだって。……寒いけど。"
+  ],
+  "stargazing.affection_ge_70": [
+   "……ねぇ、{call}。もう少し、くっついててもいい？"
+  ],
+  "go_home.default": [
+   "そろそろ帰ろっか。楽しかったね。……帰り道も、手つないでていい？"
+  ],
+  "go_home.energy_lt_35": [
+   "ただいまー……っと。ふぅ、ちょっと疲れちゃった。"
+  ],
+  "go_home.mood_ge_70": [
+   "もう帰るの？ ……もうちょっとだけ、一緒にいたかったな。"
   ]
  }
 }

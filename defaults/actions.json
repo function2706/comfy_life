@@ -71,6 +71,287 @@
     "priority": 4,
     "pos": "",
     "neg": ""
+   },
+   {
+    "text": "（{name}は{activity_label}。おいしそうに頬張っている）",
+    "when": "activity=breakfast|lunch|dinner",
+    "pos": "eating, happy, chewing",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（{name}は台所に立って、手際よく料理をしている。いい匂いがする）",
+    "when": "activity=cooking",
+    "pos": "cooking, from side, apron, focused",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（鏡の前で、髪を整えている）",
+    "when": "activity=morning|getready",
+    "pos": "looking at mirror, fixing hair, from side",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（ベッドに腰かけて本を読んでいる。ページをめくる音だけが聞こえる）",
+    "when": "activity=night",
+    "pos": "reading book, sitting on bed, calm",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（スケッチブックに向かって、真剣な顔でペンを走らせている）",
+    "when": "activity=hobby",
+    "pos": "drawing, sketchbook, focused, from side",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（コントローラーを握って、画面に夢中になっている）",
+    "when": "activity=game",
+    "pos": "playing video game, focused, leaning forward",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（画面の光に照らされて、映画に見入っている）",
+    "when": "activity=movie",
+    "pos": "watching tv, absorbed, light from screen",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（隣を歩きながら、楽しそうにあたりを見回している）",
+    "when": "outing=true",
+    "pos": "walking, looking around, smile, outdoors",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（ソファでうたた寝しかけている……）",
+    "when": "free=true, sleepiness>=60, activity=relax",
+    "pos": "dozing off, sitting on sofa",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（ぼんやり窓の外を眺めている。少し退屈そうだ）",
+    "when": "free=true, boredom>=60",
+    "pos": "looking out window, bored, chin rest",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（クッションを抱えて、ちらちらとこちらを気にしている）",
+    "when": "free=true, loneliness>=60",
+    "pos": "hugging pillow, glancing at viewer, lonely",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（顔が少し赤い。具合が悪そうだ……）",
+    "when": "health<50, asleep=false",
+    "pos": "sick, flushed face, tired",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（目が合うと、うれしそうに微笑んだ）",
+    "when": "free=true, affection>=70",
+    "pos": "smile, looking at viewer, happy",
+    "neg": "",
+    "priority": 0
+   }
+  ]
+ },
+ {
+  "id": "peek_face",
+  "name": "顔をのぞきこむ",
+  "icon": "🔍",
+  "category": "見る",
+  "when": "free=true",
+  "cooldown": 15,
+  "effects": {
+   "shyness": 10,
+   "heart": 5
+  },
+  "pos": "close-up, face focus, looking at viewer",
+  "neg": "",
+  "replace_scene": true,
+  "reactions": [
+   {
+    "text": "な、なんですか……？ そんなに近くで……",
+    "when": "",
+    "pos": "blush, surprised",
+    "neg": ""
+   },
+   {
+    "text": "……{call}の目、近くで見るときれいですね。",
+    "when": "affection>=60",
+    "pos": "blush, gentle smile, half-closed eyes",
+    "neg": ""
+   },
+   {
+    "text": "（目が合った瞬間、ぱっと顔をそらされた）",
+    "when": "shyness>=50",
+    "pos": "looking away, full-face blush",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……今はあんまり見ないでください。",
+    "when": "mood<35",
+    "pos": "looking away, annoyed",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "watch_quietly",
+  "name": "こっそり見守る",
+  "icon": "🫣",
+  "category": "見る",
+  "when": "",
+  "cooldown": 0,
+  "no_llm": true,
+  "effects": {},
+  "pos": "candid, from side, not looking at viewer, absorbed",
+  "neg": "looking at viewer",
+  "reactions": [
+   {
+    "text": "（{name}はこちらに気づかず、{activity_label}。小さく鼻歌を歌っている）",
+    "when": "free=true",
+    "pos": "humming",
+    "neg": ""
+   },
+   {
+    "text": "（気づかないまま、ふっと思い出し笑いをしている）",
+    "when": "free=true, mood>=60",
+    "pos": "smile, closed eyes",
+    "neg": ""
+   },
+   {
+    "text": "（ため息をひとつ。何か考え事をしているようだ）",
+    "when": "free=true, mood<40",
+    "pos": "sigh, looking down",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（{call}の写真を眺めて、ひとりで照れている……）",
+    "when": "free=true, affection>=75",
+    "pos": "looking at smartphone, blush, smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（すやすやと眠っている。起こさないようにそっと離れた）",
+    "when": "asleep=true",
+    "pos": "sleeping",
+    "neg": "",
+    "priority": 3
+   },
+   {
+    "text": "（{location}で{activity_label}。{call}のことは見えていない）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3
+   },
+   {
+    "text": "（{activity_label}……。そっとしておこう）",
+    "when": "busy=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3
+   }
+  ]
+ },
+ {
+  "id": "full_body",
+  "name": "全身を眺める",
+  "icon": "🧍",
+  "category": "見る",
+  "when": "free=true",
+  "cooldown": 10,
+  "effects": {
+   "shyness": 5
+  },
+  "pos": "full body, standing, showing outfit, looking at viewer",
+  "neg": "close-up",
+  "replace_scene": false,
+  "reactions": [
+   {
+    "text": "どうしたんですか、じっと見て。……この服、変ですか？",
+    "when": "",
+    "pos": "standing, tilted head",
+    "neg": ""
+   },
+   {
+    "text": "ふふ、今日の服、ちょっと気に入ってるんです。",
+    "when": "mood>=60",
+    "pos": "twirling, smile",
+    "neg": ""
+   },
+   {
+    "text": "そ、そんなに上から下まで見ないでください……！",
+    "when": "shyness>=40",
+    "pos": "embarrassed, blush, hands together",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……似合ってるって、言ってくれてもいいんですよ？",
+    "when": "affection>=70",
+    "pos": "smile, hands behind back, blush",
+    "neg": ""
+   }
+  ]
+ },
+ {
+  "id": "sleeping_face",
+  "name": "寝顔を見る",
+  "icon": "😴",
+  "category": "見る",
+  "when": "asleep=true",
+  "cooldown": 5,
+  "no_llm": true,
+  "effects": {
+   "loneliness": -2
+  },
+  "pos": "sleeping, close-up, face focus, lying on bed, closed eyes",
+  "neg": "looking at viewer, open eyes",
+  "replace_scene": true,
+  "reactions": [
+   {
+    "text": "（すうすうと穏やかな寝息。あどけない寝顔だ）",
+    "when": "",
+    "pos": "peaceful",
+    "neg": ""
+   },
+   {
+    "text": "（寝顔が少しほころんだ。いい夢を見ているらしい）",
+    "when": "mood>=60",
+    "pos": "smile",
+    "neg": ""
+   },
+   {
+    "text": "（むにゃむにゃ……「{call}……」と寝言をつぶやいた）",
+    "when": "affection>=70",
+    "pos": "smile, parted lips",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（眉を寄せて、少し寝苦しそうだ）",
+    "when": "health<50",
+    "pos": "sweat, troubled expression",
+    "neg": "",
+    "priority": 2
    }
   ]
  },
@@ -1043,6 +1324,32 @@
   ]
  },
  {
+  "id": "end_activity",
+  "name": "切り上げる",
+  "icon": "⏹️",
+  "category": "あそび",
+  "when": "overriding=true, outing=false",
+  "cooldown": 0,
+  "end_override": true,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "そうですね、今日はここまでにしましょうか。",
+    "when": "",
+    "pos": "smile",
+    "neg": ""
+   },
+   {
+    "text": "えー、もう終わりですか？ ……また今度、続きしましょうね。",
+    "when": "boredom<30",
+    "pos": "pout, smile",
+    "neg": ""
+   }
+  ]
+ },
+ {
   "id": "walk",
   "name": "散歩に行く",
   "icon": "🚶",
@@ -1061,13 +1368,14 @@
    "label": "散歩中",
    "location": "近所",
    "minutes": 40,
-   "outfit": "",
+   "outfit": "@outing",
    "pos": "outdoors, walking, street, trees, scenery",
    "neg": "",
    "effects": {
     "energy": -6,
     "hydration": -6
-   }
+   },
+   "outing": true
   },
   "reactions": [
    {
@@ -1112,12 +1420,13 @@
    "label": "買い物中",
    "location": "商店街",
    "minutes": 90,
-   "outfit": "",
+   "outfit": "@outing",
    "pos": "shopping district, storefront, outdoors",
    "neg": "",
    "effects": {
     "energy": -6
-   }
+   },
+   "outing": true
   },
   "reactions": [
    {
@@ -1162,7 +1471,8 @@
    "neg": "",
    "effects": {
     "energy": -4
-   }
+   },
+   "outing": true
   },
   "reactions": [
    {
@@ -1191,10 +1501,428 @@
   ]
  },
  {
+  "id": "picnic",
+  "name": "ピクニック",
+  "icon": "🧺",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning|noon",
+  "cooldown": 360,
+  "effects": {
+   "stress": -25,
+   "boredom": -30,
+   "mood": 10,
+   "satiety": 30
+  },
+  "pos": "sitting on picnic blanket, lunch box, smile",
+  "neg": "",
+  "override": {
+   "activity": "picnic",
+   "label": "ピクニック中",
+   "location": "公園",
+   "minutes": 150,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "park, picnic, grass, trees, sunny",
+   "neg": "",
+   "effects": {
+    "energy": -4
+   }
+  },
+  "reactions": [
+   {
+    "text": "お弁当、作っていきますね！ 晴れてよかった……",
+    "when": "",
+    "pos": "excited, holding basket",
+    "neg": ""
+   },
+   {
+    "text": "ちょっと寒いけど、ひなたは気持ちいいですね。",
+    "when": "season=winter",
+    "pos": "scarf, coat, smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "桜、きれい……！ お花見ピクニックですね。",
+    "when": "season=spring",
+    "pos": "cherry blossoms, petals, smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "うーん、今日は外に出る元気がなくて……",
+    "when": "energy<25",
+    "pos": "tired, apologetic smile",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "hiking",
+  "name": "ハイキング",
+  "icon": "⛰️",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning",
+  "cooldown": 720,
+  "effects": {
+   "stress": -30,
+   "mood": 10,
+   "health": 5,
+   "boredom": -30,
+   "energy": -20
+  },
+  "pos": "mountain trail, hiking, smile, wiping sweat",
+  "neg": "",
+  "override": {
+   "activity": "hiking",
+   "label": "ハイキング中",
+   "location": "山道",
+   "minutes": 240,
+   "outing": true,
+   "outfit": "hiking outfit, backpack, cap, sneakers",
+   "pos": "outdoors, mountain, trail, forest, blue sky",
+   "neg": "",
+   "effects": {
+    "energy": -5,
+    "hydration": -6
+   }
+  },
+  "reactions": [
+   {
+    "text": "山、いいですね！ 頂上まで競争ですよ？",
+    "when": "",
+    "pos": "excited, backpack",
+    "neg": ""
+   },
+   {
+    "text": "紅葉がすごくきれい……来てよかったです。",
+    "when": "season=autumn",
+    "pos": "autumn leaves, looking up, smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "はぁ、はぁ……ちょ、ちょっと休憩させてください……",
+    "when": "energy<40",
+    "pos": "tired, sweat, sitting on rock",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "今日は山はちょっと……体力が持たなそうです。",
+    "when": "energy<20",
+    "pos": "tired, apologetic smile",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "beach",
+  "name": "海に行く",
+  "icon": "🏖️",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning|noon|evening",
+  "cooldown": 720,
+  "effects": {
+   "stress": -25,
+   "boredom": -35,
+   "mood": 12,
+   "heart": 5,
+   "energy": -10
+  },
+  "pos": "beach, ocean, waves, smile, wind",
+  "neg": "",
+  "override": {
+   "activity": "beach",
+   "label": "海でのんびり中",
+   "location": "海辺",
+   "minutes": 180,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "beach, ocean, sand, blue sky, horizon",
+   "neg": "",
+   "effects": {
+    "energy": -4,
+    "hydration": -5
+   }
+  },
+  "reactions": [
+   {
+    "text": "海……！ 潮風、気持ちいいですね。",
+    "when": "",
+    "pos": "hair blowing in wind, smile",
+    "neg": ""
+   },
+   {
+    "text": "夏の海、最高ですね！ 足だけでも入っちゃおうかな。",
+    "when": "season=summer",
+    "pos": "barefoot, splashing water, sunlight",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "冬の海も、静かでいいですね……ちょっと寒いけど。",
+    "when": "season=winter",
+    "pos": "coat, scarf, cold, gray sky",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "夕日が海に沈んでいく……きれい。",
+    "when": "phase=evening",
+    "pos": "sunset, orange sky, silhouette",
+    "neg": "",
+    "priority": 2
+   }
+  ]
+ },
+ {
+  "id": "amusement",
+  "name": "遊園地",
+  "icon": "🎡",
+  "category": "おでかけ",
+  "when": "free=true, affection>=40, phase=morning|noon",
+  "cooldown": 720,
+  "effects": {
+   "boredom": -40,
+   "mood": 15,
+   "heart": 10,
+   "energy": -20,
+   "affection": 2
+  },
+  "pos": "amusement park, ferris wheel, excited, smile",
+  "neg": "",
+  "override": {
+   "activity": "amusement",
+   "label": "遊園地で遊び中",
+   "location": "遊園地",
+   "minutes": 240,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "amusement park, ferris wheel, roller coaster, colorful",
+   "neg": "",
+   "effects": {
+    "energy": -5
+   }
+  },
+  "reactions": [
+   {
+    "text": "遊園地！ 絶叫系、乗れます？ {fp}は……ちょっと怖いけど乗りたいです！",
+    "when": "",
+    "pos": "excited, holding ticket",
+    "neg": ""
+   },
+   {
+    "text": "観覧車、最後に乗りましょうね。……てっぺんで、ね。",
+    "when": "affection>=70",
+    "pos": "blush, smile, looking at ferris wheel",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "今日は人混みに行く元気が……ごめんなさい。",
+    "when": "energy<25",
+    "pos": "tired, apologetic smile",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "aquarium",
+  "name": "水族館",
+  "icon": "🐠",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning|noon|evening",
+  "cooldown": 480,
+  "effects": {
+   "stress": -15,
+   "boredom": -25,
+   "heart": 8,
+   "mood": 8
+  },
+  "pos": "aquarium, looking at fish tank, blue light",
+  "neg": "",
+  "override": {
+   "activity": "aquarium",
+   "label": "水族館を見学中",
+   "location": "水族館",
+   "minutes": 150,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "aquarium, large fish tank, blue light, jellyfish, indoors",
+   "neg": "",
+   "effects": {
+    "energy": -3
+   }
+  },
+  "reactions": [
+   {
+    "text": "見てください、クラゲ……ふわふわしてて、ずっと見ていられますね。",
+    "when": "",
+    "pos": "looking at jellyfish, blue light, calm smile",
+    "neg": ""
+   },
+   {
+    "text": "ペンギン！ よちよち歩いてる……かわいい……！",
+    "when": "mood>=60",
+    "pos": "excited, pointing, smile",
+    "neg": ""
+   },
+   {
+    "text": "暗いから……手、つないでてもいいですか？",
+    "when": "affection>=65",
+    "pos": "holding hands, blush, blue light",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "cafe",
+  "name": "カフェに行く",
+  "icon": "🍰",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning|noon|evening",
+  "cooldown": 240,
+  "effects": {
+   "satiety": 15,
+   "hydration": 25,
+   "mood": 8,
+   "stress": -10,
+   "boredom": -15
+  },
+  "pos": "cafe, sitting at table, latte, cake, smile",
+  "neg": "",
+  "override": {
+   "activity": "cafe",
+   "label": "カフェでひと休み中",
+   "location": "カフェ",
+   "minutes": 90,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "cafe, indoors, window, wooden table, warm lighting",
+   "neg": "",
+   "effects": {}
+  },
+  "reactions": [
+   {
+    "text": "このケーキ、半分こしません？ どっちも食べたくて……",
+    "when": "",
+    "pos": "cake, fork, smile",
+    "neg": ""
+   },
+   {
+    "text": "新作のラテ、気になってたんです！",
+    "when": "mood>=55",
+    "pos": "holding cup, latte art, excited",
+    "neg": ""
+   },
+   {
+    "text": "お腹ぺこぺこだったので、うれしいです……！",
+    "when": "satiety<30",
+    "pos": "eating cake, happy",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "stargazing",
+  "name": "星を見に行く",
+  "icon": "🌌",
+  "category": "おでかけ",
+  "when": "free=true, phase=night",
+  "cooldown": 480,
+  "effects": {
+   "heart": 15,
+   "stress": -15,
+   "mood": 8,
+   "affection": 2
+  },
+  "pos": "night sky, starry sky, looking up, hill",
+  "neg": "",
+  "override": {
+   "activity": "stargazing",
+   "label": "星を見ている",
+   "location": "丘の上",
+   "minutes": 60,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "outdoors, night, starry sky, milky way, hill, dark",
+   "neg": "",
+   "effects": {}
+  },
+  "reactions": [
+   {
+    "text": "わぁ……星、こんなに見えるんですね。",
+    "when": "",
+    "pos": "looking up, starry sky, awe",
+    "neg": ""
+   },
+   {
+    "text": "冬の星空って、空気が澄んでて一番きれいなんですって。……寒いけど。",
+    "when": "season=winter",
+    "pos": "coat, scarf, white breath",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……ねぇ、{call}。もう少し、くっついててもいいですか？",
+    "when": "affection>=70",
+    "pos": "leaning on shoulder, blush, starry sky",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "go_home",
+  "name": "家に帰る",
+  "icon": "🏠",
+  "category": "おでかけ",
+  "when": "outing=true",
+  "cooldown": 0,
+  "end_override": true,
+  "effects": {
+   "energy": 3
+  },
+  "pos": "entrance, coming home, smile",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "そろそろ帰りましょうか。楽しかったですね。",
+    "when": "",
+    "pos": "smile",
+    "neg": ""
+   },
+   {
+    "text": "ただいまー……っと。ふぅ、ちょっと疲れちゃいました。",
+    "when": "energy<35",
+    "pos": "tired, smile, taking off shoes",
+    "neg": ""
+   },
+   {
+    "text": "もう帰るんですか？ ……もうちょっとだけ、いたかったな。",
+    "when": "mood>=70",
+    "pos": "pout, smile",
+    "neg": ""
+   }
+  ]
+ },
+ {
   "id": "gift",
   "name": "プレゼントを渡す",
   "icon": "🎁",
-  "category": "おでかけ",
+  "category": "ふれあい",
   "when": "asleep=false, away=false",
   "cooldown": 1440,
   "effects": {

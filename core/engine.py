@@ -6,6 +6,7 @@
 """
 import glob
 import hashlib
+import json
 import os
 import queue
 import random
@@ -24,6 +25,8 @@ MAX_CATCHUP_SEC = 14 * 24 * 3600
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_JA = "月火水木金土日"
 LOG_KEEP_IN_VIEW = 60
+SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
+           6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "cool", "mukuchi", "jimuteki", "otokomae",
                  "genki", "tenshin", "uchiki", "boyish", "amaenbo"]
 
@@ -113,25 +116,15 @@ class App:
 
     def _migrate(self):
         """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
-        have = {a.get("id") for a in self.actions}
-        added = [a for a in store.load(os.path.join(store.DEFAULTS, "actions.json"), [])
-                 if a["id"].startswith("_") and a["id"] not in have]
-        if added:
-            self.actions += added
-            store.save(store.dpath("actions.json"), self.actions)
-        # ミニゲーム: 新しく増えた既定ゲームを追加 (ユーザーが消したものは seen に残るので戻さない)
-        defaults = store.load(os.path.join(store.DEFAULTS, "minigames.json"), [])
-        have = {g.get("id") for g in self.minigames}
-        seen = set(self.settings.get("seen_minigames") or []) or set(have)
-        new = [g for g in defaults if g["id"] not in have and g["id"] not in seen]
-        all_ids = seen | {g["id"] for g in defaults}
-        if new or all_ids != set(self.settings.get("seen_minigames") or []):
-            if new:
-                self.minigames += new
-                store.save(store.dpath("minigames.json"), self.minigames)
-            self.settings["seen_minigames"] = sorted(all_ids)
-            store.save(store.dpath("settings.json"), self.settings)
+        self._sync_defaults("actions", self.actions, "actions.json")
+        self._sync_defaults("minigames", self.minigames, "minigames.json")
         for c in self.chars.values():
+            # お出かけ着と, 着せ替えの服を外に着ていけるか (既定の服だけ判定. 自作の服は設定で選ぶ)
+            if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []):
+                c.setdefault("outfit_outing", c.get("outfit_default", ""))
+                for o in c.get("wardrobe") or []:
+                    o.setdefault("outing_ok", o.get("id") in ("casual", "onepiece", "yukata"))
+                store.save_character(c)
             # 以前は性格を選ぶと呼び方をキャラにコピーしていた. プリセットと同じなら「プリセットに従う」(空欄) に戻す
             p = self.personas.get(c.get("persona_id") or "")
             if p and c.get("player_call") and c["player_call"] == p.get("player_call"):
@@ -141,6 +134,44 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["wardrobe"] = d.get("wardrobe", [])
                 store.save_character(c)
+
+    def _sync_defaults(self, kind, items, fname):
+        """data/ の項目を既定に追従させる.
+        - 過去の既定と完全に同じ (=未編集) 項目は最新の既定に更新する. 手を加えたものは触らない
+        - 新しく増えた既定項目を, 既定での並び位置に近いところへ追加する (ユーザーが消したものは戻さない)"""
+        defaults = store.load(os.path.join(store.DEFAULTS, fname), [])
+        hist = (store.load(os.path.join(store.DEFAULTS, "default_history.json"), {}) or {}).get(kind, {})
+        dmap = {d["id"]: d for d in defaults}
+        updated = []
+        for i, it in enumerate(items):
+            d = dmap.get(it.get("id"))
+            if d is None:
+                continue
+            h = store.obj_hash(it)
+            if h != store.obj_hash(d) and h in hist.get(it["id"], []):
+                items[i] = json.loads(json.dumps(d))
+                updated.append(it["id"])
+        have = [it.get("id") for it in items]
+        key = "seen_" + kind
+        seen = set(self.settings.get(key) or []) or set(have)
+        added = []
+        for pos, d in enumerate(defaults):
+            if d["id"] in have or d["id"] in seen:
+                continue
+            prev = next((defaults[j]["id"] for j in range(pos - 1, -1, -1) if defaults[j]["id"] in have), None)
+            at = have.index(prev) + 1 if prev else len(items)
+            items.insert(at, json.loads(json.dumps(d)))
+            have.insert(at, d["id"])
+            added.append(d["id"])
+        if updated or added:
+            store.save(store.dpath(fname), items)
+            self.logq.put("%s [INFO] 既定の%sを反映: 更新 %d 件 %s / 追加 %d 件 %s" % (
+                datetime.now().strftime("%m-%d %H:%M:%S"), kind, len(updated), ",".join(updated),
+                len(added), ",".join(added)))
+        all_ids = sorted(seen | set(dmap))
+        if all_ids != sorted(self.settings.get(key) or []):
+            self.settings[key] = all_ids
+            store.save(store.dpath("settings.json"), self.settings)
 
     def char(self, cid=None):
         cid = cid or self.settings.get("active_character")
@@ -201,6 +232,7 @@ class App:
                 "away": bool(e.get("away")), "asleep": asleep, "busy": bool(e.get("busy")),
                 # 服装固定 (着せ替えより優先). 未指定なら睡眠中の場面だけ固定
                 "fixed_outfit": bool(e.get("fixed_outfit", asleep)),
+                "outing": bool(e.get("outing")),   # 外出 (散歩・お出かけ). 部屋着のままにはしない
                 "dress": None, "source": src}
 
     def wardrobe_item(self, char, oid):
@@ -217,6 +249,8 @@ class App:
             s["remove_tags"] = go.get("remove") or []
             return s
         o = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
+        if o and s["outing"] and not o.get("outing_ok"):
+            o = None          # 部屋着・パジャマなどは外に着ていかない (お出かけ着のまま)
         if o and not s["fixed_outfit"]:
             s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
         return s
@@ -237,6 +271,8 @@ class App:
         ov = st.get("override")
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
+            if s["outfit"] == "@outing" or (s["outing"] and not s["outfit"]):
+                s["outfit"] = char.get("outfit_outing") or char.get("outfit_default", "")
             s["outfit"] = s["outfit"] or base["outfit"]
             s["until"] = ov["until"]
             return self._apply_dress(char, st, s)
@@ -260,6 +296,10 @@ class App:
             "weekday": dt.weekday(), "day": DAY_KEYS[dt.weekday()], "weekend": dt.weekday() >= 5,
             "absent": round((dt.timestamp() - st.get("last_interaction", dt.timestamp())) / 3600.0, 2),
             "repeat": 0, "outfit": (st.get("dress") or {}).get("id", ""),
+            "outing": scene.get("outing", False),
+            # 行動による一時的な過ごし方 (ゲーム・映画・散歩など) の最中か. 寝ているのは除く
+            "overriding": scene.get("source") == "override" and not scene["asleep"],
+            "month": dt.month, "season": SEASONS[dt.month],
         })
         return ctx
 
@@ -469,6 +509,8 @@ class App:
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
                 ov["from_action"] = aid
                 st["override"] = ov
+            if a.get("end_override") and not r.get("override"):
+                st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
             if cd:

@@ -1075,7 +1075,7 @@ function parseRules(s, key) {
 function paramKeysHint() {
   return h('div', { class: 'keys' },
     h('div', {}, 'パラメータ id: ', SE.params.map((p, i) => [i ? '、' : '', h('code', {}, p.id), `(${p.name})`])),
-    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat', 'outfit']
+    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat', 'outfit', 'outing', 'overriding', 'month', 'season']
       .map((k, i) => [i ? ' ' : '', h('code', {}, k)])),
     h('div', {}, '条件の書き方: ', h('code', {}, 'free=true, mood>=50, phase=night|midnight'), '（カンマで AND、| で OR、time は 07:30 形式）'),
     h('div', {}, '効果の書き方: ', h('code', {}, 'mood:+5, stress:-10'), '（1時間あたりの値はスケジュール・一時シーン）'));
@@ -1145,6 +1145,7 @@ SEC.char = () => {
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
     fld('普段の服装（スケジュールで未指定のとき）', inp(c, 'outfit_default')),
+    fld('お出かけ着（散歩などで外に出るとき）', inp(c, 'outfit_outing'), '部屋着やパジャマのまま出かけないよう、外出時はこの服になります（着せ替えで「外に着ていける」服を選んでいればそちら）'),
     h('div', { class: 'sect' }, '性格プリセット（セリフの口調）'),
     personaPicker(c),
     h('div', { class: 'sect' }, '性格・口調の説明（LLM 使用時に参照）'),
@@ -1253,6 +1254,8 @@ function sceneFields(e, opts = {}) {
     fld('場所', inp(e, 'location', { ph: 'ダイニング' })),
     h('div', { class: 'fld' }, h('span', { class: 'fl' }, '状態'),
       h('div', { class: 'row' }, chk(e, 'away', '外出'), chk(e, 'asleep', '睡眠'), chk(e, 'busy', '手が離せない'),
+        h('label', { class: 'check', title: 'あなたと一緒のお出かけ。お出かけ着になり、「家に帰る」が出る' },
+          h('input', { type: 'checkbox', checked: !!e.outing, onchange: (ev) => { e.outing = ev.target.checked; } }), '一緒にお出かけ'),
         h('label', { class: 'check', title: '着せ替えより、この場面の服装を優先する（未指定なら睡眠中のみ固定）' },
           h('input', { type: 'checkbox', checked: e.fixed_outfit ?? !!e.asleep, onchange: (ev) => { e.fixed_outfit = ev.target.checked; } }), '服装固定'))),
     fld('服装（空欄=継続）', inp(e, 'outfit'), null, 'span2'),
@@ -1306,6 +1309,7 @@ SEC.wardrobe = () => {
       h('div', { class: 'grid4' },
         fld('id', inp(o, 'id'), '反応の条件 outfit=… で使う'), fld('名前', inp(o, 'name')), fld('アイコン', inp(o, 'icon')),
         fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
+        h('div', { class: 'fld' }, h('span', { class: 'fl' }, '外出'), chk(o, 'outing_ok', '外に着ていける')),
         fld('Positive（服装）', inp(o, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2')))));
   };

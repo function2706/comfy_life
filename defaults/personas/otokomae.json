@@ -793,6 +793,189 @@
   ],
   "mg.oldmaid.interrupted.default": [
    "すまない、そろそろ行かないと。続きはまた今度だ。"
+  ],
+  "look.activity_breakfast_or_lunch_or_dinner": [
+   "（{name}は{activity_label}。気持ちのいい食べっぷりで頬張っている）"
+  ],
+  "look.activity_cooking": [
+   "（{name}は台所に立って、フライパンを軽々とあおっている。いい匂いがする）"
+  ],
+  "look.activity_morning_or_getready": [
+   "（鏡の前で、手ぐしでざっと髪を整えている）"
+  ],
+  "look.activity_night": [
+   "（ベッドに腰かけて、片膝を立てたまま静かに本を読んでいる）"
+  ],
+  "look.activity_hobby": [
+   "（スケッチブックに向かって、眉を寄せて真剣にペンを走らせている）"
+  ],
+  "look.activity_game": [
+   "（コントローラーを握って、画面に向かって小さく「よし」とつぶやいている）"
+  ],
+  "look.activity_movie": [
+   "（腕を組んだまま、画面の光に照らされて映画に見入っている）"
+  ],
+  "look.outing_true": [
+   "（隣を歩きながら、ときどき振り返ってこちらの歩幅を気にかけている）"
+  ],
+  "look.free_true__sleepiness_ge_60__activity_relax": [
+   "（ソファで腕を組んだまま、うたた寝しかけている……）"
+  ],
+  "look.free_true__boredom_ge_60": [
+   "（窓の外をぼんやり眺めて、首を軽く回している。少し退屈そうだ）"
+  ],
+  "look.free_true__loneliness_ge_60": [
+   "（クッションを片腕に抱えて、ちらちらとこちらを気にしている）"
+  ],
+  "look.health_lt_50__asleep_false": [
+   "（顔が少し赤い。平気な顔をしているが、具合が悪そうだ……）"
+  ],
+  "look.free_true__affection_ge_70": [
+   "（目が合うと、ふっと柔らかく笑った）"
+  ],
+  "peek_face.default": [
+   "な、なんだ……？ そんなに近くで見るな。"
+  ],
+  "peek_face.affection_ge_60": [
+   "……{call}の目、近くで見るときれいだな。"
+  ],
+  "peek_face.shyness_ge_50": [
+   "（目が合った瞬間、ぱっと顔をそらされた。耳が赤い）"
+  ],
+  "peek_face.mood_lt_35": [
+   "……今はあまり見ないでくれ。"
+  ],
+  "watch_quietly.free_true": [
+   "（{name}はこちらに気づかず、{activity_label}。低い声で鼻歌を歌っている）"
+  ],
+  "watch_quietly.free_true__mood_ge_60": [
+   "（気づかないまま、ふっと思い出し笑いをしている）"
+  ],
+  "watch_quietly.free_true__mood_lt_40": [
+   "（腕を組んで、ため息をひとつ。何か考え事をしているようだ）"
+  ],
+  "watch_quietly.free_true__affection_ge_75": [
+   "（{call}の写真を眺めて、ひとりで口元を手で覆って照れている……）"
+  ],
+  "watch_quietly.asleep_true": [
+   "（静かな寝息を立てて眠っている。起こさないようにそっと離れた）"
+  ],
+  "watch_quietly.away_true": [
+   "（{location}で{activity_label}。{call}のことは見えていない）"
+  ],
+  "watch_quietly.busy_true": [
+   "（{activity_label}……。真剣な横顔だ。そっとしておこう）"
+  ],
+  "full_body.default": [
+   "どうした、じっと見て。……この服、どこか変か？"
+  ],
+  "full_body.mood_ge_60": [
+   "ふっ、今日の服は少し気に入ってるんだ。"
+  ],
+  "full_body.shyness_ge_40": [
+   "お、おい……そんなに上から下まで見るな……！"
+  ],
+  "full_body.affection_ge_70": [
+   "……似合ってる、くらい言ってくれてもいいんだぞ？"
+  ],
+  "sleeping_face.default": [
+   "（穏やかな寝息。普段の凛々しさが抜けた、無防備な寝顔だ）"
+  ],
+  "sleeping_face.mood_ge_60": [
+   "（寝顔が少しほころんだ。いい夢を見ているらしい）"
+  ],
+  "sleeping_face.affection_ge_70": [
+   "（むにゃ……「{call}……」と小さく寝言をつぶやいた）"
+  ],
+  "sleeping_face.health_lt_50": [
+   "（眉を寄せて、少し寝苦しそうだ）"
+  ],
+  "end_activity.default": [
+   "そうだな、今日はここまでにしておこう。"
+  ],
+  "end_activity.boredom_lt_30": [
+   "もう終わりか？ ……続きはまた今度だな。約束だぞ。"
+  ],
+  "picnic.default": [
+   "弁当は{fp}が作っておく。晴れてよかったな。"
+  ],
+  "picnic.season_winter": [
+   "少し冷えるが、ひなたは気持ちいいな。"
+  ],
+  "picnic.season_spring": [
+   "桜が見事だな……。花見にはちょうどいい。"
+  ],
+  "picnic.energy_lt_25": [
+   "すまない、今日は外に出る元気がなくてな……"
+  ],
+  "hiking.default": [
+   "山か、いいな。頂上まで競争だ。遅れるなよ？"
+  ],
+  "hiking.season_autumn": [
+   "紅葉がすごいな……。来てよかった。"
+  ],
+  "hiking.energy_lt_40": [
+   "はぁ、はぁ……すまない、少し休ませてくれ……"
+  ],
+  "hiking.energy_lt_20": [
+   "今日の山はやめておこう。体力が持ちそうにない。"
+  ],
+  "beach.default": [
+   "海か……。潮風が気持ちいいな。"
+  ],
+  "beach.season_summer": [
+   "夏の海はいいな。足だけでも入っていくか。"
+  ],
+  "beach.season_winter": [
+   "冬の海も静かでいいな。……さすがに冷えるが。"
+  ],
+  "beach.phase_evening": [
+   "夕日が海に沈んでいくな……。きれいだ。"
+  ],
+  "amusement.default": [
+   "遊園地か。絶叫系、いけるか？ {fp}は……少し怖いが、乗ってみたい。"
+  ],
+  "amusement.affection_ge_70": [
+   "観覧車は最後に乗ろう。……てっぺんで、な。"
+  ],
+  "amusement.energy_lt_25": [
+   "今日は人混みに行く元気がなくてな……すまない。"
+  ],
+  "aquarium.default": [
+   "見ろ、クラゲだ。……ふわふわして、いつまでも見ていられるな。"
+  ],
+  "aquarium.mood_ge_60": [
+   "ペンギンか。よちよち歩いて……ふっ、かわいいな。"
+  ],
+  "aquarium.affection_ge_65": [
+   "暗いからな……手、つないでいてもいいか？"
+  ],
+  "cafe.default": [
+   "このケーキ、半分ずつにしないか？ どっちも気になってな。"
+  ],
+  "cafe.mood_ge_55": [
+   "新作のラテか。前から気になってたんだ。"
+  ],
+  "cafe.satiety_lt_30": [
+   "ちょうど腹が減ってたんだ。助かる。"
+  ],
+  "stargazing.default": [
+   "ほう……星がこんなに見えるのか。"
+  ],
+  "stargazing.season_winter": [
+   "冬の星空は空気が澄んでいて一番きれいらしい。……冷えるがな。"
+  ],
+  "stargazing.affection_ge_70": [
+   "……なあ、{call}。もう少し、くっついていてもいいか？"
+  ],
+  "go_home.default": [
+   "そろそろ帰るか。楽しかったな。"
+  ],
+  "go_home.energy_lt_35": [
+   "ただいま……っと。ふう、さすがに少し疲れたな。"
+  ],
+  "go_home.mood_ge_70": [
+   "もう帰るのか？ ……もう少しだけ、いたかったんだがな。"
   ]
  }
 }

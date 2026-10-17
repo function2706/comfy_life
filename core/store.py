@@ -1,6 +1,7 @@
 """ファイル入出力とデータディレクトリの初期化."""
 import copy
 import glob
+import hashlib
 import json
 import os
 import shutil
@@ -37,6 +38,11 @@ def save(p, obj):
             if i == 9:
                 raise
             time.sleep(0.05 * (i + 1))
+
+
+def obj_hash(o):
+    """設定項目の指紋 (キー順に依存しない)."""
+    return hashlib.md5(json.dumps(o, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def deep_merge(base, over):

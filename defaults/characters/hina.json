@@ -8,16 +8,17 @@
  "pos": "1girl, solo, medium hair, light brown hair, side ponytail, hair ribbon, brown eyes, gentle eyes",
  "neg": "",
  "outfit_default": "casual clothes, knit sweater, long skirt",
+ "outfit_outing": "white blouse, cardigan, long skirt, shoulder bag",
  "dress_reset_on_sleep": true,
  "wardrobe": [
-  {"id": "casual", "name": "普段着", "icon": "👚", "when": "", "pos": "casual clothes, knit sweater, long skirt", "neg": ""},
-  {"id": "lounge", "name": "部屋着", "icon": "🧸", "when": "", "pos": "oversized hoodie, short shorts, loungewear, bare legs", "neg": ""},
-  {"id": "onepiece", "name": "よそ行きワンピース", "icon": "👗", "when": "", "pos": "white one-piece dress, cardigan, sun hat", "neg": ""},
-  {"id": "apron", "name": "エプロン", "icon": "🍳", "when": "", "pos": "apron, casual clothes, hair tied", "neg": ""},
-  {"id": "yukata", "name": "浴衣", "icon": "🎐", "when": "", "pos": "yukata, floral print, obi, hair ornament, hair up", "neg": ""},
-  {"id": "maid", "name": "メイド服", "icon": "🎀", "when": "affection>=40", "pos": "maid, maid headdress, maid apron, frills", "neg": ""},
-  {"id": "swimsuit", "name": "水着", "icon": "👙", "when": "", "pos": "one-piece swimsuit, bare shoulders", "neg": ""},
-  {"id": "pajamas", "name": "パジャマ", "icon": "🌙", "when": "", "pos": "pajamas", "neg": ""}
+  {"id": "casual", "name": "普段着", "icon": "👚", "when": "", "outing_ok": true, "pos": "casual clothes, knit sweater, long skirt", "neg": ""},
+  {"id": "lounge", "name": "部屋着", "icon": "🧸", "when": "", "outing_ok": false, "pos": "oversized hoodie, short shorts, loungewear, bare legs", "neg": ""},
+  {"id": "onepiece", "name": "よそ行きワンピース", "icon": "👗", "when": "", "outing_ok": true, "pos": "white one-piece dress, cardigan, sun hat", "neg": ""},
+  {"id": "apron", "name": "エプロン", "icon": "🍳", "when": "", "outing_ok": false, "pos": "apron, casual clothes, hair tied", "neg": ""},
+  {"id": "yukata", "name": "浴衣", "icon": "🎐", "when": "", "outing_ok": true, "pos": "yukata, floral print, obi, hair ornament, hair up", "neg": ""},
+  {"id": "maid", "name": "メイド服", "icon": "🎀", "when": "affection>=40", "outing_ok": false, "pos": "maid, maid headdress, maid apron, frills", "neg": ""},
+  {"id": "swimsuit", "name": "水着", "icon": "👙", "when": "", "outing_ok": false, "pos": "one-piece swimsuit, bare shoulders", "neg": ""},
+  {"id": "pajamas", "name": "パジャマ", "icon": "🌙", "when": "", "outing_ok": false, "pos": "pajamas", "neg": ""}
  ],
  "prompt_history": [],
  "default_activity": {

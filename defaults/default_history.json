@@ -1,0 +1,190 @@
+{
+ "actions": {
+  "_dress": [
+   "39818e2555f4f60344b656cfb4dad075"
+  ],
+  "_return": [
+   "fd3e9ca9651e311ddc71c217c2c0b57a",
+   "f564d18b86bcff6b299418e3107dbb21"
+  ],
+  "amusement": [
+   "73058d9d5490ac546249c9bef4fed3d6"
+  ],
+  "aquarium": [
+   "3425adb8015daf2ab0b478d829aa83ae"
+  ],
+  "bath": [
+   "85d07773658319f98f9328cfdf4a8289"
+  ],
+  "beach": [
+   "466999399884e8e5bf8a0809098f40c9"
+  ],
+  "cafe": [
+   "e1a4f024127fc93c931394a435650941"
+  ],
+  "call": [
+   "4ad7afc857b9553f4e40df4f0fa2d21d"
+  ],
+  "clean": [
+   "d4789f5dfd43fbc802450b1e45541d4c"
+  ],
+  "cook": [
+   "7a2565f4e1dd3bdc4aa460f1164ca20c"
+  ],
+  "date": [
+   "8648f7e249ebdd61b86fe6835d5ca2fd",
+   "8b698762e11f50a7e5df23472b7811cc"
+  ],
+  "end_activity": [
+   "8d8d9dd46acc23cb6773b71e087c1703"
+  ],
+  "full_body": [
+   "b267bb87e12c77bf08262833937a4cc0"
+  ],
+  "game": [
+   "f1d122c9b4e0fd802a9bf0d9a542bdcb"
+  ],
+  "gift": [
+   "ac027832b8a5ef8d4d14a7418cc09cce",
+   "f9e9d329645f2f809e99691c3e7de004",
+   "969c72de33d4852c32a2c6231287205c"
+  ],
+  "go_home": [
+   "5b2c63a00cf2426547cc2ecf88bb75ed"
+  ],
+  "greet": [
+   "11818e9851663b96293000db6fc300fd"
+  ],
+  "headpat": [
+   "4b971024ba64ee8cad23c732225d95d1"
+  ],
+  "hiking": [
+   "4b13af1ea173008b98c2469897a35392"
+  ],
+  "hold_hands": [
+   "22af7cc78f82e0a4910cced5d9117053"
+  ],
+  "hug": [
+   "e912d644c5ca8a9ff3fff955183b95b5"
+  ],
+  "look": [
+   "f12ef173b04d6dd7838dabf355754c3e",
+   "5c4e1dec55a01f4e1fb766eca847673b"
+  ],
+  "message": [
+   "479a359e6a27e9804b99cae91c69765d"
+  ],
+  "movie": [
+   "e002d58b2e9487d3c5d7b28ca5e6c419"
+  ],
+  "nurse": [
+   "f6e67d047d17753e749f8a4159c8276c"
+  ],
+  "peek_face": [
+   "f847ddde9c5336620753bde1b54f7479"
+  ],
+  "photo": [
+   "88743a44be610bd5e0b754ab10f13e21"
+  ],
+  "picnic": [
+   "b90384aab52c6097d2454b869ec373fb"
+  ],
+  "praise": [
+   "3e2c9d1524284fb316f6c5ff46c56106"
+  ],
+  "shopping": [
+   "8aead86f573387c220ae1172973389c8",
+   "63aa96df7c1130d427c079542a9ae9f5"
+  ],
+  "sleep_together": [
+   "248aa5ec38842e735939f2d810bda6ac"
+  ],
+  "sleeping_face": [
+   "a27ddbbe1360b9b35353a0a4d14252b6"
+  ],
+  "snack": [
+   "5d95c1bce1ce188eaeac7398adbeaf37"
+  ],
+  "stare": [
+   "2ac1e5154cdf01db146e70c13b4de351"
+  ],
+  "stargazing": [
+   "84ff2ee3e59c268272c0ce470aac25f9"
+  ],
+  "talk": [
+   "210b7f6a4cab2c0e47d78888134c3f64"
+  ],
+  "tea": [
+   "14b58122494060d66d1dac8add519cc8"
+  ],
+  "tease": [
+   "88c454701ffd378392d5edfb9422808b"
+  ],
+  "tuck_in": [
+   "ed9b2ea09e413091b57b7d45896336f1"
+  ],
+  "wake": [
+   "18640150ad933fa369ce0a92b2f08d87",
+   "14e5a3e9e00c5d67cef252e8a61065de"
+  ],
+  "walk": [
+   "883482f0014371273fe7ab1ef6b07e36",
+   "59e706ac207164db48dfd9597321c6ca"
+  ],
+  "watch_quietly": [
+   "4107280be8757789d23e8ef17112681d"
+  ],
+  "water": [
+   "2c4ba636c863cdb87f6d3c7bc0b4e169"
+  ]
+ },
+ "minigames": {
+  "acchimuite": [
+   "bc64bac6514c2093b4eaab8da9c3aac3",
+   "6f757f32f7bb2ec9bd4e3ac92c865731"
+  ],
+  "blackjack": [
+   "15b68a53ec04fb2a43be3e77d03203d8",
+   "e165808ab6521f383796477f93c8c122"
+  ],
+  "concentration": [
+   "4aa7bd182df93572e94c4ecee4f80131",
+   "710686df06893507adc0a5dec397fe66"
+  ],
+  "connect4": [
+   "22444e6826a4bb98a3878337cd999bf7",
+   "081275f9dbbd4219d80dad15f2a4ea13"
+  ],
+  "hex": [
+   "0b9ef42621d89a5cac3a4cf6b2cc68ec",
+   "9f8cbebb2363caf662bc93063b4f7fa3"
+  ],
+  "koikoi": [
+   "014c15c086e15f1a9a2312c248e3e829",
+   "0f3fcfc128816ff466f517e319d3068d"
+  ],
+  "mahjong": [
+   "51f90ce72ab8750a65e1455059c9a341",
+   "bb2806f02f3653f4f4937e69f926c59b"
+  ],
+  "oldmaid": [
+   "e96188781d6243aa6dadc0310bcd4e65"
+  ],
+  "poker": [
+   "6bca315fa58a35eccd69314fade0e54e",
+   "0da166b4ff9dfd490094235728d1ed41"
+  ],
+  "reversi": [
+   "4ef6593c72641fa3772685ea50f04464",
+   "fe41770a0bea7d6ab190f1d6d8c5a40b"
+  ],
+  "yacht": [
+   "2ca263c641850c0ab7abc2907743cd32",
+   "2a5a3a0c81f606dcb1b2df5444b2a242"
+  ],
+  "yakyuken": [
+   "e3400dd2592cde1605bf9ba0fd8af45d",
+   "e48ca65b436887e8d8965f4e1abdfd8e"
+  ]
+ }
+}
