@@ -15,7 +15,9 @@
   "sampler": "euler_ancestral",
   "scheduler": "normal",
   "clip_skip": 1,
-  "timeout_sec": 300
+  "timeout_sec": 300,
+  "queue_timeout_sec": 1800,
+  "use_proxy": false
  },
  "prompt": {
   "prefix_pos": "masterpiece, best quality, amazing quality, very aesthetic, absurdres",

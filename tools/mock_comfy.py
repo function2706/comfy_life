@@ -1,6 +1,11 @@
 """動作確認用の ComfyUI もどき. 受け取ったプロンプトに応じた色のダミー PNG を返す.
 
-    python tools/mock_comfy.py [--port 8188] [--delay 2]
+    python tools/mock_comfy.py [--port 8188] [--delay 2] [--fail reject|exec|hang]
+
+--fail で失敗を再現する:
+    reject = /prompt を 400 で拒否 (チェックポイント名違いなど)
+    exec   = 実行中にエラー
+    hang   = いつまでも終わらない (取り消し・タイムアウトの確認用)
 """
 import argparse
 import hashlib
@@ -13,8 +18,9 @@ import uuid
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HISTORY, IMAGES = {}, {}
+HISTORY, IMAGES, RUNNING = {}, {}, set()
 DELAY = 2.0
+FAIL = None
 
 
 def png(w, h, seed_text):
@@ -34,7 +40,16 @@ def png(w, h, seed_text):
 
 
 def run_job(pid, wf):
+    RUNNING.add(pid)
     time.sleep(DELAY)
+    if FAIL == "hang":
+        return
+    RUNNING.discard(pid)
+    if FAIL == "exec":
+        HISTORY[pid] = {"status": {"status_str": "error", "completed": False, "messages": [
+            ["execution_error", {"node_id": "3", "node_type": "KSampler",
+                                 "exception_message": "mock: CUDA out of memory"}]]}, "outputs": {}}
+        return
     texts = [n["inputs"].get("text", "") for n in wf.values() if n.get("class_type") == "CLIPTextEncode"]
     lat = next((n["inputs"] for n in wf.values() if n.get("class_type") == "EmptyLatentImage"), {})
     w, h = int(lat.get("width", 832)) // 4, int(lat.get("height", 1216)) // 4
@@ -67,6 +82,8 @@ class H(BaseHTTPRequestHandler):
             return self._json({"KSampler": {"input": {"required": {
                 "sampler_name": [["euler", "euler_ancestral", "dpmpp_2m"]],
                 "scheduler": [["normal", "karras"]]}}}})
+        if u.path == "/queue":
+            return self._json({"queue_running": [[0, p, {}, {}, []] for p in RUNNING], "queue_pending": []})
         if u.path.startswith("/history/"):
             pid = u.path.split("/")[-1]
             return self._json({pid: HISTORY[pid]} if pid in HISTORY else {})
@@ -84,15 +101,22 @@ class H(BaseHTTPRequestHandler):
         self._json({"error": "not found"}, 404)
 
     def do_POST(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        body = json.loads(self.rfile.read(n) or b"{}")
         if self.path == "/prompt":
-            n = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(n))
+            if FAIL == "reject":
+                return self._json({"error": {"message": "Prompt outputs failed validation"}, "node_errors": {
+                    "4": {"class_type": "CheckpointLoaderSimple", "errors": [
+                        {"message": "Value not in list", "details": "ckpt_name: 'x.safetensors' not in [...]"}]}}}, 400)
             wf = body.get("prompt") or {}
             if not any(v.get("class_type") == "CLIPTextEncode" for v in wf.values()):
                 return self._json({"error": {"message": "Prompt has no outputs"}, "node_errors": {}}, 400)
             pid = str(uuid.uuid4())
             threading.Thread(target=run_job, args=(pid, wf), daemon=True).start()
             return self._json({"prompt_id": pid, "number": 0, "node_errors": {}})
+        if self.path in ("/interrupt", "/queue"):
+            RUNNING.clear()
+            return self._json({})
         self._json({"error": "not found"}, 404)
 
 
@@ -100,7 +124,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8188)
     ap.add_argument("--delay", type=float, default=2.0)
+    ap.add_argument("--fail", choices=["reject", "exec", "hang"])
     a = ap.parse_args()
-    DELAY = a.delay
-    print("mock ComfyUI on http://127.0.0.1:%d" % a.port)
+    DELAY, FAIL = a.delay, a.fail
+    print("mock ComfyUI on http://127.0.0.1:%d (fail=%s)" % (a.port, FAIL))
     ThreadingHTTPServer(("127.0.0.1", a.port), H).serve_forever()

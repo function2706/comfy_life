@@ -84,8 +84,10 @@ class App:
         self.lock = threading.RLock()
         self.states, self.logs, self.jobs = {}, {}, {}
         self.jobq = queue.Queue()
+        self.logq = queue.Queue()
+        threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
         self.reload()
-        threading.Thread(target=self._worker, daemon=True).start()
+        self._ensure_worker()
 
     # ------------------------------------------------------------------ config
     def reload(self):
@@ -442,30 +444,134 @@ class App:
             self.save_log(cid)
             return {"entry": e, "job": job}
 
+    STAGE_LABEL = {"queued": "前のジョブ待ち", "prepare": "準備中", "submit": "ComfyUI へ送信中",
+                   "comfy_queued": "ComfyUI のキュー待ち", "comfy_running": "ComfyUI で生成中",
+                   "download": "画像を取得中", "done": "完了", "error": "失敗", "cancelled": "取り消し"}
+
+    def jlog(self, j, msg, level="info"):
+        """ジョブの経過を記録 (ジョブ内 / コンソール / data/server.log)."""
+        now = time.time()
+        j.setdefault("events", []).append({"t": now, "msg": msg, "level": level})
+        del j["events"][:-40]
+        line = "%s [%s] job %s (%s): %s" % (datetime.fromtimestamp(now).strftime("%m-%d %H:%M:%S"),
+                                            level.upper(), j["id"][:6], j.get("action", ""), msg)
+        self.logq.put(line)
+
+    def _log_writer(self):
+        # コンソールへの出力は別スレッドで行う (Windows のコンソールで範囲選択中は
+        # 書き込みがブロックされるため, 生成ワーカーが道連れで止まらないように)
+        while True:
+            line = self.logq.get()
+            try:
+                with open(store.dpath("server.log"), "a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+            except OSError:
+                pass
+            try:
+                print(line, flush=True)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _set_stage(self, j, stage, msg=None, level="info", **extra):
+        j["stage"], j["stage_at"] = stage, time.time()
+        if stage in ("done", "error", "cancelled"):
+            j["finished"] = j["stage_at"]
+        j.update({k: v for k, v in extra.items() if k != "quiet"})
+        if msg and not extra.get("quiet"):
+            self.jlog(j, msg, level)
+
     def enqueue(self, cid, eid, pos, neg, seed=None):
         jid = uuid.uuid4().hex
         if seed in (None, "", -1):
             seed = random.randint(0, 2 ** 32 - 1)
-        self.jobs[jid] = {"id": jid, "status": "queued", "cid": cid, "entry": eid, "pos": pos, "neg": neg,
-                          "seed": int(seed), "created": time.time(), "error": None, "image": None}
+        e = self.find_entry(cid, eid) or {}
+        j = {"id": jid, "status": "queued", "stage": "queued", "cid": cid, "entry": eid,
+             "action": e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
+             "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
+             "cancel": False, "events": []}
+        self.jobs[jid] = j
+        self.jlog(j, "受付 (アプリ内の待ち %d 件)" % (self.jobq.qsize()))
+        self._ensure_worker()
         self.jobq.put(jid)
+        # 古い完了済みジョブを掃除
+        done = [x for x in self.jobs.values() if x["status"] in ("done", "error", "cancelled")]
+        for x in sorted(done, key=lambda x: x["created"])[:-100]:
+            self.jobs.pop(x["id"], None)
         return jid
 
-    def job_view(self, jid):
+    def _ensure_worker(self):
+        t = getattr(self, "_worker_thread", None)
+        if t is None or not t.is_alive():
+            if t is not None:
+                self.logq.put("%s [ERROR] 生成ワーカーが停止していたため再起動" % datetime.now().strftime("%m-%d %H:%M:%S"))
+            self.worker = {"current": None, "since": time.time(), "restarts": getattr(self, "worker", {}).get("restarts", -1) + 1}
+            self._worker_thread = threading.Thread(target=self._worker, daemon=True, name="gen-worker")
+            self._worker_thread.start()
+
+    def job_view(self, jid, detail=False):
         j = self.jobs.get(jid)
         if not j:
-            return {"id": jid, "status": "unknown"}
+            return {"id": jid, "status": "unknown", "error": "サーバにこのジョブがありません（サーバ再起動など）"}
+        now = j.get("finished") or time.time()
         ahead = sum(1 for x in self.jobs.values() if x["status"] == "queued" and x["created"] < j["created"])
-        out = {k: j[k] for k in ("id", "status", "entry", "seed", "error", "image", "created")}
+        keys = ("id", "status", "stage", "cid", "entry", "action", "seed", "error", "image", "created",
+                "prompt_id", "queue_pos")
+        out = {k: j.get(k) for k in keys}
+        out["stage_label"] = self.STAGE_LABEL.get(j.get("stage"), j.get("stage"))
         out["ahead"] = ahead
-        out["elapsed"] = round(time.time() - j.get("started", j["created"]), 1)
+        out["elapsed"] = round(now - j.get("started", j["created"]), 1)
+        out["waited"] = round(now - j["created"], 1)
+        out["stage_elapsed"] = round(now - j.get("stage_at", j["created"]), 1)
+        ev = j.get("events") or []
+        out["last_event"] = ev[-1]["msg"] if ev else ""
+        if detail:
+            out["events"] = ev
         return out
+
+    def jobs_view(self):
+        t = getattr(self, "_worker_thread", None)
+        w = dict(getattr(self, "worker", {}))
+        w["alive"] = bool(t and t.is_alive())
+        cur = self.jobs.get(w.get("current") or "")
+        w["current_action"] = cur.get("action") if cur else None
+        w["busy_for"] = round(time.time() - w.get("since", time.time()), 1)
+        jobs = sorted(self.jobs.values(), key=lambda x: x["created"], reverse=True)[:30]
+        c = self.settings.get("comfy") or {}
+        return {"worker": w, "comfy_url": comfy.base_url(c), "use_proxy": bool(c.get("use_proxy")),
+                "queue_len": self.jobq.qsize(), "jobs": [self.job_view(x["id"], detail=True) for x in jobs]}
+
+    def cancel_job(self, jid=None, all_pending=False):
+        n = 0
+        for j in list(self.jobs.values()):
+            if (all_pending or j["id"] == jid) and j["status"] in ("queued", "running"):
+                j["cancel"] = True
+                if j["status"] == "queued":
+                    j["status"] = "cancelled"
+                    self._set_stage(j, "cancelled", "取り消し（実行前）")
+                    self._clear_entry_job(j, None)
+                else:
+                    self.jlog(j, "取り消し要求")
+                n += 1
+        return {"cancelled": n}
+
+    def _clear_entry_job(self, j, error):
+        with self.lock:
+            e = self.find_entry(j["cid"], j["entry"])
+            if e and e.get("job") == j["id"]:
+                e.pop("job", None)
+                if error:
+                    e["error"] = error
+                self.save_log(j["cid"])
 
     def _worker(self):
         while True:
             jid = self.jobq.get()
-            j = self.jobs[jid]
+            j = self.jobs.get(jid)
+            if not j or j["status"] != "queued":
+                continue
+            self.worker.update(current=jid, since=time.time())
             j["status"], j["started"] = "running", time.time()
+            self._set_stage(j, "prepare", "処理開始（待ち %.1f 秒）" % (j["started"] - j["created"]))
             try:
                 c = dict(self.settings.get("comfy") or {})
                 custom = None
@@ -473,7 +579,10 @@ class App:
                     custom = store.load(store.dpath("workflow.json"))
                     if not custom:
                         raise RuntimeError("カスタムワークフローが未登録です")
-                data, ext = comfy.generate(c, j["pos"], j["neg"], j["seed"], custom)
+                data, ext = comfy.generate(
+                    c, j["pos"], j["neg"], j["seed"], custom,
+                    report=lambda stage, msg, **kw: self._set_stage(j, stage, msg, **kw),
+                    cancelled=lambda: j["cancel"])
                 rel = "%s/%s_%s.%s" % (j["cid"], datetime.now().strftime("%Y%m%d_%H%M%S"), jid[:6], ext)
                 full = store.dpath("images", *rel.split("/"))
                 os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -483,19 +592,23 @@ class App:
                     e = self.find_entry(j["cid"], j["entry"])
                     if e:
                         e["image"], e["seed"] = rel, j["seed"]
+                        e.pop("error", None)
                         e.setdefault("images", []).append({"path": rel, "seed": j["seed"], "pos": j["pos"],
                                                            "neg": j["neg"], "t": time.time()})
                         e.pop("job", None)
                         self.save_log(j["cid"])
                 j["image"], j["status"] = rel, "done"
-            except Exception as ex:  # noqa: BLE001
+                self._set_stage(j, "done", "完了 %s（%.1f 秒）" % (rel, time.time() - j["started"]))
+            except comfy.Cancelled:
+                j["status"] = "cancelled"
+                self._set_stage(j, "cancelled", "取り消し（ComfyUI 側も中断を要求）")
+                self._clear_entry_job(j, None)
+            except Exception as ex:  # noqa: BLE001 - どんな失敗でもワーカーは止めない
                 j["error"], j["status"] = str(ex), "error"
-                with self.lock:
-                    e = self.find_entry(j["cid"], j["entry"])
-                    if e and e.get("job") == jid:
-                        e.pop("job", None)
-                        e["error"] = str(ex)
-                        self.save_log(j["cid"])
+                self._set_stage(j, "error", "失敗: %s" % ex, level="error")
+                self._clear_entry_job(j, str(ex))
+            finally:
+                self.worker.update(current=None, since=time.time())
 
     # ------------------------------------------------------------------ views
     def state_view(self, cid=None):

@@ -30,7 +30,9 @@ async function api(path, body) {
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
   const r = await fetch(path, opt);
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
-  if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+  // 失敗判定は HTTP ステータスだけで行う. ジョブ情報などは正常応答でも error 項目を持つため,
+  // j.error で判定すると「失敗したジョブ」が取得失敗扱いになり, 生成待ちのまま固まる.
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
   return j;
 }
 
@@ -260,18 +262,30 @@ function trackJob(jid) {
 }
 
 async function pollJobs() {
+  if (S.polling) return;   // 応答が遅いときに問い合わせを重ねない
+  S.polling = true;
+  try { await pollJobsOnce(); } finally { S.polling = false; }
+}
+
+async function pollJobsOnce() {
   for (const [jid] of S.jobs) {
     let j;
-    try { j = await api('/api/job?id=' + jid); } catch (e) { continue; }
+    try {
+      j = await api('/api/job?id=' + jid);
+      S.pollError = null;
+    } catch (e) {
+      S.pollError = e.message;   // サーバ応答なしをバッジに出す
+      continue;
+    }
     S.jobs.set(jid, j);
     if (j.status === 'done') {
       S.jobs.delete(jid);
       if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
       else if (!S.current || S.current.t <= (S.view.log.find((x) => x.id === j.entry) || {}).t) setImage(j.image);
       refresh();
-    } else if (j.status === 'error' || j.status === 'unknown') {
+    } else if (['error', 'unknown', 'cancelled'].includes(j.status)) {
       S.jobs.delete(jid);
-      if (j.error) { S.lastError = j.error; toast('画像生成エラー: ' + j.error, 'err'); }
+      if (j.status !== 'cancelled' && j.error) { S.lastError = j.error; toast('画像生成エラー: ' + j.error, 'err'); }
       refresh();
     }
   }
@@ -279,22 +293,78 @@ async function pollJobs() {
   updateGenBadge();
 }
 
+const secs = (s) => (s >= 60 ? `${Math.floor(s / 60)}分${Math.round(s % 60)}秒` : `${Math.round(s)}秒`);
+
+function jobText(j) {
+  if (j.status === 'queued') return j.stage_label ? `${j.stage_label}（${j.ahead ? `先に${j.ahead}件・` : ''}${secs(j.waited || 0)}）` : '受付中…';
+  const pos = j.stage === 'comfy_queued' && j.queue_pos ? ` ${j.queue_pos}番目` : '';
+  return `${j.stage_label || '処理中'}${pos} ${secs(j.stage_elapsed || 0)}`;
+}
+
 function updateGenBadge() {
   const b = $('#gen-badge');
+  b.onclick = () => openJobs();
   const jobs = [...S.jobs.values()];
-  if (!jobs.length) {
-    if (S.lastError) {
-      b.hidden = false; b.className = 'gen-badge err';
-      b.replaceChildren('⚠ 生成失敗');
-      b.title = S.lastError + '\n(クリックで閉じる)';
-      b.onclick = () => { S.lastError = null; updateGenBadge(); };
-    } else b.hidden = true;
+  if (S.pollError && jobs.length) {
+    b.className = 'gen-badge err';
+    b.replaceChildren('⚠ サーバ応答なし');
+    b.title = S.pollError;
     return;
   }
-  b.hidden = false; b.className = 'gen-badge'; b.onclick = null; b.title = '';
-  const run = jobs.find((j) => j.status === 'running');
-  const txt = run ? `生成中… ${Math.round(run.elapsed || 0)}s` : '生成待ち';
-  b.replaceChildren(h('span', { class: 'spin' }), txt + (jobs.length > 1 ? `（残り${jobs.length}件）` : ''));
+  if (!jobs.length) {
+    b.className = S.lastError ? 'gen-badge err' : 'gen-badge idle';
+    b.replaceChildren(S.lastError ? '⚠ 生成失敗（詳細）' : '🖼 生成ジョブ');
+    b.title = S.lastError || 'クリックで生成ジョブの詳細';
+    return;
+  }
+  b.className = 'gen-badge'; b.title = 'クリックで詳細';
+  const run = jobs.find((j) => j.status === 'running') || jobs[0];
+  b.replaceChildren(h('span', { class: 'spin' }), jobText(run) + (jobs.length > 1 ? `（全${jobs.length}件）` : ''));
+}
+
+/* ---------------------------------------------------------------- jobs panel */
+const JOB_ST = { queued: '待ち', running: '処理中', done: '完了', error: '失敗', cancelled: '取消', unknown: '不明' };
+
+async function openJobs() {
+  S.lastError = null;
+  $('#jobs-panel').hidden = false;
+  $('#prompt-drawer').hidden = true;
+  await renderJobs();
+  clearInterval(S.jpTimer);
+  S.jpTimer = setInterval(() => { if ($('#jobs-panel').hidden) clearInterval(S.jpTimer); else renderJobs(); }, 1500);
+}
+
+async function renderJobs() {
+  let r;
+  try { r = await api('/api/jobs'); } catch (e) {
+    $('#jp-worker').textContent = 'サーバに接続できません: ' + e.message;
+    return;
+  }
+  const w = r.worker;
+  $('#jp-worker').textContent = `ワーカー: ${w.alive ? (w.current ? `処理中「${w.current_action || ''}」${secs(w.busy_for)}` : '待機中') : '停止'}`
+    + `${w.restarts ? `（再起動${w.restarts}回）` : ''}・待ち ${r.queue_len}件・ComfyUI ${r.comfy_url}${r.use_proxy ? '（プロキシ経由）' : ''}`;
+  const open = new Set($$('#jp-body details[open]').map((d) => d.dataset.id));
+  const body = $('#jp-body');
+  if (!r.jobs.length) { body.replaceChildren(h('p', { class: 'muted' }, 'まだジョブはありません')); return; }
+  body.replaceChildren(...r.jobs.map((j) => {
+    const active = j.status === 'queued' || j.status === 'running';
+    return h('div', { class: 'job' },
+      h('div', { class: 'job-head' },
+        h('span', { class: 'job-st ' + j.status }, JOB_ST[j.status] || j.status),
+        h('b', {}, j.action || '（手動）'),
+        h('span', { class: 'muted' }, fmtTime(j.created)),
+        active ? h('span', {}, jobText(j)) : h('span', { class: 'muted' }, `所要 ${secs(j.status === 'queued' ? j.waited : j.elapsed)}`),
+        j.prompt_id ? h('code', { class: 'muted small', title: 'ComfyUI の prompt_id' }, j.prompt_id.slice(0, 8)) : null,
+        h('div', { class: 'spacer' }),
+        active ? h('button', { class: 'btn ghost danger', onclick: async () => {
+          await api('/api/job/cancel', { id: j.id }); renderJobs();
+        } }, '取消') : null),
+      j.error ? h('div', { class: 'job-err' }, j.error) : null,
+      h('details', { 'data-id': j.id, open: open.has(j.id) || (active && r.jobs[0].id === j.id) },
+        h('summary', { class: 'muted small' }, `経過ログ（${(j.events || []).length}）${j.last_event ? '：' + j.last_event : ''}`),
+        h('ul', { class: 'job-ev' }, (j.events || []).map((ev) => h('li', { class: ev.level },
+          h('time', {}, new Date(ev.t * 1000).toLocaleTimeString()), ev.msg)))));
+  }));
 }
 
 /* ---------------------------------------------------------------- status tab */
@@ -827,7 +897,10 @@ SEC.comfy = () => {
       fld('幅', inp(c, 'width', { type: 'number', step: '8' })), fld('高さ', inp(c, 'height', { type: 'number', step: '8' })),
       fld('Steps', inp(c, 'steps', { type: 'number' })), fld('CFG', inp(c, 'cfg', { type: 'number', step: '0.5' })),
       fld('Sampler', inp(c, 'sampler', { list: 'sm-list' })), fld('Scheduler', inp(c, 'scheduler', { list: 'sc-list' })),
-      fld('CLIP skip', inp(c, 'clip_skip', { type: 'number' }), '1 = なし（内蔵のみ）'), fld('タイムアウト（秒）', inp(c, 'timeout_sec', { type: 'number' }))),
+      fld('CLIP skip', inp(c, 'clip_skip', { type: 'number' }), '1 = なし（内蔵のみ）'),
+      fld('生成のタイムアウト（秒）', inp(c, 'timeout_sec', { type: 'number' }), 'ComfyUI で実行が始まってから'),
+      fld('キュー待ちの上限（秒）', inp(c, 'queue_timeout_sec', { type: 'number' }), 'ComfyUI が他の生成で混んでいるとき'),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '通信'), chk(c, 'use_proxy', 'システムのプロキシを使う'))),
     h('p', { class: 'hint' }, 'カスタム時も 幅/高さ/Steps/CFG/チェックポイント などはプレースホルダ経由で使われます。'),
     customBox,
   ];
@@ -873,7 +946,8 @@ SEC.llm = () => {
       fld('種類', inp(l, 'kind', { type: 'select', options: [['ollama', 'Ollama'], ['openai', 'OpenAI 互換 (LM Studio / llama.cpp 等)']] })),
       fld('URL', inp(l, 'url', { ph: 'http://127.0.0.1:11434' }), 'OpenAI 互換は /v1 の手前まで', 'span2'),
       fld('モデル名', inp(l, 'model')), fld('API キー（必要な場合）', inp(l, 'api_key', { type: 'password' })),
-      fld('temperature', inp(l, 'temperature', { type: 'number', step: '0.1' })), fld('タイムアウト（秒）', inp(l, 'timeout_sec', { type: 'number' }))),
+      fld('temperature', inp(l, 'temperature', { type: 'number', step: '0.1' })), fld('タイムアウト（秒）', inp(l, 'timeout_sec', { type: 'number' })),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '通信'), chk(l, 'use_proxy', 'システムのプロキシを使う'))),
     fld('システムプロンプト', inp(l, 'system', { type: 'textarea', rows: 5 }), '{name} {player} {call} {persona} が置換されます'),
     h('div', { class: 'row', style: 'margin-top:10px' }, h('button', { class: 'btn', onclick: async () => {
       res.hidden = false; res.className = 'result'; res.textContent = '問い合わせ中…';
@@ -946,6 +1020,18 @@ function bind() {
     if (!d.hidden) fillPromptDrawer(S.current);
   });
   $('#pd-close').addEventListener('click', () => { $('#prompt-drawer').hidden = true; });
+  $('#jp-close').addEventListener('click', () => { $('#jobs-panel').hidden = true; });
+  $('#jp-cancel-all').addEventListener('click', async () => {
+    const r = await api('/api/job/cancel', { all: true });
+    toast(`${r.cancelled}件を取り消しました`);
+    renderJobs();
+  });
+  $('#jp-test').addEventListener('click', async () => {
+    try {
+      const r = await api('/api/comfy/info', {});
+      toast(`接続OK: ${r.url}（チェックポイント ${(r.checkpoints || []).length}件）${r.warning ? ' ⚠ ' + r.warning : ''}`, 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+  });
   $('#pd-load').addEventListener('click', async () => {
     const r = await api('/api/prompt');
     $('#pd-pos').value = r.pos; $('#pd-neg').value = r.neg; renderParts(r.parts);

@@ -1,6 +1,7 @@
 """ComfyUI HTTP API クライアント (標準ライブラリのみ)."""
 import copy
 import json
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -32,20 +33,67 @@ def _error_text(raw):
     return " / ".join(m for m in msgs if m) or raw[:500]
 
 
-def _req(url, data=None, timeout=15, raw=False):
+# Windows の urllib はシステム (レジストリ) のプロキシ設定を自動で使うため,
+# LAN 上の ComfyUI への通信がプロキシに吸われて詰まることがある. 既定は直結.
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+_SYSTEM = urllib.request.build_opener()
+
+
+class Cancelled(Exception):
+    pass
+
+
+def _req(url, data=None, timeout=15, raw=False, c=None):
     body, headers = None, {}
     if data is not None:
         body = json.dumps(data).encode("utf-8")
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=body, headers=headers)
+    opener = _SYSTEM if (c or {}).get("use_proxy") else _DIRECT
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with opener.open(req, timeout=timeout) as r:
             b = r.read()
     except urllib.error.HTTPError as e:
-        raise RuntimeError("ComfyUI HTTP %d: %s" % (e.code, _error_text(e.read().decode("utf-8", "replace"))))
+        raise RuntimeError("ComfyUI HTTP %d (%s): %s" % (e.code, url, _error_text(e.read().decode("utf-8", "replace"))))
     except urllib.error.URLError as e:
         raise RuntimeError("ComfyUI に接続できません (%s): %s" % (url, e.reason))
-    return b if raw else json.loads(b.decode("utf-8"))
+    except socket.timeout:
+        raise RuntimeError("ComfyUI が %s 秒以内に応答しません (%s)" % (timeout, url))
+    except OSError as e:
+        raise RuntimeError("ComfyUI との通信に失敗 (%s): %s" % (url, e))
+    if raw:
+        return b
+    try:
+        return json.loads(b.decode("utf-8"))
+    except ValueError:
+        raise RuntimeError("ComfyUI 以外から応答がありました（アドレス/ポート違い、またはプロキシ）: %s → %r"
+                           % (url, b[:120].decode("utf-8", "replace")))
+
+
+def queue_position(c, pid):
+    """ComfyUI のキュー上の位置. ('running', 0) / ('pending', n 番目) / (None, None)."""
+    q = _req(base_url(c) + "/queue", timeout=10, c=c)
+    for item in q.get("queue_running") or []:
+        if len(item) > 1 and item[1] == pid:
+            return "running", 0
+    pending = sorted(q.get("queue_pending") or [], key=lambda x: x[0] if x else 0)
+    for i, item in enumerate(pending):
+        if len(item) > 1 and item[1] == pid:
+            return "pending", i + 1 + len(q.get("queue_running") or [])
+    return None, None
+
+
+def cancel(c, pid):
+    """ComfyUI 側のキューから削除し, 実行中なら中断する."""
+    b = base_url(c)
+    try:
+        state, _ = queue_position(c, pid)
+        if state == "pending":
+            _req(b + "/queue", {"delete": [pid]}, timeout=10, c=c)
+        elif state == "running":
+            _req(b + "/interrupt", {}, timeout=10, c=c)
+    except Exception:  # noqa: BLE001 - 取り消しは best effort
+        pass
 
 
 def _combo(spec):
@@ -61,13 +109,13 @@ def _combo(spec):
 
 def info(c):
     b = base_url(c)
-    stats = _req(b + "/system_stats", timeout=5)
+    stats = _req(b + "/system_stats", timeout=5, c=c)
     out = {"ok": True, "url": b, "system": stats.get("system", {}),
            "devices": [d.get("name") for d in stats.get("devices", [])]}
     try:
-        ck = _req(b + "/object_info/CheckpointLoaderSimple")["CheckpointLoaderSimple"]["input"]["required"]
+        ck = _req(b + "/object_info/CheckpointLoaderSimple", c=c)["CheckpointLoaderSimple"]["input"]["required"]
         out["checkpoints"] = _combo(ck.get("ckpt_name"))
-        ks = _req(b + "/object_info/KSampler")["KSampler"]["input"]["required"]
+        ks = _req(b + "/object_info/KSampler", c=c)["KSampler"]["input"]["required"]
         out["samplers"] = _combo(ks.get("sampler_name"))
         out["schedulers"] = _combo(ks.get("scheduler"))
     except Exception as e:  # noqa: BLE001 - 一覧取得は失敗しても接続自体は成功扱い
@@ -133,8 +181,14 @@ def validate_workflow(wf):
     return [p for p in PLACEHOLDERS if p in text]
 
 
-def generate(c, pos, neg, seed, custom=None):
-    """生成して (画像バイト列, 拡張子) を返す."""
+def generate(c, pos, neg, seed, custom=None, report=None, cancelled=None):
+    """生成して (画像バイト列, 拡張子) を返す.
+
+    report(stage, msg, **extra): 段階の通知. cancelled(): True なら中断.
+    timeout_sec は ComfyUI で実行が始まってからの制限. キュー待ちは queue_timeout_sec まで.
+    """
+    report = report or (lambda *a, **k: None)
+    cancelled = cancelled or (lambda: False)
     b = base_url(c)
     if custom:
         wf = fill_placeholders(copy.deepcopy(custom), _values(c, pos, neg, seed))
@@ -142,19 +196,40 @@ def generate(c, pos, neg, seed, custom=None):
         if not c.get("ckpt"):
             raise RuntimeError("チェックポイントが未設定です (設定 → 画像生成)")
         wf = builtin_workflow(c, pos, neg, seed)
-    r = _req(b + "/prompt", {"prompt": wf, "client_id": uuid.uuid4().hex}, timeout=30)
+
+    report("submit", "ComfyUI へ送信: %s/prompt" % b)
+    r = _req(b + "/prompt", {"prompt": wf, "client_id": uuid.uuid4().hex}, timeout=30, c=c)
     pid = r.get("prompt_id")
     if not pid:
         raise RuntimeError("ComfyUI がキューに積みませんでした: %s" % _error_text(json.dumps(r)))
-    deadline = time.time() + float(c.get("timeout_sec", 300))
-    while time.time() < deadline:
-        h = _req(b + "/history/" + urllib.parse.quote(pid), timeout=10)
+    report("comfy_queued", "ComfyUI が受理 prompt_id=%s" % pid, prompt_id=pid)
+
+    run_limit = float(c.get("timeout_sec", 300))
+    queue_limit = float(c.get("queue_timeout_sec", 1800))
+    t0, run_started, last_state, last_q = time.time(), None, None, 0.0
+    while True:
+        if cancelled():
+            cancel(c, pid)
+            raise Cancelled("取り消されました")
+        now = time.time()
+        if run_started and now - run_started > run_limit:
+            cancel(c, pid)
+            raise RuntimeError("ComfyUI での生成が %d 秒を超えました（設定のタイムアウトを延ばすか、ComfyUI 側を確認）" % run_limit)
+        if not run_started and now - t0 > queue_limit:
+            cancel(c, pid)
+            raise RuntimeError("ComfyUI のキュー待ちが %d 秒を超えました（ComfyUI が他の生成で混んでいる可能性）" % queue_limit)
+
+        h = _req(b + "/history/" + urllib.parse.quote(pid), timeout=10, c=c)
         ent = h.get(pid)
         if ent:
             st = ent.get("status") or {}
             if st.get("status_str") == "error":
-                msgs = [m[1].get("exception_message", "") for m in st.get("messages", [])
-                        if isinstance(m, list) and len(m) > 1 and m[0] == "execution_error"]
+                msgs = []
+                for m in st.get("messages", []):
+                    if isinstance(m, list) and len(m) > 1 and m[0] == "execution_error":
+                        d = m[1]
+                        msgs.append("%s (node %s %s)" % (d.get("exception_message", "").strip(),
+                                                         d.get("node_id", "?"), d.get("node_type", "")))
                 raise RuntimeError("ComfyUI 実行エラー: %s" % (" / ".join(msgs) or "詳細不明"))
             imgs = []
             for out in (ent.get("outputs") or {}).values():
@@ -162,12 +237,28 @@ def generate(c, pos, neg, seed, custom=None):
             if imgs:
                 imgs.sort(key=lambda i: i.get("type") != "output")
                 img = imgs[0]
+                report("download", "画像を取得: %s" % img["filename"])
                 q = urllib.parse.urlencode({"filename": img["filename"], "subfolder": img.get("subfolder", ""),
                                             "type": img.get("type", "output")})
-                data = _req(b + "/view?" + q, timeout=60, raw=True)
+                data = _req(b + "/view?" + q, timeout=60, raw=True, c=c)
                 ext = img["filename"].rsplit(".", 1)[-1].lower() if "." in img["filename"] else "png"
                 return data, ext
             if st.get("completed"):
                 raise RuntimeError("画像が出力されませんでした (SaveImage/PreviewImage があるか確認)")
+        elif now - last_q >= 2.0:
+            last_q = now
+            try:
+                state, pos_ = queue_position(c, pid)
+            except RuntimeError:
+                state, pos_ = last_state, None
+            if state == "running" and not run_started:
+                run_started = now
+            if state != last_state or state == "pending":
+                if state == "running":
+                    report("comfy_running", "ComfyUI で生成中", queue_pos=0)
+                elif state == "pending":
+                    report("comfy_queued", "ComfyUI のキューで %d 番目" % pos_, queue_pos=pos_, quiet=state == last_state)
+                elif last_state is not None:
+                    report("comfy_running", "ComfyUI のキューから消えた（完了待ち）")
+                last_state = state
         time.sleep(1.0)
-    raise RuntimeError("生成がタイムアウトしました (%s 秒)" % c.get("timeout_sec", 300))

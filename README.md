@@ -61,6 +61,23 @@ ComfyUI で「Export (API)」した JSON を登録できます。
 
 `%POSITIVE%` `%NEGATIVE%` `%SEED%` `%WIDTH%` `%HEIGHT%` `%STEPS%` `%CFG%` `%CKPT%` `%SAMPLER%` `%SCHEDULER%`
 
+## 生成がうまくいかないとき
+
+画面右上のバッジ（「🖼 生成ジョブ」/「ComfyUI で生成中 …」）をクリックすると、生成ジョブの一覧が開きます。
+ジョブごとに、今どの段階にいるか、経過ログ、ComfyUI の prompt_id、エラー内容が表示され、そこから取り消しもできます。
+同じ内容は、サーバのコンソールと `data/server.log` にも記録されます。
+
+| 止まっている段階 | 考えられる原因 |
+|---|---|
+| 前のジョブ待ち | 先に積まれたジョブを処理している。一覧の先頭のジョブを確認する |
+| ComfyUI へ送信中 | ComfyUI に届いていない（アドレス/ポート、ファイアウォール、プロキシ） |
+| ComfyUI のキュー待ち | ComfyUI が他の生成を処理中。ComfyUI の画面でキューを確認する |
+| ComfyUI で生成中 | ComfyUI 側で処理中。ComfyUI のコンソールに進捗やエラーが出ているはず |
+| 失敗 | 表示されたエラーを確認する。例: `Value not in list ckpt_name` ならチェックポイント名の誤り |
+
+- ComfyUI との通信は、既定ではシステムのプロキシを通しません。プロキシが必要な環境では、**設定 → 画像生成** の「システムのプロキシを使う」をオンにしてください。
+- 失敗のパターンは、モックで再現できます: `python tools/mock_comfy.py --fail reject|exec|hang`
+
 ## ファイル構成
 
 ```

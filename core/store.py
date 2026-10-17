@@ -7,7 +7,7 @@ import shutil
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULTS = os.path.join(BASE, "defaults")
-DATA = os.path.join(BASE, "data")
+DATA = os.environ.get("KURASHI_DATA") or os.path.join(BASE, "data")
 
 
 def dpath(*p):

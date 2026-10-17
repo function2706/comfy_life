@@ -42,6 +42,8 @@ def route(method, path, q, body):
             return a.state_view(cid)
         if path == "/api/job":
             return a.job_view(_q(q, "id", ""))
+        if path == "/api/jobs":
+            return a.jobs_view()
         if path == "/api/log":
             return a.log_page(cid, int(_q(q, "offset", 0)), int(_q(q, "limit", 60)), _q(q, "images") == "1")
         if path == "/api/prompt":
@@ -56,6 +58,8 @@ def route(method, path, q, body):
             return {"result": a.visit(cid)}
         if path == "/api/generate":
             return a.snapshot(cid, b.get("pos"), b.get("neg"), b.get("seed"), b.get("entry"))
+        if path == "/api/job/cancel":
+            return a.cancel_job(b.get("id"), bool(b.get("all")))
         if path == "/api/settings":
             return {"settings": a.save_settings(b["settings"])}
         if path == "/api/character/save":
@@ -131,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
         except LookupError as e:
             self._json({"error": str(e)}, 404)
         except Exception as e:  # noqa: BLE001
-            traceback.print_exc()
+            APP.logq.put("[API ERROR] %s %s: %s\n%s" % (method, u.path, e, traceback.format_exc().rstrip()))
             self._json({"error": str(e)}, 400)
 
     def do_GET(self):

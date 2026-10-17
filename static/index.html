@@ -33,7 +33,7 @@
     </div>
     <div class="stage-top">
       <span class="chip scene" id="scene-chip">—</span>
-      <span class="gen-badge" id="gen-badge" hidden></span>
+      <button class="gen-badge" id="gen-badge" title="クリックで生成ジョブの詳細"></button>
     </div>
     <div class="stage-tools">
       <button class="btn icon" id="btn-regen" title="この場面を再生成">⟳</button>
@@ -85,6 +85,17 @@
       <button class="btn primary" id="pd-new">新しい記録として生成</button>
     </div>
   </div>
+</div>
+
+<div class="drawer" id="jobs-panel" hidden>
+  <div class="drawer-head">
+    <b>生成ジョブ</b><span class="muted small" id="jp-worker"></span>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="jp-test" title="ComfyUI 接続テスト">接続テスト</button>
+    <button class="btn ghost danger" id="jp-cancel-all">待ちを全部取消</button>
+    <button class="btn ghost" id="jp-close">✕</button>
+  </div>
+  <div class="drawer-body" id="jp-body"></div>
 </div>
 
 <dialog class="modal" id="settings-dlg">
