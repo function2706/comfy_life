@@ -64,6 +64,18 @@ def main():
         wait(app, r4["job"])
         print("always: OK")
 
+        # 生成中: 既存があれば即表示して生成しない / なければ待ち行列へ (毎回生成モードでも)
+        busy_job = app.snapshot()["job"]
+        assert app.generating()
+        r5 = look()
+        assert r5["entry"].get("busy_skip") and r5["entry"]["image"] and r5["job"] is None, r5["entry"]
+        r6 = app.act("_dress", dress="yukata")   # 浴衣は初めてなので既存画像なし
+        assert r6["job"] and not r6["entry"].get("reused"), "既存が無ければキューに積む"
+        wait(app, busy_job)
+        wait(app, r6["job"])
+        app.act("_dress", dress="")
+        print("busy reuse: OK")
+
         # 着せ替え
         r = app.act("_dress", dress="maid")
         print("dress maid:", r["entry"]["text"], "|", app.state_view()["dress"]["wearing"])

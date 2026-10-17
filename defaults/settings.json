@@ -4,7 +4,8 @@
  "auto_generate": true,
  "images": {
   "mode": "reuse",
-  "max_per_prompt": 8
+  "max_per_prompt": 8,
+  "busy_reuse": true
  },
  "comfy": {
   "host": "127.0.0.1",

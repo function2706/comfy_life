@@ -470,17 +470,26 @@ class App:
         """設定に従い, 既存画像をすぐ表示するか / 新規生成するかを決める. 生成したらジョブ id を返す."""
         ic = self.settings.get("images") or {}
         mode = ic.get("mode", "reuse")
-        have = self.existing_images(entry["pos"], entry["neg"]) if mode == "reuse" else []
+        # 生成中 (実行中 or 待ちあり) なら, 既存画像があればそれで済ませて待たせない
+        busy = ic.get("busy_reuse", True) and self.generating()
+        have = self.existing_images(entry["pos"], entry["neg"]) if (mode == "reuse" or busy) else []
         entry["same_prompt"] = len(have)
         if have:
             im = random.choice(have)
             entry["image"], entry["seed"], entry["reused"] = im["path"], im.get("seed"), True
+            if busy:
+                entry["busy_skip"] = True
+                return None   # 生成中なので新規生成はしない
         limit = int(ic.get("max_per_prompt", 8))
         if mode == "reuse" and have and len(have) >= limit:
             return None   # 上限に達しているので生成しない
         job = self.enqueue(cid, entry["id"], entry["pos"], entry["neg"])
         entry["job"] = job
         return job
+
+    def generating(self):
+        """生成ジョブが実行中か待ち行列にあるか."""
+        return any(j["status"] in ("queued", "running") for j in self.jobs.values())
 
     def reroll(self, entry_id, cid=None):
         """同じプロンプトの既存画像から別の 1 枚を選び直す."""

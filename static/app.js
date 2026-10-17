@@ -268,7 +268,7 @@ function showEntry(e, animate) {
   S.current = e;
   setDialogue(e.text || `（${e.action_name}）`, animate);
   $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`
-    + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : ''}` : '');
+    + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : e.busy_skip ? '（生成中のため新規生成なし）' : ''}` : '');
   $('#deltas').replaceChildren(...Object.entries(e.deltas || {}).map(([k, v]) => {
     const p = S.boot.params.find((x) => x.id === k) || {};
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
@@ -926,6 +926,7 @@ SEC.comfy = () => {
     wfRes);
   drawMode();
   st.images = st.images || { mode: 'reuse', max_per_prompt: 8 };
+  if (st.images.busy_reuse === undefined) st.images.busy_reuse = true;
   return [
     saveBar('画像生成 (ComfyUI)', async () => { await api('/api/settings', { settings: { comfy: c, auto_generate: st.auto_generate, images: st.images } }); await reloadAll(); }),
     h('p', { class: 'lead' }, 'ComfyUI の HTTP API に接続します。リモートの PC で動かす場合は ComfyUI を --listen 付きで起動してください。'),
@@ -952,7 +953,8 @@ SEC.comfy = () => {
       fld('同じプロンプトの画像があるとき', inp(st.images, 'mode', { type: 'select', options: [
         ['reuse', '既存の画像からランダムにすぐ表示'], ['always', '毎回新しく生成する']] }), null, 'span2'),
       fld('1プロンプトあたりの上限枚数', inp(st.images, 'max_per_prompt', { type: 'number' }),
-        '「すぐ表示」のとき、この枚数に達するまでは裏で新規生成も行う（1 = 1枚あれば以降は生成しない）')),
+        '「すぐ表示」のとき、この枚数に達するまでは裏で新規生成も行う（1 = 1枚あれば以降は生成しない）'),
+      h('div', { class: 'fld spanall' }, chk(st.images, 'busy_reuse', '生成中にコマンドを実行したら、既存の画像があればそれを表示して新規生成しない（なければ待ち行列に追加）'))),
     h('p', { class: 'hint' }, '同じプロンプト = 合成後の Positive と Negative が完全に一致するもの（キャラをまたいでも共有）。表示中の画像は 🎲 で同じプロンプトの別の画像に、⟳ で新規生成に切り替えられます。'),
     h('div', { class: 'sect' }, 'ワークフロー'),
     h('div', { class: 'row' },
