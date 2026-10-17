@@ -56,6 +56,14 @@ def route(method, path, q, body):
             return a.act(b["action"], cid)
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")
+        if path == "/api/game/start":
+            return a.games.start(b["game"], cid)
+        if path == "/api/game/move":
+            return a.games.move(cid, b.get("hand"), b.get("dir"))
+        if path == "/api/game/quit":
+            return a.games.quit(cid)
+        if path == "/api/minigames":
+            return {"minigames": a.save_minigames(b["minigames"])}
         if path == "/api/reroll":
             return a.reroll(b["entry"], cid)
         if path == "/api/visit":

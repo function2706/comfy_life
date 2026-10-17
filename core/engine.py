@@ -14,7 +14,7 @@ import time
 import uuid
 from datetime import datetime
 
-from . import comfy, cond, llm, store
+from . import comfy, cond, games, llm, store
 
 STEP_SEC = 300
 MAX_CATCHUP_SEC = 14 * 24 * 3600
@@ -89,6 +89,7 @@ class App:
         self.logq = queue.Queue()
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
         self.reload()
+        self.games = games.Games(self)
         self._load_index()
         self._ensure_worker()
 
@@ -99,6 +100,7 @@ class App:
         self.actions = store.load(store.dpath("actions.json"), [])
         self.world = store.load(store.dpath("world.json"), {})
         self.chars = store.load_characters()
+        self.minigames = store.load(store.dpath("minigames.json"), [])
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
         self._migrate()
@@ -185,7 +187,12 @@ class App:
         return None
 
     def _apply_dress(self, char, st, s):
-        """着せ替え中なら, 服装固定でない場面の服装を差し替える."""
+        """着せ替え中なら, 服装固定でない場面の服装を差し替える (ミニゲームの服装が最優先)."""
+        go = (st.get("game") or {}).get("outfit")
+        if go:
+            s["outfit"], s["outfit_neg"], s["dress"] = go.get("pos", ""), go.get("neg", ""), go.get("label") or None
+            s["remove_tags"] = go.get("remove") or []
+            return s
         o = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
         if o and not s["fixed_outfit"]:
             s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
@@ -307,7 +314,12 @@ class App:
         if reaction and (reaction.get("pos") or reaction.get("neg")):
             parts.append({"src": "反応", "pos": reaction.get("pos", ""), "neg": reaction.get("neg", "")})
         parts = [p for p in parts if p["pos"] or p["neg"]]
-        return join_tags(p["pos"] for p in parts), join_tags(p["neg"] for p in parts), parts
+        pos = join_tags(p["pos"] for p in parts)
+        rm = {t.lower() for t in scene.get("remove_tags") or []}
+        if rm:   # ミニゲームの段階で外したもの (例: hair ribbon) を外見プロンプトからも除く
+            pos = ", ".join(t for t in split_tags(pos) if t.lower() not in rm)
+            parts.append({"src": "除外", "pos": "", "neg": "（除外）" + ", ".join(sorted(rm))})
+        return pos, join_tags(p["neg"] for p in parts if p["src"] != "除外"), parts
 
     # ------------------------------------------------------------------ text
     def format_text(self, text, char, scene, dt):
@@ -753,6 +765,7 @@ class App:
                 "absent": ctx["absent"], "log": log[-LOG_KEEP_IN_VIEW:], "log_total": len(log),
                 "jobs": pending,
                 "dress": self._dress_view(char, st, scene, ctx),
+                "games": self.games.view(char, st, ctx),
             }
 
     def _dress_view(self, char, st, scene, ctx):
@@ -776,7 +789,7 @@ class App:
         return {"settings": self.settings, "params": self.params, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
-                "has_workflow": os.path.exists(store.dpath("workflow.json"))}
+                "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames}
 
     # ------------------------------------------------------------------ editing
     def save_settings(self, obj):
@@ -868,6 +881,29 @@ class App:
             self.world = world
             store.save(store.dpath("world.json"), world)
             return world
+
+    def save_minigames(self, items):
+        with self.lock:
+            if not isinstance(items, list):
+                raise ValueError("ミニゲーム定義は配列で指定してください")
+            ids = [g.get("id") for g in items]
+            if any(not i for i in ids) or len(set(ids)) != len(ids):
+                raise ValueError("ミニゲームの id が空か重複しています")
+            for g in items:
+                if g.get("kind") not in ("yakyuken", "acchimuite"):
+                    raise ValueError("「%s」の kind は yakyuken / acchimuite のどちらかです" % g.get("name", g["id"]))
+                for k in ("require", "when"):
+                    cond.parse(g.get(k, ""))
+                for ev, lines in (g.get("lines") or {}).items():
+                    self._check_conds(lines, "「%s」の %s" % (g.get("name", g["id"]), ev))
+                if g["kind"] == "yakyuken" and not g.get("stages"):
+                    raise ValueError("野球拳の stages が空です")
+            self.minigames = items
+            store.save(store.dpath("minigames.json"), items)
+            for st in self.states.values():   # 消えたゲームの進行中状態は破棄
+                if st.get("game") and st["game"].get("id") not in ids:
+                    st["game"] = None
+            return items
 
     def save_workflow(self, wf):
         found = comfy.validate_workflow(wf)

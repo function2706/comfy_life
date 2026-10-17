@@ -86,6 +86,7 @@ async function refresh() {
   renderWho();
   renderCommands();
   renderDress();
+  renderGames();
   renderStatus();
   renderLog();
   if (!S.current && S.view.log.length) showEntry(S.view.log[S.view.log.length - 1], false);
@@ -201,6 +202,73 @@ function renderDress() {
     h('p', { class: 'hint', style: 'margin-top:12px' }, S.boot.character.dress_reset_on_sleep !== false
       ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
   );
+}
+
+/* ---------------------------------------------------------------- games tab */
+function renderGames() {
+  const gv = S.view.games;
+  const box = $('#tab-games');
+  const cur = gv.current;
+  if (!cur) {
+    box.replaceChildren(
+      S.gameResult ? h('div', { class: 'hint-bubble' }, S.gameResult) : '',
+      ...gv.list.map((g) => h('div', { class: 'game-card' },
+        h('h4', {}, g.icon, g.name),
+        h('p', {}, g.desc),
+        h('button', { class: 'btn primary', disabled: !g.ok || S.busy, title: g.ok ? '' : '条件: ' + g.require,
+          onclick: () => gameAct('/api/game/start', { game: g.id }) }, g.ok ? 'あそぶ' : '今は遊べません'))),
+      gv.list.length ? '' : h('p', { class: 'muted' }, 'ミニゲームがありません（設定 → ミニゲーム）'));
+    return;
+  }
+  const name = S.view.name;
+  let score;
+  if (cur.kind === 'yakyuken') {
+    score = h('div', { class: 'score' },
+      h('div', {}, h('div', { class: 'sc-who' }, 'あなたのライフ'),
+        h('div', { class: 'val' }, '❤️'.repeat(Math.max(0, cur.lives)) + '🤍'.repeat(Math.max(0, cur.lives_max - cur.lives)))),
+      h('div', { class: 'vs' }, `${cur.round}回戦`),
+      h('div', {}, h('div', { class: 'sc-who' }, name), h('div', { style: 'font-size:13px' }, cur.stage_label || ''),
+        h('div', { class: 'stage-dots' }, Array.from({ length: cur.stages }, (_, i) => h('i', { class: i <= cur.stage ? 'on' : '' })))));
+  } else {
+    score = h('div', { class: 'score' },
+      h('div', {}, h('div', { class: 'sc-who' }, 'あなた'), h('div', { class: 'val' }, cur.me)),
+      h('div', { class: 'vs' }, `先取 ${cur.target}`),
+      h('div', {}, h('div', { class: 'sc-who' }, name), h('div', { class: 'val' }, cur.her)));
+  }
+  let q, btns;
+  if (cur.phase === 'rps') {
+    q = 'じゃん けん……';
+    btns = h('div', { class: 'big-btns' }, Object.entries(cur.hands).map(([k, v]) =>
+      h('button', { class: 'big-btn', disabled: S.busy, onclick: () => gameAct('/api/game/move', { hand: k }) }, v.icon, h('span', {}, v.name))));
+  } else {
+    q = cur.phase === 'me_point' ? 'あっち向いて……どこを指す？' : `${name}が指さしてくる！ どっちを向く？`;
+    btns = h('div', { class: 'big-btns dirs' }, Object.entries(cur.dirs).map(([k, v]) =>
+      h('button', { class: 'big-btn', disabled: S.busy, onclick: () => gameAct('/api/game/move', { dir: k }) }, v.icon, h('span', {}, v.name))));
+  }
+  box.replaceChildren(h('div', { class: 'board' },
+    h('div', { class: 'board-head' }, h('b', {}, cur.name), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost', disabled: S.busy, onclick: () => gameAct('/api/game/quit', {}) }, 'やめる')),
+    score,
+    S.gameHint ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '',
+    h('div', { class: 'prompt-q' }, q),
+    btns));
+}
+
+async function gameAct(path, body) {
+  if (S.busy) return;
+  S.busy = true;
+  renderGames();
+  try {
+    const r = await api(path, body);
+    S.gameHint = r.hint || null;
+    S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.refused ? '断られてしまった…' : null;
+    if (r.entry) handleActResult(r);
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    S.busy = false;
+    await refresh();
+  }
 }
 
 async function doAct(aid, outfit) {
@@ -753,6 +821,32 @@ SEC.wardrobe = () => {
   ];
 };
 
+/* ---- ミニゲーム */
+SEC.minigames = () => {
+  const ta = h('textarea', { rows: 30, style: 'min-height:55vh', value: JSON.stringify(S.boot.minigames || [], null, 1) });
+  const res = h('div', { class: 'result', hidden: true });
+  ta.addEventListener('input', () => {
+    try { JSON.parse(ta.value); ta.classList.remove('bad'); res.hidden = true; }
+    catch (e) { ta.classList.add('bad'); res.hidden = false; res.className = 'result err'; res.textContent = 'JSON の書式エラー: ' + e.message; }
+  });
+  return [
+    saveBar('ミニゲーム', async () => {
+      await api('/api/minigames', { minigames: JSON.parse(ta.value) });
+      await reloadAll();
+    }, h('button', { class: 'btn', onclick: () => downloadJson('minigames.json', JSON.parse(ta.value)) }, 'ファイルに保存')),
+    h('p', { class: 'lead' }, '遊べるミニゲームの定義です（JSON で直接編集）。kind は yakyuken（野球拳）か acchimuite（あっち向いてホイ）で、同じ kind で中身の違うゲームをいくつでも作れます。'),
+    h('div', { class: 'keys' },
+      h('div', {}, h('code', {}, 'require'), ' 遊べる条件（満たさないとボタンが押せない） / ', h('code', {}, 'when'), ' 誘いに乗る条件（満たさないと lines.refuse で断られる）'),
+      h('div', {}, h('code', {}, 'stages'), ' 野球拳の段階。mode: add = 今の服に追記 / replace = 置き換え、remove = 外見プロンプトから外すタグ。', h('code', {}, 'giveup'), ' は降参時の服装'),
+      h('div', {}, h('code', {}, 'lines'), ' 場面ごとのセリフ（反応と同じ書式: text / when / priority / pos / neg）。',
+        '野球拳: refuse start hint draw round_win round_lose win lose quit interrupted、あっち向いてホイ: start hint draw rps_me rps_her point_me dodge_me point_her dodge_her win lose quit interrupted'),
+      h('div', {}, h('code', {}, 'effects'), ' 場面ごとのパラメータ変化。セリフの置換: ', ['{her_hand}', '{my_hand}', '{hint_hand}', '{stage}', '{dir}', '{her_dir}'].map((k) => [h('code', {}, k), ' '])),
+      h('div', {}, '条件で使える追加キー: ', ['game_stage', 'game_round', 'lives', 'my_point', 'her_point'].map((k) => [h('code', {}, k), ' ']))),
+    h('div', { style: 'margin-top:10px' }, ta),
+    res,
+  ];
+};
+
 /* ---- コマンド */
 SEC.actions = () => {
   const acts = SE.actions;
@@ -1064,7 +1158,7 @@ SEC.data = () => {
 function bind() {
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    for (const t of ['commands', 'dress', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
+    for (const t of ['commands', 'dress', 'games', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
   }));
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }
