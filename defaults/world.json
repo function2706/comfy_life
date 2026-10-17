@@ -1,0 +1,11 @@
+{
+ "absent_greet_hours": 3,
+ "phases": [
+  {"id": "dawn", "label": "早朝", "from": "04:00", "to": "06:00", "pos": "dawn, early morning, pale blue light", "neg": ""},
+  {"id": "morning", "label": "朝", "from": "06:00", "to": "10:00", "pos": "morning, soft sunlight", "neg": ""},
+  {"id": "noon", "label": "昼", "from": "10:00", "to": "16:00", "pos": "daytime, bright", "neg": ""},
+  {"id": "evening", "label": "夕方", "from": "16:00", "to": "19:00", "pos": "evening, sunset, orange light", "neg": ""},
+  {"id": "night", "label": "夜", "from": "19:00", "to": "23:00", "pos": "night, warm indoor lighting", "neg": ""},
+  {"id": "midnight", "label": "深夜", "from": "23:00", "to": "04:00", "pos": "late night, dark, dim light", "neg": ""}
+ ]
+}

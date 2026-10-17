@@ -1,0 +1,60 @@
+[
+ {"id": "satiety", "name": "満腹度", "group": "physical", "min": 0, "max": 100, "init": 70, "rate": -6,
+  "rate_rules": [{"when": "asleep=true", "rate": -2}],
+  "tags": [
+   {"when": "satiety<20", "label": "空腹", "pos": "hungry, hand on own stomach", "neg": ""},
+   {"when": "satiety>=95", "label": "満腹", "pos": "satisfied", "neg": ""}
+  ]},
+ {"id": "hydration", "name": "水分", "group": "physical", "min": 0, "max": 100, "init": 70, "rate": -5,
+  "rate_rules": [{"when": "asleep=true", "rate": -1.5}],
+  "tags": [{"when": "hydration<20", "label": "喉の渇き", "pos": "thirsty, dry lips", "neg": ""}]},
+ {"id": "energy", "name": "体力", "group": "physical", "min": 0, "max": 100, "init": 80, "rate": -3,
+  "rate_rules": [{"when": "away=true", "rate": -5}],
+  "tags": [{"when": "energy<20, asleep=false", "label": "疲労", "pos": "tired, exhausted, slouching", "neg": ""}]},
+ {"id": "sleepiness", "name": "眠気", "group": "physical", "min": 0, "max": 100, "init": 20, "rate": 4, "invert": true,
+  "rate_rules": [{"when": "asleep=true", "rate": 0}],
+  "tags": [{"when": "sleepiness>=70, asleep=false", "label": "眠そう", "pos": "sleepy, half-closed eyes, yawning, drowsy", "neg": ""}]},
+ {"id": "hygiene", "name": "清潔", "group": "physical", "min": 0, "max": 100, "init": 80, "rate": -2,
+  "tags": [{"when": "hygiene<25", "label": "汗ばみ", "pos": "sweat, messy hair", "neg": ""}]},
+ {"id": "health", "name": "健康", "group": "physical", "min": 0, "max": 100, "init": 90, "rate": 0,
+  "drift": {"target": 90, "rate": 0.03, "mods": [
+   {"when": "satiety<10", "add": -40}, {"when": "hydration<10", "add": -40},
+   {"when": "energy<10", "add": -30}, {"when": "hygiene<10", "add": -20}]},
+  "tags": [{"when": "health<50", "label": "体調不良", "pos": "sick, flushed face, sweat, fever, tired eyes", "neg": "smile"}]},
+
+ {"id": "mood", "name": "機嫌", "group": "mental", "min": 0, "max": 100, "init": 60, "rate": 0,
+  "drift": {"target": 60, "rate": 0.15, "mods": [
+   {"when": "satiety<25", "add": -15}, {"when": "hydration<25", "add": -10},
+   {"when": "sleepiness>=75, asleep=false", "add": -15}, {"when": "energy<20", "add": -10},
+   {"when": "hygiene<25", "add": -10}, {"when": "stress>=60", "add": -20},
+   {"when": "loneliness>=60", "add": -15}, {"when": "health<50", "add": -20},
+   {"when": "boredom>=70", "add": -10}, {"when": "affection>=80", "add": 10}]},
+  "tags": [
+   {"when": "mood>=75, asleep=false", "label": "上機嫌", "pos": "smile, happy, cheerful", "neg": ""},
+   {"when": "mood<35, mood>=15, asleep=false", "label": "不機嫌", "pos": "pout, frown, annoyed", "neg": "smile"},
+   {"when": "mood<15, asleep=false", "label": "落ち込み", "pos": "sad, teary eyes, downcast eyes", "neg": "smile"}
+  ]},
+ {"id": "stress", "name": "ストレス", "group": "mental", "min": 0, "max": 100, "init": 20, "rate": 0, "invert": true,
+  "drift": {"target": 15, "rate": 0.05, "mods": [
+   {"when": "away=true", "add": 25}, {"when": "energy<20", "add": 15}, {"when": "sleepiness>=80", "add": 10}]},
+  "tags": [{"when": "stress>=65, asleep=false", "label": "ストレス", "pos": "stressed, furrowed brow, troubled expression", "neg": ""}]},
+ {"id": "boredom", "name": "退屈", "group": "mental", "min": 0, "max": 100, "init": 30, "rate": 3, "invert": true,
+  "rate_rules": [{"when": "asleep=true", "rate": 0}, {"when": "away=true", "rate": -1}, {"when": "busy=true", "rate": -2}],
+  "tags": [{"when": "boredom>=70, free=true", "label": "退屈", "pos": "bored, chin rest, blank stare", "neg": ""}]},
+ {"id": "loneliness", "name": "寂しさ", "group": "mental", "min": 0, "max": 100, "init": 20, "rate": 2, "invert": true,
+  "rate_rules": [{"when": "asleep=true", "rate": 0}],
+  "tags": [{"when": "loneliness>=70, asleep=false", "label": "寂しげ", "pos": "lonely, hugging pillow, looking down", "neg": ""}]},
+ {"id": "affection", "name": "好感度", "group": "mental", "min": 0, "max": 100, "init": 40, "rate": 0,
+  "rate_rules": [{"when": "loneliness>=85", "rate": -0.3}],
+  "tags": [{"when": "affection>=80, asleep=false", "label": "べた惚れ", "pos": "loving gaze, gentle smile", "neg": ""}]},
+ {"id": "trust", "name": "信頼", "group": "mental", "min": 0, "max": 100, "init": 40, "rate": 0, "tags": []},
+ {"id": "shyness", "name": "照れ", "group": "mental", "neutral": true, "min": 0, "max": 100, "init": 5, "rate": 0,
+  "drift": {"target": 5, "rate": 0.6, "mods": []},
+  "tags": [
+   {"when": "shyness>=40, shyness<80", "label": "照れ", "pos": "blush, embarrassed", "neg": ""},
+   {"when": "shyness>=80", "label": "真っ赤", "pos": "full-face blush, embarrassed, looking away", "neg": ""}
+  ]},
+ {"id": "heart", "name": "ドキドキ", "group": "mental", "neutral": true, "min": 0, "max": 100, "init": 0, "rate": 0,
+  "drift": {"target": 0, "rate": 0.4, "mods": []},
+  "tags": [{"when": "heart>=60, asleep=false", "label": "ドキドキ", "pos": "flustered, nervous smile, hand on own chest", "neg": ""}]}
+]

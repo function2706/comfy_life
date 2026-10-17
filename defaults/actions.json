@@ -1,0 +1,291 @@
+[
+ {"id": "look", "name": "様子を見る", "icon": "👀", "category": "見る", "when": "", "cooldown": 0, "no_llm": true,
+  "effects": {}, "pos": "", "neg": "",
+  "reactions": [
+   {"text": "（{name}は{activity_label}。こちらに気づいて小さく手を振った）", "when": "free=true", "pos": "waving, looking at viewer, smile", "neg": ""},
+   {"text": "（{activity_label}のようだ。鼻歌が聞こえる）", "when": "free=true, mood>=60", "pos": "humming, closed eyes, smile", "neg": ""},
+   {"text": "（なんだか機嫌が悪そうだ……）", "when": "free=true, mood<35", "priority": 1, "pos": "pout, looking away", "neg": ""},
+   {"text": "（うとうとしている……）", "when": "free=true, sleepiness>=70", "priority": 1, "pos": "dozing off, nodding off", "neg": ""},
+   {"text": "（お腹をさすっている。お腹が空いているみたいだ）", "when": "free=true, satiety<20", "priority": 1, "pos": "hand on own stomach", "neg": ""},
+   {"text": "（すぅすぅと静かな寝息を立てている）", "when": "asleep=true", "priority": 3, "pos": "", "neg": ""},
+   {"text": "（{name}は今、{location}にいる。{activity_label}だ）", "when": "away=true", "priority": 3, "pos": "", "neg": ""},
+   {"text": "（{activity_label}……。邪魔しないでおこう）", "when": "busy=true", "priority": 3, "pos": "", "neg": ""},
+   {"text": "（お風呂場から鼻歌が聞こえてくる）", "when": "activity=bath", "priority": 4, "pos": "", "neg": ""}
+  ]},
+
+ {"id": "talk", "name": "話しかける", "icon": "💬", "category": "会話", "when": "free=true", "cooldown": 10,
+  "effects": {"boredom": -10, "loneliness": -8, "mood": 3, "affection": 1},
+  "pos": "talking, looking at viewer, open mouth", "neg": "",
+  "reactions": [
+   {"text": "なんですか、{call}？ ふふ、お話しするの好きですよ。", "when": "", "pos": "smile", "neg": ""},
+   {"text": "今日はですね、ちょっといいことがあったんです。聞いてくれます？", "when": "mood>=55", "pos": "smile, excited", "neg": ""},
+   {"text": "やっと構ってくれた！ ずっと暇だったんですよー。", "when": "boredom>=70", "priority": 1, "pos": "excited, leaning forward", "neg": ""},
+   {"text": "ふぁ……すみません、ちょっと眠くて……", "when": "sleepiness>=70", "priority": 1, "pos": "yawning, rubbing eyes", "neg": ""},
+   {"text": "……今はちょっと、そっとしておいてほしいです。", "when": "mood<35", "priority": 2, "override": true,
+    "effects": {"loneliness": -3}, "pos": "looking away, annoyed", "neg": "smile"},
+   {"text": "{call}と話してると、時間があっという間なんです。", "when": "affection>=70", "pos": "smile, blush", "neg": ""},
+   {"text": "もう、さっきからお話ばっかりですね。……嫌じゃないですけど。", "when": "repeat>=2", "priority": 1, "pos": "smile, blush", "neg": ""}
+  ]},
+
+ {"id": "greet", "name": "挨拶する", "icon": "👋", "category": "会話", "when": "free=true", "cooldown": 60,
+  "effects": {"loneliness": -5, "mood": 2}, "pos": "waving, smile, looking at viewer", "neg": "",
+  "reactions": [
+   {"text": "おはようございます、{call}。今日もいい一日になるといいですね。", "when": "phase=dawn|morning", "pos": "", "neg": ""},
+   {"text": "こんにちは。……って、一緒に住んでるのに変ですね、ふふ。", "when": "phase=noon", "pos": "", "neg": ""},
+   {"text": "お疲れさまです、{call}。もうすぐ晩ごはんですよ。", "when": "phase=evening", "pos": "", "neg": ""},
+   {"text": "こんばんは。今日はどんな一日でしたか？", "when": "phase=night", "pos": "", "neg": ""},
+   {"text": "まだ起きてたんですか？ 夜更かしはだめですよ。", "when": "phase=midnight", "pos": "index finger raised, scolding", "neg": ""},
+   {"text": "さっきも挨拶しましたよ？ ふふ、変な{call}。", "when": "repeat>=1", "priority": 1, "pos": "laughing", "neg": ""}
+  ]},
+
+ {"id": "praise", "name": "褒める", "icon": "✨", "category": "会話", "when": "free=true", "cooldown": 30,
+  "effects": {"mood": 8, "shyness": 20, "affection": 2, "heart": 5}, "pos": "blush, embarrassed smile", "neg": "",
+  "reactions": [
+   {"text": "えっ、ほ、褒めても何も出ませんよ……？", "when": "", "pos": "hands on own cheeks", "neg": ""},
+   {"text": "えへへ……ありがとうございます。うれしいです。", "when": "", "pos": "happy", "neg": ""},
+   {"text": "も、もう十分です！ これ以上は顔が熱くて……", "when": "shyness>=70", "priority": 1, "pos": "covering face", "neg": ""},
+   {"text": "……なにか企んでます？", "when": "repeat>=2", "priority": 2, "override": true, "effects": {"trust": -1},
+    "pos": "suspicious, narrowed eyes", "neg": "smile"}
+  ]},
+
+ {"id": "tease", "name": "からかう", "icon": "😏", "category": "会話", "when": "free=true", "cooldown": 20,
+  "effects": {"shyness": 20, "boredom": -10, "mood": -2, "heart": 5}, "pos": "pout, puffed cheeks, blush", "neg": "",
+  "reactions": [
+   {"text": "もうっ、{call}のいじわる！", "when": "", "pos": "", "neg": ""},
+   {"text": "そうやってからかうの、{call}だけですからね……？", "when": "affection>=70", "pos": "looking away", "neg": ""},
+   {"text": "……今そういうの、いらないです。", "when": "mood<40", "priority": 2, "override": true,
+    "effects": {"mood": -8, "affection": -2}, "pos": "angry, glaring, crossed arms", "neg": "smile, blush"}
+  ]},
+
+ {"id": "stare", "name": "見つめる", "icon": "👁", "category": "会話", "when": "free=true", "cooldown": 15,
+  "effects": {"shyness": 15, "heart": 8}, "pos": "looking at viewer, face focus, close-up", "neg": "",
+  "reactions": [
+   {"text": "な、なんですか……？ 顔に何かついてます？", "when": "", "pos": "blush, surprised", "neg": ""},
+   {"text": "そ、そんなに見ないでください……！", "when": "shyness>=50", "priority": 1, "pos": "covering face, looking away, blush", "neg": ""},
+   {"text": "（目をそらさずに、まっすぐ見つめ返してきた）", "when": "affection>=75", "priority": 1, "pos": "staring, parted lips, blush", "neg": ""}
+  ]},
+
+ {"id": "headpat", "name": "頭をなでる", "icon": "🤚", "category": "ふれあい", "when": "away=false, busy=false", "cooldown": 15,
+  "effects": {"affection": 2, "mood": 5, "loneliness": -10, "shyness": 10, "heart": 5, "trust": 1},
+  "pos": "headpat, closed eyes, happy, blush", "neg": "",
+  "reactions": [
+   {"text": "ん……えへへ、くすぐったいです。", "when": "", "pos": "", "neg": ""},
+   {"text": "……もうちょっとだけ、このままがいいです。", "when": "loneliness>=50", "effects": {"loneliness": -10}, "pos": "content", "neg": ""},
+   {"text": "あ、あの……急にされると、びっくりします……", "when": "affection<25", "priority": 2, "override": true,
+    "effects": {"shyness": 10, "trust": -1}, "pos": "surprised, flinch", "neg": "closed eyes"},
+   {"text": "（むにゃ……と、寝たまま幸せそうに微笑んだ）", "when": "asleep=true", "priority": 3, "pos": "sleeping, smile", "neg": ""}
+  ]},
+
+ {"id": "hug", "name": "ハグする", "icon": "🤗", "category": "ふれあい", "when": "free=true", "cooldown": 30,
+  "effects": {"affection": 3, "loneliness": -20, "heart": 15, "shyness": 15, "mood": 6, "stress": -10},
+  "pos": "hug, upper body, blush", "neg": "",
+  "reactions": [
+   {"text": "わっ……！ も、もう、急なんですから……", "when": "", "pos": "surprised", "neg": ""},
+   {"text": "……あったかい。もう少しだけ、ぎゅってしてください。", "when": "affection>=70", "pos": "closed eyes, happy", "neg": ""},
+   {"text": "……ありがとうございます。ちょっと疲れてたみたいです。", "when": "stress>=60", "priority": 1, "effects": {"stress": -15}, "pos": "relieved, closed eyes", "neg": ""},
+   {"text": "ちょ、ちょっと待ってください！ まだそういうのは……！", "when": "affection<35", "priority": 2, "override": true,
+    "effects": {"shyness": 20, "affection": -2, "trust": -2}, "pos": "flustered, raised hands, stepping back", "neg": "hug"}
+  ]},
+
+ {"id": "hold_hands", "name": "手をつなぐ", "icon": "🤝", "category": "ふれあい", "when": "away=false, asleep=false, busy=false", "cooldown": 20,
+  "effects": {"heart": 10, "shyness": 10, "affection": 2, "loneliness": -10}, "pos": "holding hands, blush, looking away", "neg": "",
+  "reactions": [
+   {"text": "手、つなぐんですか？ ……はい。", "when": "", "pos": "", "neg": ""},
+   {"text": "（つないだ手が、少しだけ汗ばんでいる）", "when": "heart>=50", "pos": "nervous", "neg": ""},
+   {"text": "え、えっと……今は、ちょっと……", "when": "affection<30", "priority": 2, "override": true, "effects": {"shyness": 10},
+    "pos": "flustered, hands behind back", "neg": "holding hands"}
+  ]},
+
+ {"id": "cook", "name": "ご飯を作る", "icon": "🍳", "category": "お世話", "when": "away=false, asleep=false, busy=false", "cooldown": 180,
+  "replace_scene": true, "effects": {"satiety": 50, "hydration": 10, "mood": 8, "affection": 3, "trust": 2},
+  "pos": "eating, food, dining table, chopsticks, happy", "neg": "",
+  "reactions": [
+   {"text": "わぁ、いい匂い！ いただきます！", "when": "", "pos": "", "neg": ""},
+   {"text": "お腹ぺこぺこだったんです……！ {call}、天才ですか！？", "when": "satiety<25", "priority": 1, "effects": {"affection": 2}, "pos": "sparkling eyes", "neg": ""},
+   {"text": "うぅ、さっき食べたばっかりで……でも、ひと口だけ。", "when": "satiety>=85", "priority": 2, "override": true,
+    "effects": {"mood": 3, "satiety": 5}, "pos": "", "neg": ""}
+  ]},
+
+ {"id": "tea", "name": "お茶を淹れる", "icon": "☕", "category": "お世話", "when": "free=true", "cooldown": 30,
+  "effects": {"hydration": 30, "stress": -10, "mood": 4}, "pos": "holding cup, tea, steam, relaxed, sitting", "neg": "",
+  "reactions": [
+   {"text": "ありがとうございます。……ふぅ、落ち着きますね。", "when": "", "pos": "", "neg": ""},
+   {"text": "はぁ……あったかい。ちょっと肩の力が抜けました。", "when": "stress>=50", "effects": {"stress": -10}, "pos": "closed eyes", "neg": ""},
+   {"text": "ちょうど喉がからからだったんです！", "when": "hydration<25", "priority": 1, "pos": "drinking", "neg": ""}
+  ]},
+
+ {"id": "snack", "name": "おやつをあげる", "icon": "🍪", "category": "お世話", "when": "away=false, asleep=false, busy=false", "cooldown": 45,
+  "effects": {"satiety": 15, "mood": 8, "boredom": -5}, "pos": "eating, cookie, happy", "neg": "",
+  "reactions": [
+   {"text": "わーい、おやつ！ {call}も一緒に食べましょ？", "when": "", "pos": "", "neg": ""},
+   {"text": "あんまり食べさせると太っちゃいますよ……？", "when": "repeat>=1", "priority": 1, "pos": "pout, blush", "neg": ""},
+   {"text": "今はお腹いっぱいなので……あとでいただきますね。", "when": "satiety>=85", "priority": 2, "override": true,
+    "effects": {"mood": 2}, "pos": "holding cookie, apologetic smile", "neg": "eating"}
+  ]},
+
+ {"id": "water", "name": "飲み物を渡す", "icon": "🥤", "category": "お世話", "when": "away=false, asleep=false, busy=false", "cooldown": 15,
+  "effects": {"hydration": 35}, "pos": "drinking, glass of water", "neg": "",
+  "reactions": [
+   {"text": "ありがとうございます。……んく、んく。ぷはっ。", "when": "", "pos": "", "neg": ""},
+   {"text": "今は大丈夫です。気にかけてくれてありがとうございます。", "when": "hydration>=85", "priority": 1, "override": true,
+    "effects": {"trust": 1}, "pos": "holding glass, smile", "neg": "drinking"}
+  ]},
+
+ {"id": "bath", "name": "お風呂を勧める", "icon": "🛁", "category": "お世話", "when": "free=true, phase=evening|night|midnight", "cooldown": 240,
+  "effects": {}, "pos": "holding towel, looking back", "neg": "",
+  "override": {"activity": "bath", "label": "入浴中", "location": "浴室", "busy": true, "minutes": 40,
+               "outfit": "", "pos": "hallway, bathroom door, steam", "neg": "", "effects": {"hygiene": 140, "stress": -20, "energy": 6}},
+  "reactions": [
+   {"text": "じゃあ、お先にいただきますね。……覗いちゃだめですよ？", "when": "", "pos": "", "neg": ""},
+   {"text": "……一緒に、入ります？ な、なんて、冗談です！", "when": "affection>=85", "pos": "blush, teasing smile", "neg": ""},
+   {"text": "さっき入ったばっかりですよ？", "when": "hygiene>=85", "priority": 2, "override": true, "effects": {},
+    "pos": "tilted head, confused", "neg": "holding towel"}
+  ]},
+
+ {"id": "nurse", "name": "看病する", "icon": "🩺", "category": "お世話", "when": "health<70, away=false", "cooldown": 60,
+  "replace_scene": true, "effects": {"health": 15, "affection": 4, "trust": 4, "mood": 5, "loneliness": -10},
+  "pos": "lying in bed, sick, wet towel on forehead, flushed face, blanket, bedroom", "neg": "",
+  "reactions": [
+   {"text": "ごめんなさい、迷惑かけて……。でも、そばにいてくれてうれしいです。", "when": "", "pos": "weak smile", "neg": ""},
+   {"text": "……手、冷たくて気持ちいいです。もう少しだけ……", "when": "affection>=60", "pos": "half-closed eyes", "neg": ""}
+  ]},
+
+ {"id": "tuck_in", "name": "寝かしつける", "icon": "🌙", "category": "お世話", "when": "free=true, phase=night|midnight", "cooldown": 60,
+  "replace_scene": true, "effects": {"stress": -5, "loneliness": -5},
+  "pos": "lying in bed, pajamas, blanket, sleepy, dim light, bedroom", "neg": "",
+  "override": {"activity": "sleep", "label": "就寝中", "location": "寝室", "asleep": true, "minutes": 420,
+               "outfit": "pajamas", "pos": "sleeping, lying on bed, closed eyes, bedroom, blanket", "neg": "", "effects": {"energy": 12, "sleepiness": -14}},
+  "reactions": [
+   {"text": "おやすみなさい、{call}。……いい夢、見てくださいね。", "when": "", "pos": "", "neg": ""},
+   {"text": "まだ眠くないですー。……でも、{call}がそう言うなら。", "when": "sleepiness<30", "pos": "pout", "neg": ""},
+   {"text": "寝るまで、手……握っててくれますか？", "when": "affection>=70", "pos": "blush, reaching out", "neg": ""}
+  ]},
+
+ {"id": "sleep_together", "name": "添い寝する", "icon": "🛏", "category": "ふれあい", "when": "away=false, busy=false, phase=night|midnight", "cooldown": 60,
+  "replace_scene": true, "effects": {"loneliness": -25, "heart": 10, "affection": 3, "stress": -15, "shyness": 15},
+  "pos": "lying on side, bed, pajamas, looking at viewer, blanket, dim light, blush, bedroom", "neg": "",
+  "override": {"activity": "sleep", "label": "就寝中", "location": "寝室", "asleep": true, "minutes": 420,
+               "outfit": "pajamas", "pos": "sleeping, lying on bed, closed eyes, bedroom, blanket", "neg": "", "effects": {"energy": 12, "sleepiness": -14}},
+  "reactions": [
+   {"text": "……ちょっとだけ、ですよ？ おやすみなさい。", "when": "", "pos": "", "neg": ""},
+   {"text": "（寝ぼけたまま、すり寄ってきた）", "when": "asleep=true", "priority": 3, "pos": "sleeping, smile", "neg": "looking at viewer"},
+   {"text": "そ、それはさすがに、まだ早いです……！", "when": "affection<50, asleep=false", "priority": 2, "override": true,
+    "effects": {"shyness": 25, "trust": -2}, "pos": "flustered, waving hands, sitting on bed", "neg": "lying on side"}
+  ]},
+
+ {"id": "wake", "name": "起こす", "icon": "⏰", "category": "お世話", "when": "asleep=true", "cooldown": 30,
+  "replace_scene": true, "effects": {"mood": -6}, "pos": "sitting on bed, rubbing eyes, messy hair, pajamas, sleepy, bedroom", "neg": "",
+  "override": {"activity": "awake", "label": "寝起き", "location": "寝室", "minutes": 30,
+               "outfit": "pajamas", "pos": "bedroom, sitting on bed, messy hair", "neg": "", "effects": {}},
+  "reactions": [
+   {"text": "んぅ……あと5分……", "when": "", "pos": "", "neg": ""},
+   {"text": "……今、何時だと思ってるんですかぁ……", "when": "phase=midnight|dawn", "priority": 1, "effects": {"mood": -8}, "pos": "annoyed, half-closed eyes", "neg": ""},
+   {"text": "ふぁ……おはようございます。よく寝ました！", "when": "sleepiness<25", "priority": 1, "effects": {"mood": 6}, "pos": "stretching, smile", "neg": ""}
+  ]},
+
+ {"id": "game", "name": "一緒にゲーム", "icon": "🎮", "category": "あそび", "when": "free=true", "cooldown": 60,
+  "effects": {"boredom": -30, "mood": 8, "stress": -10, "energy": -5, "loneliness": -10},
+  "pos": "playing video game, holding game controller, sitting on floor, excited", "neg": "",
+  "override": {"activity": "game", "label": "ゲーム中", "location": "リビング", "minutes": 60,
+               "outfit": "", "pos": "living room, playing video game, game controller, tv screen", "neg": "", "effects": {"boredom": -10}},
+  "reactions": [
+   {"text": "負けませんよー！ ……あっ、ずるい！", "when": "", "pos": "", "neg": ""},
+   {"text": "やったー！ 待ってました！", "when": "boredom>=60", "pos": "cheering", "neg": ""},
+   {"text": "ごめんなさい、今日はちょっと疲れてて……", "when": "energy<25", "priority": 2, "override": true, "effects": {},
+    "pos": "tired, apologetic smile", "neg": "game controller, excited"}
+  ]},
+
+ {"id": "movie", "name": "映画を観る", "icon": "🎬", "category": "あそび", "when": "free=true", "cooldown": 120,
+  "effects": {"boredom": -25, "loneliness": -15, "heart": 5, "stress": -5},
+  "pos": "watching tv, sitting on couch, dark room, light from screen, blanket", "neg": "",
+  "override": {"activity": "movie", "label": "映画鑑賞中", "location": "リビング", "minutes": 120,
+               "outfit": "", "pos": "living room, couch, dark room, light from tv screen", "neg": "", "effects": {"boredom": -8}},
+  "reactions": [
+   {"text": "ポップコーン、用意しますね！", "when": "", "pos": "popcorn, smile", "neg": ""},
+   {"text": "（気づけば、肩が触れ合う距離に座っている）", "when": "heart>=40", "pos": "leaning, blush, looking at viewer", "neg": ""},
+   {"text": "途中で寝ちゃったら、起こしてくださいね……", "when": "sleepiness>=60", "pos": "sleepy", "neg": ""}
+  ]},
+
+ {"id": "clean", "name": "一緒に掃除", "icon": "🧹", "category": "あそび", "when": "free=true", "cooldown": 120,
+  "effects": {"boredom": -10, "energy": -10, "trust": 2, "stress": -5, "mood": 3}, "pos": "cleaning, holding broom, apron", "neg": "",
+  "reactions": [
+   {"text": "よーし、今日はピカピカにしますよ！", "when": "", "pos": "determined, smile", "neg": ""},
+   {"text": "ちょっと休んでからでもいいですか……？", "when": "energy<25", "priority": 2, "override": true, "effects": {},
+    "pos": "tired, sitting", "neg": "broom"}
+  ]},
+
+ {"id": "photo", "name": "写真を撮る", "icon": "📷", "category": "あそび", "when": "free=true", "cooldown": 5,
+  "effects": {"shyness": 8}, "pos": "posing, looking at viewer", "neg": "",
+  "reactions": [
+   {"text": "撮るんですか？ じゃあ……はい、ぴーす！", "when": "", "pos": "peace sign, smile", "neg": ""},
+   {"text": "い、今はだめです！ 顔赤いので……！", "when": "shyness>=50", "priority": 1, "pos": "covering face, blush", "neg": "peace sign"},
+   {"text": "……撮らないでください。", "when": "mood<35", "priority": 2, "pos": "looking away, annoyed", "neg": "smile, peace sign"}
+  ]},
+
+ {"id": "walk", "name": "散歩に行く", "icon": "🚶", "category": "おでかけ", "when": "free=true, phase!=midnight", "cooldown": 90,
+  "effects": {"stress": -20, "boredom": -20, "mood": 8}, "pos": "walking, looking back, smile", "neg": "",
+  "override": {"activity": "walk", "label": "散歩中", "location": "近所", "minutes": 40,
+               "outfit": "", "pos": "outdoors, walking, street, trees, scenery", "neg": "", "effects": {"energy": -6, "hydration": -6}},
+  "reactions": [
+   {"text": "いいですね、行きましょう！ 風が気持ちよさそう。", "when": "", "pos": "", "neg": ""},
+   {"text": "夕焼け、きれいですね……。", "when": "phase=evening", "pos": "sunset, looking up, wind", "neg": ""},
+   {"text": "うーん、今日は家でのんびりしたいかも……", "when": "energy<25", "priority": 2, "override": true, "effects": {},
+    "pos": "tired, apologetic smile", "neg": "walking, outdoors"}
+  ]},
+
+ {"id": "shopping", "name": "買い物に行く", "icon": "🛍", "category": "おでかけ", "when": "free=true, phase=morning|noon|evening", "cooldown": 180,
+  "effects": {"boredom": -25, "mood": 10, "affection": 2}, "pos": "excited, smile, holding shopping bag", "neg": "",
+  "override": {"activity": "shopping", "label": "買い物中", "location": "商店街", "minutes": 90,
+               "outfit": "", "pos": "shopping district, storefront, outdoors", "neg": "", "effects": {"energy": -6}},
+  "reactions": [
+   {"text": "やった、ちょうど見たいお店があったんです！", "when": "", "pos": "", "neg": ""},
+   {"text": "今日は人混みはちょっと……", "when": "energy<25", "priority": 2, "override": true, "effects": {},
+    "pos": "tired, apologetic smile", "neg": "shopping bag, outdoors"}
+  ]},
+
+ {"id": "date", "name": "デートに誘う", "icon": "💐", "category": "おでかけ", "when": "free=true, affection>=50, phase!=midnight", "cooldown": 720,
+  "effects": {"heart": 20, "affection": 5, "mood": 12, "boredom": -30}, "pos": "smile, blush, looking at viewer", "neg": "",
+  "override": {"activity": "date", "label": "デート中", "location": "街", "minutes": 180,
+               "outfit": "stylish outfit, one-piece dress, handbag", "pos": "city, cafe, outdoors", "neg": "", "effects": {"energy": -4}},
+  "reactions": [
+   {"text": "で、デート……！ すぐ着替えてきますね！", "when": "", "pos": "excited", "neg": ""},
+   {"text": "ずっと誘ってくれるの、待ってたんですよ？", "when": "affection>=80", "pos": "happy, hands clasped", "neg": ""},
+   {"text": "うれしいけど、今日はへとへとで……また今度、絶対ですよ？", "when": "energy<20", "priority": 2, "override": true,
+    "effects": {"affection": 1}, "pos": "tired, apologetic smile", "neg": "outdoors"}
+  ]},
+
+ {"id": "gift", "name": "プレゼントを渡す", "icon": "🎁", "category": "おでかけ", "when": "asleep=false, away=false", "cooldown": 1440,
+  "effects": {"affection": 6, "mood": 12, "heart": 10, "shyness": 15}, "pos": "holding gift box, surprised, happy, blush", "neg": "",
+  "reactions": [
+   {"text": "えっ、私に……？ 開けてもいいですか！？", "when": "", "pos": "", "neg": ""},
+   {"text": "……大事にします。ずっと、ずっと。", "when": "affection>=70", "pos": "tears of joy, hugging gift", "neg": ""}
+  ]},
+
+ {"id": "message", "name": "メッセージを送る", "icon": "📱", "category": "連絡", "when": "asleep=false, busy=false", "cooldown": 15,
+  "effects": {"loneliness": -8, "mood": 3}, "pos": "looking at smartphone, holding phone", "neg": "",
+  "reactions": [
+   {"text": "📱『いま休憩中です！ {call}からのメッセージ、うれしい』", "when": "away=true", "pos": "smile", "neg": ""},
+   {"text": "📱『早く帰りたいなあ……。帰ったらいっぱいお話ししましょうね』", "when": "away=true, loneliness>=50", "pos": "lonely smile", "neg": ""},
+   {"text": "📱『ちょっと大変で……でも、元気出ました！』", "when": "away=true, stress>=60", "priority": 1, "pos": "tired smile", "neg": ""},
+   {"text": "（すぐそこにいるのに、とスマホを見て笑っている）", "when": "away=false", "pos": "laughing", "neg": ""}
+  ]},
+
+ {"id": "call", "name": "電話する", "icon": "📞", "category": "連絡", "when": "away=true, asleep=false, busy=false", "cooldown": 30,
+  "effects": {"loneliness": -15, "mood": 5, "heart": 3}, "pos": "talking on phone, holding phone to ear, smile", "neg": "",
+  "reactions": [
+   {"text": "もしもし、{call}？ どうしたんですか？ ……声が聞けてうれしいです。", "when": "", "pos": "", "neg": ""},
+   {"text": "（小声で）い、今授業中なので……あとでかけ直しますね！", "when": "activity=class", "priority": 1, "override": true,
+    "effects": {"heart": 3}, "pos": "whispering, covering mouth, surprised", "neg": "smile"}
+  ]},
+
+ {"id": "_return", "name": "おかえり", "icon": "🏠", "category": "system", "when": "", "cooldown": 0,
+  "effects": {"loneliness": -10}, "pos": "", "neg": "",
+  "reactions": [
+   {"text": "あ、{call}。おかえりなさい！", "when": "", "pos": "smile, looking at viewer, waving", "neg": ""},
+   {"text": "あっ、{call}！ 久しぶりな気がします。おかえりなさい！", "when": "absent>=24", "priority": 1, "pos": "happy, running toward viewer", "neg": ""},
+   {"text": "……{call}！ 何日もどこ行ってたんですか……！ 心配したんですよ……", "when": "absent>=72", "priority": 2,
+    "effects": {"loneliness": -20}, "pos": "teary eyes, relieved", "neg": ""},
+   {"text": "（{name}はぐっすり眠っている……）", "when": "asleep=true", "priority": 3, "override": true, "effects": {}, "pos": "", "neg": ""},
+   {"text": "📱『{call}、おかえりなさい！ 私はいま{location}です』", "when": "away=true", "priority": 3, "pos": "holding phone, smile", "neg": ""}
+  ]}
+]
