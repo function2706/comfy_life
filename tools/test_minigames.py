@@ -35,7 +35,7 @@ def main():
         for _ in range(20):
             her = st["game"]["next"]
             win_hand = next(h for h in games.HANDS if games.BEATS[h] == her)
-            r = app.games.move(hand=win_hand)
+            r = app.games.move(payload={"hand": win_hand})
             print("  %s → %s | %s" % (r["entry"]["action_name"], r["entry"]["text"],
                                      [p["pos"] for p in r["entry"]["parts"] if p["src"].startswith("服装")]))
             if r["ended"]:
@@ -49,7 +49,7 @@ def main():
         for _ in range(20):
             her = st["game"]["next"]
             lose_hand = games.BEATS[her]
-            r = app.games.move(hand=lose_hand)
+            r = app.games.move(payload={"hand": lose_hand})
             if r["ended"]:
                 break
         assert r["ended"] == "lose", r
@@ -60,9 +60,9 @@ def main():
         for _ in range(200):
             g = st["game"]
             if g["phase"] == "rps":
-                r = app.games.move(hand=random.choice(games.HANDS))
+                r = app.games.move(payload={"hand": random.choice(games.HANDS)})
             else:
-                r = app.games.move(direction=random.choice(games.DIRS))
+                r = app.games.move(payload={"dir": random.choice(games.DIRS)})
             if r["ended"]:
                 break
         assert r["ended"] in ("win", "lose"), r

@@ -59,7 +59,7 @@ def route(method, path, q, body):
         if path == "/api/game/start":
             return a.games.start(b["game"], cid)
         if path == "/api/game/move":
-            return a.games.move(cid, b.get("hand"), b.get("dir"))
+            return a.games.move(cid, b)
         if path == "/api/game/quit":
             return a.games.quit(cid)
         if path == "/api/minigames":

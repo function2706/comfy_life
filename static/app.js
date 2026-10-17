@@ -220,6 +220,8 @@ function renderGames() {
       gv.list.length ? '' : h('p', { class: 'muted' }, 'ミニゲームがありません（設定 → ミニゲーム）'));
     return;
   }
+  if (cur.kind === 'mahjong') { box.replaceChildren(renderMahjong(cur)); return; }
+  if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(renderBoard(cur)); return; }
   const name = S.view.name;
   let score;
   if (cur.kind === 'yakyuken') {
@@ -252,6 +254,156 @@ function renderGames() {
     S.gameHint ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '',
     h('div', { class: 'prompt-q' }, q),
     btns));
+}
+
+/* ---- 脱衣の進み具合 (野球拳・麻雀共通) */
+function stripScore(cur, mid) {
+  return h('div', { class: 'score' },
+    h('div', {}, h('div', { class: 'sc-who' }, 'あなたのライフ'),
+      h('div', { class: 'val' }, '❤️'.repeat(Math.max(0, cur.lives)) + '🤍'.repeat(Math.max(0, cur.lives_max - cur.lives)))),
+    h('div', { class: 'vs' }, mid),
+    h('div', {}, h('div', { class: 'sc-who' }, S.view.name), h('div', { style: 'font-size:13px' }, cur.stage_label || ''),
+      h('div', { class: 'stage-dots' }, Array.from({ length: cur.stages }, (_, i) => h('i', { class: i <= cur.stage ? 'on' : '' })))));
+}
+
+function boardHead(cur, extra) {
+  const over = (cur.mj && cur.mj.over) || (cur.board && cur.board.over);
+  return h('div', { class: 'board-head' }, h('b', {}, cur.name), extra || '', h('div', { class: 'spacer' }),
+    h('button', { class: 'btn ghost', disabled: S.busy, onclick: () => gameAct('/api/game/quit', {}) }, over ? '閉じる' : 'やめる'));
+}
+
+/* ---- 麻雀 */
+const MJ_NUM = '一二三四五六七八九';
+const MJ_HONOR = '東南西北白發中';
+function tileEl(t, o = {}) {
+  let top, bot, cls;
+  if (t >= 27) { top = MJ_HONOR[t - 27]; bot = ''; cls = 'z' + (t - 26); }
+  else { const n = t % 9 + 1, s = Math.floor(t / 9); top = s === 0 ? MJ_NUM[n - 1] : String(n); bot = '萬筒索'[s]; cls = 'mps'[s]; }
+  return h(o.onclick ? 'button' : 'div', {
+    class: `tile ${cls}${o.small ? ' small' : ''}${o.hl ? ' hl' : ''}${o.dim ? ' dim' : ''}${o.drawn ? ' drawn' : ''}`,
+    disabled: o.disabled, onclick: o.onclick, title: o.title || '',
+  }, h('span', { class: 't-top' }, top), bot ? h('span', { class: 't-bot' }, bot) : '');
+}
+const tileBack = (small) => h('div', { class: 'tile back' + (small ? ' small' : '') });
+
+function renderMahjong(cur) {
+  const m = cur.mj, me = S.view.name;
+  const turn = m.phase === 'p_turn' && !S.busy;
+  const riichiMode = S.mjRiichi && turn && m.riichi_tiles.length;
+  const discard = (t) => {
+    const riichi = riichiMode;
+    S.mjRiichi = false;
+    gameAct('/api/game/move', { act: riichi ? 'riichi' : 'discard', tile: t });
+  };
+  const handTile = (t, drawn) => {
+    const okRiichi = m.riichi_tiles.includes(t);
+    const locked = m.riichi.p && !drawn;   // リーチ後はツモ切りのみ
+    return tileEl(t, { drawn, onclick: () => discard(t), disabled: !turn || locked || (riichiMode && !okRiichi),
+      hl: riichiMode && okRiichi, title: drawn ? 'ツモ牌' : '' });
+  };
+  const river = (who) => h('div', { class: 'river' }, (m.river[who] || []).map((t, i) =>
+    tileEl(t, { small: true, hl: m.last && m.last.who === who && i === m.river[who].length - 1 })));
+  let controls;
+  if (m.phase === 'hand_end') {
+    const r = m.result;
+    const who = r.winner === 'p' ? 'あなた' : r.winner === 'a' ? me : null;
+    controls = h('div', { class: 'mj-result' },
+      h('div', { class: 'mj-res-head' }, who ? `${who}の${r.how}！` : '流局',
+        r.han ? h('span', { class: 'han' }, r.yakuman ? '役満' : `${r.han}翻`) : ''),
+      r.yaku && r.yaku.length ? h('div', { class: 'yaku' }, r.yaku.map(([n, v]) => h('span', {}, `${n} ${v >= 13 ? '' : v}`))) : '',
+      h('div', { class: 'sc-who', style: 'margin:8px 0 4px' }, `${me}の手牌`),
+      h('div', { class: 'hand small-hand' }, (m.her_hand || []).map((t) => tileEl(t, { small: true, hl: t === r.win_tile && r.winner === 'a' }))),
+      h('div', { class: 'row', style: 'margin-top:10px;justify-content:center' },
+        m.over ? h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'next' }) },
+          m.over === 'win' ? '🎉 勝利！ 閉じる' : '😵 敗北… 閉じる')
+          : h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'next' }) }, '次の局へ')));
+  } else if (m.phase === 'p_ron') {
+    controls = h('div', { class: 'row', style: 'justify-content:center' },
+      h('span', { class: 'prompt-q' }, `${me}の捨て牌でロンできます`),
+      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'ron' }) }, 'ロン！'),
+      h('button', { class: 'btn', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'skip' }) }, '見送り'));
+  } else {
+    controls = h('div', { class: 'row', style: 'justify-content:center' },
+      m.can_tsumo ? h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'tsumo' }) }, 'ツモ！') : '',
+      !m.riichi.p && m.riichi_tiles.length ? h('button', { class: 'btn' + (riichiMode ? ' primary' : ''), disabled: !turn,
+        onclick: () => { S.mjRiichi = !S.mjRiichi; renderGames(); } }, riichiMode ? 'リーチ：切る牌を選ぶ（取消）' : 'リーチ') : '',
+      h('span', { class: 'muted small' }, m.riichi.p ? 'リーチ中（和了れる牌が来たらツモ）' : turn ? '切る牌を選んでください' : '…'));
+  }
+  return h('div', { class: 'board mj' },
+    boardHead(cur, h('span', { class: 'muted small' }, `第${m.hand_no}局・親：${m.dealer === 'p' ? 'あなた' : me}`)),
+    stripScore(cur, `残り${m.wall}枚`),
+    h('div', { class: 'mj-row' }, h('span', { class: 'sc-who' }, me), m.riichi.a ? h('span', { class: 'riichi-badge' }, 'リーチ') : '',
+      h('div', { class: 'hand backs' }, Array.from({ length: m.her_count }, () => tileBack(true)))),
+    river('a'),
+    h('div', { class: 'mj-center' }, h('span', { class: 'sc-who' }, 'ドラ表示'), (m.dora || []).map((t) => tileEl(t, { small: true }))),
+    river('p'),
+    h('div', { class: 'mj-row' }, h('span', { class: 'sc-who' }, 'あなた'), m.riichi.p ? h('span', { class: 'riichi-badge' }, 'リーチ') : ''),
+    h('div', { class: 'hand' }, m.hand.map((t) => handTile(t, false)), m.drawn != null ? h('span', { class: 'gap' }) : '',
+      m.drawn != null ? handTile(m.drawn, true) : ''),
+    S.gameHint ? h('div', { class: 'hint-bubble', style: 'margin-top:10px' }, '💭 ' + S.gameHint) : '',
+    h('div', { style: 'margin-top:10px' }, controls));
+}
+
+/* ---- 盤面ゲーム */
+function renderBoard(cur) {
+  const b = cur.board, name = S.view.name;
+  const can = !S.busy && !b.over;
+  const move = (body) => gameAct('/api/game/move', body);
+  let grid, legend;
+  if (cur.kind === 'connect4') {
+    legend = h('div', { class: 'legend' }, h('i', { class: 'disc me' }), 'あなた　', h('i', { class: 'disc her' }), name);
+    const cells = [];
+    for (let r = b.h - 1; r >= 0; r--) {
+      for (let c = 0; c < b.w; c++) {
+        const i = r * b.w + c, v = b.cells[i];
+        cells.push(h('button', { class: 'c4-cell', disabled: !can, onclick: () => move({ col: c }) },
+          v ? h('i', { class: `disc ${v === 1 ? 'me' : 'her'}${b.last.includes(i) ? ' last' : ''}${(b.line || []).includes(i) ? ' win' : ''}` }) : ''));
+      }
+    }
+    grid = h('div', { class: 'c4', style: `grid-template-columns:repeat(${b.w},1fr)` }, cells);
+  } else if (cur.kind === 'reversi') {
+    legend = h('div', { class: 'legend' }, h('i', { class: 'disc black' }), `あなた ${b.me}　`, h('i', { class: 'disc white' }), `${name} ${b.her}`);
+    grid = h('div', { class: 'rv' }, b.cells.map((v, i) => {
+      const legal = b.legal.includes(i);
+      return h('button', { class: 'rv-cell' + (legal && can ? ' legal' : ''), disabled: !can || !legal, onclick: () => move({ cell: i }) },
+        v ? h('i', { class: `disc ${v === 1 ? 'black' : 'white'}${b.last.includes(i) ? ' last' : ''}` }) : '');
+    }));
+  } else {
+    legend = h('div', { class: 'legend' }, h('i', { class: 'disc me' }), 'あなた（上下をつなぐ）　', h('i', { class: 'disc blue' }), `${name}（左右）`);
+    grid = hexSvg(b, can, (i) => move({ cell: i }));
+  }
+  const res = b.over ? h('div', { class: 'hint-bubble', style: 'text-align:center' },
+    { win: '🎉 あなたの勝ち！', lose: '😵 あなたの負け…', draw: '🤝 引き分け' }[b.over]) : '';
+  return h('div', { class: 'board' }, boardHead(cur), legend, res,
+    S.gameHint && !b.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '', grid);
+}
+
+function hexSvg(b, can, onclick) {
+  const n = b.n, R = 13, W = Math.sqrt(3) * R;
+  const cx = (r, c) => W * (c + r / 2) + W, cy = (r) => 1.5 * R * r + R * 1.6;
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
+  const width = W * (n + (n - 1) / 2) + W * 2, height = 1.5 * R * (n - 1) + R * 3.2;
+  const svg = el('svg', { viewBox: `0 0 ${width} ${height}`, class: 'hex' });
+  const corner = (r, c, dx, dy) => [cx(r, c) + dx, cy(r) + dy];
+  const edge = (p1, p2, color) => svg.append(el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: color, 'stroke-width': 4, 'stroke-linecap': 'round' }));
+  edge(corner(0, 0, -W / 2, -R * 1.2), corner(0, n - 1, W / 2, -R * 1.2), 'var(--bad)');
+  edge(corner(n - 1, 0, -W / 2, R * 1.2), corner(n - 1, n - 1, W / 2, R * 1.2), 'var(--bad)');
+  edge(corner(0, 0, -W * 0.8, -R * 0.4), corner(n - 1, 0, -W * 0.8, R * 0.4), 'var(--sky)');
+  edge(corner(0, n - 1, W * 0.8, -R * 0.4), corner(n - 1, n - 1, W * 0.8, R * 0.4), 'var(--sky)');
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      const i = r * n + c, v = b.cells[i];
+      const pts = Array.from({ length: 6 }, (_, k) => {
+        const a = Math.PI / 180 * (60 * k - 90);
+        return `${cx(r, c) + (R - 0.8) * Math.cos(a)},${cy(r) + (R - 0.8) * Math.sin(a)}`;
+      }).join(' ');
+      const poly = el('polygon', { points: pts, class: `hx ${v === 1 ? 'me' : v === 2 ? 'her' : ''}${b.last.includes(i) ? ' last' : ''}${!v && can ? ' open' : ''}` });
+      if (!v && can) poly.addEventListener('click', () => onclick(i));
+      svg.append(poly);
+    }
+  }
+  return svg;
 }
 
 async function gameAct(path, body) {
@@ -834,14 +986,20 @@ SEC.minigames = () => {
       await api('/api/minigames', { minigames: JSON.parse(ta.value) });
       await reloadAll();
     }, h('button', { class: 'btn', onclick: () => downloadJson('minigames.json', JSON.parse(ta.value)) }, 'ファイルに保存')),
-    h('p', { class: 'lead' }, '遊べるミニゲームの定義です（JSON で直接編集）。kind は yakyuken（野球拳）か acchimuite（あっち向いてホイ）で、同じ kind で中身の違うゲームをいくつでも作れます。'),
+    h('p', { class: 'lead' }, '遊べるミニゲームの定義です（JSON で直接編集）。kind は yakyuken（野球拳）/ acchimuite（あっち向いてホイ）/ mahjong（脱衣麻雀）/ connect4 / hex / reversi で、同じ kind で中身の違うゲームをいくつでも作れます。'),
     h('div', { class: 'keys' },
       h('div', {}, h('code', {}, 'require'), ' 遊べる条件（満たさないとボタンが押せない） / ', h('code', {}, 'when'), ' 誘いに乗る条件（満たさないと lines.refuse で断られる）'),
       h('div', {}, h('code', {}, 'stages'), ' 野球拳の段階。mode: add = 今の服に追記 / replace = 置き換え、remove = 外見プロンプトから外すタグ。', h('code', {}, 'giveup'), ' は降参時の服装'),
       h('div', {}, h('code', {}, 'lines'), ' 場面ごとのセリフ（反応と同じ書式: text / when / priority / pos / neg）。',
         '野球拳: refuse start hint draw round_win round_lose win lose quit interrupted、あっち向いてホイ: start hint draw rps_me rps_her point_me dodge_me point_her dodge_her win lose quit interrupted'),
       h('div', {}, h('code', {}, 'effects'), ' 場面ごとのパラメータ変化。セリフの置換: ', ['{her_hand}', '{my_hand}', '{hint_hand}', '{stage}', '{dir}', '{her_dir}'].map((k) => [h('code', {}, k), ' '])),
-      h('div', {}, '条件で使える追加キー: ', ['game_stage', 'game_round', 'lives', 'my_point', 'her_point'].map((k) => [h('code', {}, k), ' ']))),
+      h('div', {}, '条件で使える追加キー: ', ['game_stage', 'game_round', 'lives', 'my_point', 'her_point'].map((k) => [h('code', {}, k), ' '])),
+      h('div', {}, '脱衣麻雀: ', h('code', {}, 'live_wall'), ' ツモ山の枚数 / ', h('code', {}, 'han_steps'), ' [最低翻, 脱ぐ段階数] の表 / ',
+        h('code', {}, 'riichi_rate'), '、セリフ: refuse start hint(tenpai) her_riichi my_riichi hand_win hand_lose(tsumo) ryuukyoku win lose quit interrupted、置換 ',
+        h('code', {}, '{yaku}'), ' ', h('code', {}, '{han}')),
+      h('div', {}, '盤面ゲーム: ', h('code', {}, 'first'), ' me / her / random、', h('code', {}, 'size'), ' ヘックスの盤の大きさ、',
+        h('code', {}, 'comment_every'), ' 途中のひとことの間隔、セリフ: start mid(advantage: 正 = あなた有利) pass win lose draw quit interrupted'),
+      h('div', {}, '強さ（麻雀・盤面）: ', h('code', {}, 'skill'), ' 0〜1 / ', h('code', {}, 'err'), ' 凡ミス率（眠気・不機嫌で上がる）')),
     h('div', { style: 'margin-top:10px' }, ta),
     res,
   ];

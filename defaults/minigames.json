@@ -1,139 +1,814 @@
 [
  {
-  "id": "yakyuken", "kind": "yakyuken", "name": "野球拳", "icon": "✊",
+  "id": "yakyuken",
+  "kind": "yakyuken",
+  "name": "野球拳",
+  "icon": "✊",
   "desc": "じゃんけんで負けたほうが1枚ずつ脱いでいく。{name}が降参するか、あなたのライフが尽きたら終了。",
   "require": "free=true",
   "when": "affection>=50",
   "lives": 3,
-  "hint_rate": 0.35, "hint_honesty": 0.6,
-  "pos": "rock paper scissors, playful, looking at viewer, upper body", "neg": "",
+  "hint_rate": 0.35,
+  "hint_honesty": 0.6,
+  "pos": "rock paper scissors, playful, looking at viewer, upper body",
+  "neg": "",
   "hands": {
-   "rock": {"name": "グー", "icon": "✊", "pos": "raised fist"},
-   "scissors": {"name": "チョキ", "icon": "✌️", "pos": "v, hand up"},
-   "paper": {"name": "パー", "icon": "✋", "pos": "open hand, palm, hand up"}
+   "rock": {
+    "name": "グー",
+    "icon": "✊",
+    "pos": "raised fist"
+   },
+   "scissors": {
+    "name": "チョキ",
+    "icon": "✌️",
+    "pos": "v, hand up"
+   },
+   "paper": {
+    "name": "パー",
+    "icon": "✋",
+    "pos": "open hand, palm, hand up"
+   }
   },
   "stages": [
-   {"label": "いつもの服", "mode": "add", "pos": "", "neg": "", "remove": ""},
-   {"label": "靴下を脱いだ", "mode": "add", "pos": "barefoot", "neg": "socks, shoes", "remove": ""},
-   {"label": "リボンをほどいた", "mode": "add", "pos": "hair down", "neg": "hair ribbon, ponytail", "remove": "hair ribbon, side ponytail"},
-   {"label": "キャミソール姿", "mode": "replace", "pos": "camisole, shorts, bare shoulders, barefoot, hair down", "neg": "", "remove": ""}
+   {
+    "label": "いつもの服",
+    "mode": "add",
+    "pos": "",
+    "neg": "",
+    "remove": ""
+   },
+   {
+    "label": "靴下を脱いだ",
+    "mode": "add",
+    "pos": "barefoot",
+    "neg": "socks, shoes",
+    "remove": ""
+   },
+   {
+    "label": "リボンをほどいた",
+    "mode": "add",
+    "pos": "hair down",
+    "neg": "hair ribbon, ponytail",
+    "remove": "hair ribbon, side ponytail"
+   },
+   {
+    "label": "キャミソール姿",
+    "mode": "replace",
+    "pos": "camisole, shorts, bare shoulders, barefoot, hair down",
+    "neg": "",
+    "remove": ""
+   }
   ],
-  "giveup": {"label": "降参", "mode": "replace", "pos": "wrapped in blanket, camisole, bare shoulders, hair down", "neg": "", "remove": ""},
+  "giveup": {
+   "label": "降参",
+   "mode": "replace",
+   "pos": "wrapped in blanket, camisole, bare shoulders, hair down",
+   "neg": "",
+   "remove": ""
+  },
   "effects": {
-   "start": {"heart": 5, "boredom": -10},
-   "round_win": {"shyness": 15, "heart": 5},
-   "round_lose": {"mood": 3},
+   "start": {
+    "heart": 5,
+    "boredom": -10
+   },
+   "round_win": {
+    "shyness": 15,
+    "heart": 5
+   },
+   "round_lose": {
+    "mood": 3
+   },
    "draw": {},
-   "win": {"affection": 3, "shyness": 20, "heart": 10},
-   "lose": {"mood": 8, "affection": 1},
+   "win": {
+    "affection": 3,
+    "shyness": 20,
+    "heart": 10
+   },
+   "lose": {
+    "mood": 8,
+    "affection": 1
+   },
    "quit": {}
   },
   "lines": {
    "refuse": [
-    {"text": "や、野球拳ですか！？ そ、そういうのはまだ……！", "pos": "flustered, blush, waving hands"}
+    {
+     "text": "や、野球拳ですか！？ そ、そういうのはまだ……！",
+     "pos": "flustered, blush, waving hands"
+    }
    ],
    "start": [
-    {"text": "や、野球拳……ですか。……いいですよ、負けませんから！", "pos": "determined, blush"},
-    {"text": "ふふん、私じゃんけん強いんですよ？ 覚悟してくださいね。", "when": "mood>=60", "pos": "smug, smile"}
+    {
+     "text": "や、野球拳……ですか。……いいですよ、負けませんから！",
+     "pos": "determined, blush"
+    },
+    {
+     "text": "ふふん、私じゃんけん強いんですよ？ 覚悟してくださいね。",
+     "when": "mood>=60",
+     "pos": "smug, smile"
+    }
    ],
    "hint": [
-    {"text": "……次は{hint_hand}を出しちゃおうかな？", "pos": "teasing smile, finger to lips"},
-    {"text": "{hint_hand}……いや、なんでもないです！", "pos": "looking away, smile"}
+    {
+     "text": "……次は{hint_hand}を出しちゃおうかな？",
+     "pos": "teasing smile, finger to lips"
+    },
+    {
+     "text": "{hint_hand}……いや、なんでもないです！",
+     "pos": "looking away, smile"
+    }
    ],
    "draw": [
-    {"text": "あいこでしょ！ ……もう一回！", "pos": ""},
-    {"text": "また{her_hand}！ 気が合いますね……", "pos": "laughing"}
+    {
+     "text": "あいこでしょ！ ……もう一回！",
+     "pos": ""
+    },
+    {
+     "text": "また{her_hand}！ 気が合いますね……",
+     "pos": "laughing"
+    }
    ],
    "round_win": [
-    {"text": "うぅ……「{stage}」になっちゃいました……", "pos": "embarrassed, blush"},
-    {"text": "ま、まだ平気です！ 次は勝ちますから！", "when": "game_stage<=1", "pos": "pout, blush"},
-    {"text": "こ、これ以上は……ほんとに次で最後ですからね……！", "when": "game_stage>=3", "priority": 1, "pos": "full-face blush, looking away, arms crossed"}
+    {
+     "text": "うぅ……「{stage}」になっちゃいました……",
+     "pos": "embarrassed, blush"
+    },
+    {
+     "text": "ま、まだ平気です！ 次は勝ちますから！",
+     "when": "game_stage<=1",
+     "pos": "pout, blush"
+    },
+    {
+     "text": "こ、これ以上は……ほんとに次で最後ですからね……！",
+     "when": "game_stage>=3",
+     "priority": 1,
+     "pos": "full-face blush, looking away, arms crossed"
+    }
    ],
    "round_lose": [
-    {"text": "やった、私の勝ち！ {call}、1枚脱いでくださいね♪", "pos": "cheering, smile"},
-    {"text": "ふふ、{my_hand}を出すと思ってました。", "pos": "smug, smile"},
-    {"text": "あと1回で私の勝ちですよ？", "when": "lives<=1", "priority": 1, "pos": "teasing smile, leaning forward"}
+    {
+     "text": "やった、私の勝ち！ {call}、1枚脱いでくださいね♪",
+     "pos": "cheering, smile"
+    },
+    {
+     "text": "ふふ、{my_hand}を出すと思ってました。",
+     "pos": "smug, smile"
+    },
+    {
+     "text": "あと1回で私の勝ちですよ？",
+     "when": "lives<=1",
+     "priority": 1,
+     "pos": "teasing smile, leaning forward"
+    }
    ],
    "win": [
-    {"text": "も、もう無理です、降参です……！ {call}のいじわる……", "pos": "full-face blush, looking away"}
+    {
+     "text": "も、もう無理です、降参です……！ {call}のいじわる……",
+     "pos": "full-face blush, looking away"
+    }
    ],
    "lose": [
-    {"text": "私の勝ちですね！ ……ちょっとだけ、残念でした？", "pos": "victory pose, smile, wink"}
+    {
+     "text": "私の勝ちですね！ ……ちょっとだけ、残念でした？",
+     "pos": "victory pose, smile, wink"
+    }
    ],
    "quit": [
-    {"text": "もうおしまいですか？ ……ちょっとほっとしました。", "pos": "relieved smile"}
+    {
+     "text": "もうおしまいですか？ ……ちょっとほっとしました。",
+     "pos": "relieved smile"
+    }
    ],
    "interrupted": [
-    {"text": "あ、そろそろ行かないと……続きはまた今度ですね。", "pos": ""}
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
    ]
   }
  },
  {
-  "id": "acchimuite", "kind": "acchimuite", "name": "あっち向いてホイ", "icon": "👉",
+  "id": "acchimuite",
+  "kind": "acchimuite",
+  "name": "あっち向いてホイ",
+  "icon": "👉",
   "desc": "じゃんけんで勝ったら指さし、負けたら顔をそらす。先に{target}本取ったほうの勝ち。",
   "require": "free=true",
   "when": "",
   "target": 3,
-  "hint_rate": 0.2, "hint_honesty": 0.5,
-  "pos": "upper body, looking at viewer, playful", "neg": "",
+  "hint_rate": 0.2,
+  "hint_honesty": 0.5,
+  "pos": "upper body, looking at viewer, playful",
+  "neg": "",
   "hands": {
-   "rock": {"name": "グー", "icon": "✊", "pos": "raised fist"},
-   "scissors": {"name": "チョキ", "icon": "✌️", "pos": "v, hand up"},
-   "paper": {"name": "パー", "icon": "✋", "pos": "open hand, palm, hand up"}
+   "rock": {
+    "name": "グー",
+    "icon": "✊",
+    "pos": "raised fist"
+   },
+   "scissors": {
+    "name": "チョキ",
+    "icon": "✌️",
+    "pos": "v, hand up"
+   },
+   "paper": {
+    "name": "パー",
+    "icon": "✋",
+    "pos": "open hand, palm, hand up"
+   }
   },
   "dirs": {
-   "up": {"name": "上", "icon": "⬆️", "look": "looking up", "point": "pointing up"},
-   "down": {"name": "下", "icon": "⬇️", "look": "looking down", "point": "pointing down"},
-   "left": {"name": "左", "icon": "⬅️", "look": "looking to the side, head turned", "point": "pointing to the side"},
-   "right": {"name": "右", "icon": "➡️", "look": "looking to the side, head turned", "point": "pointing to the side"}
+   "up": {
+    "name": "上",
+    "icon": "⬆️",
+    "look": "looking up",
+    "point": "pointing up"
+   },
+   "down": {
+    "name": "下",
+    "icon": "⬇️",
+    "look": "looking down",
+    "point": "pointing down"
+   },
+   "left": {
+    "name": "左",
+    "icon": "⬅️",
+    "look": "looking to the side, head turned",
+    "point": "pointing to the side"
+   },
+   "right": {
+    "name": "右",
+    "icon": "➡️",
+    "look": "looking to the side, head turned",
+    "point": "pointing to the side"
+   }
   },
   "effects": {
-   "start": {"boredom": -15, "mood": 3},
-   "point_me": {"shyness": 5},
-   "point_her": {"mood": 4},
-   "win": {"affection": 2, "mood": 3},
-   "lose": {"mood": 8},
+   "start": {
+    "boredom": -15,
+    "mood": 3
+   },
+   "point_me": {
+    "shyness": 5
+   },
+   "point_her": {
+    "mood": 4
+   },
+   "win": {
+    "affection": 2,
+    "mood": 3
+   },
+   "lose": {
+    "mood": 8
+   },
    "quit": {}
   },
   "lines": {
    "start": [
-    {"text": "あっち向いてホイですね！ 反射神経には自信あるんです。", "pos": "smile, determined"}
+    {
+     "text": "あっち向いてホイですね！ 反射神経には自信あるんです。",
+     "pos": "smile, determined"
+    }
    ],
    "hint": [
-    {"text": "次は{hint_hand}かも……？", "pos": "teasing smile"}
+    {
+     "text": "次は{hint_hand}かも……？",
+     "pos": "teasing smile"
+    }
    ],
    "draw": [
-    {"text": "あいこでしょ！", "pos": ""}
+    {
+     "text": "あいこでしょ！",
+     "pos": ""
+    }
    ],
    "rps_me": [
-    {"text": "あっ、負けちゃった……どっちを指すんですか？", "pos": "nervous, eyes closed tightly"}
+    {
+     "text": "あっ、負けちゃった……どっちを指すんですか？",
+     "pos": "nervous, eyes closed tightly"
+    }
    ],
    "rps_her": [
-    {"text": "私の勝ち！ いきますよー……あっち向いて……", "pos": "pointing at viewer, smile"}
+    {
+     "text": "私の勝ち！ いきますよー……あっち向いて……",
+     "pos": "pointing at viewer, smile"
+    }
    ],
    "point_me": [
-    {"text": "あーっ！ つられちゃいました……", "pos": "surprised, open mouth"}
+    {
+     "text": "あーっ！ つられちゃいました……",
+     "pos": "surprised, open mouth"
+    }
    ],
    "dodge_me": [
-    {"text": "ふふん、引っかかりませんよ！", "pos": "smug"}
+    {
+     "text": "ふふん、引っかかりませんよ！",
+     "pos": "smug"
+    }
    ],
    "point_her": [
-    {"text": "やった！ {call}、{dir}向きましたね！", "pos": "cheering, laughing"}
+    {
+     "text": "やった！ {call}、{dir}向きましたね！",
+     "pos": "cheering, laughing"
+    }
    ],
    "dodge_her": [
-    {"text": "むー、よけられた！", "pos": "pout"}
+    {
+     "text": "むー、よけられた！",
+     "pos": "pout"
+    }
    ],
    "win": [
-    {"text": "負けました……{call}、強いですね。次は負けませんから！", "pos": "pout, smile"}
+    {
+     "text": "負けました……{call}、強いですね。次は負けませんから！",
+     "pos": "pout, smile"
+    }
    ],
    "lose": [
-    {"text": "私の勝ちー！ ふふ、もう一回やります？", "pos": "victory pose, v, smile"}
+    {
+     "text": "私の勝ちー！ ふふ、もう一回やります？",
+     "pos": "victory pose, v, smile"
+    }
    ],
    "quit": [
-    {"text": "また遊びましょうね。", "pos": "smile, waving"}
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
    ],
    "interrupted": [
-    {"text": "あ、そろそろ行かないと……続きはまた今度ですね。", "pos": ""}
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "mahjong",
+  "kind": "mahjong",
+  "name": "脱衣麻雀",
+  "icon": "🀄",
+  "desc": "二人打ちの簡易麻雀（鳴きなし・リーチ/ツモ/ロン）。あなたが和了ると{name}が脱ぎ、和了られるとライフが減る。満貫以上は2段階、倍満以上は3段階、役満で一気に決着。",
+  "require": "free=true",
+  "when": "affection>=50",
+  "lives": 3,
+  "live_wall": 70,
+  "han_steps": [
+   [
+    1,
+    1
+   ],
+   [
+    5,
+    2
+   ],
+   [
+    8,
+    3
+   ]
+  ],
+  "skill": 0.7,
+  "err": 0.05,
+  "riichi_rate": 0.75,
+  "hint_rate": 0.15,
+  "hint_honesty": 0.6,
+  "pos": "mahjong, mahjong tile, table, sitting, looking at viewer, upper body",
+  "neg": "",
+  "stages": [
+   {
+    "label": "いつもの服",
+    "mode": "add",
+    "pos": "",
+    "neg": "",
+    "remove": ""
+   },
+   {
+    "label": "靴下を脱いだ",
+    "mode": "add",
+    "pos": "barefoot",
+    "neg": "socks, shoes",
+    "remove": ""
+   },
+   {
+    "label": "リボンをほどいた",
+    "mode": "add",
+    "pos": "hair down",
+    "neg": "hair ribbon, ponytail",
+    "remove": "hair ribbon, side ponytail"
+   },
+   {
+    "label": "キャミソール姿",
+    "mode": "replace",
+    "pos": "camisole, shorts, bare shoulders, barefoot, hair down",
+    "neg": "",
+    "remove": ""
+   }
+  ],
+  "giveup": {
+   "label": "降参",
+   "mode": "replace",
+   "pos": "wrapped in blanket, camisole, bare shoulders, hair down",
+   "neg": "",
+   "remove": ""
+  },
+  "effects": {
+   "start": {
+    "heart": 5,
+    "boredom": -15
+   },
+   "her_riichi": {
+    "mood": 2
+   },
+   "my_riichi": {
+    "heart": 3
+   },
+   "hand_win": {
+    "shyness": 15,
+    "heart": 5
+   },
+   "hand_lose": {
+    "mood": 4
+   },
+   "ryuukyoku": {},
+   "win": {
+    "affection": 3,
+    "shyness": 20,
+    "heart": 10
+   },
+   "lose": {
+    "mood": 8,
+    "affection": 1
+   },
+   "quit": {}
+  },
+  "lines": {
+   "refuse": [
+    {
+     "text": "だ、脱衣麻雀……！？ そういうのはまだ早いです……！",
+     "pos": "flustered, blush, waving hands"
+    }
+   ],
+   "start": [
+    {
+     "text": "麻雀ですか？ ふふ、私けっこう打てるんですよ。……脱ぐのはそっちかもしれませんね？",
+     "pos": "smug, smile, blush"
+    },
+    {
+     "text": "う、受けて立ちます……！ 手加減しませんからね。",
+     "when": "shyness>=40",
+     "pos": "determined, blush"
+    }
+   ],
+   "hint": [
+    {
+     "text": "ふふ……そろそろ来そうな気がします。",
+     "when": "tenpai=true",
+     "pos": ""
+    },
+    {
+     "text": "うーん、全然揃わない……",
+     "when": "tenpai=false",
+     "pos": ""
+    }
+   ],
+   "her_riichi": [
+    {
+     "text": "リーチです！ ……覚悟してくださいね？",
+     "pos": "pointing at viewer, confident smile"
+    },
+    {
+     "text": "り、リーチ！ ……ドキドキしてきました。",
+     "when": "game_stage>=2",
+     "pos": "nervous smile, blush"
+    }
+   ],
+   "my_riichi": [
+    {
+     "text": "えっ、リーチ！？ ……その牌、通るかな……",
+     "pos": "nervous, sweat"
+    }
+   ],
+   "hand_win": [
+    {
+     "text": "うぅ……{yaku}、{han}……。「{stage}」です……",
+     "pos": "embarrassed, blush, looking away"
+    },
+    {
+     "text": "ま、まだまだ……次は和了りますから！",
+     "when": "game_stage<=1",
+     "pos": "pout, blush"
+    },
+    {
+     "text": "こ、これ以上は……ほんとに次で最後ですからね……！",
+     "when": "game_stage>=3",
+     "priority": 1,
+     "pos": "full-face blush, arms crossed"
+    }
+   ],
+   "hand_lose": [
+    {
+     "text": "ロン！ {yaku}で{han}です♪",
+     "when": "tsumo=false",
+     "pos": "cheering, smile, revealing tiles"
+    },
+    {
+     "text": "ツモ！ {yaku}、{han}！ ふふ、もらいました。",
+     "when": "tsumo=true",
+     "pos": "cheering, smile"
+    },
+    {
+     "text": "あと1回で私の勝ちですよ？",
+     "when": "lives<=1",
+     "priority": 1,
+     "pos": "teasing smile, leaning forward"
+    }
+   ],
+   "ryuukyoku": [
+    {
+     "text": "流局ですね。……ちょっとほっとしました。",
+     "pos": "relieved smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "{yaku}……{han}……。も、もう無理です、降参です……！",
+     "pos": "full-face blush, looking away"
+    }
+   ],
+   "lose": [
+    {
+     "text": "私の勝ちですね！ {call}、麻雀はもうちょっと練習しましょうね？",
+     "pos": "victory pose, wink, smile"
+    }
+   ],
+   "quit": [
+    {
+     "text": "途中でやめちゃうんですか？ ……続きはまた今度ですね。",
+     "pos": "smile"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "connect4",
+  "kind": "connect4",
+  "name": "コネクトフォー",
+  "icon": "🔴",
+  "desc": "7列の盤に交互にコマを落とし、縦・横・斜めに4つ並べたら勝ち。",
+  "require": "free=true",
+  "when": "",
+  "first": "me",
+  "skill": 0.6,
+  "err": 0.05,
+  "comment_every": 4,
+  "pos": "board game, table, sitting, thinking, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "コネクトフォーですね！ 4つ並べればいいんですよね？",
+     "pos": "smile"
+    }
+   ],
+   "mid": [
+    {
+     "text": "うーん……どこに置こう……",
+     "pos": "thinking, hand on chin"
+    },
+    {
+     "text": "ふふ、いい感じです。",
+     "when": "advantage<-20",
+     "pos": "smug"
+    },
+    {
+     "text": "あれ、ちょっとまずいかも……",
+     "when": "advantage>20",
+     "pos": "nervous, sweat"
+    }
+   ],
+   "win": [
+    {
+     "text": "あっ、揃っちゃった……！ {call}の勝ちです。",
+     "pos": "pout, surprised"
+    }
+   ],
+   "lose": [
+    {
+     "text": "4つ並びました！ 私の勝ちー！",
+     "pos": "cheering, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "引き分けですね。いい勝負でした！",
+     "pos": "smile"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "hex",
+  "kind": "hex",
+  "name": "ヘックス",
+  "icon": "⬡",
+  "desc": "六角形の盤に交互に石を置く。あなたは上下（赤）、{name}は左右（青）の辺をつないだら勝ち。引き分けはない。",
+  "require": "free=true",
+  "when": "",
+  "first": "me",
+  "size": 7,
+  "skill": 0.6,
+  "err": 0.05,
+  "comment_every": 4,
+  "pos": "board game, table, sitting, thinking, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "ヘックス……六角形のマスをつなげるんですね。負けませんよ！",
+     "pos": "smile, determined"
+    }
+   ],
+   "mid": [
+    {
+     "text": "そこを塞がれると困るんですよね……",
+     "pos": "thinking"
+    },
+    {
+     "text": "ふふ、道が見えてきました。",
+     "when": "advantage<-10",
+     "pos": "smug"
+    },
+    {
+     "text": "えっ、もうそこまで……！？",
+     "when": "advantage>10",
+     "pos": "surprised, sweat"
+    }
+   ],
+   "win": [
+    {
+     "text": "つながっちゃいました……{call}の勝ちです。",
+     "pos": "pout"
+    }
+   ],
+   "lose": [
+    {
+     "text": "つながりました！ 私の勝ちです！",
+     "pos": "cheering"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
+ },
+ {
+  "id": "reversi",
+  "kind": "reversi",
+  "name": "リバーシ",
+  "icon": "⚫",
+  "desc": "相手の石をはさんでひっくり返す。最後に石の多いほうが勝ち。あなたは黒、{name}は白。",
+  "require": "free=true",
+  "when": "",
+  "first": "me",
+  "skill": 0.6,
+  "err": 0.05,
+  "comment_every": 6,
+  "pos": "board game, table, sitting, thinking, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "リバーシですね。角は渡しませんよ？",
+     "pos": "smile"
+    }
+   ],
+   "mid": [
+    {
+     "text": "うーん、どこに置こうかな……",
+     "pos": "thinking, hand on chin"
+    },
+    {
+     "text": "白がいっぱい♪",
+     "when": "advantage<-8",
+     "pos": "smug, smile"
+    },
+    {
+     "text": "うぅ、真っ黒……",
+     "when": "advantage>8",
+     "pos": "pout"
+    }
+   ],
+   "pass": [
+    {
+     "text": "あ、{call}は置ける所がないみたいですね。私の番です！",
+     "pos": "smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "{me}対{her}……{call}の勝ちです。",
+     "pos": "pout"
+    }
+   ],
+   "lose": [
+    {
+     "text": "{her}対{me}で私の勝ちです！",
+     "pos": "cheering, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "{me}対{her}、引き分けです！",
+     "pos": "surprised, smile"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
    ]
   }
  }

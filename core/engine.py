@@ -113,6 +113,18 @@ class App:
         if added:
             self.actions += added
             store.save(store.dpath("actions.json"), self.actions)
+        # ミニゲーム: 新しく増えた既定ゲームを追加 (ユーザーが消したものは seen に残るので戻さない)
+        defaults = store.load(os.path.join(store.DEFAULTS, "minigames.json"), [])
+        have = {g.get("id") for g in self.minigames}
+        seen = set(self.settings.get("seen_minigames") or []) or set(have)
+        new = [g for g in defaults if g["id"] not in have and g["id"] not in seen]
+        all_ids = seen | {g["id"] for g in defaults}
+        if new or all_ids != set(self.settings.get("seen_minigames") or []):
+            if new:
+                self.minigames += new
+                store.save(store.dpath("minigames.json"), self.minigames)
+            self.settings["seen_minigames"] = sorted(all_ids)
+            store.save(store.dpath("settings.json"), self.settings)
         for c in self.chars.values():
             if "wardrobe" not in c:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
@@ -890,14 +902,14 @@ class App:
             if any(not i for i in ids) or len(set(ids)) != len(ids):
                 raise ValueError("ミニゲームの id が空か重複しています")
             for g in items:
-                if g.get("kind") not in ("yakyuken", "acchimuite"):
-                    raise ValueError("「%s」の kind は yakyuken / acchimuite のどちらかです" % g.get("name", g["id"]))
+                if g.get("kind") not in games.KINDS:
+                    raise ValueError("「%s」の kind は %s のどれかです" % (g.get("name", g["id"]), " / ".join(games.KINDS)))
                 for k in ("require", "when"):
                     cond.parse(g.get(k, ""))
                 for ev, lines in (g.get("lines") or {}).items():
                     self._check_conds(lines, "「%s」の %s" % (g.get("name", g["id"]), ev))
-                if g["kind"] == "yakyuken" and not g.get("stages"):
-                    raise ValueError("野球拳の stages が空です")
+                if g["kind"] in games.STRIP_KINDS and not g.get("stages"):
+                    raise ValueError("「%s」の stages が空です" % g.get("name", g["id"]))
             self.minigames = items
             store.save(store.dpath("minigames.json"), items)
             for st in self.states.values():   # 消えたゲームの進行中状態は破棄
