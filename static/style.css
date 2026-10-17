@@ -397,6 +397,9 @@ dialog { color: var(--text); }
 .card-head b { font-weight: 500; }
 .sect { margin: 22px 0 10px; font-size: 13px; color: var(--accent2); display: flex; align-items: center; gap: 8px; }
 .sect::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.pl-row { padding: 8px 12px; margin-bottom: 6px; }
+.pl-row .card-head { margin-bottom: 2px; flex-wrap: wrap; }
+.pl-row textarea { margin-top: 4px; font-family: var(--font); font-size: 13px; }
 .hist { display: flex; flex-direction: column; gap: 6px; }
 .hist-item { background: var(--panel2); border-radius: 10px; padding: 8px 12px; font-size: 12px; display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 .hist-item code { white-space: pre-wrap; word-break: break-word; color: #d9d2e3; }

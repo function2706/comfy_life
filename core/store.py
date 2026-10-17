@@ -75,6 +75,23 @@ def load_characters():
     return chars
 
 
+def load_personas():
+    """性格プリセット. defaults/personas の上に data/personas (ユーザー編集分) を重ねる."""
+    out = {}
+    for d in (os.path.join(DEFAULTS, "personas"), dpath("personas")):
+        for f in sorted(glob.glob(os.path.join(d, "*.json"))):
+            p = load(f)
+            if p and p.get("id"):
+                p["_custom"] = d != os.path.join(DEFAULTS, "personas")
+                out[p["id"]] = p
+    return out
+
+
+def save_persona(p):
+    p = {k: v for k, v in p.items() if not k.startswith("_")}
+    save(dpath("personas", p["id"] + ".json"), p)
+
+
 def save_character(c):
     save(dpath("characters", c["id"] + ".json"), c)
 

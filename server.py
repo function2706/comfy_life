@@ -50,6 +50,8 @@ def route(method, path, q, body):
             return a.prompt_preview(cid)
         if path == "/api/workflow":
             return {"workflow": store.load(store.dpath("workflow.json"))}
+        if path == "/api/persona":
+            return a.persona_full(_q(q, "id", ""))
     else:
         b = body or {}
         if path == "/api/act":
@@ -62,6 +64,10 @@ def route(method, path, q, body):
             return a.games.move(cid, b)
         if path == "/api/game/quit":
             return a.games.quit(cid)
+        if path == "/api/persona/save":
+            return {"persona": a.save_persona(b["persona"])}
+        if path == "/api/persona/reset":
+            return a.reset_persona(b["id"])
         if path == "/api/minigames":
             return {"minigames": a.save_minigames(b["minigames"])}
         if path == "/api/reroll":

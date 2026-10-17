@@ -1142,10 +1142,96 @@ SEC.char = () => {
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
     fld('普段の服装（スケジュールで未指定のとき）', inp(c, 'outfit_default')),
-    h('div', { class: 'sect' }, '性格・口調（LLM 使用時に参照）'),
+    h('div', { class: 'sect' }, '性格プリセット（セリフの口調）'),
+    personaPicker(c),
+    h('div', { class: 'sect' }, '性格・口調の説明（LLM 使用時に参照）'),
     inp(c, 'persona', { type: 'textarea', rows: 3 }),
     h('div', { class: 'sect' }, `プロンプト履歴（${(c.prompt_history || []).length}）`),
     hist,
+  ];
+};
+
+function personaPicker(c) {
+  const ps = S.boot.personas || [];
+  const cur = ps.find((p) => p.id === c.persona_id);
+  return h('div', { class: 'grid2' },
+    fld('プリセット', h('select', {
+      value: c.persona_id || '',
+      onchange: (ev) => {
+        const p = ps.find((x) => x.id === ev.target.value);
+        c.persona_id = ev.target.value || '';
+        if (p && confirm(`「${p.name}」の性格の説明と、あなたの呼ばれ方（${p.player_call}）もプリセットに合わせますか？`)) {
+          c.persona = p.persona;
+          c.player_call = p.player_call;
+        }
+        showSection('char');
+      },
+    }, h('option', { value: '' }, 'なし（共通のセリフ）'), ps.map((p) => h('option', { value: p.id }, p.name)))),
+    h('div', { class: 'fld' }, h('span', { class: 'fl' }, '説明'),
+      h('div', { class: 'hint', style: 'font-size:12.5px' }, cur ? cur.desc : 'コマンドやミニゲームに書かれた共通のセリフをそのまま使います'),
+      cur ? h('button', { class: 'btn ghost', style: 'align-self:flex-start', onclick: () => { SE.personaSel = cur.id; showSection('personas'); } }, 'セリフ集を見る・編集') : ''));
+}
+
+/* ---- 性格プリセット (セリフ集) */
+SEC.personas = () => {
+  const ps = S.boot.personas || [];
+  const box = h('div');
+  const pick = h('select', { value: SE.personaSel || S.boot.character.persona_id || (ps[0] || {}).id, onchange: (ev) => { SE.personaSel = ev.target.value; SE.personaData = null; showSection('personas'); } },
+    ps.map((p) => h('option', { value: p.id }, p.name + (p._custom ? '（編集済み）' : ''))));
+  const load = async () => {
+    const id = pick.value;
+    if (!id) { box.replaceChildren(h('p', { class: 'muted' }, '性格プリセットがありません')); return; }
+    if (!SE.personaData || SE.personaData.persona.id !== id) SE.personaData = await api('/api/persona?id=' + encodeURIComponent(id));
+    const { persona: p, keys } = SE.personaData;
+    p.lines = p.lines || {};
+    const list = h('div');
+    const search = h('input', { placeholder: 'キー・場面・セリフで絞り込み（例: hug, 野球拳, 断る）' });
+    const draw = () => {
+      const q = search.value.trim().toLowerCase();
+      const rows = Object.entries(keys).filter(([k, v]) => !q || (k + v.scene + v.text + (p.lines[k] || []).join('')).toLowerCase().includes(q));
+      list.replaceChildren(h('div', { class: 'muted small', style: 'margin:6px 0' }, `${rows.length} / ${Object.keys(keys).length} 場面（未記入 ${Object.keys(keys).filter((k) => !(p.lines[k] || []).length).length}）`),
+        ...rows.slice(0, 150).map(([k, v]) => h('div', { class: 'card pl-row' },
+          h('div', { class: 'card-head' }, h('b', {}, v.scene), h('code', { class: 'muted small' }, k), v.when ? h('span', { class: 'muted small' }, '条件: ' + v.when) : ''),
+          h('div', { class: 'hint' }, '共通: ' + v.text),
+          h('textarea', { rows: Math.max(1, (p.lines[k] || []).length), placeholder: '（空欄なら共通のセリフ）1行に1通り',
+            value: (p.lines[k] || []).join('\n'),
+            oninput: (ev) => { p.lines[k] = ev.target.value.split('\n').map((s) => s.trim()).filter(Boolean); } }))),
+        rows.length > 150 ? h('p', { class: 'muted small' }, '多いので先頭150件だけ表示しています。絞り込んでください。') : '');
+    };
+    search.addEventListener('input', draw);
+    draw();
+    box.replaceChildren(
+      h('div', { class: 'grid2' },
+        fld('名前', inp(p, 'name')), fld('あなたの呼ばれ方', inp(p, 'player_call'), '{player} = あなたの名前'),
+        fld('説明（一覧に出る一行）', inp(p, 'desc'), null, 'spanall'),
+        fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall')),
+      h('div', { class: 'sect' }, 'セリフ'),
+      h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。置換文字（{call} など）は共通のセリフと同じものが使えます。'),
+      search, list);
+  };
+  load().catch((e) => box.replaceChildren(h('p', { class: 'result err' }, e.message)));
+  const cur = ps.find((p) => p.id === pick.value) || {};
+  return [
+    saveBar('性格・セリフ集', async () => {
+      if (!SE.personaData) return;
+      const r = await api('/api/persona/save', { persona: SE.personaData.persona });
+      SE.personaData.persona = r.persona;
+      await reloadAll('personas');
+    }, h('div', { class: 'row' }, pick,
+      h('button', { class: 'btn', onclick: async () => {
+        if (!SE.personaData) return;
+        const id = prompt('新しい性格の id（英数字）', SE.personaData.persona.id + '_custom');
+        if (!id) return;
+        const np = clone(SE.personaData.persona);
+        np.id = id; np.name = np.name + '（コピー）';
+        try { await api('/api/persona/save', { persona: np }); SE.personaSel = id; SE.personaData = null; await reloadAll('personas'); } catch (e) { toast(e.message, 'err'); }
+      } }, '複製'),
+      cur._custom ? h('button', { class: 'btn danger', onclick: async () => {
+        if (!confirm('編集内容を捨てて、既定の内容に戻しますか？（既定の無い自作の性格は削除されます）')) return;
+        await api('/api/persona/reset', { id: cur.id }); SE.personaData = null; await reloadAll('personas');
+      } }, '既定に戻す') : '')),
+    h('p', { class: 'lead' }, '性格ごとのセリフ集です。主人公の設定で選んだ性格のセリフが、コマンドの反応やミニゲームで使われます。条件・効果・画像プロンプトはコマンドやミニゲームの設定のままなので、口調だけが変わります。'),
+    box,
   ];
 };
 

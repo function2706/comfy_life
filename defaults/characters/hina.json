@@ -2,6 +2,7 @@
  "id": "hina",
  "name": "ひな",
  "player_call": "{player}さん",
+ "persona_id": "teinei",
  "persona": "大学生。明るく素直で少し照れ屋。家事が得意で世話焼き。丁寧語まじりのやわらかい口調（〜ですよ、〜ですね、えへへ）。",
  "pos": "1girl, solo, medium hair, light brown hair, side ponytail, hair ribbon, brown eyes, gentle eyes",
  "neg": "",

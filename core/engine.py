@@ -9,18 +9,22 @@ import hashlib
 import os
 import queue
 import random
+import re
 import threading
 import time
 import uuid
 from datetime import datetime
 
 from . import comfy, cond, games, llm, store
+from . import keys as keys_mod
+from .keys import line_keys
 
 STEP_SEC = 300
 MAX_CATCHUP_SEC = 14 * 24 * 3600
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_JA = "月火水木金土日"
 LOG_KEEP_IN_VIEW = 60
+PERSONA_ORDER = ["teinei", "osananajimi", "ottori", "ojousama", "tsundere", "cool", "genki", "uchiki", "boyish", "amaenbo"]
 
 
 def hm(s):
@@ -101,6 +105,7 @@ class App:
         self.world = store.load(store.dpath("world.json"), {})
         self.chars = store.load_characters()
         self.minigames = store.load(store.dpath("minigames.json"), [])
+        self.personas = store.load_personas()
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
         self._migrate()
@@ -364,6 +369,16 @@ class App:
         return llm.chat(cfg, system, user)
 
     # ------------------------------------------------------------------ actions
+    def persona_text(self, char, key):
+        """主人公の性格プリセットにそのキーのセリフがあれば 1 つ選んで返す."""
+        if not key:
+            return None
+        p = self.personas.get(char.get("persona_id") or "")
+        texts = (p or {}).get("lines", {}).get(key)
+        if isinstance(texts, str):
+            return texts
+        return random.choice(texts) if texts else None
+
     def pick_reaction(self, act, ctx):
         cands = [r for r in act.get("reactions") or [] if cond.check(r.get("when", ""), ctx)]
         if not cands:
@@ -443,7 +458,9 @@ class App:
                 st["cooldowns"][aid] = hist + [now]
             st["last_interaction"] = now
             scene2 = self.scene_at(char, st, dt)
-            text = self.format_text(r.get("text", ""), char, scene, dt)
+            rs = a.get("reactions") or []
+            pkey = "%s.%s" % (aid, line_keys(rs)[rs.index(r)]) if r in rs else None
+            text = self.format_text(self.persona_text(char, pkey) or r.get("text", ""), char, scene, dt)
             pos, neg, parts = self.build_prompt(char, st, dt, a, r)
             self.save_state(cid)
 
@@ -801,7 +818,39 @@ class App:
         return {"settings": self.settings, "params": self.params, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
-                "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames}
+                "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
+                "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "_custom")}
+                             for p in sorted(self.personas.values(), key=lambda p: (
+                                 PERSONA_ORDER.index(p["id"]) if p["id"] in PERSONA_ORDER else 99, p.get("name", "")))]}
+
+    # ------------------------------------------------------------------ personas
+    def persona_full(self, pid):
+        p = self.personas.get(pid)
+        if not p:
+            raise KeyError("性格プリセットが見つかりません: %s" % pid)
+        return {"persona": p, "keys": keys_mod.all_keys(self.actions, self.minigames)}
+
+    def save_persona(self, p):
+        with self.lock:
+            if not p.get("id") or not re.match(r"^[A-Za-z0-9_-]+$", p["id"]):
+                raise ValueError("id は英数字・_・- で指定してください")
+            lines = p.get("lines") or {}
+            if not isinstance(lines, dict):
+                raise ValueError("lines の形式が違います")
+            p["lines"] = {k: [t for t in (v if isinstance(v, list) else [v]) if str(t).strip()]
+                          for k, v in lines.items()}
+            p["lines"] = {k: v for k, v in p["lines"].items() if v}
+            store.save_persona(p)
+            self.personas = store.load_personas()
+            return self.personas[p["id"]]
+
+    def reset_persona(self, pid):
+        with self.lock:
+            f = store.dpath("personas", pid + ".json")
+            if os.path.exists(f):
+                os.remove(f)
+            self.personas = store.load_personas()
+            return {"exists": pid in self.personas}
 
     # ------------------------------------------------------------------ editing
     def save_settings(self, obj):

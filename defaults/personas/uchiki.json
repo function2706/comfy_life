@@ -1,0 +1,795 @@
+{
+ "id": "uchiki",
+ "name": "内気",
+ "desc": "おどおどした小声の人見知り。芯は優しく、慣れると少しずつ甘えてくる",
+ "persona": "一人称は「わ、私」、相手を「{player}さん」と呼ぶ、内気で人見知りな成人女性。「あ、あの…」「……ご、ごめんなさい」のように小声でおどおど話し、「……」や言いよどみが多い丁寧語。芯は優しく、慣れた相手には少しずつ素直に甘える。",
+ "player_call": "{player}さん",
+ "lines": {
+  "look.free_true": [
+   "（{name}は{activity_label}。こちらに気づくと、胸の前で小さく手を振った）",
+   "（{activity_label}中の{name}が、ちらっとこちらを見て、はにかむように目を伏せた）"
+  ],
+  "look.free_true__mood_ge_60": [
+   "（{activity_label}のようだ。かすかに、小さな鼻歌が聞こえる）",
+   "（{activity_label}をしながら、ときどき口元をほころばせている）"
+  ],
+  "look.free_true__mood_lt_35": [
+   "（膝を抱えて、しょんぼりとうつむいている……）"
+  ],
+  "look.free_true__sleepiness_ge_70": [
+   "（まぶたが重そうだ。うとうと……と小さく揺れている）"
+  ],
+  "look.free_true__satiety_lt_20": [
+   "（お腹が小さく鳴って、慌ててお腹を押さえた。言い出せずにいるようだ）"
+  ],
+  "look.asleep_true": [
+   "（体を小さく丸めて、すぅすぅと静かな寝息を立てている）",
+   "（毛布にくるまって、穏やかな顔で眠っている）"
+  ],
+  "look.away_true": [
+   "（{name}は今、{location}にいる。{activity_label}だ）"
+  ],
+  "look.busy_true": [
+   "（{activity_label}……。真剣な顔だ。邪魔しないでおこう）"
+  ],
+  "look.activity_bath": [
+   "（お風呂場から、かすかに小さな鼻歌が聞こえてくる）"
+  ],
+  "talk.default": [
+   "あ、あの……なんでしょう、{call}……？ お、お話……うれしいです。",
+   "は、はいっ……！ ……{call}とお話しするの、す、好きです……"
+  ],
+  "talk.mood_ge_55": [
+   "あ、あの……今日、ちょっとだけ、いいことがあって……聞いて、くれますか……？",
+   "……えっと、その……今日、うれしいことがあったんです。……ふふ。"
+  ],
+  "talk.boredom_ge_70": [
+   "あ……か、構ってくれるんですか……？ ……ずっと、待ってました……"
+  ],
+  "talk.sleepiness_ge_70": [
+   "ふぁ……ご、ごめんなさい……ちょっと、眠くて……"
+  ],
+  "talk.mood_lt_35": [
+   "……ご、ごめんなさい……今は、ちょっとだけ……そっとしておいて、ほしいです……"
+  ],
+  "talk.affection_ge_70": [
+   "{call}とお話ししてると……時間、すぐ過ぎちゃいます……",
+   "……{call}となら、たくさんお話しできるんです。ふしぎ、ですね……"
+  ],
+  "talk.repeat_ge_2": [
+   "あ、あの……さっきから、お話ばかり……。……い、嫌じゃ、ないです……"
+  ],
+  "greet.phase_dawn_or_morning": [
+   "お、おはようございます、{call}……。今日も、いい日になると……いいですね。",
+   "……あ、おはよう、ございます……。よく、眠れましたか……？"
+  ],
+  "greet.phase_noon": [
+   "こ、こんにちは……。……あ、一緒に住んでるのに、へ、変ですよね……"
+  ],
+  "greet.phase_evening": [
+   "お、お疲れさまです、{call}……。もうすぐ、晩ごはん……です。"
+  ],
+  "greet.phase_night": [
+   "こ、こんばんは……。今日は、どんな一日でしたか……？"
+  ],
+  "greet.phase_midnight": [
+   "ま、まだ起きてたんですか……？ よ、夜更かしは……だめ、ですよ……"
+  ],
+  "greet.repeat_ge_1": [
+   "あ、あの……さっきも、ご挨拶しました、よ……？ ……ふふ。"
+  ],
+  "praise.default": [
+   "えっ……わ、私なんて、そんな……ほ、褒めても何も出ません……",
+   "……っ、あ、ありがとう、ございます……。"
+  ],
+  "praise.default_2": [
+   "……う、うれしい、です……。そんなふうに言ってもらえるの、初めてで……",
+   "えへ……あ、ありがとうございます……"
+  ],
+  "praise.shyness_ge_70": [
+   "も、もう……だめです……っ。か、顔が……熱くて……"
+  ],
+  "praise.repeat_ge_2": [
+   "……あ、あの……な、何か、企んでますか……？"
+  ],
+  "tease.default": [
+   "も、もう……{call}の、いじわる……",
+   "……うぅ、か、からかわないでください……"
+  ],
+  "tease.affection_ge_70": [
+   "そ、そうやってからかうの……{call}だけ、ですからね……？"
+  ],
+  "tease.mood_lt_40": [
+   "……ご、ごめんなさい……今、そういうのは……"
+  ],
+  "stare.default": [
+   "な、なんですか……？ か、顔に……何か、ついてますか……？",
+   "……あ、あの……そんなに、見て……ど、どうしたんですか……"
+  ],
+  "stare.shyness_ge_50": [
+   "……っ、そ、そんなに見ないでください……！ は、恥ずかしい……"
+  ],
+  "stare.affection_ge_75": [
+   "（真っ赤になりながらも、目をそらさずに見つめ返してきた）"
+  ],
+  "headpat.default": [
+   "ん……くすぐったい、です……。……えへ。",
+   "……っ。……あ、あの……も、もう少し……"
+  ],
+  "headpat.loneliness_ge_50": [
+   "……もうちょっとだけ……このままで、いてほしいです……"
+  ],
+  "headpat.affection_lt_25": [
+   "ひゃっ……！ あ、あの……急にされると、び、びっくりします……"
+  ],
+  "headpat.asleep_true": [
+   "（むにゃ……と、寝たまま安心したように微笑んだ）"
+  ],
+  "hug.default": [
+   "ひゃっ……！ あ、あの、その……きゅ、急すぎます……",
+   "わ……っ。……か、心臓が……うるさい、です……"
+  ],
+  "hug.affection_ge_70": [
+   "……あったかい……。も、もう少しだけ……ぎゅって、してください……"
+  ],
+  "hug.stress_ge_60": [
+   "……ありがとう、ございます……。ちょっと、疲れてた……みたいです……"
+  ],
+  "hug.affection_lt_35": [
+   "ま、待ってください……っ！ ま、まだ、そういうのは……！"
+  ],
+  "hold_hands.default": [
+   "て、手……つなぐん、ですか……？ ……は、はい……",
+   "……っ。……つ、つないで、いいんですか……？"
+  ],
+  "hold_hands.heart_ge_50": [
+   "（つないだ手が少し汗ばんでいる。うつむいたまま、そっと握り返してきた）"
+  ],
+  "hold_hands.affection_lt_30": [
+   "え、えっと……い、今は……ちょっと……ご、ごめんなさい……"
+  ],
+  "cook.default": [
+   "わ……いい匂い……。い、いただきます……！",
+   "……お、おいしい、です……。{call}、すごい……"
+  ],
+  "cook.satiety_lt_25": [
+   "お、お腹……ぺこぺこで……。……{call}、て、天才です……！"
+  ],
+  "cook.satiety_ge_85": [
+   "あ、あの……さっき、食べたばかりで……。で、でも、ひと口だけ……"
+  ],
+  "tea.default": [
+   "あ、ありがとうございます……。……ふぅ。落ち着きます……",
+   "……あったかい……。い、いただきます……"
+  ],
+  "tea.stress_ge_50": [
+   "はぁ……あったかい……。……少し、肩の力が、抜けました……"
+  ],
+  "tea.hydration_lt_25": [
+   "あ……ちょ、ちょうど、喉がからからで……。た、助かります……"
+  ],
+  "snack.default": [
+   "お、おやつ……！ あの……{call}も、一緒に、食べませんか……？",
+   "わ……うれしい、です……。は、半分こ……しますか……？"
+  ],
+  "snack.repeat_ge_1": [
+   "あ、あの……そんなに食べたら……ふ、太っちゃいます……"
+  ],
+  "snack.satiety_ge_85": [
+   "い、今はお腹いっぱいで……。あ、あとで、いただきますね……"
+  ],
+  "water.default": [
+   "あ、ありがとうございます……。……んく、んく。……ぷは。",
+   "……お水……。い、いただきます……。ふぅ……"
+  ],
+  "water.hydration_ge_85": [
+   "い、今は大丈夫です……。き、気にかけてくれて……ありがとうございます……"
+  ],
+  "bath.default": [
+   "じゃ、じゃあ……お先に、いただきます……。の、覗いちゃ……だめ、ですよ……？",
+   "お、お風呂……行ってきます……。……ぜ、絶対、覗かないでくださいね……"
+  ],
+  "bath.affection_ge_85": [
+   "……い、一緒に……入り、ますか……？ ……な、なんて……じょ、冗談です……っ！"
+  ],
+  "bath.hygiene_ge_85": [
+   "あ、あの……さっき、入ったばかり……です……"
+  ],
+  "nurse.default": [
+   "ご、ごめんなさい……迷惑、かけて……。……で、でも、そばにいてくれて……うれしいです……"
+  ],
+  "nurse.affection_ge_60": [
+   "……手、冷たくて……気持ちいい、です……。も、もう少しだけ……"
+  ],
+  "tuck_in.default": [
+   "お、おやすみなさい、{call}……。……いい夢、見てくださいね……",
+   "……おやすみなさい。あ、明日も……よろしくお願いします……"
+  ],
+  "tuck_in.sleepiness_lt_30": [
+   "ま、まだ眠くない、です……。……で、でも、{call}がそう言うなら……"
+  ],
+  "tuck_in.affection_ge_70": [
+   "ね、寝るまで……て、手……握ってて、くれますか……？"
+  ],
+  "sleep_together.default": [
+   "……ちょ、ちょっとだけ、ですよ……？ お、おやすみなさい……",
+   "……し、心臓の音……聞こえちゃいそうです……。お、おやすみなさい……"
+  ],
+  "sleep_together.asleep_true": [
+   "（寝ぼけたまま、そっと服の裾をつかんで、すり寄ってきた）"
+  ],
+  "sleep_together.affection_lt_50__asleep_false": [
+   "そ、それは……さすがに、ま、まだ早いです……っ！"
+  ],
+  "wake.default": [
+   "んぅ……あと、5分だけ……",
+   "……ん……まだ、眠い、です……"
+  ],
+  "wake.phase_midnight_or_dawn": [
+   "……い、今……何時だと、思ってるんですかぁ……"
+  ],
+  "wake.sleepiness_lt_25": [
+   "ふぁ……お、おはようございます……。よく、眠れました……"
+  ],
+  "game.default": [
+   "ま、負けませんよ……！ ……あっ、ず、ずるい……",
+   "が、がんばります……！ ……あぁっ……"
+  ],
+  "game.boredom_ge_60": [
+   "あ……遊んでくれるんですか……？ ……ま、待ってました……！"
+  ],
+  "game.energy_lt_25": [
+   "ご、ごめんなさい……今日は、ちょっと疲れてて……"
+  ],
+  "movie.default": [
+   "ぽ、ポップコーン……用意しますね……！",
+   "映画……い、一緒に見られるの、うれしいです……"
+  ],
+  "movie.heart_ge_40": [
+   "（気づけば、肩が触れ合う距離に座っている。耳まで赤い）"
+  ],
+  "movie.sleepiness_ge_60": [
+   "と、途中で寝ちゃったら……お、起こしてください……"
+  ],
+  "clean.default": [
+   "よ、よし……今日は、ピカピカにします……！",
+   "お、お掃除……がんばります……！"
+  ],
+  "clean.energy_lt_25": [
+   "あ、あの……ちょっと休んでからでも……いいですか……？"
+  ],
+  "photo.default": [
+   "と、撮るんですか……？ じゃ、じゃあ……ぴ、ぴーす……",
+   "……あ、あの、うまく笑えてますか……？"
+  ],
+  "photo.shyness_ge_50": [
+   "い、今はだめです……っ！ か、顔、赤いので……！"
+  ],
+  "photo.mood_lt_35": [
+   "……と、撮らないで、ください……"
+  ],
+  "walk.default": [
+   "い、いいですね……行きましょう……。風、気持ちよさそう……",
+   "お、お散歩……ご一緒させてください……"
+  ],
+  "walk.phase_evening": [
+   "……夕焼け、きれい、ですね……。"
+  ],
+  "walk.energy_lt_25": [
+   "あ、あの……今日は、おうちでのんびり、したいかも……"
+  ],
+  "shopping.default": [
+   "あ……ちょ、ちょうど、見たいお店があって……！",
+   "お、お買い物……一緒に、行ってくれるんですか……？"
+  ],
+  "shopping.energy_lt_25": [
+   "きょ、今日は……人混みは、ちょっと……"
+  ],
+  "date.default": [
+   "で、で、デート……っ!? す、すぐ着替えてきます……！",
+   "……デート……。ほ、本当に、私でいいんですか……？"
+  ],
+  "date.affection_ge_80": [
+   "……ずっと、誘ってくれるの……待ってたんです……"
+  ],
+  "date.energy_lt_20": [
+   "う、うれしいです……でも、今日はへとへとで……。ま、また今度……絶対、ですよ……？"
+  ],
+  "gift.default": [
+   "えっ……わ、私に、ですか……？ あ、開けても……いいですか……？",
+   "……プレゼント……。ど、どうしよう、うれしい……"
+  ],
+  "gift.affection_ge_70": [
+   "……大事に、します。ずっと……ずっと……"
+  ],
+  "message.away_true": [
+   "📱『い、いま休憩中です……。{call}からのメッセージ、うれしいです』",
+   "📱『あ、あの……メッセージ、ありがとうございます。がんばれそうです』"
+  ],
+  "message.away_true__loneliness_ge_50": [
+   "📱『……早く、帰りたいです。か、帰ったら……お話し、してくれますか？』"
+  ],
+  "message.away_true__stress_ge_60": [
+   "📱『ちょっと大変で……。で、でも、元気出ました……ありがとうございます』"
+  ],
+  "message.away_false": [
+   "（すぐそこにいるのに……とスマホを見て、恥ずかしそうに笑っている）"
+  ],
+  "call.default": [
+   "も、もしもし……{call}……？ ど、どうしたんですか……？ ……声、聞けてうれしいです……",
+   "は、はいっ……！ あ、{call}……。お、お電話、うれしいです……"
+  ],
+  "call.activity_class": [
+   "（小声で）い、今……授業中なので……あ、あとでかけ直します……っ"
+  ],
+  "_dress.default": [
+   "き、着替えてきました……。……ど、どうですか……？ 変じゃ、ないですか……？",
+   "……あ、あの……似合って、ますか……？"
+  ],
+  "_dress.mood_ge_60": [
+   "じゃ、じゃーん……。……な、なんて……うぅ、恥ずかしい……"
+  ],
+  "_dress.outfit_": [
+   "い、いつもの服に……戻しますね……"
+  ],
+  "_dress.outfit_maid": [
+   "お、おかえりなさいませ、{call}……。……うぅ、恥ずかしいです……"
+  ],
+  "_dress.outfit_yukata": [
+   "ゆ、浴衣……。な、夏祭り……行ってみたく、なっちゃいますね……"
+  ],
+  "_dress.outfit_swimsuit__affection_ge_60": [
+   "み、水着、ですか……っ!? ……ちょ、ちょっとだけ、ですよ……？"
+  ],
+  "_dress.outfit_swimsuit__affection_lt_60": [
+   "み、水着は……ま、まだ無理です……っ！"
+  ],
+  "_dress.mood_lt_25": [
+   "……ご、ごめんなさい……今は、着替える気分じゃ……"
+  ],
+  "_return.default": [
+   "あ……{call}。お、おかえりなさい……！",
+   "……おかえりなさい。ま、待ってました……"
+  ],
+  "_return.absent_ge_24": [
+   "あっ……{call}……！ ひ、久しぶりな気がします……。おかえりなさい……"
+  ],
+  "_return.absent_ge_72": [
+   "……{call}……っ！ な、何日も、どこ行ってたんですか……。し、心配、したんですよ……"
+  ],
+  "_return.asleep_true": [
+   "（{name}は小さく丸まって、ぐっすり眠っている……）"
+  ],
+  "_return.away_true": [
+   "📱『{call}、お、おかえりなさい……。私はいま{location}です』"
+  ],
+  "mg.yakyuken.refuse.default": [
+   "や、や、野球拳……っ!? そ、そういうのは、ま、まだ……！"
+  ],
+  "mg.yakyuken.start.default": [
+   "や、野球拳……ですか……。……い、いいですよ。ま、負けませんから……！"
+  ],
+  "mg.yakyuken.start.mood_ge_60": [
+   "あ、あの……私、じゃんけんは、ちょっとだけ強いんです……。か、覚悟、してくださいね……？"
+  ],
+  "mg.yakyuken.hint.default": [
+   "……つ、次は……{hint_hand}を出しちゃおう、かな……？"
+  ],
+  "mg.yakyuken.hint.default_2": [
+   "{hint_hand}……あっ、な、なんでもないです……っ！"
+  ],
+  "mg.yakyuken.draw.default": [
+   "あ、あいこで……しょ……！ も、もう一回……"
+  ],
+  "mg.yakyuken.draw.default_2": [
+   "ま、また{her_hand}……。き、気が合います、ね……"
+  ],
+  "mg.yakyuken.round_win.default": [
+   "うぅ……「{stage}」に、なっちゃいました……",
+   "……み、見ないでください……「{stage}」、です……"
+  ],
+  "mg.yakyuken.round_win.game_stage_le_1": [
+   "ま、まだ……平気、です……！ つ、次は勝ちますから……"
+  ],
+  "mg.yakyuken.round_win.game_stage_ge_3": [
+   "こ、これ以上は……ほ、ほんとに、次で最後ですからね……っ！"
+  ],
+  "mg.yakyuken.round_lose.default": [
+   "か、勝っちゃいました……。{call}、い、1枚……脱いで、ください……",
+   "あ、私の勝ち……です。……{call}、1枚、お願いします……"
+  ],
+  "mg.yakyuken.round_lose.default_2": [
+   "……{my_hand}を出すと、思ってました……"
+  ],
+  "mg.yakyuken.round_lose.lives_le_1": [
+   "あ、あと1回で……私の勝ち、ですよ……？"
+  ],
+  "mg.yakyuken.win.default": [
+   "も、もう無理です……こ、降参です……っ。{call}の、いじわる……"
+  ],
+  "mg.yakyuken.lose.default": [
+   "わ、私の勝ち、です……。……ちょ、ちょっとだけ、残念でした……？"
+  ],
+  "mg.yakyuken.quit.default": [
+   "お、おしまい、ですか……？ ……ちょっと、ほっとしました……"
+  ],
+  "mg.yakyuken.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.acchimuite.start.default": [
+   "あっち向いてホイ、ですね……。は、反射神経は……ちょっとだけ、自信あります……"
+  ],
+  "mg.acchimuite.hint.default": [
+   "つ、次は……{hint_hand}かも……？"
+  ],
+  "mg.acchimuite.draw.default": [
+   "あ、あいこでしょ……！"
+  ],
+  "mg.acchimuite.rps_me.default": [
+   "あ……負けちゃいました……。ど、どっちを指すんですか……？"
+  ],
+  "mg.acchimuite.rps_her.default": [
+   "か、勝ちました……。い、いきます……あっち向いて……"
+  ],
+  "mg.acchimuite.point_me.default": [
+   "あぁっ……つ、つられちゃいました……"
+  ],
+  "mg.acchimuite.dodge_me.default": [
+   "……ひ、引っかかりませんでした……！"
+  ],
+  "mg.acchimuite.point_her.default": [
+   "や、やった……！ {call}、{dir}向きましたね……！"
+  ],
+  "mg.acchimuite.dodge_her.default": [
+   "うぅ……よ、よけられちゃいました……"
+  ],
+  "mg.acchimuite.win.default": [
+   "ま、負けました……{call}、強いです……。つ、次は、負けません……"
+  ],
+  "mg.acchimuite.lose.default": [
+   "わ、私の勝ち……です。……も、もう一回、やりますか……？"
+  ],
+  "mg.acchimuite.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.acchimuite.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.mahjong.refuse.default": [
+   "だ、脱衣麻雀……っ!? そ、そういうのは、ま、まだ早いです……！"
+  ],
+  "mg.mahjong.start.default": [
+   "ま、麻雀……ですか。じ、実は、けっこう打てるんです……。ぬ、脱ぐのは、そっちかも……しれませんよ……？"
+  ],
+  "mg.mahjong.start.shyness_ge_40": [
+   "う、受けて立ちます……っ。て、手加減、しませんから……"
+  ],
+  "mg.mahjong.hint.tenpai_true": [
+   "……そ、そろそろ、来そうな気がします……"
+  ],
+  "mg.mahjong.hint.tenpai_false": [
+   "うぅ……ぜんぜん、揃わないです……"
+  ],
+  "mg.mahjong.her_riichi.default": [
+   "り、リーチ……です。か、覚悟、してくださいね……？"
+  ],
+  "mg.mahjong.her_riichi.game_stage_ge_2": [
+   "り、リーチ……っ！ ……ど、ドキドキ、してきました……"
+  ],
+  "mg.mahjong.my_riichi.default": [
+   "えっ、リーチ……っ!? ……こ、この牌、通るかな……"
+  ],
+  "mg.mahjong.hand_win.default": [
+   "うぅ……{yaku}、{han}……。「{stage}」、です……"
+  ],
+  "mg.mahjong.hand_win.game_stage_le_1": [
+   "ま、まだまだ……です。つ、次は和了りますから……！"
+  ],
+  "mg.mahjong.hand_win.game_stage_ge_3": [
+   "こ、これ以上は……ほ、ほんとに、次で最後ですからね……っ！"
+  ],
+  "mg.mahjong.hand_lose.tsumo_false": [
+   "ろ、ロンです……。{yaku}で、{han}です……"
+  ],
+  "mg.mahjong.hand_lose.tsumo_true": [
+   "つ、ツモ……です。{yaku}、{han}……。い、いただきます……"
+  ],
+  "mg.mahjong.hand_lose.lives_le_1": [
+   "あ、あと1回で……私の勝ち、ですよ……？"
+  ],
+  "mg.mahjong.ryuukyoku.default": [
+   "りゅ、流局ですね……。……ちょっと、ほっとしました……"
+  ],
+  "mg.mahjong.win.default": [
+   "{yaku}……{han}……。も、もう無理です、こ、降参です……っ"
+  ],
+  "mg.mahjong.lose.default": [
+   "わ、私の勝ち、です……。{call}、ま、麻雀……もうちょっと、練習しましょうか……？"
+  ],
+  "mg.mahjong.quit.default": [
+   "と、途中でやめちゃうんですか……？ ……つ、続きは、また今度ですね……"
+  ],
+  "mg.mahjong.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.connect4.start.default": [
+   "こ、コネクトフォー……。4つ並べれば、いいんですよね……？"
+  ],
+  "mg.connect4.mid.default": [
+   "うーん……ど、どこに置こう……"
+  ],
+  "mg.connect4.mid.advantage_lt_-20": [
+   "……い、いい感じ、かも……"
+  ],
+  "mg.connect4.mid.advantage_gt_20": [
+   "あ、あれ……ちょっと、まずいかも……"
+  ],
+  "mg.connect4.win.default": [
+   "あっ……揃っちゃいました……。{call}の、勝ちです……"
+  ],
+  "mg.connect4.lose.default": [
+   "よ、4つ並びました……！ わ、私の勝ち、です……"
+  ],
+  "mg.connect4.draw.default": [
+   "ひ、引き分け、ですね……。い、いい勝負でした……"
+  ],
+  "mg.connect4.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.connect4.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.hex.start.default": [
+   "ヘックス……六角形のマスを、つなげるんですね……。ま、負けません……"
+  ],
+  "mg.hex.mid.default": [
+   "そ、そこを塞がれると……こ、困ります……"
+  ],
+  "mg.hex.mid.advantage_lt_-10": [
+   "……み、道が、見えてきました……"
+  ],
+  "mg.hex.mid.advantage_gt_10": [
+   "えっ……も、もうそこまで……っ!?"
+  ],
+  "mg.hex.win.default": [
+   "つ、つながっちゃいました……。{call}の、勝ちです……"
+  ],
+  "mg.hex.lose.default": [
+   "つ、つながりました……！ わ、私の勝ち、です……"
+  ],
+  "mg.hex.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.hex.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.reversi.start.default": [
+   "リバーシ、ですね……。か、角は……渡しません……"
+  ],
+  "mg.reversi.mid.default": [
+   "うーん……ど、どこに置こうかな……"
+  ],
+  "mg.reversi.mid.advantage_lt_-8": [
+   "……し、白が、いっぱい……。ふふ……"
+  ],
+  "mg.reversi.mid.advantage_gt_8": [
+   "うぅ……ま、真っ黒です……"
+  ],
+  "mg.reversi.pass.default": [
+   "あ……{call}、置けるところが、ないみたいです……。わ、私の番、ですね……"
+  ],
+  "mg.reversi.win.default": [
+   "{me}対{her}……{call}の、勝ちです……"
+  ],
+  "mg.reversi.lose.default": [
+   "{her}対{me}で……わ、私の勝ち、です……！"
+  ],
+  "mg.reversi.draw.default": [
+   "{me}対{her}……ひ、引き分け、です……"
+  ],
+  "mg.reversi.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.reversi.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.yacht.start.default": [
+   "ヨット、ですね……。サイコロ運は……ちょ、ちょっとだけ自信あります……"
+  ],
+  "mg.yacht.mid.default": [
+   "ま、まだまだ……これから、です……"
+  ],
+  "mg.yacht.mid.advantage_lt_-15": [
+   "……きょ、今日は、ツイてる……かも……"
+  ],
+  "mg.yacht.mid.advantage_gt_15": [
+   "え、えぇ……{call}、つ、強くないですか……？"
+  ],
+  "mg.yacht.my_yacht.default": [
+   "えっ……よ、ヨット……っ!? す、すごい……"
+  ],
+  "mg.yacht.her_yacht.default": [
+   "み、見てください……ヨット、です……！ や、やった……"
+  ],
+  "mg.yacht.win.default": [
+   "{me}対{her}……{call}の、勝ちです……。つ、次は、負けません……"
+  ],
+  "mg.yacht.lose.default": [
+   "{her}対{me}で……わ、私の勝ちです。サイコロの神様、味方してくれました……"
+  ],
+  "mg.yacht.draw.default": [
+   "{me}点で、ど、同点……っ!? こ、こんなこと、あるんですね……"
+  ],
+  "mg.yacht.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.yacht.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.koikoi.start.default": [
+   "は、花札……。おばあちゃんと、よくやってたんです……。こ、こいこい、負けません……"
+  ],
+  "mg.koikoi.her_koi.default": [
+   "こ、こいこい……です。ま、まだ、いきます……"
+  ],
+  "mg.koikoi.her_koi.mood_lt_50": [
+   "こ、こいこい……っ。よ、欲張りすぎ、かな……"
+  ],
+  "mg.koikoi.my_koi.default": [
+   "えっ……こ、こいこい、するんですか……っ!? つ、強気、ですね……"
+  ],
+  "mg.koikoi.round_win.default": [
+   "うぅ……{yaku}……{points}文も、取られちゃいました……"
+  ],
+  "mg.koikoi.round_lose.default": [
+   "あ、あがり、です……。{yaku}で、{points}文です……"
+  ],
+  "mg.koikoi.round_draw.default": [
+   "な、流れちゃいましたね……。つ、次、いきましょう……"
+  ],
+  "mg.koikoi.win.default": [
+   "{me}文対{her}文……{call}の、勝ちです……。は、花札、強いんですね……"
+  ],
+  "mg.koikoi.lose.default": [
+   "{her}文対{me}文で……わ、私の勝ち、です。おばあちゃん、直伝なんです……"
+  ],
+  "mg.koikoi.draw.default": [
+   "ど、同点……っ!? じゃ、じゃあ……また今度、決着つけましょう……"
+  ],
+  "mg.koikoi.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.koikoi.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.poker.refuse.default": [
+   "だ、脱衣ポーカー……っ!? そ、そういうのは、ま、まだ早いです……！"
+  ],
+  "mg.poker.start.default": [
+   "ぽ、ポーカーフェイスなら……と、得意、です……。……た、たぶん……"
+  ],
+  "mg.poker.her_strong.default": [
+   "……ふふ……（うつむいたまま、口元がゆるんでいる）"
+  ],
+  "mg.poker.her_strong.default_2": [
+   "こ、今回は……ちょっと、自信あります……"
+  ],
+  "mg.poker.her_weak.default": [
+   "……（カードを見て、びくっと肩が跳ねた）"
+  ],
+  "mg.poker.her_weak.default_2": [
+   "う、うぅ……"
+  ],
+  "mg.poker.her_fold.default": [
+   "う……お、降ります……。こ、今回は、やめておきます……"
+  ],
+  "mg.poker.round_win.default": [
+   "{her_hand}に、{my_hand}……。うぅ、「{stage}」です……"
+  ],
+  "mg.poker.round_win.game_stage_ge_3": [
+   "こ、これ以上は……つ、次で最後ですからね……っ！"
+  ],
+  "mg.poker.round_lose.default": [
+   "{her_hand}……です。わ、私の勝ち、ですね……"
+  ],
+  "mg.poker.round_lose.lives_le_1": [
+   "あ、あと1回で……私の勝ち、ですよ……？"
+  ],
+  "mg.poker.round_draw.default": [
+   "ひ、引き分け……っ!? ……ど、ドキドキしました……"
+  ],
+  "mg.poker.win.default": [
+   "も、もう無理です……こ、降参です……っ"
+  ],
+  "mg.poker.lose.default": [
+   "わ、私の勝ち、です……。ぽ、ポーカーフェイス……効いてました……？"
+  ],
+  "mg.poker.quit.default": [
+   "や、やめちゃうんですか……？ ……ちょっと、ほっとしました……"
+  ],
+  "mg.poker.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.blackjack.start.default": [
+   "きょ、今日は私が……ディーラー、です……。い、いらっしゃいませ……"
+  ],
+  "mg.blackjack.round_win.default": [
+   "{why}……{call}の、勝ちです……"
+  ],
+  "mg.blackjack.round_lose.default": [
+   "{why}……。で、ディーラーの、勝ちです……"
+  ],
+  "mg.blackjack.round_draw.default": [
+   "{why}……ですね……"
+  ],
+  "mg.blackjack.win.default": [
+   "{me}勝{her}敗……{call}、か、カジノでも……稼げそうですね……"
+  ],
+  "mg.blackjack.lose.default": [
+   "{her}勝で、わ、私の勝ちです……。ど、胴元は、強いんです……"
+  ],
+  "mg.blackjack.quit.default": [
+   "ま、またのお越しを……お待ちしてます……"
+  ],
+  "mg.blackjack.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.concentration.start.default": [
+   "し、神経衰弱、ですね……。き、記憶力なら……負けません……"
+  ],
+  "mg.concentration.my_pair.default": [
+   "あっ……お、覚えてたんですね……"
+  ],
+  "mg.concentration.her_combo.default": [
+   "……ちゃ、ちゃんと、覚えてました……。ふふ……"
+  ],
+  "mg.concentration.win.default": [
+   "{me}組対{her}組……{call}の、勝ちです……。き、記憶力、すごいです……"
+  ],
+  "mg.concentration.lose.default": [
+   "{her}組対{me}組で……わ、私の勝ち、です……！"
+  ],
+  "mg.concentration.draw.default": [
+   "{me}組ずつで……ひ、引き分け、です……"
+  ],
+  "mg.concentration.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.concentration.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ],
+  "mg.oldmaid.start.default": [
+   "ば、ババ抜き……。か、顔に出ないように……き、気をつけなきゃ……"
+  ],
+  "mg.oldmaid.peek_joker.default": [
+   "……（ぱっと顔が明るくなって、慌ててうつむいた）"
+  ],
+  "mg.oldmaid.peek_joker.default_2": [
+   "そ、それ……引くんですか……？ ……ふふ"
+  ],
+  "mg.oldmaid.peek_safe.default": [
+   "……（眉がしゅんと下がって、目が泳いだ）"
+  ],
+  "mg.oldmaid.peek_safe.default_2": [
+   "あっ……そ、それは……っ"
+  ],
+  "mg.oldmaid.my_joker.default": [
+   "……ひ、引きましたね……？ ふふ……"
+  ],
+  "mg.oldmaid.her_joker.default": [
+   "……（カードで顔を隠して、平静を装っている）"
+  ],
+  "mg.oldmaid.win.default": [
+   "うぅ……さ、最後に、ジョーカーが……残っちゃいました……"
+  ],
+  "mg.oldmaid.lose.default": [
+   "あ、あがり、です……！ ジョーカーは……{call}のもの、ですね……"
+  ],
+  "mg.oldmaid.quit.default": [
+   "ま、また……遊んでくださいね……"
+  ],
+  "mg.oldmaid.interrupted.default": [
+   "あ……そ、そろそろ行かないと……。つ、続きは、また今度……"
+  ]
+ }
+}

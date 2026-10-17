@@ -13,6 +13,7 @@ from datetime import datetime
 
 from . import boardgames as BG
 from . import cond
+from .keys import line_keys
 from . import cards as CD
 from . import hanafuda as HF
 from . import mahjong as MJ
@@ -61,7 +62,17 @@ class Games:
 
     def _line(self, g, event, ctx):
         lines = (g.get("lines") or {}).get(event) or []
-        return self.app.pick_reaction({"reactions": lines}, ctx) if lines else {"text": ""}
+        if not lines:
+            return {"text": ""}
+        r = self.app.pick_reaction({"reactions": lines}, ctx)
+        if r not in lines:
+            return r
+        r = dict(r)
+        r["_pkey"] = "mg.%s.%s.%s" % (g["id"], event, line_keys(lines)[lines.index(r)])   # 性格プリセットの差し替え用
+        return r
+
+    def _text(self, char, line):
+        return self.app.persona_text(char, line.get("_pkey")) or line.get("text", "")
 
     def _fmt(self, text, char, scene, dt, extra):
         text = self.app.format_text(text, char, scene, dt)
@@ -84,7 +95,7 @@ class Games:
         dt = datetime.fromtimestamp(now)
         deltas = self.app.apply_effects(st, (g.get("effects") or {}).get(effects_key) or {}) if effects_key else {}
         scene = self.app.scene_at(char, st, dt)
-        text = self._fmt(line.get("text", ""), char, scene, dt, extra)
+        text = self._fmt(self._text(char, line), char, scene, dt, extra)
         pseudo = {"id": "_game_" + g["id"], "name": "%s%s" % (g.get("name", ""), label),
                   "icon": g.get("icon", "🎲"), "pos": ", ".join(x for x in (g.get("pos", ""), act_pos) if x),
                   "neg": g.get("neg", "")}
@@ -103,7 +114,7 @@ class Games:
             return None
         dt = datetime.now()
         line = self._line(g, event, self._ctx(char, st, dt, game, **extra))
-        return self._fmt(line.get("text", ""), char, self.app.scene_at(char, st, dt), dt,
+        return self._fmt(self._text(char, line), char, self.app.scene_at(char, st, dt), dt,
                          {k: v for k, v in extra.items() if isinstance(v, (str, int, float))}) or None
 
     def _save(self, cid):
