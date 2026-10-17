@@ -4,6 +4,8 @@
 - スケジュール / 行動による一時シーン (override) から現在の場面を決める
 - 行動 → 反応選択 → 効果適用 → プロンプト合成 → ComfyUI ジョブ
 """
+import glob
+import hashlib
 import os
 import queue
 import random
@@ -87,6 +89,7 @@ class App:
         self.logq = queue.Queue()
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
         self.reload()
+        self._load_index()
         self._ensure_worker()
 
     # ------------------------------------------------------------------ config
@@ -98,6 +101,21 @@ class App:
         self.chars = store.load_characters()
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
+        self._migrate()
+
+    def _migrate(self):
+        """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
+        have = {a.get("id") for a in self.actions}
+        added = [a for a in store.load(os.path.join(store.DEFAULTS, "actions.json"), [])
+                 if a["id"].startswith("_") and a["id"] not in have]
+        if added:
+            self.actions += added
+            store.save(store.dpath("actions.json"), self.actions)
+        for c in self.chars.values():
+            if "wardrobe" not in c:
+                d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
+                c["wardrobe"] = d.get("wardrobe", [])
+                store.save_character(c)
 
     def char(self, cid=None):
         cid = cid or self.settings.get("active_character")
@@ -151,11 +169,27 @@ class App:
 
     # ------------------------------------------------------------------ scene / context
     def _norm_scene(self, e, char, src):
+        asleep = bool(e.get("asleep"))
         return {"activity": e.get("activity") or "relax", "label": e.get("label") or "",
-                "location": e.get("location") or "", "outfit": e.get("outfit") or "",
+                "location": e.get("location") or "", "outfit": e.get("outfit") or "", "outfit_neg": "",
                 "pos": e.get("pos", ""), "neg": e.get("neg", ""), "effects": e.get("effects") or {},
-                "away": bool(e.get("away")), "asleep": bool(e.get("asleep")), "busy": bool(e.get("busy")),
-                "source": src}
+                "away": bool(e.get("away")), "asleep": asleep, "busy": bool(e.get("busy")),
+                # 服装固定 (着せ替えより優先). 未指定なら睡眠中の場面だけ固定
+                "fixed_outfit": bool(e.get("fixed_outfit", asleep)),
+                "dress": None, "source": src}
+
+    def wardrobe_item(self, char, oid):
+        for o in char.get("wardrobe") or []:
+            if o.get("id") == oid:
+                return o
+        return None
+
+    def _apply_dress(self, char, st, s):
+        """着せ替え中なら, 服装固定でない場面の服装を差し替える."""
+        o = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
+        if o and not s["fixed_outfit"]:
+            s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
+        return s
 
     def scheduled_scene(self, char, dt):
         mins = dt.hour * 60 + dt.minute
@@ -175,8 +209,8 @@ class App:
             s = self._norm_scene(ov, char, "override")
             s["outfit"] = s["outfit"] or base["outfit"]
             s["until"] = ov["until"]
-            return s
-        return base
+            return self._apply_dress(char, st, s)
+        return self._apply_dress(char, st, base)
 
     def phase_at(self, dt):
         mins = dt.hour * 60 + dt.minute
@@ -195,7 +229,7 @@ class App:
             "phase": self.phase_at(dt).get("id", ""), "hour": dt.hour, "time": dt.hour * 60 + dt.minute,
             "weekday": dt.weekday(), "day": DAY_KEYS[dt.weekday()], "weekend": dt.weekday() >= 5,
             "absent": round((dt.timestamp() - st.get("last_interaction", dt.timestamp())) / 3600.0, 2),
-            "repeat": 0,
+            "repeat": 0, "outfit": (st.get("dress") or {}).get("id", ""),
         })
         return ctx
 
@@ -205,6 +239,8 @@ class App:
 
     def _step(self, char, st, dt, h):
         scene = self.scene_at(char, st, dt)
+        if scene["asleep"] and st.get("dress") and char.get("dress_reset_on_sleep", True):
+            st["dress"] = None   # 寝たら翌日はスケジュール通りの服に戻る
         ctx = self.context(char, st, dt, scene)
         vals = st["params"]
         for p in self.params:
@@ -259,7 +295,8 @@ class App:
         pr = self.settings.get("prompt") or {}
         parts = [{"src": "共通", "pos": pr.get("prefix_pos", ""), "neg": pr.get("prefix_neg", "")},
                  {"src": "主人公", "pos": char.get("pos", ""), "neg": char.get("neg", "")},
-                 {"src": "服装", "pos": scene["outfit"], "neg": ""}]
+                 {"src": "服装" + (": " + scene["dress"] if scene["dress"] else ""),
+                  "pos": scene["outfit"], "neg": scene["outfit_neg"]}]
         if not (act and act.get("replace_scene")):
             parts.append({"src": "場面: " + scene["label"], "pos": scene["pos"], "neg": scene["neg"]})
         parts.append({"src": "時間帯: " + phase.get("label", ""), "pos": phase.get("pos", ""), "neg": phase.get("neg", "")})
@@ -337,7 +374,8 @@ class App:
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
-    def act(self, aid, cid=None):
+    def act(self, aid, cid=None, dress=None):
+        """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す."""
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
@@ -349,6 +387,15 @@ class App:
             ctx = self.context(char, st, dt, scene)
             if not cond.check(a.get("when", ""), ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), a.get("when", "")))
+            outfit = None
+            if dress is not None:
+                if dress:
+                    outfit = self.wardrobe_item(char, dress)
+                    if not outfit:
+                        raise KeyError("服が見つかりません: %s" % dress)
+                    if not cond.check(outfit.get("when", ""), ctx):
+                        raise ValueError("今は「%s」に着替えられません（%s）" % (outfit.get("name", dress), outfit.get("when", "")))
+                ctx["outfit"] = dress   # 反応の条件では「着替え先」を outfit として参照できる
             cd = float(a.get("cooldown", 0)) * 60
             hist = [x for x in st["cooldowns"].get(aid, []) if now - x < cd] if cd else []
             ctx["repeat"] = len(hist)
@@ -366,6 +413,8 @@ class App:
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
                 ov["from_action"] = aid
                 st["override"] = ov
+            if dress is not None and not r.get("override"):
+                st["dress"] = {"id": dress, "t": now} if dress else None
             if cd:
                 st["cooldowns"][aid] = hist + [now]
             st["last_interaction"] = now
@@ -389,10 +438,66 @@ class App:
             entry["text_src"] = text_src
             job = None
             if self.settings.get("auto_generate") and a.get("generate", True):
-                job = self.enqueue(cid, entry["id"], pos, neg)
-                entry["job"] = job
+                job = self._present_image(cid, entry)
             self.save_log(cid)
         return {"entry": entry, "job": job, "llm_error": llm_error}
+
+    # ------------------------------------------------------------------ image reuse
+    @staticmethod
+    def prompt_key(pos, neg):
+        """同一プロンプト判定のキー (generatw と同じく pos+neg の MD5)."""
+        return hashlib.md5((pos + neg).encode("utf-8")).hexdigest()
+
+    def _load_index(self):
+        """プロンプト → 生成済み画像の索引. 無ければ全キャラのログから作り直す."""
+        idx = store.load(store.dpath("images", "index.json"))
+        if idx is None:
+            idx = {}
+            for f in glob.glob(store.dpath("log", "*.json")):
+                for e in store.load(f, []):
+                    for im in e.get("images") or []:
+                        idx.setdefault(self.prompt_key(im.get("pos", ""), im.get("neg", "")), []).append(
+                            {"path": im["path"], "seed": im.get("seed"), "t": im.get("t")})
+            store.save(store.dpath("images", "index.json"), idx)
+        self.img_index = idx
+
+    def existing_images(self, pos, neg):
+        """同じプロンプトで生成済みの画像 (ファイルが残っているもの)."""
+        items = self.img_index.get(self.prompt_key(pos, neg)) or []
+        return [im for im in items if os.path.exists(store.dpath("images", *im["path"].split("/")))]
+
+    def _present_image(self, cid, entry):
+        """設定に従い, 既存画像をすぐ表示するか / 新規生成するかを決める. 生成したらジョブ id を返す."""
+        ic = self.settings.get("images") or {}
+        mode = ic.get("mode", "reuse")
+        have = self.existing_images(entry["pos"], entry["neg"]) if mode == "reuse" else []
+        entry["same_prompt"] = len(have)
+        if have:
+            im = random.choice(have)
+            entry["image"], entry["seed"], entry["reused"] = im["path"], im.get("seed"), True
+        limit = int(ic.get("max_per_prompt", 8))
+        if mode == "reuse" and have and len(have) >= limit:
+            return None   # 上限に達しているので生成しない
+        job = self.enqueue(cid, entry["id"], entry["pos"], entry["neg"])
+        entry["job"] = job
+        return job
+
+    def reroll(self, entry_id, cid=None):
+        """同じプロンプトの既存画像から別の 1 枚を選び直す."""
+        with self.lock:
+            char = self.char(cid)
+            e = self.find_entry(char["id"], entry_id)
+            if not e:
+                raise KeyError("記録が見つかりません")
+            have = self.existing_images(e["pos"], e["neg"])
+            if not have:
+                raise ValueError("このプロンプトの画像はまだありません")
+            others = [im for im in have if im["path"] != e.get("image")] or have
+            im = random.choice(others)
+            e["image"], e["seed"], e["reused"] = im["path"], im.get("seed"), True
+            e["same_prompt"] = len(have)
+            self.save_log(char["id"])
+            return {"entry": e}
 
     def _new_entry(self, cid, now, a, text, deltas, scene, dt, pos, neg, parts):
         e = {"id": uuid.uuid4().hex[:12], "t": now, "action": a.get("id"), "action_name": a.get("name", ""),
@@ -590,8 +695,11 @@ class App:
                     f.write(data)
                 with self.lock:
                     e = self.find_entry(j["cid"], j["entry"])
+                    self.img_index.setdefault(self.prompt_key(j["pos"], j["neg"]), []).append(
+                        {"path": rel, "seed": j["seed"], "t": time.time()})
+                    store.save(store.dpath("images", "index.json"), self.img_index)
                     if e:
-                        e["image"], e["seed"] = rel, j["seed"]
+                        e["image"], e["seed"], e["reused"] = rel, j["seed"], False
                         e.pop("error", None)
                         e.setdefault("images", []).append({"path": rel, "seed": j["seed"], "pos": j["pos"],
                                                            "neg": j["neg"], "t": time.time()})
@@ -635,7 +743,18 @@ class App:
                 "available": self.available(char, st, dt),
                 "absent": ctx["absent"], "log": log[-LOG_KEEP_IN_VIEW:], "log_total": len(log),
                 "jobs": pending,
+                "dress": self._dress_view(char, st, scene, ctx),
             }
+
+    def _dress_view(self, char, st, scene, ctx):
+        try:
+            da = self.action("_dress")
+            can, why = cond.check(da.get("when", ""), ctx), da.get("when", "")
+        except KeyError:
+            can, why = False, "着せ替え用のコマンド (_dress) がありません"
+        return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"],
+                "outfit": scene["outfit"], "fixed": scene["fixed_outfit"], "can": can, "why": why,
+                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in char.get("wardrobe") or []}}
 
     def prompt_preview(self, cid=None):
         with self.lock:

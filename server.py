@@ -54,6 +54,10 @@ def route(method, path, q, body):
         b = body or {}
         if path == "/api/act":
             return a.act(b["action"], cid)
+        if path == "/api/dress":
+            return a.act("_dress", cid, dress=b.get("outfit") or "")
+        if path == "/api/reroll":
+            return a.reroll(b["entry"], cid)
         if path == "/api/visit":
             return {"result": a.visit(cid)}
         if path == "/api/generate":

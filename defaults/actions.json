@@ -175,7 +175,7 @@
 
  {"id": "wake", "name": "起こす", "icon": "⏰", "category": "お世話", "when": "asleep=true", "cooldown": 30,
   "replace_scene": true, "effects": {"mood": -6}, "pos": "sitting on bed, rubbing eyes, messy hair, pajamas, sleepy, bedroom", "neg": "",
-  "override": {"activity": "awake", "label": "寝起き", "location": "寝室", "minutes": 30,
+  "override": {"activity": "awake", "label": "寝起き", "location": "寝室", "minutes": 30, "fixed_outfit": true,
                "outfit": "pajamas", "pos": "bedroom, sitting on bed, messy hair", "neg": "", "effects": {}},
   "reactions": [
    {"text": "んぅ……あと5分……", "when": "", "pos": "", "neg": ""},
@@ -276,6 +276,22 @@
    {"text": "もしもし、{call}？ どうしたんですか？ ……声が聞けてうれしいです。", "when": "", "pos": "", "neg": ""},
    {"text": "（小声で）い、今授業中なので……あとでかけ直しますね！", "when": "activity=class", "priority": 1, "override": true,
     "effects": {"heart": 3}, "pos": "whispering, covering mouth, surprised", "neg": "smile"}
+  ]},
+
+ {"id": "_dress", "name": "着せ替え", "icon": "👗", "category": "system", "when": "away=false, asleep=false, busy=false", "cooldown": 0,
+  "effects": {"shyness": 5}, "pos": "standing, looking at viewer, cowboy shot", "neg": "",
+  "reactions": [
+   {"text": "着替えてきました。……どうですか？ 似合ってます？", "when": "", "pos": "smile, hands behind back", "neg": ""},
+   {"text": "じゃーん！ ……なんて、ちょっと照れますね。", "when": "mood>=60", "pos": "spread arms, happy", "neg": ""},
+   {"text": "いつもの服に戻しますね。", "when": "outfit=", "priority": 1, "effects": {}, "pos": "smile", "neg": ""},
+   {"text": "お帰りなさいませ、{call}。……なんて、ふふ。", "when": "outfit=maid", "priority": 1, "pos": "curtsey, smile, blush", "neg": ""},
+   {"text": "夏祭り、行きたくなっちゃいますね。", "when": "outfit=yukata", "priority": 1, "pos": "smile, holding fan", "neg": ""},
+   {"text": "み、水着ですか……！？ ……ちょっとだけですよ？", "when": "outfit=swimsuit, affection>=60", "priority": 1,
+    "effects": {"shyness": 30, "heart": 10}, "pos": "blush, embarrassed, covering chest", "neg": ""},
+   {"text": "み、水着はまだ無理です……！", "when": "outfit=swimsuit, affection<60", "priority": 2, "override": true,
+    "effects": {"shyness": 25, "trust": -1}, "pos": "flustered, blush, waving hands", "neg": ""},
+   {"text": "……今は着替える気分じゃないです。", "when": "mood<25", "priority": 3, "override": true,
+    "effects": {}, "pos": "looking away, annoyed", "neg": "smile"}
   ]},
 
  {"id": "_return", "name": "おかえり", "icon": "🏠", "category": "system", "when": "", "cooldown": 0,

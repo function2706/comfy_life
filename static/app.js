@@ -85,6 +85,7 @@ async function refresh() {
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
   renderWho();
   renderCommands();
+  renderDress();
   renderStatus();
   renderLog();
   if (!S.current && S.view.log.length) showEntry(S.view.log[S.view.log.length - 1], false);
@@ -142,6 +143,7 @@ function renderWho() {
   else { face.style.backgroundImage = ''; face.textContent = moodFace(v.params); }
   $('#who-tags').replaceChildren(
     h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
+    v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
     ...v.tags.map((t) => h('span', { class: 'tag' }, t.label)),
   );
 }
@@ -178,12 +180,35 @@ function renderCommands() {
   box.replaceChildren(...out);
 }
 
-async function doAct(aid) {
+/* ---------------------------------------------------------------- dress tab */
+function renderDress() {
+  const d = S.view.dress;
+  const items = S.boot.character.wardrobe || [];
+  const card = (id, icon, name, ok, tip) => h('button', {
+    class: 'outfit' + (d.current === id ? ' on' : ''), disabled: !d.can || !ok || S.busy,
+    title: tip || '', onclick: () => doAct('_dress', id),
+  }, h('span', { class: 'ic' }, icon), h('span', {}, name));
+  $('#tab-dress').replaceChildren(
+    h('div', { class: 'dress-now' },
+      h('div', {}, h('b', {}, 'いまの服 '), d.wearing || 'おまかせ（スケジュール通り）'),
+      h('div', {}, h('code', {}, d.outfit || '—')),
+      d.fixed ? h('div', { class: 'muted small' }, '※ 今の場面は服装固定（就寝中など）なので、着せ替えは場面が変わってから反映されます') : '',
+      !d.can ? h('div', { class: 'muted small' }, `今は着替えられません（${d.why}）`) : ''),
+    h('div', { class: 'outfits' },
+      card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
+      items.map((o) => card(o.id, o.icon || '👕', o.name || o.id, d.items[o.id], o.when ? '条件: ' + o.when : o.pos))),
+    items.length ? '' : h('p', { class: 'muted small' }, '服が登録されていません。設定 → 着せ替え から追加できます。'),
+    h('p', { class: 'hint', style: 'margin-top:12px' }, S.boot.character.dress_reset_on_sleep !== false
+      ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
+  );
+}
+
+async function doAct(aid, outfit) {
   if (S.busy) return;
   S.busy = true;
   renderCommands();
   try {
-    const r = await api('/api/act', { action: aid });
+    const r = outfit === undefined ? await api('/api/act', { action: aid }) : await api('/api/dress', { outfit });
     handleActResult(r);
   } catch (e) {
     toast(e.message, 'err');
@@ -242,7 +267,8 @@ function setDialogue(text, animate, name) {
 function showEntry(e, animate) {
   S.current = e;
   setDialogue(e.text || `（${e.action_name}）`, animate);
-  $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`;
+  $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`
+    + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : ''}` : '');
   $('#deltas').replaceChildren(...Object.entries(e.deltas || {}).map(([k, v]) => {
     const p = S.boot.params.find((x) => x.id === k) || {};
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
@@ -575,7 +601,7 @@ function parseRules(s, key) {
 function paramKeysHint() {
   return h('div', { class: 'keys' },
     h('div', {}, 'パラメータ id: ', SE.params.map((p, i) => [i ? '、' : '', h('code', {}, p.id), `(${p.name})`])),
-    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat']
+    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat', 'outfit']
       .map((k, i) => [i ? ' ' : '', h('code', {}, k)])),
     h('div', {}, '条件の書き方: ', h('code', {}, 'free=true, mood>=50, phase=night|midnight'), '（カンマで AND、| で OR、time は 07:30 形式）'),
     h('div', {}, '効果の書き方: ', h('code', {}, 'mood:+5, stress:-10'), '（1時間あたりの値はスケジュール・一時シーン）'));
@@ -660,7 +686,9 @@ function sceneFields(e, opts = {}) {
     fld('activity id', inp(e, 'activity', { ph: 'breakfast' }), null),
     fld('場所', inp(e, 'location', { ph: 'ダイニング' })),
     h('div', { class: 'fld' }, h('span', { class: 'fl' }, '状態'),
-      h('div', { class: 'row' }, chk(e, 'away', '外出'), chk(e, 'asleep', '睡眠'), chk(e, 'busy', '手が離せない'))),
+      h('div', { class: 'row' }, chk(e, 'away', '外出'), chk(e, 'asleep', '睡眠'), chk(e, 'busy', '手が離せない'),
+        h('label', { class: 'check', title: '着せ替えより、この場面の服装を優先する（未指定なら睡眠中のみ固定）' },
+          h('input', { type: 'checkbox', checked: e.fixed_outfit ?? !!e.asleep, onchange: (ev) => { e.fixed_outfit = ev.target.checked; } }), '服装固定'))),
     fld('服装（空欄=継続）', inp(e, 'outfit'), null, 'span2'),
     fld('毎時の効果', inp(e, 'effects', { fmt: fmtEff, parse: parseEff, ph: 'satiety:+60' }), null, 'span2'),
     fld('Positive（場面）', inp(e, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
@@ -692,6 +720,36 @@ SEC.schedule = () => {
     h('div', { class: 'sect' }, '予定'),
     list,
     h('button', { class: 'btn', onclick: () => { c.schedule.push({ days: 'all', from: '10:00', to: '11:00', activity: 'new', label: '新しい予定', location: '', pos: '', neg: '', effects: {} }); draw(); } }, '＋予定を追加'),
+  ];
+};
+
+/* ---- 着せ替え */
+SEC.wardrobe = () => {
+  const c = SE.char;
+  c.wardrobe = c.wardrobe || [];
+  c.dress_reset_on_sleep = c.dress_reset_on_sleep !== false;
+  const list = h('div');
+  const draw = () => {
+    list.replaceChildren(...c.wardrobe.map((o, i) => h('div', { class: 'card' },
+      h('div', { class: 'card-head' }, h('b', {}, `${o.icon || '👕'} ${o.name || o.id}`), h('code', { class: 'muted small' }, o.id),
+        h('div', { class: 'spacer' }),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(c.wardrobe, i, -1); draw(); } }, '↑'),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(c.wardrobe, i, 1); draw(); } }, '↓'),
+        h('button', { class: 'btn ghost', onclick: () => { const n = clone(o); n.id += '_copy'; n.name += '（複製）'; c.wardrobe.splice(i + 1, 0, n); draw(); } }, '複製'),
+        h('button', { class: 'btn ghost danger', onclick: () => { c.wardrobe.splice(i, 1); draw(); } }, '削除')),
+      h('div', { class: 'grid4' },
+        fld('id', inp(o, 'id'), '反応の条件 outfit=… で使う'), fld('名前', inp(o, 'name')), fld('アイコン', inp(o, 'icon')),
+        fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
+        fld('Positive（服装）', inp(o, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
+        fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2')))));
+  };
+  draw();
+  return [
+    saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll(); }),
+    h('p', { class: 'lead' }, 'サイドの「着せ替え」タブから選べる服です。選ぶとコマンド「着せ替え」（_dress）の反応が返り、断られなければ服装プロンプトが差し替わります。スケジュールで「服装固定」にした場面（就寝中など）では固定の服が優先されます。反応は 設定 → コマンド →「着せ替え」で、条件に outfit=maid のように着替え先を書いて作れます（outfit= で「おまかせ」）。'),
+    h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),
+    list,
+    h('button', { class: 'btn', onclick: () => { c.wardrobe.push({ id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', when: '', pos: '', neg: '' }); draw(); } }, '＋服を追加'),
   ];
 };
 
@@ -867,8 +925,9 @@ SEC.comfy = () => {
       h('button', { class: 'btn ghost', onclick: async () => { const r = await api('/api/workflow'); if (r.workflow) downloadJson('workflow_api.json', r.workflow); else toast('未登録です'); } }, '登録中の JSON を保存')),
     wfRes);
   drawMode();
+  st.images = st.images || { mode: 'reuse', max_per_prompt: 8 };
   return [
-    saveBar('画像生成 (ComfyUI)', async () => { await api('/api/settings', { settings: { comfy: c, auto_generate: st.auto_generate } }); await reloadAll(); }),
+    saveBar('画像生成 (ComfyUI)', async () => { await api('/api/settings', { settings: { comfy: c, auto_generate: st.auto_generate, images: st.images } }); await reloadAll(); }),
     h('p', { class: 'lead' }, 'ComfyUI の HTTP API に接続します。リモートの PC で動かす場合は ComfyUI を --listen 付きで起動してください。'),
     h('div', { class: 'grid4' },
       fld('ホスト / アドレス', inp(c, 'host', { ph: '127.0.0.1' }), null, 'span2'),
@@ -886,8 +945,15 @@ SEC.comfy = () => {
           if (!c.ckpt && r.checkpoints && r.checkpoints.length) { c.ckpt = r.checkpoints[0]; $('#ck-input').value = c.ckpt; }
         } catch (e) { res.className = 'result err'; res.textContent = e.message; }
       } }, '接続テスト'),
-      chk(st, 'auto_generate', 'コマンド実行ごとに自動で画像生成')),
+      chk(st, 'auto_generate', 'コマンド実行時に画像を表示する')),
     res, lists,
+    h('div', { class: 'sect' }, '画像の出し方'),
+    h('div', { class: 'grid3' },
+      fld('同じプロンプトの画像があるとき', inp(st.images, 'mode', { type: 'select', options: [
+        ['reuse', '既存の画像からランダムにすぐ表示'], ['always', '毎回新しく生成する']] }), null, 'span2'),
+      fld('1プロンプトあたりの上限枚数', inp(st.images, 'max_per_prompt', { type: 'number' }),
+        '「すぐ表示」のとき、この枚数に達するまでは裏で新規生成も行う（1 = 1枚あれば以降は生成しない）')),
+    h('p', { class: 'hint' }, '同じプロンプト = 合成後の Positive と Negative が完全に一致するもの（キャラをまたいでも共有）。表示中の画像は 🎲 で同じプロンプトの別の画像に、⟳ で新規生成に切り替えられます。'),
     h('div', { class: 'sect' }, 'ワークフロー'),
     h('div', { class: 'row' },
       ...[['builtin', '内蔵 txt2img'], ['custom', 'カスタム (API 形式 JSON)']].map(([v, l]) => h('label', { class: 'check' },
@@ -996,7 +1062,7 @@ SEC.data = () => {
 function bind() {
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    for (const t of ['commands', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
+    for (const t of ['commands', 'dress', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
   }));
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }
@@ -1042,6 +1108,15 @@ function bind() {
   $('#btn-regen').addEventListener('click', async () => {
     if (!S.current || !S.current.pos) return toast('再生成できる記録がありません');
     try { const r = await api('/api/generate', { entry: S.current.id }); trackJob(r.job); } catch (e) { toast(e.message, 'err'); }
+  });
+  $('#btn-reroll').addEventListener('click', async () => {
+    if (!S.current || !S.current.pos) return toast('表示中の記録がありません');
+    try {
+      const r = await api('/api/reroll', { entry: S.current.id });
+      showEntry(r.entry, false);
+      setImage(r.entry.image);
+      await refresh();
+    } catch (e) { toast(e.message, 'err'); }
   });
   $('#btn-snap').addEventListener('click', async () => {
     try { const r = await api('/api/generate', {}); showEntry(r.entry, false); trackJob(r.job); await refresh(); } catch (e) { toast(e.message, 'err'); }

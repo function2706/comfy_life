@@ -16,7 +16,7 @@ def dpath(*p):
 
 def load(p, default=None):
     try:
-        with open(p, encoding="utf-8") as f:
+        with open(p, encoding="utf-8-sig") as f:   # メモ帳で保存した BOM 付きも読めるように
             return json.load(f)
     except FileNotFoundError:
         return default
