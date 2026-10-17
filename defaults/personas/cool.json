@@ -4,6 +4,7 @@
  "desc": "淡々として表情に出ない。でも、ときどき素直な一言がこぼれる",
  "persona": "一人称は「私」、相手を名前で呼び捨てにするクールな女性。「そう」「……別に」「悪くない」など短く淡々と話し、感情はほとんど顔に出さず少し毒舌。ただし、ふとした瞬間に素直な好意や本音を短い一言でこぼす。",
  "player_call": "{player}",
+ "first_person": "私",
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、小さく片手を上げた）",
@@ -288,7 +289,7 @@
    "うれしい。でも今日はもう限界。……また今度、必ず。"
   ],
   "gift.default": [
-   "……私に？ 開けていい？",
+   "……{fp}に？ 開けていい？",
    "……ありがとう。開けてもいい？"
   ],
   "gift.affection_ge_70": [
@@ -351,7 +352,7 @@
    "（{name}は静かに眠っている……）"
   ],
   "_return.away_true": [
-   "📱『おかえり。私は今{location}。すぐ戻る』"
+   "📱『おかえり。{fp}は今{location}。すぐ戻る』"
   ],
   "mg.yakyuken.refuse.default": [
    "野球拳？ ……却下。そういうのはまだ早い。"
@@ -360,7 +361,7 @@
    "野球拳……。……いいよ。負ける気はしない。"
   ],
   "mg.yakyuken.start.mood_ge_60": [
-   "私、じゃんけん強いよ。覚悟して。"
+   "{fp}、じゃんけん強いよ。覚悟して。"
   ],
   "mg.yakyuken.hint.default": [
    "……次は{hint_hand}にしようかな。"
@@ -384,19 +385,19 @@
    "……これ以上は無理。本当に次で最後。"
   ],
   "mg.yakyuken.round_lose.default": [
-   "私の勝ち。{call}、1枚脱いで。"
+   "{fp}の勝ち。{call}、1枚脱いで。"
   ],
   "mg.yakyuken.round_lose.default_2": [
    "{my_hand}を出すと思ってた。わかりやすい。"
   ],
   "mg.yakyuken.round_lose.lives_le_1": [
-   "あと1回で私の勝ち。"
+   "あと1回で{fp}の勝ち。"
   ],
   "mg.yakyuken.win.default": [
    "……降参。もう無理。{call}、意地が悪い。"
   ],
   "mg.yakyuken.lose.default": [
-   "私の勝ち。……残念だった？"
+   "{fp}の勝ち。……残念だった？"
   ],
   "mg.yakyuken.quit.default": [
    "もうおしまい？ ……正直、ほっとした。"
@@ -417,7 +418,7 @@
    "負けた。……どっち指すの。"
   ],
   "mg.acchimuite.rps_her.default": [
-   "私の勝ち。いくよ。あっち向いて……"
+   "{fp}の勝ち。いくよ。あっち向いて……"
   ],
   "mg.acchimuite.point_me.default": [
    "……つられた。不覚。"
@@ -435,7 +436,7 @@
    "負けた。{call}、強いね。次は負けない。"
   ],
   "mg.acchimuite.lose.default": [
-   "私の勝ち。もう一回やる？"
+   "{fp}の勝ち。もう一回やる？"
   ],
   "mg.acchimuite.quit.default": [
    "また遊ぼう。"
@@ -447,7 +448,7 @@
    "脱衣麻雀？ ……まだ早い。却下。"
   ],
   "mg.mahjong.start.default": [
-   "麻雀。私、けっこう打てるよ。……脱ぐのはそっちかもね。"
+   "麻雀。{fp}、けっこう打てるよ。……脱ぐのはそっちかもね。"
   ],
   "mg.mahjong.start.shyness_ge_40": [
    "……受けて立つ。手加減はしない。"
@@ -483,7 +484,7 @@
    "ツモ。{yaku}、{han}。もらった。"
   ],
   "mg.mahjong.hand_lose.lives_le_1": [
-   "あと1回で私の勝ち。"
+   "あと1回で{fp}の勝ち。"
   ],
   "mg.mahjong.ryuukyoku.default": [
    "流局。……少しほっとした。"
@@ -492,7 +493,7 @@
    "{yaku}……{han}……。降参。もう無理。"
   ],
   "mg.mahjong.lose.default": [
-   "私の勝ち。{call}、麻雀はもう少し練習したほうがいい。"
+   "{fp}の勝ち。{call}、麻雀はもう少し練習したほうがいい。"
   ],
   "mg.mahjong.quit.default": [
    "途中でやめるの。……続きはまた今度。"
@@ -516,7 +517,7 @@
    "揃った……{call}の勝ち。やるね。"
   ],
   "mg.connect4.lose.default": [
-   "4つ並んだ。私の勝ち。"
+   "4つ並んだ。{fp}の勝ち。"
   ],
   "mg.connect4.draw.default": [
    "引き分け。いい勝負だった。"
@@ -543,7 +544,7 @@
    "つながった……{call}の勝ち。"
   ],
   "mg.hex.lose.default": [
-   "つながった。私の勝ち。"
+   "つながった。{fp}の勝ち。"
   ],
   "mg.hex.quit.default": [
    "また遊ぼう。"
@@ -564,13 +565,13 @@
    "……真っ黒。"
   ],
   "mg.reversi.pass.default": [
-   "{call}は置ける所がない。私の番。"
+   "{call}は置ける所がない。{fp}の番。"
   ],
   "mg.reversi.win.default": [
    "{me}対{her}……{call}の勝ち。"
   ],
   "mg.reversi.lose.default": [
-   "{her}対{me}で私の勝ち。"
+   "{her}対{me}で{fp}の勝ち。"
   ],
   "mg.reversi.draw.default": [
    "{me}対{her}。引き分け。"
@@ -603,7 +604,7 @@
    "{me}対{her}……{call}の勝ち。次は負けない。"
   ],
   "mg.yacht.lose.default": [
-   "{her}対{me}で私の勝ち。サイコロは私の味方。"
+   "{her}対{me}で{fp}の勝ち。サイコロは{fp}の味方。"
   ],
   "mg.yacht.draw.default": [
    "{me}点で同点。……珍しい。"
@@ -639,7 +640,7 @@
    "{me}文対{her}文……{call}の勝ち。花札、強いのね。"
   ],
   "mg.koikoi.lose.default": [
-   "{her}文対{me}文で私の勝ち。祖母直伝。"
+   "{her}文対{me}文で{fp}の勝ち。祖母直伝。"
   ],
   "mg.koikoi.draw.default": [
    "同点。決着はまた今度。"
@@ -678,10 +679,10 @@
    "……これ以上は無理。次で最後。"
   ],
   "mg.poker.round_lose.default": [
-   "{her_hand}。私の勝ち。"
+   "{her_hand}。{fp}の勝ち。"
   ],
   "mg.poker.round_lose.lives_le_1": [
-   "あと1回で私の勝ち。"
+   "あと1回で{fp}の勝ち。"
   ],
   "mg.poker.round_draw.default": [
    "引き分け。……少しドキッとした。"
@@ -690,7 +691,7 @@
    "……降参。もう無理。"
   ],
   "mg.poker.lose.default": [
-   "私の勝ち。ポーカーフェイス、見抜けなかったでしょ。"
+   "{fp}の勝ち。ポーカーフェイス、見抜けなかったでしょ。"
   ],
   "mg.poker.quit.default": [
    "やめるの。……少しほっとした。"
@@ -699,7 +700,7 @@
    "そろそろ行かないと。続きはまた今度。"
   ],
   "mg.blackjack.start.default": [
-   "今日は私がディーラー。いらっしゃいませ。"
+   "今日は{fp}がディーラー。いらっしゃいませ。"
   ],
   "mg.blackjack.round_win.default": [
    "{why}……{call}の勝ち。"
@@ -714,7 +715,7 @@
    "{me}勝{her}敗……{call}、カジノでも稼げそう。"
   ],
   "mg.blackjack.lose.default": [
-   "{her}勝で私の勝ち。胴元は強い。"
+   "{her}勝で{fp}の勝ち。胴元は強い。"
   ],
   "mg.blackjack.quit.default": [
    "またのお越しを。"
@@ -735,7 +736,7 @@
    "{me}組対{her}組……{call}の勝ち。記憶力、いいのね。"
   ],
   "mg.concentration.lose.default": [
-   "{her}組対{me}組で私の勝ち。"
+   "{her}組対{me}組で{fp}の勝ち。"
   ],
   "mg.concentration.draw.default": [
    "{me}組ずつ。引き分け。"

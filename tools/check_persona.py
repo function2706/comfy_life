@@ -18,7 +18,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 from core.keys import all_keys  # noqa: E402
 
-COMMON = {"call", "name", "player", "location", "activity_label", "time"}
+COMMON = {"call", "name", "player", "location", "activity_label", "time", "fp", "fp_st"}
 REQUIRED_FIELDS = ("id", "name", "desc", "persona", "player_call", "lines")
 
 

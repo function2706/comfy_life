@@ -1134,10 +1134,13 @@ SEC.char = () => {
         try { await api('/api/character/delete', { id: c.id }); S.current = null; await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
       } }, '削除'))),
     h('p', { class: 'lead' }, '一緒に暮らす相手の設定です。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。'),
-    h('div', { class: 'grid3' },
+    h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
-      fld('あなたの呼ばれ方', inp(c, 'player_call'), '{player} = あなたの名前'),
-      fld('あなたの名前', inp(st, 'player_name'))),
+      fld('あなたの名前', inp(st, 'player_name')),
+      fld('一人称（固定）', inp(c, 'first_person', { ph: `空欄＝プリセット（${(curPersona(c) || {}).first_person || '私'}）` }),
+        '空欄なら性格プリセットに従う'),
+      fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),
+        '{player} = あなたの名前。空欄なら性格プリセットに従う')),
     h('div', { class: 'sect' }, '外見プロンプト'),
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
@@ -1151,6 +1154,8 @@ SEC.char = () => {
   ];
 };
 
+const curPersona = (c) => (S.boot.personas || []).find((p) => p.id === c.persona_id);
+
 function personaPicker(c) {
   const ps = S.boot.personas || [];
   const cur = ps.find((p) => p.id === c.persona_id);
@@ -1160,9 +1165,9 @@ function personaPicker(c) {
       onchange: (ev) => {
         const p = ps.find((x) => x.id === ev.target.value);
         c.persona_id = ev.target.value || '';
-        if (p && confirm(`「${p.name}」の性格の説明と、あなたの呼ばれ方（${p.player_call}）もプリセットに合わせますか？`)) {
+        // 一人称・呼び方は固定していなければ自動でプリセットに従うので, ここでは性格の説明だけ合わせる
+        if (p && (!c.persona || confirm(`「${p.name}」の性格の説明（LLM 用）もプリセットに合わせますか？`))) {
           c.persona = p.persona;
-          c.player_call = p.player_call;
         }
         showSection('char');
       },
@@ -1202,11 +1207,12 @@ SEC.personas = () => {
     draw();
     box.replaceChildren(
       h('div', { class: 'grid2' },
-        fld('名前', inp(p, 'name')), fld('あなたの呼ばれ方', inp(p, 'player_call'), '{player} = あなたの名前'),
+        fld('名前', inp(p, 'name')), fld('あなたの呼び方', inp(p, 'player_call'), '{player} = あなたの名前'),
+        fld('一人称', inp(p, 'first_person')), fld('一人称（言いよどみ）', inp(p, 'first_person_stutter', { ph: '例: わ、私（無ければ空欄）' })),
         fld('説明（一覧に出る一行）', inp(p, 'desc'), null, 'spanall'),
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
-      h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。置換文字（{call} など）は共通のセリフと同じものが使えます。'),
+      h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、主人公の設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),
       search, list);
   };
   load().catch((e) => box.replaceChildren(h('p', { class: 'result err' }, e.message)));

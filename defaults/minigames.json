@@ -103,7 +103,7 @@
      "pos": "determined, blush"
     },
     {
-     "text": "ふふん、私じゃんけん強いんですよ？ 覚悟してくださいね。",
+     "text": "ふふん、{fp}じゃんけん強いんですよ？ 覚悟してくださいね。",
      "when": "mood>=60",
      "pos": "smug, smile"
     }
@@ -147,7 +147,7 @@
    ],
    "round_lose": [
     {
-     "text": "やった、私の勝ち！ {call}、1枚脱いでくださいね♪",
+     "text": "やった、{fp}の勝ち！ {call}、1枚脱いでくださいね♪",
      "pos": "cheering, smile"
     },
     {
@@ -155,7 +155,7 @@
      "pos": "smug, smile"
     },
     {
-     "text": "あと1回で私の勝ちですよ？",
+     "text": "あと1回で{fp}の勝ちですよ？",
      "when": "lives<=1",
      "priority": 1,
      "pos": "teasing smile, leaning forward"
@@ -169,7 +169,7 @@
    ],
    "lose": [
     {
-     "text": "私の勝ちですね！ ……ちょっとだけ、残念でした？",
+     "text": "{fp}の勝ちですね！ ……ちょっとだけ、残念でした？",
      "pos": "victory pose, smile, wink"
     }
    ],
@@ -290,7 +290,7 @@
    ],
    "rps_her": [
     {
-     "text": "私の勝ち！ いきますよー……あっち向いて……",
+     "text": "{fp}の勝ち！ いきますよー……あっち向いて……",
      "pos": "pointing at viewer, smile"
     }
    ],
@@ -326,7 +326,7 @@
    ],
    "lose": [
     {
-     "text": "私の勝ちー！ ふふ、もう一回やります？",
+     "text": "{fp}の勝ちー！ ふふ、もう一回やります？",
      "pos": "victory pose, v, smile"
     }
    ],
@@ -451,7 +451,7 @@
    ],
    "start": [
     {
-     "text": "麻雀ですか？ ふふ、私けっこう打てるんですよ。……脱ぐのはそっちかもしれませんね？",
+     "text": "麻雀ですか？ ふふ、{fp}けっこう打てるんですよ。……脱ぐのはそっちかもしれませんね？",
      "pos": "smug, smile, blush"
     },
     {
@@ -518,7 +518,7 @@
      "pos": "cheering, smile"
     },
     {
-     "text": "あと1回で私の勝ちですよ？",
+     "text": "あと1回で{fp}の勝ちですよ？",
      "when": "lives<=1",
      "priority": 1,
      "pos": "teasing smile, leaning forward"
@@ -538,7 +538,7 @@
    ],
    "lose": [
     {
-     "text": "私の勝ちですね！ {call}、麻雀はもうちょっと練習しましょうね？",
+     "text": "{fp}の勝ちですね！ {call}、麻雀はもうちょっと練習しましょうね？",
      "pos": "victory pose, wink, smile"
     }
    ],
@@ -618,7 +618,7 @@
    ],
    "lose": [
     {
-     "text": "4つ並びました！ 私の勝ちー！",
+     "text": "4つ並びました！ {fp}の勝ちー！",
      "pos": "cheering, v"
     }
    ],
@@ -702,7 +702,7 @@
    ],
    "lose": [
     {
-     "text": "つながりました！ 私の勝ちです！",
+     "text": "つながりました！ {fp}の勝ちです！",
      "pos": "cheering"
     }
    ],
@@ -776,7 +776,7 @@
    ],
    "pass": [
     {
-     "text": "あ、{call}は置ける所がないみたいですね。私の番です！",
+     "text": "あ、{call}は置ける所がないみたいですね。{fp}の番です！",
      "pos": "smile"
     }
    ],
@@ -788,7 +788,7 @@
    ],
    "lose": [
     {
-     "text": "{her}対{me}で私の勝ちです！",
+     "text": "{her}対{me}で{fp}の勝ちです！",
      "pos": "cheering, v"
     }
    ],
@@ -886,7 +886,7 @@
    ],
    "lose": [
     {
-     "text": "{her}対{me}で私の勝ち！ ふふ、サイコロの神様は私の味方です。",
+     "text": "{her}対{me}で{fp}の勝ち！ ふふ、サイコロの神様は{fp}の味方です。",
      "pos": "cheering, v"
     }
    ],
@@ -999,7 +999,7 @@
    ],
    "lose": [
     {
-     "text": "{her}文対{me}文で私の勝ち！ おばあちゃん直伝です。",
+     "text": "{her}文対{me}文で{fp}の勝ち！ おばあちゃん直伝です。",
      "pos": "smug, v"
     }
    ],
@@ -1152,11 +1152,11 @@
    ],
    "round_lose": [
     {
-     "text": "{her_hand}！ 私の勝ちですね♪",
+     "text": "{her_hand}！ {fp}の勝ちですね♪",
      "pos": "cheering, showing cards"
     },
     {
-     "text": "あと1回で私の勝ちですよ？",
+     "text": "あと1回で{fp}の勝ちですよ？",
      "when": "lives<=1",
      "priority": 1,
      "pos": "teasing smile, leaning forward"
@@ -1176,7 +1176,7 @@
    ],
    "lose": [
     {
-     "text": "私の勝ちですね！ ポーカーフェイス、効いてました？",
+     "text": "{fp}の勝ちですね！ ポーカーフェイス、効いてました？",
      "pos": "victory pose, wink"
     }
    ],
@@ -1230,7 +1230,7 @@
   "lines": {
    "start": [
     {
-     "text": "今日は私がディーラーです。いらっしゃいませ♪",
+     "text": "今日は{fp}がディーラーです。いらっしゃいませ♪",
      "pos": "smile, holding cards, dealer"
     }
    ],
@@ -1260,7 +1260,7 @@
    ],
    "lose": [
     {
-     "text": "{her}勝で私の勝ち！ 胴元は強いんです。",
+     "text": "{her}勝で{fp}の勝ち！ 胴元は強いんです。",
      "pos": "smug, v"
     }
    ],
@@ -1336,7 +1336,7 @@
    ],
    "lose": [
     {
-     "text": "{her}組対{me}組で私の勝ち！",
+     "text": "{her}組対{me}組で{fp}の勝ち！",
      "pos": "cheering, v"
     }
    ],

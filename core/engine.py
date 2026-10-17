@@ -132,6 +132,11 @@ class App:
             self.settings["seen_minigames"] = sorted(all_ids)
             store.save(store.dpath("settings.json"), self.settings)
         for c in self.chars.values():
+            # 以前は性格を選ぶと呼び方をキャラにコピーしていた. プリセットと同じなら「プリセットに従う」(空欄) に戻す
+            p = self.personas.get(c.get("persona_id") or "")
+            if p and c.get("player_call") and c["player_call"] == p.get("player_call"):
+                c["player_call"] = ""
+                store.save_character(c)
             if "wardrobe" not in c:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["wardrobe"] = d.get("wardrobe", [])
@@ -340,10 +345,20 @@ class App:
         return pos, join_tags(p["neg"] for p in parts if p["src"] != "除外"), parts
 
     # ------------------------------------------------------------------ text
+    def pronouns(self, char):
+        """(一人称, 言いよどみの一人称, 呼び方). 主人公で固定していればそれ, 無ければ性格プリセットに従う."""
+        p = self.personas.get(char.get("persona_id") or "") or {}
+        player = self.settings.get("player_name") or "あなた"
+        fixed_fp = (char.get("first_person") or "").strip()
+        fp = fixed_fp or p.get("first_person") or "私"
+        fp_st = fixed_fp or p.get("first_person_stutter") or fp
+        call = (char.get("player_call") or "").strip() or p.get("player_call") or "{player}"
+        return fp, fp_st, call.replace("{player}", player)
+
     def format_text(self, text, char, scene, dt):
         player = self.settings.get("player_name") or "あなた"
-        call = (char.get("player_call") or "{player}").replace("{player}", player)
-        for k, v in (("{call}", call), ("{player}", player), ("{name}", char.get("name", "")),
+        fp, fp_st, call = self.pronouns(char)
+        for k, v in (("{fp_st}", fp_st), ("{fp}", fp), ("{call}", call), ("{player}", player), ("{name}", char.get("name", "")),
                      ("{location}", scene["location"]), ("{activity_label}", scene["label"]),
                      ("{time}", dt.strftime("%H:%M"))):
             text = text.replace(k, v)
@@ -352,7 +367,7 @@ class App:
     def _llm_text(self, char, st, dt, act, template, scene):
         cfg = self.settings.get("llm") or {}
         player = self.settings.get("player_name") or "あなた"
-        call = (char.get("player_call") or "{player}").replace("{player}", player)
+        fp, _, call = self.pronouns(char)
         ctx = self.context(char, st, dt, scene)
         lines = []
         for p in self.params:
@@ -361,7 +376,8 @@ class App:
         recent = "\n".join("- %s → %s" % (e.get("action_name", ""), e.get("text", ""))
                            for e in self.log(char["id"])[-4:])
         system = (cfg.get("system") or "").replace("{name}", char.get("name", "")).replace("{call}", call) \
-            .replace("{player}", player).replace("{persona}", char.get("persona", ""))
+            .replace("{player}", player).replace("{persona}", char.get("persona", "")).replace("{fp}", fp)
+        system += "\n一人称は必ず「%s」、%sのことは必ず「%s」と呼ぶ。" % (fp, player, call)
         user = ("現在 %s（%s曜 %s）\n%sの状況: %s（%s）\nパラメータ: %s\n目立つ状態: %s\n直近のやりとり:\n%s\n\n"
                 "%sの行動: %s\n参考セリフ（この方向性で）: %s\n\n%sとしてのセリフだけを返して。"
                 % (dt.strftime("%H:%M"), DAY_JA[dt.weekday()], self.phase_at(dt).get("label", ""),
@@ -820,7 +836,7 @@ class App:
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
-                "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "_custom")}
+                "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "first_person", "_custom")}
                              for p in sorted(self.personas.values(), key=lambda p: (
                                  PERSONA_ORDER.index(p["id"]) if p["id"] in PERSONA_ORDER else 99, p.get("name", "")))]}
 
@@ -886,7 +902,7 @@ class App:
         with self.lock:
             src = self.char(copy_from) if copy_from else self.char()
             cid = "c" + uuid.uuid4().hex[:8]
-            c = {"id": cid, "name": name or "新しいキャラ", "player_call": "{player}", "persona": "",
+            c = {"id": cid, "name": name or "新しいキャラ", "player_call": "", "first_person": "", "persona": "",
                  "pos": "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
                  "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
                  "prompt_history": []}
