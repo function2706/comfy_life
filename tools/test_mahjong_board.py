@@ -122,8 +122,41 @@ def main():
             res = [play_board(app, st, gid) for _ in range(3)]
             print("%s (ランダム相手):" % gid, res)
             assert res.count("lose") >= 2, "AI がランダム相手に負け越している"
+        # コネクトフォー: 空の列に落としたコマは一番下 (行 0) に入る
+        app.games.start("connect4")
+        g = st["game"]
+        app.games.move(payload={"col": 0})
+        assert g["board"][0] == BG.ME, "一番下に落ちていない"
+        assert g["last"][0] == 0 and len(g["last"]) == 2, g["last"]   # あなた → キャラ の順
+        app.games.quit()
+
+        # ヨット: 12 ラウンド最後まで, 役を順に埋める
+        from core import yacht as YT
+        for _ in range(2):
+            app.games.start("yacht")
+            for _ in range(40):
+                g = st["game"]
+                if g.get("over"):
+                    break
+                y = g["yt"]
+                if y["rolls_left"] == 3 or (y["rolls_left"] and random.random() < 0.5):
+                    app.games.move(payload={"act": "roll", "hold": [random.random() < 0.5 for _ in range(5)]})
+                else:
+                    cat = YT.choose_cat(y["dice"], y["sheet"]["p"])
+                    r = app.games.move(payload={"act": "score", "cat": cat})
+            y = st["game"]["yt"]
+            assert len(y["sheet"]["p"]) == 12 and len(y["sheet"]["a"]) == 12, y["sheet"]
+            print("yacht:", st["game"]["over"], YT.totals(y["sheet"]["p"])["total"], "対", YT.totals(y["sheet"]["a"])["total"],
+                  "|", r["entry"]["text"])
+            try:
+                app.games.move(payload={"act": "roll"})
+                raise AssertionError("終わった対局で振れてしまった")
+            except ValueError:
+                pass
+            app.games.quit()
+
         v = app.state_view()["games"]
-        assert v["current"] is None and len(v["list"]) == 6
+        assert v["current"] is None and len(v["list"]) == 7
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

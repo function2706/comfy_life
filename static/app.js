@@ -222,6 +222,7 @@ function renderGames() {
   }
   if (cur.kind === 'mahjong') { box.replaceChildren(renderMahjong(cur)); return; }
   if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(renderBoard(cur)); return; }
+  if (cur.kind === 'yacht') { box.replaceChildren(renderYacht(cur)); return; }
   const name = S.view.name;
   let score;
   if (cur.kind === 'yakyuken') {
@@ -351,16 +352,31 @@ function renderBoard(cur) {
   const move = (body) => gameAct('/api/game/move', body);
   let grid, legend;
   if (cur.kind === 'connect4') {
-    legend = h('div', { class: 'legend' }, h('i', { class: 'disc me' }), 'あなた　', h('i', { class: 'disc her' }), name);
+    legend = h('div', { class: 'legend' }, h('i', { class: 'disc me' }), 'あなた　', h('i', { class: 'disc her' }), name,
+      h('span', { style: 'margin-left:auto' }, '▼ の列に上から落とす'));
+    const full = (c) => b.cells[(b.h - 1) * b.w + c] !== 0;
+    const fresh = S.c4Seen !== JSON.stringify(b.last);   // 新しく置かれたコマだけ落下アニメーション
+    S.c4Seen = JSON.stringify(b.last);
+    // 投入口: マウスを乗せた列の上に, これから落とすコマを浮かべる
+    const slots = Array.from({ length: b.w }, (_, c) => h('button', {
+      class: 'c4-slot', disabled: !can || full(c), title: `${c + 1}列目に落とす`, onclick: () => move({ col: c }),
+    }, h('i', { class: 'disc me ghost' }), h('span', {}, '▼')));
     const cells = [];
     for (let r = b.h - 1; r >= 0; r--) {
       for (let c = 0; c < b.w; c++) {
         const i = r * b.w + c, v = b.cells[i];
-        cells.push(h('button', { class: 'c4-cell', disabled: !can, onclick: () => move({ col: c }) },
-          v ? h('i', { class: `disc ${v === 1 ? 'me' : 'her'}${b.last.includes(i) ? ' last' : ''}${(b.line || []).includes(i) ? ' win' : ''}` }) : ''));
+        const order = b.last.indexOf(i);
+        const drop = fresh && order >= 0;
+        cells.push(h('button', { class: 'c4-cell', disabled: !can || full(c), onclick: () => move({ col: c }),
+          onmouseenter: () => slots[c].classList.add('hover'), onmouseleave: () => slots[c].classList.remove('hover') },
+        v ? h('i', {
+          class: `disc ${v === 1 ? 'me' : 'her'}${order >= 0 ? ' last' : ''}${(b.line || []).includes(i) ? ' win' : ''}${drop ? ' drop' : ''}`,
+          style: drop ? `--fall:${b.h - r};animation-delay:${order * 0.45}s` : null,
+        }) : ''));
       }
     }
-    grid = h('div', { class: 'c4', style: `grid-template-columns:repeat(${b.w},1fr)` }, cells);
+    grid = h('div', {}, h('div', { class: 'c4-slots', style: `grid-template-columns:repeat(${b.w},1fr)` }, slots),
+      h('div', { class: 'c4', style: `grid-template-columns:repeat(${b.w},1fr)` }, cells));
   } else if (cur.kind === 'reversi') {
     legend = h('div', { class: 'legend' }, h('i', { class: 'disc black' }), `あなた ${b.me}　`, h('i', { class: 'disc white' }), `${name} ${b.her}`);
     grid = h('div', { class: 'rv' }, b.cells.map((v, i) => {
@@ -376,6 +392,69 @@ function renderBoard(cur) {
     { win: '🎉 あなたの勝ち！', lose: '😵 あなたの負け…', draw: '🤝 引き分け' }[b.over]) : '';
   return h('div', { class: 'board' }, boardHead(cur), legend, res,
     S.gameHint && !b.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '', grid);
+}
+
+/* ---- ヨット */
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function dieEl(v, o = {}) {
+  return h(o.onclick ? 'button' : 'div', {
+    class: `die${o.small ? ' small' : ''}${o.held ? ' held' : ''}${v ? '' : ' blank'}${o.roll ? ' roll' : ''}`,
+    onclick: o.onclick, disabled: o.disabled, title: o.title || '',
+  }, v ? Array.from({ length: 9 }, (_, i) => h('i', { class: PIPS[v].includes(i) ? 'pip' : '' })) : h('span', {}, '?'));
+}
+
+function renderYacht(cur) {
+  const y = cur.yacht, name = S.view.name;
+  const key = JSON.stringify([y.dice, y.rolls_left, y.round]);
+  if (S.ytKey !== key) {   // 出目が変わったらキープを引き継ぎ, 新しいターンなら解除
+    S.ytHold = y.dice ? (y.hold || [false, false, false, false, false]).slice() : [false, false, false, false, false];
+    S.ytAnimUntil = S.ytKey ? Date.now() + 400 : 0;   // 振った直後だけ転がす
+    S.ytKey = key;
+  }
+  const rolling = Date.now() < (S.ytAnimUntil || 0);
+  const myTurn = !S.busy && !y.over;
+  const dice = (y.dice || [0, 0, 0, 0, 0]).map((v, i) => dieEl(v, {
+    held: S.ytHold[i], roll: v && rolling && !S.ytHold[i],
+    disabled: !myTurn || !y.dice || y.rolls_left === 0,
+    title: y.dice ? (S.ytHold[i] ? 'キープ中（クリックで解除）' : 'クリックでキープ') : '',
+    onclick: () => { S.ytHold[i] = !S.ytHold[i]; renderGames(); },
+  }));
+  const her = y.her ? h('div', { class: 'yt-her' },
+    h('div', { class: 'sc-who' }, `${name}の番`),
+    h('div', { class: 'yt-steps' }, y.her.steps.map((s, k) => h('div', { class: 'yt-step' },
+      h('span', { class: 'muted small' }, `${k + 1}投目`), s.dice.map((v, i) => dieEl(v, { small: true, held: k > 0 && s.hold[i] }))))),
+    h('div', {}, `→ ${y.her.name} に `, h('b', {}, `${y.her.score}点`))) : '';
+  const t = y.totals;
+  const row = (c) => {
+    const mine = y.sheet.p[c], hers = y.sheet.a[c];
+    const pv = y.preview[c];
+    const cell = mine !== undefined ? h('td', { class: 'done' }, mine)
+      : pv !== undefined ? h('td', {}, h('button', { class: 'yt-pick' + (pv ? ' good' : ''), disabled: !myTurn,
+        onclick: () => gameAct('/api/game/move', { act: 'score', cat: c }) }, pv))
+        : h('td', { class: 'muted' }, '');
+    return h('tr', {}, h('th', {}, y.names[c]), cell, h('td', { class: hers !== undefined ? 'done' : '' }, hers ?? ''));
+  };
+  const upper = y.cats.slice(0, 6), lower = y.cats.slice(6);
+  const table = h('table', { class: 'yt-sheet' },
+    h('thead', {}, h('tr', {}, h('th', {}, '役'), h('th', {}, 'あなた'), h('th', {}, name))),
+    h('tbody', {}, upper.map(row),
+      h('tr', { class: 'sub' }, h('th', {}, `小計（${y.bonus_line}で+${y.bonus}）`),
+        h('td', {}, `${t.p.upper}${t.p.bonus ? ' +' + t.p.bonus : ''}`), h('td', {}, `${t.a.upper}${t.a.bonus ? ' +' + t.a.bonus : ''}`)),
+      lower.map(row),
+      h('tr', { class: 'total' }, h('th', {}, '合計'), h('td', {}, t.p.total), h('td', {}, t.a.total))));
+  const res = y.over ? h('div', { class: 'hint-bubble', style: 'text-align:center' },
+    { win: '🎉 あなたの勝ち！', lose: '😵 あなたの負け…', draw: '🤝 引き分け' }[y.over] + `（${t.p.total} 対 ${t.a.total}）`) : '';
+  return h('div', { class: 'board' },
+    boardHead(Object.assign({}, cur, { board: { over: y.over } }), h('span', { class: 'muted small' }, `${Math.min(y.round, 12)} / 12 ラウンド`)),
+    res, her,
+    S.gameHint && !y.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '',
+    y.over ? '' : h('div', { class: 'yt-dice' }, dice),
+    y.over ? '' : h('div', { class: 'row', style: 'justify-content:center;margin:8px 0 12px' },
+      h('button', { class: 'btn primary', disabled: !myTurn || y.rolls_left === 0,
+        onclick: () => gameAct('/api/game/move', { act: 'roll', hold: S.ytHold }) },
+      y.dice ? `振り直す（あと${y.rolls_left}回）` : 'サイコロを振る'),
+      h('span', { class: 'muted small' }, y.dice ? (y.rolls_left ? '残すサイコロをクリック → 振り直す、または役を選ぶ' : '役を選んでください') : '')),
+    table);
 }
 
 function hexSvg(b, can, onclick) {
@@ -986,7 +1065,7 @@ SEC.minigames = () => {
       await api('/api/minigames', { minigames: JSON.parse(ta.value) });
       await reloadAll();
     }, h('button', { class: 'btn', onclick: () => downloadJson('minigames.json', JSON.parse(ta.value)) }, 'ファイルに保存')),
-    h('p', { class: 'lead' }, '遊べるミニゲームの定義です（JSON で直接編集）。kind は yakyuken（野球拳）/ acchimuite（あっち向いてホイ）/ mahjong（脱衣麻雀）/ connect4 / hex / reversi で、同じ kind で中身の違うゲームをいくつでも作れます。'),
+    h('p', { class: 'lead' }, '遊べるミニゲームの定義です（JSON で直接編集）。kind は yakyuken（野球拳）/ acchimuite（あっち向いてホイ）/ mahjong（脱衣麻雀）/ connect4 / hex / reversi / yacht で、同じ kind で中身の違うゲームをいくつでも作れます。'),
     h('div', { class: 'keys' },
       h('div', {}, h('code', {}, 'require'), ' 遊べる条件（満たさないとボタンが押せない） / ', h('code', {}, 'when'), ' 誘いに乗る条件（満たさないと lines.refuse で断られる）'),
       h('div', {}, h('code', {}, 'stages'), ' 野球拳の段階。mode: add = 今の服に追記 / replace = 置き換え、remove = 外見プロンプトから外すタグ。', h('code', {}, 'giveup'), ' は降参時の服装'),
@@ -999,6 +1078,8 @@ SEC.minigames = () => {
         h('code', {}, '{yaku}'), ' ', h('code', {}, '{han}')),
       h('div', {}, '盤面ゲーム: ', h('code', {}, 'first'), ' me / her / random、', h('code', {}, 'size'), ' ヘックスの盤の大きさ、',
         h('code', {}, 'comment_every'), ' 途中のひとことの間隔、セリフ: start mid(advantage: 正 = あなた有利) pass win lose draw quit interrupted'),
+      h('div', {}, 'ヨット: ', h('code', {}, 'first'), '、', h('code', {}, 'comment_every'), ' ラウンド間隔、セリフ: start mid my_yacht her_yacht win lose draw quit interrupted、置換 ',
+        h('code', {}, '{me}'), ' ', h('code', {}, '{her}'), ' 合計点'),
       h('div', {}, '強さ（麻雀・盤面）: ', h('code', {}, 'skill'), ' 0〜1 / ', h('code', {}, 'err'), ' 凡ミス率（眠気・不機嫌で上がる）')),
     h('div', { style: 'margin-top:10px' }, ta),
     res,

@@ -216,6 +216,15 @@ button.tile:disabled { cursor: default; }
 .c4-cell:disabled { cursor: default; }
 .c4-cell .disc { width: 88%; height: 88%; }
 .c4:hover .c4-cell:not(:disabled):hover { background: #22356a; }
+.c4 { overflow: hidden; }
+.c4-slots { display: grid; gap: 4px; padding: 0 8px 4px; }
+.c4-slot { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none; color: var(--muted); cursor: pointer; padding: 0; font-size: 11px; }
+.c4-slot .disc.ghost { width: 70%; aspect-ratio: 1; height: auto; opacity: 0; transition: opacity .12s, transform .12s; }
+.c4-slot:hover:not(:disabled) .disc.ghost, .c4-slot.hover:not(:disabled) .disc.ghost { opacity: .85; transform: translateY(2px); }
+.c4-slot:hover:not(:disabled), .c4-slot.hover:not(:disabled) { color: var(--accent); }
+.c4-slot:disabled { opacity: .3; cursor: default; }
+.disc.drop { animation: c4drop .45s cubic-bezier(.45, 0, .9, .6) both; }
+@keyframes c4drop { from { transform: translateY(calc(var(--fall) * -112%)); } 80% { transform: translateY(4%); } to { transform: translateY(0); } }
 .rv { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; background: #1d4a33; padding: 4px; border-radius: 8px; }
 .rv-cell { aspect-ratio: 1; background: #2e7a52; border: none; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 2px; }
 .rv-cell .disc { width: 82%; height: 82%; }
@@ -229,6 +238,36 @@ button.tile:disabled { cursor: default; }
 .hx.me { fill: #e06078; }
 .hx.her { fill: #6f9ae0; }
 .hx.last { stroke: var(--accent2); stroke-width: 2.5; }
+
+/* yacht */
+.yt-dice { display: flex; gap: 8px; justify-content: center; }
+.die { width: 48px; height: 48px; border-radius: 10px; background: linear-gradient(160deg, #fff, #e6e1ea); border: 2px solid transparent;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 7px; gap: 2px;
+  box-shadow: 0 3px 0 #b7aec0; transition: transform .1s, border-color .1s; flex: none; }
+button.die { cursor: pointer; }
+button.die:hover:not(:disabled) { transform: translateY(-2px); }
+.die i { border-radius: 50%; }
+.die i.pip { background: #2a2230; }
+.die.held { border-color: var(--accent); transform: translateY(-5px); box-shadow: 0 6px 0 var(--accent-d); }
+.die.blank { background: var(--panel3); box-shadow: none; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 20px; }
+.die.roll { animation: dieroll .35s ease; }
+@keyframes dieroll { 0% { transform: rotate(-25deg) scale(.8); } 60% { transform: rotate(10deg) scale(1.05); } 100% { transform: none; } }
+.die.small { width: 20px; height: 20px; padding: 3px; gap: 1px; border-radius: 4px; box-shadow: 0 1px 0 #b7aec0; border-width: 1px; }
+.die.small.held { transform: none; box-shadow: none; border-color: var(--accent); }
+.yt-her { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; font-size: 13px; }
+.yt-steps { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.yt-step { display: flex; align-items: center; gap: 4px; }
+.yt-step .muted { width: 36px; }
+.yt-sheet { width: 100%; border-collapse: collapse; font-size: 13px; }
+.yt-sheet th, .yt-sheet td { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: center; }
+.yt-sheet th:first-child { text-align: left; font-weight: 500; color: var(--muted); }
+.yt-sheet thead th { color: var(--muted); font-weight: 500; font-size: 12px; }
+.yt-sheet td.done { color: var(--text); font-weight: 700; }
+.yt-sheet tr.sub th, .yt-sheet tr.sub td { font-size: 11.5px; color: var(--muted); }
+.yt-sheet tr.total th, .yt-sheet tr.total td { font-weight: 700; color: var(--accent2); border-bottom: none; font-size: 14px; }
+.yt-pick { min-width: 40px; background: var(--panel3); border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); padding: 2px 6px; cursor: pointer; }
+.yt-pick.good { color: var(--accent); border-color: var(--accent-d); }
+.yt-pick:hover:not(:disabled) { background: #3a2733; border-style: solid; }
 
 /* status */
 .pgroup { margin-bottom: 16px; }

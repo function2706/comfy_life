@@ -811,5 +811,103 @@
     }
    ]
   }
+ },
+ {
+  "id": "yacht",
+  "kind": "yacht",
+  "name": "ヨット",
+  "icon": "🎲",
+  "desc": "5個のサイコロを最大3回まで振って役を作り、12の役を埋めた合計点で勝負。上段（1〜6）が63点以上なら+35点。",
+  "require": "free=true",
+  "when": "",
+  "first": "me",
+  "skill": 0.7,
+  "err": 0.03,
+  "comment_every": 3,
+  "pos": "dice, table, sitting, playful, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -12,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "ヨットですね！ サイコロ運には自信あるんです。",
+     "pos": "smile, holding dice"
+    }
+   ],
+   "mid": [
+    {
+     "text": "まだまだこれからですよー。",
+     "pos": "smile"
+    },
+    {
+     "text": "ふふ、今日はツイてるかも。",
+     "when": "advantage<-15",
+     "pos": "smug, smile"
+    },
+    {
+     "text": "えぇ、{call}強くないですか……？",
+     "when": "advantage>15",
+     "pos": "pout"
+    }
+   ],
+   "my_yacht": [
+    {
+     "text": "えっ、ヨット！？ すごい……！",
+     "pos": "surprised, open mouth"
+    }
+   ],
+   "her_yacht": [
+    {
+     "text": "見てください、ヨットです！ やったー！",
+     "pos": "cheering, excited"
+    }
+   ],
+   "win": [
+    {
+     "text": "{me}対{her}……{call}の勝ちです。次は負けませんから！",
+     "pos": "pout, smile"
+    }
+   ],
+   "lose": [
+    {
+     "text": "{her}対{me}で私の勝ち！ ふふ、サイコロの神様は私の味方です。",
+     "pos": "cheering, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "{me}点で同点！？ こんなことあるんですね。",
+     "pos": "surprised, laughing"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
  }
 ]

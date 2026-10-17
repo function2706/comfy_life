@@ -14,11 +14,12 @@ from datetime import datetime
 from . import boardgames as BG
 from . import cond
 from . import mahjong as MJ
+from . import yacht as YT
 
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
 HANDS = ("rock", "scissors", "paper")
 DIRS = ("up", "down", "left", "right")
-KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi")
+KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht")
 STRIP_KINDS = ("yakyuken", "mahjong")
 BOARD_KINDS = ("connect4", "hex", "reversi")
 
@@ -171,6 +172,8 @@ class Games:
                 out["mj"] = self._mj_view(cur)
             if kind in BOARD_KINDS:
                 out["board"] = self._board_view(g, cur)
+            if kind == "yacht":
+                out["yacht"] = self._yacht_view(cur)
         return {"list": games, "current": out}
 
     def start(self, gid, cid=None):
@@ -208,6 +211,8 @@ class Games:
                 hint = self._mj_new_hand(cid, char, st, g, game, first=True)
             elif kind in BOARD_KINDS:
                 hint = self._board_start(char, st, g, game)
+            elif kind == "yacht":
+                hint = self._yacht_start(char, st, g, game)
             else:
                 hint = self._hint_text(char, st, g, game)
             self._save(cid)
@@ -246,6 +251,8 @@ class Games:
                 r = self._move_mahjong(cid, char, st, g, game, payload)
             elif kind in BOARD_KINDS:
                 r = self._move_board(cid, char, st, g, game, payload)
+            elif kind == "yacht":
+                r = self._move_yacht(cid, char, st, g, game, payload)
             else:
                 raise ValueError("未対応のゲームです: %s" % kind)
             self._save(cid)
@@ -633,7 +640,8 @@ class Games:
         skill, err = self._skill(g, st)
         if kind == "connect4":
             i = BG.c4_play(b, BG.c4_ai(b, skill, err), BG.HER)
-            game["last"] = [i]
+            # 直前のあなたの一手も残し, 画面で「あなた → キャラ」の順に落とす
+            game["last"] = [x for x in game.get("last", []) if b[x] == BG.ME][-1:] + [i]
         elif kind == "hex":
             i = BG.hex_ai(b, game["n"], skill, err)
             b[i] = BG.HER
@@ -719,4 +727,81 @@ class Games:
             hint = self._say(char, st, g, "pass", game)
         elif every and game["moves"] % every < 2 and random.random() < 0.7:
             hint = self._say(char, st, g, "mid", game, advantage=self._board_advantage(g, game))
+        return {"entry": None, "job": None, "hint": hint, "ended": None}
+
+    # ================================================================== ヨット
+    # 状態 game["yt"]: dice / hold / rolls_left / round / sheet{p,a} / her (直前のキャラの番の経過)
+    def _yacht_start(self, char, st, g, game):
+        game["phase"] = "yacht"
+        game["yt"] = {"dice": None, "hold": [False] * 5, "rolls_left": 3, "round": 1,
+                      "sheet": {"p": {}, "a": {}}, "her": None}
+        first = g.get("first", "me")
+        if first == "her" or (first == "random" and random.random() < 0.5):
+            return self._yacht_her_turn(char, st, g, game)
+        return None
+
+    def _yacht_view(self, game):
+        y = game.get("yt") or {}
+        sheet = y.get("sheet", {"p": {}, "a": {}})
+        preview = {}
+        if y.get("dice"):
+            preview = {c: YT.score(c, y["dice"]) for c in YT.CATS if c not in sheet["p"]}
+        return {"dice": y.get("dice"), "hold": y.get("hold"), "rolls_left": y.get("rolls_left", 0),
+                "round": y.get("round", 1), "sheet": sheet, "preview": preview,
+                "totals": {k: YT.totals(v) for k, v in sheet.items()}, "her": y.get("her"),
+                "cats": YT.CATS, "names": YT.NAMES, "over": game.get("over"),
+                "bonus_line": YT.BONUS_LINE, "bonus": YT.BONUS}
+
+    def _yacht_her_turn(self, char, st, g, game):
+        y = game["yt"]
+        skill, err = self._skill(g, st)
+        steps, dice, cat = YT.ai_turn(y["sheet"]["a"], skill, err)
+        sc = YT.score(cat, dice)
+        y["sheet"]["a"][cat] = sc
+        y["her"] = {"steps": steps, "cat": cat, "name": YT.NAMES[cat], "score": sc}
+        if cat == "yacht" and sc:
+            return self._say(char, st, g, "her_yacht", game)
+        return None
+
+    def _move_yacht(self, cid, char, st, g, game, payload):
+        y = game["yt"]
+        if game.get("over"):
+            raise ValueError("この対局は終わっています")
+        act = payload.get("act")
+        hint = None
+        if act == "roll":
+            if y["rolls_left"] <= 0:
+                raise ValueError("もう振れません。役を選んでください")
+            hold = [bool(x) for x in (payload.get("hold") or [False] * 5)][:5]
+            if not y["dice"]:
+                hold = [False] * 5
+            y["dice"] = YT.roll(y["dice"], hold)
+            y["hold"] = hold
+            y["rolls_left"] -= 1
+            if YT.score("yacht", y["dice"]):
+                hint = self._say(char, st, g, "my_yacht", game)
+            return {"entry": None, "job": None, "hint": hint, "ended": None}
+        if act != "score":
+            raise ValueError("不明な操作です: %s" % act)
+        cat = payload.get("cat")
+        if not y["dice"]:
+            raise ValueError("まずサイコロを振ってください")
+        if cat not in YT.CATS or cat in y["sheet"]["p"]:
+            raise ValueError("その役には入れられません")
+        y["sheet"]["p"][cat] = YT.score(cat, y["dice"])
+        y["dice"], y["hold"], y["rolls_left"] = None, [False] * 5, 3
+        if len(y["sheet"]["a"]) < len(YT.CATS):
+            hint = self._yacht_her_turn(char, st, g, game)
+        if len(y["sheet"]["p"]) >= len(YT.CATS) and len(y["sheet"]["a"]) >= len(YT.CATS):
+            me, her = YT.totals(y["sheet"]["p"])["total"], YT.totals(y["sheet"]["a"])["total"]
+            result = "win" if me > her else "lose" if me < her else "draw"
+            game["over"] = result
+            line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+            entry, job = self._record(cid, char, st, g, line, {"me": me, "her": her}, "", result,
+                                      "（%d対%d）" % (me, her))
+            return {"entry": entry, "job": job, "ended": result, "hint": hint}
+        y["round"] = len(y["sheet"]["p"]) + 1
+        if not hint and y["round"] % int(g.get("comment_every", 3)) == 0:
+            diff = YT.totals(y["sheet"]["p"])["total"] - YT.totals(y["sheet"]["a"])["total"]
+            hint = self._say(char, st, g, "mid", game, advantage=diff)
         return {"entry": None, "job": None, "hint": hint, "ended": None}
