@@ -18,7 +18,7 @@ import uuid
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HISTORY, IMAGES, RUNNING = {}, {}, set()
+HISTORY, IMAGES, RUNNING, SAVED_OUTPUT = {}, {}, set(), []
 DELAY = 2.0
 FAIL = None
 
@@ -53,10 +53,23 @@ def run_job(pid, wf):
     texts = [n["inputs"].get("text", "") for n in wf.values() if n.get("class_type") == "CLIPTextEncode"]
     lat = next((n["inputs"] for n in wf.values() if n.get("class_type") == "EmptyLatentImage"), {})
     w, h = int(lat.get("width", 832)) // 4, int(lat.get("height", 1216)) // 4
-    name = "mock_%s.png" % pid[:8]
-    IMAGES[name] = png(w, h, "|".join(texts))
-    HISTORY[pid] = {"status": {"status_str": "success", "completed": True, "messages": []},
-                    "outputs": {"9": {"images": [{"filename": name, "subfolder": "", "type": "output"}]}}}
+    data = png(w, h, "|".join(texts))
+    outputs = {}
+    # 本物の ComfyUI と同じく, SaveImage は output (サブフォルダ可), PreviewImage は temp に置く
+    for nid, n in wf.items():
+        ct = n.get("class_type")
+        if ct not in ("SaveImage", "PreviewImage"):
+            continue
+        if ct == "SaveImage":
+            prefix = n["inputs"].get("filename_prefix", "ComfyUI")
+            sub, base = (prefix.rsplit("/", 1) if "/" in prefix else ("", prefix))
+            name, typ = "%s_%s.png" % (base, pid[:8]), "output"
+            SAVED_OUTPUT.append((sub + "/" if sub else "") + name)
+        else:
+            sub, name, typ = "", "preview_%s.png" % pid[:8], "temp"
+        IMAGES[(typ, sub, name)] = data
+        outputs[nid] = {"images": [{"filename": name, "subfolder": sub, "type": typ}]}
+    HISTORY[pid] = {"status": {"status_str": "success", "completed": True, "messages": []}, "outputs": outputs}
 
 
 class H(BaseHTTPRequestHandler):
@@ -87,9 +100,11 @@ class H(BaseHTTPRequestHandler):
         if u.path.startswith("/history/"):
             pid = u.path.split("/")[-1]
             return self._json({pid: HISTORY[pid]} if pid in HISTORY else {})
+        if u.path == "/mock/saved":     # テスト用: output に保存されたファイルの一覧
+            return self._json(SAVED_OUTPUT)
         if u.path == "/view":
-            name = urllib.parse.parse_qs(u.query).get("filename", [""])[0]
-            data = IMAGES.get(name)
+            qs = urllib.parse.parse_qs(u.query)
+            data = IMAGES.get((qs.get("type", ["output"])[0], qs.get("subfolder", [""])[0], qs.get("filename", [""])[0]))
             if not data:
                 return self._json({"error": "no image"}, 404)
             self.send_response(200)

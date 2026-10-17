@@ -124,6 +124,14 @@ free=true, mood>=50, phase=night|midnight
 **設定 → セリフ生成** で Ollama か OpenAI 互換の API を有効にすると、選ばれた定型セリフを方向性の参考にして、LLM がセリフを書きます。
 LLM の呼び出しに失敗したときは、定型セリフをそのまま使います。
 
+### ComfyUI 側に画像を残さない
+
+既定では、ComfyUI の output フォルダには画像を保存しません。
+
+- 生成した画像は、ComfyUI の一時フォルダ（PreviewImage。ComfyUI の再起動で消える）を経由して受け取ります。保存するのは、このアプリの `data/images` だけです。
+- カスタムワークフローの SaveImage も、送信時に自動で PreviewImage に置き換えます。
+- ComfyUI 側にも残したい場合は、**設定 → 画像生成** の「ComfyUI の output フォルダにも保存する」をオンにします。保存先は `output/kurashi/` のサブフォルダです（「保存先」で変更できます）。
+
 ### カスタムワークフロー
 
 ComfyUI で「Export (API)」した JSON を登録できます。

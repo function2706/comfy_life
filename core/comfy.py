@@ -123,6 +123,37 @@ def info(c):
     return out
 
 
+def save_node(c, images):
+    """最終出力ノード. 既定は PreviewImage (ComfyUI の temp に置かれ, ComfyUI 再起動で消える).
+    keep_on_server をオンにしたときだけ SaveImage で output/<サブフォルダ> に残す."""
+    if c.get("keep_on_server"):
+        prefix = (c.get("output_prefix") or "kurashi/kurashi").strip().strip("/") or "kurashi/kurashi"
+        return {"class_type": "SaveImage", "inputs": {"filename_prefix": prefix, "images": images}}
+    return {"class_type": "PreviewImage", "inputs": {"images": images}}
+
+
+def prepare_custom(wf, c):
+    """カスタムワークフローの SaveImage を, 設定に応じて PreviewImage に置き換える.
+    戻り値の final は「本来の保存ノード」の id (画像を選ぶときに優先する)."""
+    final = [nid for nid, n in wf.items() if n.get("class_type") == "SaveImage"]
+    if not c.get("keep_on_server"):
+        for nid in final:
+            wf[nid] = {"class_type": "PreviewImage", "inputs": {"images": wf[nid].get("inputs", {}).get("images")},
+                       "_meta": wf[nid].get("_meta", {})}
+    return wf, final
+
+
+def pick_image(outputs, final):
+    """history の outputs から, 保存ノード → output 種別 → その他 の順で 1 枚選ぶ."""
+    cands = []
+    for nid, out in (outputs or {}).items():
+        for i, img in enumerate(out.get("images") or []):
+            cands.append(((nid not in final), img.get("type") != "output", i, nid, img))
+    if not cands:
+        return None
+    return sorted(cands, key=lambda x: x[:4])[0][4]
+
+
 def builtin_workflow(c, pos, neg, seed):
     clip = ["4", 1]
     wf = {
@@ -135,7 +166,7 @@ def builtin_workflow(c, pos, neg, seed):
                          "denoise": 1.0, "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0],
                          "latent_image": ["5", 0]}},
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-        "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "kurashi", "images": ["8", 0]}},
+        "9": save_node(c, ["8", 0]),
     }
     skip = int(c.get("clip_skip", 1) or 1)
     if skip > 1:
@@ -191,11 +222,11 @@ def generate(c, pos, neg, seed, custom=None, report=None, cancelled=None):
     cancelled = cancelled or (lambda: False)
     b = base_url(c)
     if custom:
-        wf = fill_placeholders(copy.deepcopy(custom), _values(c, pos, neg, seed))
+        wf, final = prepare_custom(fill_placeholders(copy.deepcopy(custom), _values(c, pos, neg, seed)), c)
     else:
         if not c.get("ckpt"):
             raise RuntimeError("チェックポイントが未設定です (設定 → 画像生成)")
-        wf = builtin_workflow(c, pos, neg, seed)
+        wf, final = builtin_workflow(c, pos, neg, seed), ["9"]
 
     report("submit", "ComfyUI へ送信: %s/prompt" % b)
     r = _req(b + "/prompt", {"prompt": wf, "client_id": uuid.uuid4().hex}, timeout=30, c=c)
@@ -231,13 +262,9 @@ def generate(c, pos, neg, seed, custom=None, report=None, cancelled=None):
                         msgs.append("%s (node %s %s)" % (d.get("exception_message", "").strip(),
                                                          d.get("node_id", "?"), d.get("node_type", "")))
                 raise RuntimeError("ComfyUI 実行エラー: %s" % (" / ".join(msgs) or "詳細不明"))
-            imgs = []
-            for out in (ent.get("outputs") or {}).values():
-                imgs.extend(out.get("images") or [])
-            if imgs:
-                imgs.sort(key=lambda i: i.get("type") != "output")
-                img = imgs[0]
-                report("download", "画像を取得: %s" % img["filename"])
+            img = pick_image(ent.get("outputs"), final)
+            if img:
+                report("download", "画像を取得: %s (%s)" % (img["filename"], img.get("type", "output")))
                 q = urllib.parse.urlencode({"filename": img["filename"], "subfolder": img.get("subfolder", ""),
                                             "type": img.get("type", "output")})
                 data = _req(b + "/view?" + q, timeout=60, raw=True, c=c)

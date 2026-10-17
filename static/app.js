@@ -1572,7 +1572,11 @@ SEC.comfy = () => {
       fld('CLIP skip', inp(c, 'clip_skip', { type: 'number' }), '1 = なし（内蔵のみ）'),
       fld('生成のタイムアウト（秒）', inp(c, 'timeout_sec', { type: 'number' }), 'ComfyUI で実行が始まってから'),
       fld('キュー待ちの上限（秒）', inp(c, 'queue_timeout_sec', { type: 'number' }), 'ComfyUI が他の生成で混んでいるとき'),
-      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '通信'), chk(c, 'use_proxy', 'システムのプロキシを使う'))),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '通信'), chk(c, 'use_proxy', 'システムのプロキシを使う')),
+      h('div', { class: 'fld span2' }, h('span', { class: 'fl' }, 'ComfyUI 側の保存'),
+        chk(c, 'keep_on_server', 'ComfyUI の output フォルダにも保存する'),
+        h('small', { class: 'hint' }, 'オフ（既定）: ComfyUI の一時フォルダ（再起動で消える）経由で受け取り、このアプリの data/images にだけ保存します。カスタムワークフローの SaveImage も自動で一時保存に置き換えます。')),
+      fld('保存先（オンのとき）', inp(c, 'output_prefix', { ph: 'kurashi/kurashi' }), 'output からの相対パス + ファイル名の頭。「kurashi/kurashi」なら output/kurashi/ に入る（内蔵ワークフローのみ）', 'span2')),
     h('p', { class: 'hint' }, 'カスタム時も 幅/高さ/Steps/CFG/チェックポイント などはプレースホルダ経由で使われます。'),
     customBox,
   ];
