@@ -182,6 +182,24 @@ def main():
         app.act("move_out")
         assert B.stage("hina") == "visit" and B.living() is None and B.mode("hina") is None
         assert st["params"]["trust"] < 60
+        # 同居していない相手: 同居前提のセリフを出さない / 相手の家から出かければ別れる
+        from datetime import datetime
+        ctx = app.context(hina, st, datetime.now())
+        greet, home = app.action("greet"), app.action("go_home")
+        for ph, mode in (("noon", "meet"), ("noon", "visit"), ("evening", "meet")):
+            ctx.update(phase=ph, stage="visit", with_mode=mode, repeat=0)
+            t = app.pick_reaction(greet, ctx).get("text", "")
+            assert t and "一緒に住" not in t and "晩ごはん" not in t, (ph, mode, t)
+        ctx.update(energy=10, with_mode="meet")
+        assert "ただいま" not in app.pick_reaction(home, ctx)["text"]
+        free()
+        app.set_params({"mood": 70})
+        st["cooldowns"] = {}
+        app.act("visit_home")
+        assert B.mode("hina") == "visit" and app.visit() is None, "遊びに来ている間は「おかえり」しない"
+        e = app.act("go_work")["entry"]
+        assert e["text"].startswith("（ひなと別れて") and B.mode("hina") is None, e["text"]
+        assert app.come_back()["entry"]["text"].startswith("（"), "離れている相手は出迎えない"
         app.delete_character(mio["id"])
         assert mio["id"] not in B.rec()["bonds"]
         print("move out / delete: OK")

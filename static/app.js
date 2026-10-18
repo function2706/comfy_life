@@ -1050,7 +1050,7 @@ function renderApproach() {
   const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
   box.hidden = false;
   box.replaceChildren(
-    h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${S.view.name}が${ap.label}`),
+    h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${S.view.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
       h('span', { class: 'muted small', id: 'ap-rest' }, `（あと${Math.ceil(rest / 60)}分）`)),
     h('div', { class: 'row' },
       h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach('accept') }, ap.accept),

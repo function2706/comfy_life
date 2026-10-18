@@ -586,9 +586,13 @@ class App:
             invite = apart and (a.get("override") or {}).get("outing")
             if invite and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
                 r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
-            narrate = apart and a.get("category") in ("system", "あなたの予定") and not a.get("request_answer")
+            mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
+            # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
+            parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit")                 and a.get("presence_set") in ("work", "out", "left", "sleep")
+            narrate = (apart and mine) or parting
             if narrate:     # 離れている相手は見送りも出迎えもしない. あなたの行動だけを書く
-                r = {"text": "（%s）" % (a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid))}
+                what = a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid)
+                r = {"text": "（%s%s）" % ("{name}と別れて、" if parting else "", what)}
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             sk = a.get("skill")
             sk_mult = self.life.skill_mult(sk) if sk else 1.0
@@ -635,6 +639,8 @@ class App:
             skill_up.update(opts.get("skill") or {})
             if a.get("presence_set"):
                 self.presence.declare(a["presence_set"], now)
+                if parting:
+                    self.bonds.end()
             elif a.get("category") != "system":
                 self.presence.touch(now)
                 if self.presence.rec()["mode"] == "busy":
@@ -855,7 +861,7 @@ class App:
                 declared = False
         if declared:
             return self.come_back(char["id"])
-        if not self.bonds.together(char["id"]):
+        if self.bonds.mode(char["id"]) != "home":     # 「おかえり」は一緒に暮らしている相手だけ
             return None
         pc = self.presence.ctx(time.time())
         silent = pc["left_mode"] == "gone" and not pc["said"]

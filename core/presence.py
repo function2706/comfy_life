@@ -285,6 +285,6 @@ class Presence:
             return None
         a = self.find(ap["id"]) or {}
         return {"id": ap["id"], "entry": ap.get("entry"), "until": ap["until"], "label": a.get("label", ""),
-                "icon": a.get("icon", "💬"),
+                "icon": a.get("icon", "💬"), "apart": bool(a.get("apart")),
                 "accept": (a.get("accept") or {}).get("label") or "うん", "later": (a.get("later") or {}).get("label") or "あとでね"}
 

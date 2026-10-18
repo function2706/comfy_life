@@ -469,14 +469,28 @@
    },
    {
     "text": "こんにちは。……って、一緒に住んでるのに変ですね、ふふ。",
-    "when": "phase=noon",
+    "when": "phase=noon, stage=live",
     "pos": "",
+    "neg": "",
+    "key": "phase_noon"
+   },
+   {
+    "text": "こんにちは、{call}。会えてうれしいです。",
+    "when": "phase=noon, stage=contact|visit",
+    "pos": "smile, waving",
     "neg": ""
    },
    {
     "text": "お疲れさまです、{call}。もうすぐ晩ごはんですよ。",
-    "when": "phase=evening",
+    "when": "phase=evening, with_mode=home|visit",
     "pos": "",
+    "neg": "",
+    "key": "phase_evening"
+   },
+   {
+    "text": "こんばんは、{call}。外で会うのって、なんだか新鮮ですね。",
+    "when": "phase=evening, with_mode=meet",
+    "pos": "smile, outdoors, evening",
     "neg": ""
    },
    {
@@ -2292,9 +2306,10 @@
    },
    {
     "text": "ただいまー……っと。ふぅ、ちょっと疲れちゃいました。",
-    "when": "energy<35",
+    "when": "energy<35, with_mode=home",
     "pos": "tired, smile, taking off shoes",
-    "neg": ""
+    "neg": "",
+    "key": "energy_lt_35"
    },
    {
     "text": "もう帰るんですか？ ……もうちょっとだけ、いたかったな。",

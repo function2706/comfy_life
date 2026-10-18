@@ -1579,6 +1579,12 @@
   ],
   "ap.msg_today.ignore": [
    "（{name}からの長いメッセージが、読まれないまま残っている）"
+  ],
+  "greet.phase_noon__stage_contact_or_visit": [
+   "こ、こんにちは、{call}……。会えて、うれしいです……。"
+  ],
+  "greet.phase_evening__with_mode_meet": [
+   "こ、こんばんは……。外で会うの、ちょっと緊張しますね……。"
   ]
  }
 }

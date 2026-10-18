@@ -86,7 +86,7 @@
    "話し足りないの？ はいはい、最後まで聞いてあげる。"
   ],
   "greet.phase_dawn_or_morning": [
-   "おはよう、{call}。顔洗った？ 朝ごはんできてるわよ。",
+   "おはよう、{call}。顔洗った？ 朝ごはんはちゃんと食べた？",
    "おはよ。寝ぐせ、ついてる。こっち来なさい、直してあげる。"
   ],
   "greet.phase_noon": [
@@ -1867,6 +1867,12 @@
   ],
   "ap.msg_today.ignore": [
    "（{name}からの長いメッセージが、読まれないまま残っている）"
+  ],
+  "greet.phase_noon__stage_contact_or_visit": [
+   "こんにちは、{call}。元気にしてた？"
+  ],
+  "greet.phase_evening__with_mode_meet": [
+   "こんばんは、{call}。こんな時間に外で会うなんて、ちょっと新鮮ね。"
   ]
  }
 }
