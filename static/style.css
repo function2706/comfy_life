@@ -87,12 +87,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 .gen-badge.err { background: rgba(240,122,139,.15); color: var(--bad); border-color: rgba(240,122,139,.4); cursor: pointer; }
 .gen-badge .spin { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.stage-tools { position: absolute; right: 14px; bottom: 168px; display: flex; flex-direction: column; gap: 8px; }
+.stage-tools { position: absolute; right: 14px; top: 56px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
 .dialogue { position: absolute; left: 50%; transform: translateX(-50%); bottom: 18px; width: min(820px, calc(100% - 28px)); min-height: 128px;
   background: linear-gradient(180deg, rgba(28,25,34,.82), rgba(20,17,24,.92)); border: 1px solid rgba(255,255,255,.08);
   border-radius: 18px; padding: 22px 22px 12px; backdrop-filter: blur(10px); cursor: pointer; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
 .nameplate { position: absolute; top: -13px; left: 20px; background: var(--accent); color: #2a1018; font-weight: 700; padding: 3px 16px; border-radius: 99px; font-size: 13px; }
-.dtext { font-size: 17px; line-height: 1.75; min-height: 60px; white-space: pre-wrap; }
+.dtext { font-size: var(--dlg-font, 17px); line-height: 1.75; min-height: 60px; white-space: pre-wrap; }
+/* 会話欄の表示設定 (画面左上の設定 → 表示) */
+.dialogue { background: linear-gradient(180deg, rgba(28,25,34,var(--dlg-alpha, .82)), rgba(20,17,24,calc(var(--dlg-alpha, .82) + .1)));
+  transition: opacity .3s, transform .3s; z-index: 2; }
+.stage.dlg-top .dialogue { bottom: auto; top: 56px; }
+.stage.dlg-top .stage-tools { top: auto; bottom: 18px; }
+.stage.dlg-below .stage-img, .stage.dlg-below .stage-empty { height: calc(100% - var(--dlg-space, 170px)); }
+.stage.dlg-below .dialogue { bottom: 10px; background: var(--panel); backdrop-filter: none; }
+.stage.dlg-compact .dialogue { min-height: 0; padding: 16px 18px 8px; }
+.stage.dlg-compact .dtext { min-height: 0; max-height: 5.4em; overflow-y: auto; }
+.stage.dlg-compact .dmeta { display: none; }
+.stage.dlg-hidden .dialogue { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(12px); }
+.stage.dlg-hidden.dlg-below .stage-img, .stage.dlg-hidden.dlg-below .stage-empty { height: 100%; }
+#btn-dlg.off { background: rgba(240,138,166,.35); }
 .dialogue.narr .dtext { color: #cfc7da; font-style: italic; }
 .dialogue.narr .nameplate { background: var(--panel3); color: var(--muted); }
 .dialogue.phone .dtext { color: #cfe0ff; }
@@ -460,7 +473,6 @@ dialog { color: var(--text); }
   .stage { height: 68vh; }
   .side { border-left: none; border-top: 1px solid var(--line); }
   .tab-body { overflow: visible; }
-  .stage-tools { bottom: auto; top: 56px; }
   .drawer { right: 8px; left: 8px; width: auto; }
   .topbar .lbl { display: none; }
   .settings { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
@@ -478,5 +490,5 @@ dialog { color: var(--text); }
   .grid2, .grid3, .grid4 { grid-template-columns: 1fr; }
   .span2 { grid-column: auto; }
   .mini-row { grid-template-columns: 1fr; }
-  .dtext { font-size: 15px; }
+  .dtext { font-size: calc(var(--dlg-font, 17px) - 2px); }
 }

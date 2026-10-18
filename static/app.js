@@ -721,8 +721,43 @@ function setImage(rel) {
   pre.src = imgUrl(rel);
 }
 
+/* ---- 会話欄の表示設定 (ブラウザごとに保存) */
+const UI_KEY = 'kurashi.ui';
+const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0 };
+S.ui = (() => {
+  try { return Object.assign({}, UI_DEFAULT, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return Object.assign({}, UI_DEFAULT); }
+})();
+function saveUi() {
+  try { localStorage.setItem(UI_KEY, JSON.stringify(S.ui)); } catch (e) { /* 保存できなくても表示はできる */ }
+  applyUi();
+}
+function applyUi() {
+  const st = $('#stage');
+  st.classList.toggle('dlg-top', S.ui.pos === 'top');
+  st.classList.toggle('dlg-below', S.ui.pos === 'below');
+  st.classList.toggle('dlg-compact', !!S.ui.compact);
+  st.style.setProperty('--dlg-alpha', S.ui.alpha);
+  st.style.setProperty('--dlg-font', S.ui.font + 'px');
+  fitDialogueSpace();
+}
+function fitDialogueSpace() {   // 「画像の下に分ける」とき, 会話欄の高さぶん画像を縮める
+  $('#stage').style.setProperty('--dlg-space', ($('#dialogue').offsetHeight + 20) + 'px');
+}
+function setDlgHidden(v) {
+  S.dlgHidden = v;
+  $('#stage').classList.toggle('dlg-hidden', v);
+  $('#btn-dlg').classList.toggle('off', v);
+  clearTimeout(S.dlgTimer);
+}
+function scheduleAutoHide(ms) {
+  clearTimeout(S.dlgTimer);
+  if (S.ui.autoHide > 0) S.dlgTimer = setTimeout(() => setDlgHidden(true), ms + S.ui.autoHide * 1000);
+}
+
 function setDialogue(text, animate, name) {
   const dlg = $('#dialogue');
+  setDlgHidden(false);                 // 新しいセリフが来たら出す
+  scheduleAutoHide(animate ? [...text].length * 28 : 0);
   const narr = text.startsWith('（') || text.startsWith('(');
   dlg.classList.toggle('narr', narr);
   dlg.classList.toggle('phone', text.startsWith('📱'));
@@ -1423,6 +1458,38 @@ SEC.minigames = () => {
   ];
 };
 
+/* ---- 表示 (このブラウザだけの設定) */
+SEC.display = () => {
+  const u = S.ui;
+  const set = (k, v) => { u[k] = v; saveUi(); };
+  const radio = (k, v, label) => h('label', { class: 'check' },
+    h('input', { type: 'radio', name: 'ui-' + k, checked: u[k] === v, onchange: () => set(k, v) }), label);
+  const range = (k, min, max, step, fmt) => {
+    const out = h('span', { class: 'pval' }, fmt(u[k]));
+    return h('div', { class: 'slider-row', style: 'grid-template-columns: 1fr 50px' }, h('input', { type: 'range', min, max, step, value: u[k],
+      oninput: (ev) => { out.textContent = fmt(+ev.target.value); set(k, +ev.target.value); } }), out);
+  };
+  return [
+    h('div', { class: 'sbar' }, h('h3', {}, '表示'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn', onclick: () => { S.ui = Object.assign({}, UI_DEFAULT); saveUi(); showSection('display'); } }, '元に戻す')),
+    h('p', { class: 'lead' }, '会話欄（セリフの窓）の見せ方です。このブラウザにだけ保存され、変更はすぐ反映されます。会話欄は 💬 ボタン・H キー・画像のクリックでいつでも隠せます。'),
+    h('div', { class: 'sect' }, '会話欄の位置'),
+    h('div', { class: 'row' }, radio('pos', 'bottom', '画像に重ねる（下）'), radio('pos', 'top', '画像に重ねる（上）'),
+      radio('pos', 'below', '画像の下に分ける（重ならない）')),
+    h('div', { class: 'sect' }, '見た目'),
+    h('div', { class: 'grid2' },
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '文字の大きさ'), range('font', 13, 24, 1, (v) => v + 'px')),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '大きさ'),
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.compact, onchange: (ev) => set('compact', ev.target.checked) }),
+          'コンパクト（高さを抑え、時刻と変化の表示を省く）')),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '自動で隠す'),
+        h('select', { value: String(u.autoHide), onchange: (ev) => set('autoHide', +ev.target.value) },
+          [[0, '隠さない'], [3, '読み終えて3秒後'], [5, '読み終えて5秒後'], [10, '読み終えて10秒後']].map(([v, l]) => h('option', { value: String(v) }, l))),
+        h('small', { class: 'hint' }, '新しいセリフが来たら、また表示されます'))),
+  ];
+};
+
 /* ---- キャラの出来事 */
 SEC.events = () => {
   const ta = h('textarea', { rows: 30, style: 'min-height:55vh', value: JSON.stringify(S.boot.events || [], null, 1) });
@@ -1795,6 +1862,19 @@ function bind() {
   $$('#snav button').forEach((b) => b.addEventListener('click', () => showSection(b.dataset.sec)));
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
   $('#settings-dlg').addEventListener('close', () => refresh());
+  $('#btn-dlg').addEventListener('click', () => setDlgHidden(!S.dlgHidden));
+  // 画像そのもの (会話欄・ボタン以外) のクリックでも出し入れ
+  $('#stage').addEventListener('click', (ev) => {
+    if (ev.target.closest('.dialogue, .stage-tools, .stage-top, button')) return;
+    setDlgHidden(!S.dlgHidden);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'h' && ev.key !== 'H') return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.target.closest?.('input, textarea, select, dialog[open]')) return;
+    setDlgHidden(!S.dlgHidden);
+  });
+  if (window.ResizeObserver) new ResizeObserver(fitDialogueSpace).observe($('#dialogue'));
+  applyUi();
   $('#btn-prompt').addEventListener('click', () => {
     const d = $('#prompt-drawer');
     d.hidden = !d.hidden;
