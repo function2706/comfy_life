@@ -1156,7 +1156,7 @@ class App:
         p = self.personas.get(pid)
         if not p:
             raise KeyError("性格プリセットが見つかりません: %s" % pid)
-        return {"persona": p, "keys": keys_mod.all_keys(self.actions, self.minigames)}
+        return {"persona": p, "keys": keys_mod.all_keys(self.actions, self.minigames, self.approaches)}
 
     def save_persona(self, p):
         with self.lock:

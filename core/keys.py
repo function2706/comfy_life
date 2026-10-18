@@ -1,6 +1,7 @@
 """反応・セリフのキー (性格プリセットでセリフを差し替えるときの目印).
 
-コマンドの反応は "<コマンドid>.<キー>", ミニゲームのセリフは "mg.<ゲームid>.<場面>.<キー>".
+コマンドの反応は "<コマンドid>.<キー>", ミニゲームのセリフは "mg.<ゲームid>.<場面>.<キー>",
+キャラからの働きかけは "ap.<働きかけid>.<場面>" (場面 = call / accept / later / ignore / busy).
 キーは各項目の "key" か, 無ければ条件式から作る (同じものが並んだら _2, _3 を付ける).
 """
 
@@ -25,7 +26,20 @@ def line_keys(items):
     return keys
 
 
-def all_keys(actions, minigames):
+AP_SCENES = (("call", "話しかける"), ("accept", "応じた"), ("later", "あとで"), ("ignore", "返事なし"),
+             ("busy", "返事なし (作業中)"))
+
+
+def approach_text(a, scene):
+    """働きかけの場面ごとの元のセリフ (無い場面は空)."""
+    if scene == "call":
+        return a.get("text", "")
+    if scene == "busy":
+        return (a.get("ignore") or {}).get("busy_text", "")
+    return (a.get(scene) or {}).get("text", "")
+
+
+def all_keys(actions, minigames, approaches=()):
     """全キーと, その元のセリフ・条件・場面 (セリフ集づくりの参考用)."""
     out = {}
     for a in actions:
@@ -38,4 +52,10 @@ def all_keys(actions, minigames):
             for k, r in zip(line_keys(lines), lines):
                 out["mg.%s.%s.%s" % (g["id"], ev, k)] = {"scene": "%s / %s" % (g.get("name", g["id"]), ev),
                                                           "when": r.get("when", ""), "text": r.get("text", "")}
+    for a in approaches or ():
+        for sc, label in AP_SCENES:
+            t = approach_text(a, sc)
+            if t:     # セリフが無い場面 (応じたらコマンドに切り替わるだけ, など) は差し替えない
+                out["ap.%s.%s" % (a["id"], sc)] = {"scene": "働きかけ「%s」/ %s" % (a.get("label", a["id"]), label),
+                                                    "when": a.get("when", ""), "text": t}
     return out

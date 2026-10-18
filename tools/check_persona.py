@@ -65,7 +65,7 @@ def check(path, keys):
 
 def main():
     load = lambda name: json.load(io.open(os.path.join(BASE, "defaults", name), encoding="utf-8"))  # noqa: E731
-    keys = all_keys(load("actions.json"), load("minigames.json"))
+    keys = all_keys(load("actions.json"), load("minigames.json"), load("approaches.json"))
     files = sys.argv[1:] or sorted(glob.glob(os.path.join(BASE, "defaults", "personas", "*.json")))
     bad = 0
     for f in files:

@@ -16,7 +16,7 @@ from core.keys import all_keys  # noqa: E402
 
 def main():
     load = lambda name: json.load(io.open(os.path.join(BASE, "defaults", name), encoding="utf-8"))  # noqa: E731
-    keys = all_keys(load("actions.json"), load("minigames.json"))
+    keys = all_keys(load("actions.json"), load("minigames.json"), load("approaches.json"))
     text = json.dumps(keys, ensure_ascii=False, indent=1)
     if len(sys.argv) > 1:
         io.open(sys.argv[1], "w", encoding="utf-8").write(text)

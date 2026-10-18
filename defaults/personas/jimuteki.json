@@ -1142,6 +1142,342 @@
   "_req_no.req_kind_treat": [
    "却下……？ たまにはいいのに。",
    "……{fp}だって、{call}にごちそうしたいのよ。"
+  ],
+  "talk.sk_talk_ge_65__roll_lt_35": [
+   "（話が弾んで、気づけば一時間も話し込んでいた。{name}は「想定時間を大幅に超過……ふふ。失礼」とつぶやいた）"
+  ],
+  "talk.sk_talk_lt_20__roll_lt_35": [
+   "……。（会話が続かず、微妙な沈黙が流れた。{name}は次の議題を探しているようだ）"
+  ],
+  "headpat.sk_touch_ge_60__roll_lt_50": [
+   "……{call}の撫で方、落ち着くわ。精神状態、安定方向に推移中。"
+  ],
+  "hug.sk_touch_lt_20__affection_lt_50__roll_lt_50": [
+   "ひゃっ……！ し、失礼。いきなりは驚くわ。事前の通知をお願い。"
+  ],
+  "cook.sk_cook_lt_30__roll_lt_45": [
+   "……少し焦げてるわね。でも、{call}が作ってくれたものだから。全量いただくわ。"
+  ],
+  "cook.sk_cook_ge_70__roll_lt_50": [
+   "……お店の水準ね。{call}、評価を大幅に上方修正するわ。すごい。"
+  ],
+  "snack.sk_cook_lt_25__roll_lt_40": [
+   "ん……甘さ、少し規定超過かしら。ふふ。……でも、うれしいわ。"
+  ],
+  "go_busy.default": [
+   "了解。作業、がんばって。"
+  ],
+  "go_busy.loneliness_ge_70": [
+   "……了解。ただ、終わったら{fp}との時間も確保してほしいわ。"
+  ],
+  "go_busy.affection_ge_75__loneliness_ge_50": [
+   "邪魔はしない。……隣で待機していてもいいかしら。"
+  ],
+  "go_busy.asleep_true": [
+   "（{name}は眠っている。静かに作業を始めた）"
+  ],
+  "go_busy.away_true": [
+   "（{name}は出かけている。今のうちに作業を片づけよう）"
+  ],
+  "go_work.default": [
+   "いってらっしゃい。気をつけて。帰宅予定がわかったら連絡を。"
+  ],
+  "go_work.loneliness_ge_70": [
+   "……早めの帰宅を希望する。個人的な要望だけど。"
+  ],
+  "go_work.affection_ge_70__phase_morning_or_noon": [
+   "いってらっしゃい。夕食の準備は進めておくわ。……楽しみにしてる。"
+  ],
+  "go_work.asleep_true": [
+   "（{name}を起こさないよう、そっと家を出た）"
+  ],
+  "go_work.away_true": [
+   "（{name}は出かけている。書き置きを残して家を出た）"
+  ],
+  "go_out.default": [
+   "いってらっしゃい。行き先、聞いてもいいかしら。"
+  ],
+  "go_out.loneliness_ge_70": [
+   "一人で行くのね……。了解。早めに戻ってきて。"
+  ],
+  "go_out.asleep_true": [
+   "（{name}を起こさないよう、そっと出かけた）"
+  ],
+  "go_out.away_true": [
+   "（{name}も出かけている。戸締まりをして家を出た）"
+  ],
+  "go_sleep.default": [
+   "おやすみ、{call}。本日もお疲れさま。"
+  ],
+  "go_sleep.sleepiness_lt_40__free_true": [
+   "もう就寝？ 予定より早いわね。……おやすみ。"
+  ],
+  "go_sleep.affection_ge_70": [
+   "おやすみ。……いい夢を。また明日の朝に。"
+  ],
+  "go_sleep.asleep_true": [
+   "（{name}の寝顔を確かめてから、眠りについた）"
+  ],
+  "go_leave.default": [
+   "了解、またね。……待ってるわ。"
+  ],
+  "go_leave.loneliness_ge_70": [
+   "もう行くの……？ 早めの帰還を希望するわ。"
+  ],
+  "go_leave.mood_ge_70__affection_ge_60": [
+   "了解。またあとで。ふふ。"
+  ],
+  "go_leave.asleep_true": [
+   "（眠っている{name}に小さく手を振って、そばを離れた）"
+  ],
+  "go_leave.away_true": [
+   "（{name}は出かけている。またあとで来よう）"
+  ],
+  "_back.default": [
+   "おかえり、{call}。"
+  ],
+  "_back.left_mode_busy": [
+   "作業、完了した？ お疲れさま。"
+  ],
+  "_back.left_mode_busy__loneliness_ge_60": [
+   "やっと終わったのね。……待機時間、長かったわ。待ってたのよ。"
+  ],
+  "_back.left_mode_out": [
+   "おかえり。外出先、差し支えなければ報告を。"
+  ],
+  "_back.left_mode_out__left_h_ge_6": [
+   "遅かったわね……。予定より長くて、少し心配したわ。"
+  ],
+  "_back.left_mode_sleep": [
+   "おはよう、{call}。睡眠は十分取れたかしら。"
+  ],
+  "_back.left_mode_left": [
+   "おかえり。待ってたわ。"
+  ],
+  "_back.left_mode_left__left_h_ge_24": [
+   "……久しぶりね。ずっと待ってたのよ。記録上、丸一日以上。"
+  ],
+  "_back.left_mode_left__left_h_ge_168": [
+   "一週間……。もう戻らないのかと思った。……正直、こたえたわ。"
+  ],
+  "_back.left_h_ge_3__away_events_ge_1": [
+   "おかえり。報告が一件。{call}がいない間に、{away_text}の。"
+  ],
+  "_back.asleep_true": [
+   "（{name}はまだ眠っている。目覚ましは明朝にセットされている）"
+  ],
+  "_back.away_true": [
+   "📱『おかえり。{fp}は現在{location}にいるわ』"
+  ],
+  "work.work_h_lt_0.25": [
+   "……もう帰宅？ 早すぎるわね。忘れ物かしら。"
+  ],
+  "work.work_h_ge_8": [
+   "遅くまでお疲れさま。……待機時間が長くて、ずっと待ってたのよ。"
+  ],
+  "side_job.task_ok_ge_45__free_true": [
+   "見事な手際ね……。{amount}円も？ 作業効率、非常に優秀よ。"
+  ],
+  "side_job.task_ng_ge_8__free_true": [
+   "……少し雑じゃないかしら。ミスが{ng}個。ふふ。……失礼、品質管理を推奨するわ。"
+  ],
+  "_return.said_false__absent_ge_3__loneliness_ge_60": [
+   "……無断で、どこに行ってたの。少し寂しかったわ。……報告しておく。"
+  ],
+  "ap.chat.call": [
+   "{call}、少しいいかしら。雑談の時間を提案したいの。"
+  ],
+  "ap.chat.accept": [
+   "ありがとう。それでね……（他愛ない話で盛り上がった）"
+  ],
+  "ap.chat.later": [
+   "了解。じゃあ、あとで。"
+  ],
+  "ap.chat.ignore": [
+   "（返事がないので、{name}はつまらなそうに離れていった）"
+  ],
+  "ap.chat.busy": [
+   "（{name}は作業の邪魔をしないよう、そっと離れていった）"
+  ],
+  "ap.tea.call": [
+   "お茶、淹れたわ。……{call}も飲む？"
+  ],
+  "ap.tea.accept": [
+   "どうぞ。……こうして一緒に飲む時間、好きよ。ふふ。"
+  ],
+  "ap.tea.later": [
+   "了解。ここに置いておくわね。"
+  ],
+  "ap.tea.ignore": [
+   "（{name}はお茶をそっと置いていった。すっかり冷めてしまった）"
+  ],
+  "ap.tea.busy": [
+   "（作業の邪魔をしないよう、お茶がそっと置かれていた）"
+  ],
+  "ap.lean.call": [
+   "（{name}が、何も言わずにそっと肩にもたれかかってきた）"
+  ],
+  "ap.lean.accept": [
+   "（しばらくそのまま寄り添っていた。{name}は小さく息をついた）"
+  ],
+  "ap.lean.later": [
+   "あ……ごめんなさい。邪魔だったわね。"
+  ],
+  "ap.lean.ignore": [
+   "（反応がないので、{name}は少し寂しそうに体を離した）"
+  ],
+  "ap.lean.busy": [
+   "（{name}は、作業の手を止めさせないよう静かに離れた）"
+  ],
+  "ap.bored.call": [
+   "報告。退屈が限界に達したわ。{call}、構ってもらえるかしら。"
+  ],
+  "ap.bored.accept": [
+   "ありがとう。では、何をして遊ぶか決めましょう。"
+  ],
+  "ap.bored.later": [
+   "……了解。少しだけなら待つわ。"
+  ],
+  "ap.bored.ignore": [
+   "（{name}はソファに寝転がりながら、恨めしそうにこちらを見ている）"
+  ],
+  "ap.bored.busy": [
+   "（{name}は「業務中なのね……」と小さくつぶやいた）"
+  ],
+  "ap.lonely.call": [
+   "……{call}。そばに行っても、いいかしら。"
+  ],
+  "ap.lonely.accept": [
+   "……ありがとう。今の、うれしかったわ。"
+  ],
+  "ap.lonely.later": [
+   "……了解。待ってる。"
+  ],
+  "ap.lonely.ignore": [
+   "（{name}はしばらく待っていたが、やがて黙って部屋の隅に座った）"
+  ],
+  "ap.lonely.busy": [
+   "（{name}は作業の様子を見て、少し離れたところに座った）"
+  ],
+  "ap.show.call": [
+   "{call}、これを見て。……かわいいと思うの。"
+  ],
+  "ap.show.accept": [
+   "でしょう。……{call}なら理解してくれると思ったわ。"
+  ],
+  "ap.show.later": [
+   "了解。あとで必ず確認して。"
+  ],
+  "ap.show.ignore": [
+   "（{name}は少しがっかりした様子で、画面をしまった）"
+  ],
+  "ap.cook_for.call": [
+   "空腹じゃない？ {fp}、何か作るわ。"
+  ],
+  "ap.cook_for.accept": [
+   "任せて。……完成。どうぞ。"
+  ],
+  "ap.cook_for.later": [
+   "了解。空腹になったら声をかけて。"
+  ],
+  "ap.cook_for.ignore": [
+   "（{name}は一人分だけ作って、静かに食べた）"
+  ],
+  "ap.play.call": [
+   "ゲーム、一緒にどうかしら。"
+  ],
+  "ap.play.accept": [
+   "了解。勝たせてもらうわね。"
+  ],
+  "ap.play.later": [
+   "約束よ。記録しておくわ。"
+  ],
+  "ap.play.ignore": [
+   "（{name}は一人でゲームを始めた）"
+  ],
+  "ap.walk_invite.call": [
+   "天候良好。……少し散歩に行かない？"
+  ],
+  "ap.walk_invite.accept": [
+   "決定ね。行きましょう。"
+  ],
+  "ap.walk_invite.later": [
+   "そう……。また今度に延期ね。"
+  ],
+  "ap.walk_invite.ignore": [
+   "（{name}は窓の外を眺めて、小さくため息をついた）"
+  ],
+  "ap.sleepy.call": [
+   "ふぁ……。眠気が、規定値を超えてきたわ……"
+  ],
+  "ap.sleepy.accept": [
+   "……おやすみ、{call}。"
+  ],
+  "ap.sleepy.later": [
+   "もう少しだけ……稼働を続ける……"
+  ],
+  "ap.sleepy.ignore": [
+   "（{name}は、いつの間にかうとうとしていた）"
+  ],
+  "ap.coffee.call": [
+   "無理はしないで。……コーヒー、置いておくわ。"
+  ],
+  "ap.coffee.accept": [
+   "ふふ。がんばって。"
+  ],
+  "ap.coffee.later": [
+   "（{name}は小さく微笑んで、静かに戻っていった）"
+  ],
+  "ap.coffee.ignore": [
+   "（コーヒーは、いつの間にか冷めていた）"
+  ],
+  "ap.coffee.busy": [
+   "（コーヒーは、いつの間にか冷めていた）"
+  ],
+  "ap.peek_work.call": [
+   "……何の作業？ 少しだけ、見学してもいいかしら。"
+  ],
+  "ap.peek_work.accept": [
+   "（{name}は隣で、楽しそうに作業を眺めている）"
+  ],
+  "ap.peek_work.later": [
+   "あ……ごめんなさい。終わったら知らせて。"
+  ],
+  "ap.peek_work.ignore": [
+   "（{name}はそっと離れていった）"
+  ],
+  "ap.peek_work.busy": [
+   "（{name}は邪魔をしないよう、そっと離れていった）"
+  ],
+  "ap.sulk.call": [
+   "……{call}。さっきの件、{fp}まだ怒ってるんだけど。"
+  ],
+  "ap.sulk.accept": [
+   "……もう。"
+  ],
+  "ap.sulk.later": [
+   "……そうやって、すぐ後回しにするのね。"
+  ],
+  "ap.sulk.ignore": [
+   "（{name}はぷいっとそっぽを向いた）"
+  ],
+  "ap.vent.call": [
+   "……{call}。少し、聞いてほしいことがあるの。"
+  ],
+  "ap.vent.later": [
+   "……了解。"
+  ],
+  "ap.vent.ignore": [
+   "（{name}は話すのをやめて、一人で膝を抱えた）"
+  ],
+  "ap.good_news.call": [
+   "{call}、報告があるの。いいことがあったわ。"
+  ],
+  "ap.good_news.later": [
+   "了解。……あとで絶対よ。"
+  ],
+  "ap.good_news.ignore": [
+   "（{name}は話したそうにしていたが、あきらめたようだ）"
   ]
  }
 }

@@ -114,6 +114,7 @@ def main():
         st["approach"], st["ap_quiet_until"], st["ap_last"] = None, 0, {}
         P.rec()["mode"] = "none"
         app.set_params({"loneliness": 90, "boredom": 90, "affection": 70})
+        random.seed(7)     # 前段の乱数の使い方 (セリフ選びなど) に回数が左右されないように
         fired = 0
         for i in range(60):
             st["ap_check"] = time.time() - 600
@@ -134,7 +135,7 @@ def main():
             st["cooldowns"] = {}
             app.set_params({"satiety": 40})
             r = app.act("cook")
-            fails += "焦げて" in r["entry"]["text"]
+            fails += any(w in r["entry"]["text"] for w in ("焦げ", "こげ"))     # 性格プリセットごとに言い方が違う
         print("料理スキル5で30回:", fails, "回失敗 / スキル", L.skill("cook"))
         assert fails >= 3 and L.skill("cook") > 5
         L.player_state()["skills"]["talk"] = 90
