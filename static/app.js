@@ -84,6 +84,7 @@ async function refresh() {
   }
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
   renderWho();
+  renderRequest();
   renderCommands();
   renderDress();
   renderGames();
@@ -145,6 +146,8 @@ function renderWho() {
   $('#who-tags').replaceChildren(
     h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
     v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
+    v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
+      v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
     ...v.tags.map((t) => h('span', { class: 'tag' }, t.label)),
   );
 }
@@ -747,7 +750,8 @@ function showEntry(e, animate) {
     const p = S.boot.params.find((x) => x.id === k) || {};
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
     return h('span', { class: 'delta ' + cls }, `${pname(k)} ${v > 0 ? '+' : ''}${v}`);
-  }));
+  }), ...Object.entries(e.money || {}).map(([k, v]) => h('span', { class: 'delta money ' + (v > 0 ? 'up' : 'down') },
+    `${k === 'p' ? 'あなた' : S.boot.character.name} ${v > 0 ? '+' : ''}${yen(v)}`)));
   if (e.image) setImage(e.image);
   else if (!$('#stage-img').dataset.rel) $('#stage-empty').hidden = false;
   $$('.log-item').forEach((x) => x.classList.toggle('cur', x.dataset.id === e.id));
@@ -875,6 +879,41 @@ function level(p, v) {
   return g >= 0.6 ? 'var(--good)' : g >= 0.3 ? 'var(--mid)' : 'var(--bad)';
 }
 
+const yen = (n) => `${Math.round(n).toLocaleString()}円`;
+
+function sparkline(vals) {
+  const w = 300, hgt = 36, mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${hgt - ((v - mn) / span) * (hgt - 4) - 2}`).join(' ');
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${w} ${hgt}`);
+  svg.setAttribute('class', 'spark');
+  const pl = document.createElementNS(NS, 'polyline');
+  pl.setAttribute('points', pts);
+  pl.setAttribute('fill', 'none');
+  pl.setAttribute('stroke', vals[vals.length - 1] >= vals[0] ? 'var(--good)' : 'var(--bad)');
+  pl.setAttribute('stroke-width', '2');
+  svg.append(pl);
+  return h('div', { class: 'spark-wrap', title: '投資の値動き（直近48時間）' }, svg);
+}
+
+/* ---- キャラからのお願い */
+function renderRequest() {
+  const box = $('#request-box');
+  const req = S.view.life && S.view.life.request;
+  if (!req) { box.hidden = true; return; }
+  const name = S.view.name;
+  const label = { money: `お金を貸してほしいみたい（${yen(req.amount)}）`, gift: `買ってほしいものがあるみたい（${yen(req.amount)}）`,
+    treat: 'ごちそうしたいみたい', present: 'プレゼントを用意してくれたみたい' }[req.kind] || req.label;
+  box.hidden = false;
+  box.replaceChildren(
+    h('div', { class: 'req-text' }, h('b', {}, `💬 ${name}：`), label, req.text ? h('div', { class: 'muted small' }, `（${req.text}）`) : ''),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => doAct('_req_yes') },
+        req.kind === 'present' ? '受け取る' : req.kind === 'treat' ? 'ごちそうになる' : 'いいよ'),
+      req.kind !== 'present' ? h('button', { class: 'btn', disabled: S.busy, onclick: () => doAct('_req_no') }, 'ごめんね') : ''));
+}
+
 function renderStatus() {
   const v = S.view;
   const groups = [['physical', 'からだ'], ['mental', 'こころ']];
@@ -890,11 +929,34 @@ function renderStatus() {
   });
   const sc = v.scene;
   const flags = [sc.asleep && '睡眠中', sc.away && '外出中', sc.busy && '手が離せない'].filter(Boolean).join('・');
+  const L = v.life || {};
+  const reasons = (L.reasons || []).map((r) => h('div', { class: 'reason ' + r.mood },
+    h('span', {}, r.mood === 'good' ? '😊' : '😣'),
+    h('span', {}, r.tell || '？（まだ聞いていない）'),
+    h('span', { class: 'muted small' }, fmtTime(r.t))));
+  const inv = L.invest || {};
+  const policy = (key, opts) => h('select', { value: L[key], onchange: async (ev) => {
+    const c = clone(S.boot.character);
+    c[key] = ev.target.value;
+    try { await api('/api/character/save', { data: c }); await loadBoot(); await refresh(); } catch (e) { toast(e.message, 'err'); }
+  } }, opts.map(([k, l]) => h('option', { value: k }, l)));
   $('#tab-status').replaceChildren(
     h('div', { class: 'scene-box' },
       h('div', {}, h('b', {}, '時間帯 '), v.phase.label),
       h('div', {}, h('b', {}, 'いま '), `${sc.label}（${sc.location || '—'}）`, flags ? `　${flags}` : ''),
       h('div', {}, h('b', {}, '最後のふれあい '), v.absent < 1 ? `${Math.round(v.absent * 60)}分前` : `${v.absent.toFixed(1)}時間前`)),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'いまの気分の理由'),
+      reasons.length ? reasons : h('div', { class: 'muted small' }, '特になし')),
+    h('div', { class: 'pgroup money-box' }, h('h4', {}, 'お金'),
+      h('div', { class: 'money-row' }, h('span', {}, 'あなた'), h('b', {}, yen(L.my_money || 0))),
+      h('div', { class: 'money-row' }, h('span', {}, v.name), h('b', {}, yen(L.her_money || 0))),
+      inv.units ? h('div', { class: 'money-row' }, h('span', {}, '投資（評価額）'),
+        h('b', { class: inv.value >= inv.invested ? 'up' : 'down' }, `${yen(inv.value)}（${inv.value >= inv.invested ? '+' : ''}${yen(inv.value - inv.invested)}）`)) : '',
+      inv.history && inv.history.length > 1 ? sparkline(inv.history) : '',
+      h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),
+        policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
+      h('div', { class: 'money-row' }, h('span', {}, '生活費'),
+        policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${v.name}が払う`]]))),
     ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, label), rows(S.boot.params.filter((p) => p.group === g)))),
     others.length ? h('div', { class: 'pgroup' }, h('h4', {}, 'その他'), rows(others)) : '',
   );
@@ -1361,6 +1423,26 @@ SEC.minigames = () => {
   ];
 };
 
+/* ---- キャラの出来事 */
+SEC.events = () => {
+  const ta = h('textarea', { rows: 30, style: 'min-height:55vh', value: JSON.stringify(S.boot.events || [], null, 1) });
+  const res = h('div', { class: 'result', hidden: true });
+  ta.addEventListener('input', () => {
+    try { JSON.parse(ta.value); ta.classList.remove('bad'); res.hidden = true; }
+    catch (e) { ta.classList.add('bad'); res.hidden = false; res.className = 'result err'; res.textContent = 'JSON の書式エラー: ' + e.message; }
+  });
+  return [
+    saveBar('キャラの出来事', async () => { await api('/api/events', { events: JSON.parse(ta.value) }); await reloadAll(); }),
+    h('p', { class: 'lead' }, '時間の経過でキャラ側に起きる出来事です。機嫌などが動き、「機嫌の理由」として記録されます。「何かあった？」で聞くと、tell の内容を話します（「〜んです」とつながる常体で書く）。'),
+    h('div', { class: 'keys' },
+      h('div', {}, h('code', {}, 'mood'), ' good / bad / neutral（理由として記録されるのは good と bad）　', h('code', {}, 'when'), ' 起きる条件（her_money・my_money・absent なども使える）'),
+      h('div', {}, h('code', {}, 'weight'), ' 起きやすさ　', h('code', {}, 'cooldown_h'), ' 同じ出来事が再び起きるまでの時間　', h('code', {}, 'effects'), ' パラメータ変化'),
+      h('div', {}, h('code', {}, 'money'), ' {"a": 金額 or [最小, 最大]}（キャラのお金。負なら支出）　',
+        h('code', {}, 'request'), ' {"kind": money | gift | treat | present, "amount": [最小, 最大]}（画面に「お願い」が出る）')),
+    h('div', { style: 'margin-top:10px' }, ta), res,
+  ];
+};
+
 /* ---- コマンド */
 SEC.actions = () => {
   const acts = SE.actions;
@@ -1611,6 +1693,18 @@ SEC.prompt = () => {
     box,
     h('div', { class: 'sect' }, 'その他'),
     h('div', { class: 'grid3' }, fld('「おかえり」を出す不在時間（時間）', inp(w, 'absent_greet_hours', { type: 'number', step: '0.5' }))),
+    h('div', { class: 'sect' }, 'お金・出来事'),
+    (() => {
+      const e = w.economy = w.economy || {};
+      const n = (k, label, hint, step) => fld(label, inp(e, k, { type: 'number', step: step || '100' }), hint);
+      return h('div', { class: 'grid3' },
+        n('player_daily_income', 'あなたの日給（放置でたまる）', '日付が変わるたびに入る'),
+        n('her_daily_income', 'キャラの日給', 'バイト代・仕送りなど'),
+        n('living_cost_per_day', '生活費（1日）', '負担の割合はステータス画面で選ぶ'),
+        n('invest_unit', '投資の1口'),
+        n('invest_vol', '投資の値動きの大きさ', '5分あたり。0.004 ≒ 1日で数%動く', '0.001'),
+        n('event_rate_per_hour', '出来事の起きやすさ（1時間あたり）', '0.08 ≒ 起きている間に1日1〜2回', '0.01'));
+    })(),
   ];
 };
 
@@ -1660,6 +1754,13 @@ SEC.data = () => {
         if (!confirm('パラメータを初期値に戻しますか？（ログと画像は残ります）')) return;
         await api('/api/state/reset', {}); toast('初期化しました', 'ok'); await refresh(); showSection('data');
       } }, 'パラメータ初期化')),
+    h('div', { class: 'sect' }, '出来事を起こす（テスト用）'),
+    (() => {
+      const sel = h('select', {}, (S.boot.events || []).map((e) => h('option', { value: e.id }, `${e.label}（${e.mood}）`)));
+      return h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: async () => {
+        try { const r = await api('/api/events/force', { id: sel.value }); toast(`起こしました: ${r.event.label}`, 'ok'); await refresh(); } catch (e) { toast(e.message, 'err'); }
+      } }, '起こす'));
+    })(),
     h('div', { class: 'sect' }, 'エクスポート / インポート'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),

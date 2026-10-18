@@ -16,7 +16,7 @@ import time
 import uuid
 from datetime import datetime
 
-from . import comfy, cond, games, llm, store
+from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
 from .keys import line_keys
 
@@ -98,6 +98,7 @@ class App:
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
         self.reload()
         self.games = games.Games(self)
+        self.life = life.Life(self)
         self._load_index()
         self._ensure_worker()
 
@@ -106,9 +107,12 @@ class App:
         self.settings = store.load_settings()
         self.params = store.load(store.dpath("params.json"), [])
         self.actions = store.load(store.dpath("actions.json"), [])
-        self.world = store.load(store.dpath("world.json"), {})
+        # 既定に増えた項目 (economy など) も使えるよう, 既定の上に data を重ねる
+        self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}),
+                                      store.load(store.dpath("world.json"), {}))
         self.chars = store.load_characters()
         self.minigames = store.load(store.dpath("minigames.json"), [])
+        self.events = store.load(store.dpath("events.json"), [])
         self.personas = store.load_personas()
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
@@ -118,6 +122,7 @@ class App:
         """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
         self._sync_defaults("actions", self.actions, "actions.json")
         self._sync_defaults("minigames", self.minigames, "minigames.json")
+        self._sync_defaults("events", self.events, "events.json")
         for c in self.chars.values():
             # お出かけ着と, 着せ替えの服を外に着ていけるか (既定の服だけ判定. 自作の服は設定で選ぶ)
             if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []):
@@ -301,6 +306,8 @@ class App:
             "overriding": scene.get("source") == "override" and not scene["asleep"],
             "month": dt.month, "season": SEASONS[dt.month],
         })
+        ctx.update(self.life.money_ctx(st))                    # my_money / her_money / invest_value / profit
+        ctx.update(self.life.mood_ctx(st, dt.timestamp()))     # cause / knows / reason / untold / request / away_events
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -336,8 +343,10 @@ class App:
         if now - t > MAX_CATCHUP_SEC:
             t = now - MAX_CATCHUP_SEC
         changed = False
+        self.life.tick_world(now)
         while t + STEP_SEC <= now:
             self._step(char, st, datetime.fromtimestamp(t + STEP_SEC / 2), STEP_SEC / 3600.0)
+            self.life.step(char, st, t, t + STEP_SEC, STEP_SEC / 3600.0)   # お金の出入り・キャラ側の出来事
             t += STEP_SEC
             changed = True
         st["last_tick"] = t
@@ -495,6 +504,23 @@ class App:
             cd = float(a.get("cooldown", 0)) * 60
             hist = [x for x in st["cooldowns"].get(aid, []) if now - x < cd] if cd else []
             ctx["repeat"] = len(hist)
+            # ---- お金: 誰が払うか・払えるかを先に決める (反応の条件 payer で使える)
+            extra = self.life.mood_text(st, now)          # {ev_text} {bad_text} {away_text} {req_text} {amount}
+            plan, req = None, st.get("request")
+            if a.get("cost"):
+                plan = self.life.plan_payment(char, st, int(a["cost"]), "me" if a.get("payer") == "me" else None)
+                ctx["payer"] = plan["payer"]
+                extra["cost"] = format(int(a["cost"]), ",")
+            ans = a.get("request_answer")
+            if ans:
+                if not req:
+                    raise ValueError("今はお願いされていません")
+                ctx["req_kind"] = req["kind"]
+                if ans == "yes" and req["kind"] in ("money", "gift") and self.life.player_state()["money"] < req["amount"]:
+                    raise ValueError("お金が足りません（%s円必要）" % format(req["amount"], ","))
+            tr = a.get("transfer")
+            if tr and tr.get("from") == "p" and self.life.player_state()["money"] < int(tr.get("amount", 0)):
+                raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
             r = self.pick_reaction(a, ctx)
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             eff = {}
@@ -513,13 +539,24 @@ class App:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
+            money = self._act_money(char, st, a, r, plan, req, extra)
+            self._act_reasons(char, st, a, r, deltas, now)
             if cd:
                 st["cooldowns"][aid] = hist + [now]
             st["last_interaction"] = now
             scene2 = self.scene_at(char, st, dt)
             rs = a.get("reactions") or []
             pkey = "%s.%s" % (aid, line_keys(rs)[rs.index(r)]) if r in rs else None
-            text = self.format_text(self.persona_text(char, pkey) or r.get("text", ""), char, scene, dt)
+            text = self.persona_text(char, pkey) or r.get("text", "")
+            if "{away_text}" in text or "{ev_text}" in text or "{bad_text}" in text:
+                # 話して聞かせた出来事は「理由を知っている」扱いにする
+                said = " ".join(extra.get(k, "") for k in ("away_text", "ev_text", "bad_text") if "{%s}" % k in text)
+                for x in self.life.reasons(st, now):
+                    if x["kind"] == "event" and x["tell"] and x["tell"] in said:
+                        x["told"] = True
+            for k, v in extra.items():                     # 先に差し込む (中の {call} なども下で置換される)
+                text = text.replace("{%s}" % k, str(v))
+            text = self.format_text(text, char, scene, dt)
             pos, neg, parts = self.build_prompt(char, st, dt, a, r)
             self.save_state(cid)
 
@@ -536,11 +573,83 @@ class App:
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src
+            if money:
+                entry["money"] = money
             job = None
             if self.settings.get("auto_generate") and a.get("generate", True):
                 job = self._present_image(cid, entry)
             self.save_log(cid)
         return {"entry": entry, "job": job, "llm_error": llm_error}
+
+    def _act_money(self, char, st, a, r, plan, req, extra):
+        """行動に伴うお金の出入り. 断られた (override) ときは動かさない. 動いた額 {p, a} を返す."""
+        money = {}
+
+        def add(m):
+            for k, v in m.items():
+                money[k] = money.get(k, 0) + v
+
+        if r.get("override"):
+            if a.get("request_answer"):
+                st["request"] = None
+            return money
+        L = self.life
+        if plan:
+            add(L.move(st, plan["p"], plan["a"]))
+        if a.get("earn"):
+            for who, rng in a["earn"].items():
+                amt = life._amount(rng)
+                add(L.move(st, dp=amt) if who == "p" else L.move(st, da=amt))
+                extra["amount"] = format(amt, ",")
+        tr = a.get("transfer")
+        if tr:
+            amt = int(tr.get("amount", 0))
+            if tr.get("from") == "a":
+                amt = min(amt, max(L.her_money(st)["a"], 0))
+            if amt:
+                add(L.move(st, dp=-amt, da=amt) if tr.get("from") == "p" else L.move(st, dp=amt, da=-amt))
+            extra["amount"] = format(amt, ",")
+        if a.get("invest"):
+            mv, amt, profit = L.invest(a["invest"])
+            add(mv)
+            extra.update(amount=format(amt, ","), profit=format(abs(profit), ","))
+        ans = a.get("request_answer")
+        if ans and req:
+            amt = int(req.get("amount", 0))
+            if ans == "yes":
+                if req["kind"] == "money":
+                    add(L.move(st, dp=-amt, da=amt))
+                elif req["kind"] == "gift":
+                    add(L.move(st, dp=-amt))
+                elif req["kind"] == "treat":
+                    add(L.move(st, da=-min(amt, max(L.her_money(st)["a"], 0))))
+            st["request"] = None
+        return money
+
+    def _act_reasons(self, char, st, a, r, deltas, now):
+        """機嫌の理由: 聞いた (ask) / 相談にのった (comfort) / 謝った (apologize) を反映し,
+        それ以外の行動で機嫌が大きく動いたら, あなたの行動を理由として記録する."""
+        L = self.life
+        ma = a.get("mood_action")
+        if ma:
+            if r.get("override"):           # はぐらかされた・逆効果: 理由は分からないまま
+                return
+            if ma == "ask":
+                untold = [x for x in L.reasons(st, now) if not x["told"]]
+                L.mark_told(untold[0] if untold else L.dominant(st, now))
+            elif ma == "comfort":
+                bad = L.dominant(st, now, "bad")
+                if bad and bad["kind"] == "event":
+                    L.mark_told(bad)
+                    L.resolve(st, "bad", now)
+            elif ma == "apologize":
+                bad = L.dominant(st, now, "bad")
+                if bad and bad["kind"] == "player":
+                    L.resolve(st, "bad", now)
+            return
+        if a.get("request_answer") or a.get("category") == "system":
+            return
+        L.note_player_reason(char, st, a, deltas, now, self.pronouns(char)[2])
 
     # ------------------------------------------------------------------ image reuse
     @staticmethod
@@ -854,6 +963,7 @@ class App:
                 "jobs": pending,
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
+                "life": self.life.view(char, st),
             }
 
     def _dress_view(self, char, st, scene, ctx):
@@ -878,6 +988,7 @@ class App:
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
+                "events": self.events,
                 "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "first_person", "_custom")}
                              for p in sorted(self.personas.values(), key=lambda p: (
                                  PERSONA_ORDER.index(p["id"]) if p["id"] in PERSONA_ORDER else 99, p.get("name", "")))]}
@@ -1001,6 +1112,30 @@ class App:
             self.world = world
             store.save(store.dpath("world.json"), world)
             return world
+
+    def force_event(self, eid, cid=None):
+        """テスト用: 出来事をいま起こす (条件・クールダウンは無視)."""
+        with self.lock:
+            char = self.char(cid)
+            self.tick(char["id"])
+            st = self.state(char["id"])
+            rec = self.life.happen(char, st, time.time(), self.context(char, st, datetime.now()), force=eid)
+            if not rec:
+                raise KeyError("出来事が見つかりません: %s" % eid)
+            self.save_state(char["id"])
+            return rec
+
+    def save_events(self, items):
+        with self.lock:
+            if not isinstance(items, list):
+                raise ValueError("出来事は配列で指定してください")
+            ids = [e.get("id") for e in items]
+            if any(not i for i in ids) or len(set(ids)) != len(ids):
+                raise ValueError("出来事の id が空か重複しています")
+            self._check_conds(items, "出来事")
+            self.events = items
+            store.save(store.dpath("events.json"), items)
+            return items
 
     def save_minigames(self, items):
         with self.lock:

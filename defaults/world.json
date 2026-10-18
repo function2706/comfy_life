@@ -1,5 +1,16 @@
 {
  "absent_greet_hours": 3,
+ "economy": {
+  "start_money_player": 30000,
+  "start_money_her": 20000,
+  "player_daily_income": 3000,
+  "her_daily_income": 2500,
+  "living_cost_per_day": 3000,
+  "invest_unit": 10000,
+  "invest_drift": 0.00003,
+  "invest_vol": 0.004,
+  "event_rate_per_hour": 0.08
+ },
  "phases": [
   {"id": "dawn", "label": "早朝", "from": "04:00", "to": "06:00", "pos": "dawn, early morning, pale blue light", "neg": ""},
   {"id": "morning", "label": "朝", "from": "06:00", "to": "10:00", "pos": "morning, soft sunlight", "neg": ""},

@@ -974,6 +974,174 @@
   ],
   "go_home.mood_ge_70": [
    "もう帰るの？ ……正直に言うと、もう少しいたかったわ。"
+  ],
+  "ask_mood.default": [
+   "特に異常はないわ。……どうしてそう思ったのかしら？",
+   "{fp}の状態は良好。心配してくれたのなら、感謝しておく。"
+  ],
+  "ask_mood.untold_0__reason_good": [
+   "今日は、いい日。理由は不明だけど、記録しておくわ。",
+   "原因は特定できてないけど、気分は良好よ。……ふふ。失礼。"
+  ],
+  "ask_mood.untold_0__cause_player": [
+   "……わかってるくせに。説明は省略するわ。",
+   "原因なら、{call}がいちばん把握してるはずよ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_good": [
+   "気づいた？ 報告。{ev_text}の。……ふふ。失礼。",
+   "顔に出てたかしら。共有する。{ev_text}のよ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad": [
+   "……聞いてもらえる？ 報告。{ev_text}の。",
+   "{call}には共有しておく。……{ev_text}のよ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad__affection_lt_30": [
+   "……別に、報告するほどのことじゃないわ。",
+   "問題ない。{call}が気にする案件じゃないから。"
+  ],
+  "apologize.default": [
+   "謝罪……？ 該当する事案が見当たらないけど。",
+   "謝られる理由がないわ。……何かの確認ミスかしら？"
+  ],
+  "apologize.cause_player": [
+   "……謝罪を受理する。次は気をつけて。",
+   "ちゃんと謝ってくれたから、この件は終了にするわ。"
+  ],
+  "apologize.cause_player__mood_lt_25": [
+   "……謝れば済むってものじゃないわ。……でも、聞いた。記録はしておく。"
+  ],
+  "apologize.cause_event__knows_false": [
+   "……何に対しての謝罪？ 把握してないのに謝られても困るわ。",
+   "理由を知らないまま謝られると、かえってもやもやするのよ。"
+  ],
+  "apologize.cause_event__knows_true": [
+   "{call}のせいじゃないわ。……でも、ありがとう。",
+   "{call}が謝る案件じゃない。……その気持ちは、うれしかったわ。"
+  ],
+  "comfort.default": [
+   "相談？ 現時点で懸案事項はないわ。……でも、ありがとう。"
+  ],
+  "comfort.cause_event__knows_true": [
+   "……聞いてもらったら、すっきりした。ありがとう。",
+   "{call}に話したら、負荷がかなり下がったわ。……記録しておく。"
+  ],
+  "comfort.cause_event__knows_false": [
+   "……報告。{bad_text}の。……聞いてくれて、ありがとう。"
+  ],
+  "comfort.cause_player": [
+   "……{call}がそれを言うのかしら？",
+   "相談の前に確認して。原因は{call}よ。"
+  ],
+  "leave_alone.default": [
+   "（少し時間を置くことにした。{name}は静かに息をついている）",
+   "（そっとしておくことにした。{name}は手帳を開いたまま、ページをめくらずにいる）"
+  ],
+  "leave_alone.loneliness_ge_60": [
+   "（……背中から、少し寂しそうな気配がした）"
+  ],
+  "date.payer_her": [
+   "今日の支払いは{fp}が持つ。いつものお礼よ。",
+   "会計は{fp}が担当する。……たまには甘えてもらえるかしら。"
+  ],
+  "cafe.payer_her": [
+   "ここは{fp}のおごり。予算は確保してあるわ。"
+  ],
+  "work.default": [
+   "おかえり。業務、お疲れさま。……少し寂しかった。報告しておくわ。",
+   "おかえり、{call}。お茶の準備はできてるわ。"
+  ],
+  "work.loneliness_ge_60": [
+   "おかえり……。待機時間、かなり長かったわ。ずっと待ってたのよ。"
+  ],
+  "work.asleep_true": [
+   "（{amount}円稼いで帰ってきた。{name}はもうぐっすり眠っている）"
+  ],
+  "work.away_true": [
+   "（{amount}円稼いで帰ってきた。{name}はまだ{location}にいるようだ）"
+  ],
+  "side_job.free_true": [
+   "何の作業？ ……手伝いが必要なら言って。",
+   "内職ね。{fp}も隣で作業する。分担したほうが効率的よ。"
+  ],
+  "side_job.free_false": [
+   "（黙々と作業を進めた。{amount}円になった）"
+  ],
+  "invest_buy.default": [
+   "（{amount}円分、投資した）"
+  ],
+  "invest_buy.free_true": [
+   "投資ね。……損失は出さないでもらえるかしら。",
+   "リスク管理はできてる？ 無理はしないで。"
+  ],
+  "invest_sell.profit_gt_0": [
+   "（投資を売って{amount}円になった。{profit}円の得だ）"
+  ],
+  "invest_sell.profit_le_0": [
+   "（投資を売って{amount}円になった。{profit}円の損だ……）"
+  ],
+  "invest_sell.profit_gt_0__free_true": [
+   "{profit}円の利益を確認。……すごいわね。"
+  ],
+  "invest_sell.profit_le_0__free_true": [
+   "{profit}円の損失ね。……どんまい。次で取り返せばいいわ。"
+  ],
+  "allowance.default": [
+   "いいの？ ……ありがとう。計画的に使うわ。"
+  ],
+  "allowance.her_money_lt_5000": [
+   "助かるわ……。実は残高が心もとなかったの。"
+  ],
+  "allowance.affection_lt_30": [
+   "……意図が不明ね。でも、受け取っておくわ。"
+  ],
+  "borrow.her_money_ge_5000__affection_ge_50": [
+   "仕方ないわね……。返済はきちんとお願い。",
+   "{call}だから貸すのよ。返済の約束、記録しておくわ。"
+  ],
+  "borrow.affection_lt_50": [
+   "お金の貸し借りは、ちょっと……。対応外にさせて。"
+  ],
+  "borrow.her_money_lt_5000": [
+   "ごめんなさい。{fp}も今、余裕がないの。"
+  ],
+  "expensive_gift.default": [
+   "こ、こんな高価なもの……。本当に受け取っていいのかしら……？"
+  ],
+  "expensive_gift.affection_ge_70": [
+   "……一生、大事にする。この記録は消さないわ。",
+   "{call}からの贈り物……。最重要の保管物に指定する。"
+  ],
+  "expensive_gift.affection_lt_30": [
+   "こんな高価なもの、受け取れないわ。気持ちだけで十分よ。"
+  ],
+  "_return.absent_ge_6__away_events_ge_1": [
+   "おかえり。……報告があるの。{call}の留守中に、{away_text}の。",
+   "おかえり、{call}。留守中の報告。{away_text}のよ。"
+  ],
+  "_return.absent_ge_168": [
+   "……一週間も、どこに行ってたの。もう帰ってこないのかと思ったわ……"
+  ],
+  "_req_yes.req_kind_money": [
+   "ありがとう……！ 返済はきちんとするわ。"
+  ],
+  "_req_yes.req_kind_gift": [
+   "本当？ ……うれしい。大事にするわ。記録もしておく。"
+  ],
+  "_req_yes.req_kind_treat": [
+   "じゃあ、今日は{fp}のおごり。遠慮はしないで。"
+  ],
+  "_req_yes.req_kind_present": [
+   "（{name}が、表情を崩さないまま小さな包みを差し出した）……いつものお礼よ。受け取って。"
+  ],
+  "_req_no.req_kind_money": [
+   "……そうよね。問題ないわ、なんとかする。"
+  ],
+  "_req_no.req_kind_gift": [
+   "……でしょうね。言ってみただけよ。"
+  ],
+  "_req_no.req_kind_treat": [
+   "却下……？ たまにはいいのに。",
+   "……{fp}だって、{call}にごちそうしたいのよ。"
   ]
  }
 }

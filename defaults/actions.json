@@ -421,7 +421,8 @@
     "pos": "smile, blush",
     "neg": ""
    }
-  ]
+  ],
+  "reason_good": "{call}とたくさんおしゃべりした"
  },
  {
   "id": "greet",
@@ -522,7 +523,8 @@
     "pos": "suspicious, narrowed eyes",
     "neg": "smile"
    }
-  ]
+  ],
+  "reason_good": "{call}に褒められた"
  },
  {
   "id": "tease",
@@ -564,7 +566,9 @@
     "pos": "angry, glaring, crossed arms",
     "neg": "smile, blush"
    }
-  ]
+  ],
+  "reason_good": "{call}とじゃれあった",
+  "reason_bad": "{call}にからかわれた"
  },
  {
   "id": "stare",
@@ -599,6 +603,229 @@
     "priority": 1,
     "pos": "staring, parted lips, blush",
     "neg": ""
+   }
+  ]
+ },
+ {
+  "id": "ask_mood",
+  "name": "何かあった？",
+  "icon": "💭",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 10,
+  "mood_action": "ask",
+  "effects": {},
+  "pos": "looking at viewer, upper body",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "え？ 特に何もないですよ。どうしてです？",
+    "when": "",
+    "pos": "tilted head, confused",
+    "neg": ""
+   },
+   {
+    "text": "今日はなんだか、いい日なんです。",
+    "when": "untold=0, reason=good",
+    "pos": "smile",
+    "neg": ""
+   },
+   {
+    "text": "……わかってるくせに。",
+    "when": "untold=0, cause=player",
+    "pos": "pout, looking away",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "えへへ、わかります？ 実は……{ev_text}んです！",
+    "when": "untold>=1, ev_mood=good",
+    "pos": "smile, excited",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 3,
+     "affection": 1
+    }
+   },
+   {
+    "text": "……聞いてくれます？ 実は、{ev_text}んです。",
+    "when": "untold>=1, ev_mood=bad",
+    "pos": "sad, looking down",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 3,
+     "stress": -3,
+     "trust": 1
+    }
+   },
+   {
+    "text": "……別に、なんでもないです。",
+    "when": "untold>=1, ev_mood=bad, affection<30",
+    "pos": "looking away, annoyed",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "apologize",
+  "name": "謝る",
+  "icon": "🙇",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 15,
+  "mood_action": "apologize",
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "え？ どうして謝るんですか？",
+    "when": "",
+    "pos": "tilted head, confused",
+    "neg": ""
+   },
+   {
+    "text": "……もう。次は気をつけてくださいね。",
+    "when": "cause=player",
+    "pos": "pout, small smile",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 12,
+     "affection": 1,
+     "trust": 1
+    }
+   },
+   {
+    "text": "……謝ればいいってものじゃないです。……でも、ちゃんと聞きました。",
+    "when": "cause=player, mood<25",
+    "pos": "pout, looking away",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": 6
+    }
+   },
+   {
+    "text": "……何に謝ってるんですか？ わかってないのに謝られても……",
+    "when": "cause=event, knows=false",
+    "pos": "annoyed, frown, crossed arms",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "trust": -2
+    }
+   },
+   {
+    "text": "{call}のせいじゃないですよ。……でも、ありがとうございます。",
+    "when": "cause=event, knows=true",
+    "pos": "small smile",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 3
+    }
+   }
+  ]
+ },
+ {
+  "id": "comfort",
+  "name": "相談にのる",
+  "icon": "🫂",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 30,
+  "mood_action": "comfort",
+  "effects": {},
+  "pos": "sitting together, listening",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "相談？ 今は特に悩みはないですよ。……でも、ありがとうございます。",
+    "when": "",
+    "pos": "smile",
+    "neg": "",
+    "effects": {
+     "mood": 2
+    }
+   },
+   {
+    "text": "……聞いてもらったら、すっきりしました。ありがとうございます。",
+    "when": "cause=event, knows=true",
+    "pos": "relieved smile, teary eyes",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": 15,
+     "stress": -15,
+     "affection": 2,
+     "trust": 3
+    }
+   },
+   {
+    "text": "……実は、{bad_text}んです。……聞いてくれて、ありがとう。",
+    "when": "cause=event, knows=false",
+    "pos": "sad smile, looking down",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 8,
+     "stress": -8,
+     "trust": 2
+    }
+   },
+   {
+    "text": "……{call}がそれを言います？",
+    "when": "cause=player",
+    "pos": "annoyed, glaring",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "mood": -5
+    }
+   }
+  ]
+ },
+ {
+  "id": "leave_alone",
+  "name": "そっとしておく",
+  "icon": "🍃",
+  "category": "会話",
+  "when": "free=true, mood<50",
+  "cooldown": 30,
+  "no_llm": true,
+  "effects": {},
+  "pos": "from behind, sitting alone, quiet",
+  "neg": "looking at viewer",
+  "reactions": [
+   {
+    "text": "（少し時間を置くことにした。{name}は静かに息をついている）",
+    "when": "",
+    "pos": "",
+    "neg": "",
+    "effects": {
+     "mood": 5,
+     "stress": -5
+    }
+   },
+   {
+    "text": "（……背中から、少し寂しそうな気配がした）",
+    "when": "loneliness>=60",
+    "pos": "lonely, hugging knees",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -4,
+     "loneliness": 8
+    }
    }
   ]
  },
@@ -654,7 +881,8 @@
     "pos": "sleeping, smile",
     "neg": ""
    }
-  ]
+  ],
+  "reason_good": "{call}に頭をなでてもらった"
  },
  {
   "id": "hug",
@@ -709,7 +937,9 @@
     "pos": "flustered, raised hands, stepping back",
     "neg": "hug"
    }
-  ]
+  ],
+  "reason_good": "{call}にぎゅってしてもらった",
+  "reason_bad": "{call}にいきなり抱きつかれた"
  },
  {
   "id": "hold_hands",
@@ -750,7 +980,8 @@
     "pos": "flustered, hands behind back",
     "neg": "holding hands"
    }
-  ]
+  ],
+  "reason_good": "{call}と手をつないだ"
  },
  {
   "id": "cook",
@@ -798,7 +1029,10 @@
     "pos": "",
     "neg": ""
    }
-  ]
+  ],
+  "cost": 800,
+  "payer": "me",
+  "reason_good": "{call}がご飯を作ってくれた"
  },
  {
   "id": "tea",
@@ -837,7 +1071,8 @@
     "pos": "drinking",
     "neg": ""
    }
-  ]
+  ],
+  "reason_good": "{call}がお茶を淹れてくれた"
  },
  {
   "id": "snack",
@@ -878,7 +1113,9 @@
     "pos": "holding cookie, apologetic smile",
     "neg": "eating"
    }
-  ]
+  ],
+  "cost": 300,
+  "payer": "me"
  },
  {
   "id": "water",
@@ -991,7 +1228,8 @@
     "pos": "half-closed eyes",
     "neg": ""
    }
-  ]
+  ],
+  "reason_good": "{call}が看病してくれた"
  },
  {
   "id": "tuck_in",
@@ -1099,7 +1337,8 @@
     "pos": "flustered, waving hands, sitting on bed",
     "neg": "lying on side"
    }
-  ]
+  ],
+  "reason_good": "{call}と一緒に寝た"
  },
  {
   "id": "wake",
@@ -1152,7 +1391,8 @@
     "pos": "stretching, smile",
     "neg": ""
    }
-  ]
+  ],
+  "reason_bad": "{call}に起こされた"
  },
  {
   "id": "game",
@@ -1204,7 +1444,8 @@
     "pos": "tired, apologetic smile",
     "neg": "game controller, excited"
    }
-  ]
+  ],
+  "reason_good": "{call}とゲームで遊んだ"
  },
  {
   "id": "movie",
@@ -1252,7 +1493,8 @@
     "pos": "sleepy",
     "neg": ""
    }
-  ]
+  ],
+  "reason_good": "{call}と映画を観た"
  },
  {
   "id": "clean",
@@ -1399,7 +1641,8 @@
     "pos": "tired, apologetic smile",
     "neg": "walking, outdoors"
    }
-  ]
+  ],
+  "reason_good": "{call}と散歩した"
  },
  {
   "id": "shopping",
@@ -1444,7 +1687,9 @@
     "pos": "tired, apologetic smile",
     "neg": "shopping bag, outdoors"
    }
-  ]
+  ],
+  "cost": 3000,
+  "reason_good": "{call}と買い物に行った"
  },
  {
   "id": "date",
@@ -1497,8 +1742,17 @@
     },
     "pos": "tired, apologetic smile",
     "neg": "outdoors"
+   },
+   {
+    "text": "今日は{fp}が出しますね。いつものお礼です。",
+    "when": "payer=her",
+    "pos": "smile, holding wallet",
+    "neg": "",
+    "priority": 1
    }
-  ]
+  ],
+  "cost": 8000,
+  "reason_good": "{call}とデートした"
  },
  {
   "id": "picnic",
@@ -1558,7 +1812,9 @@
     "override": true,
     "effects": {}
    }
-  ]
+  ],
+  "cost": 1000,
+  "reason_good": "{call}とピクニックに行った"
  },
  {
   "id": "hiking",
@@ -1620,7 +1876,9 @@
     "override": true,
     "effects": {}
    }
-  ]
+  ],
+  "cost": 1000,
+  "reason_good": "{call}と山に登った"
  },
  {
   "id": "beach",
@@ -1680,7 +1938,9 @@
     "neg": "",
     "priority": 2
    }
-  ]
+  ],
+  "cost": 2000,
+  "reason_good": "{call}と海に行った"
  },
  {
   "id": "amusement",
@@ -1734,7 +1994,9 @@
     "override": true,
     "effects": {}
    }
-  ]
+  ],
+  "cost": 7000,
+  "reason_good": "{call}と遊園地に行った"
  },
  {
   "id": "aquarium",
@@ -1784,7 +2046,9 @@
     "neg": "",
     "priority": 1
    }
-  ]
+  ],
+  "cost": 4000,
+  "reason_good": "{call}と水族館に行った"
  },
  {
   "id": "cafe",
@@ -1832,8 +2096,17 @@
     "pos": "eating cake, happy",
     "neg": "",
     "priority": 1
+   },
+   {
+    "text": "ここは{fp}のおごりです。たまには、ね？",
+    "when": "payer=her",
+    "pos": "smile, wink",
+    "neg": "",
+    "priority": 1
    }
-  ]
+  ],
+  "cost": 2000,
+  "reason_good": "{call}とカフェに行った"
  },
  {
   "id": "stargazing",
@@ -1882,7 +2155,8 @@
     "neg": "",
     "priority": 1
    }
-  ]
+  ],
+  "reason_good": "{call}と星を見た"
  },
  {
   "id": "go_home",
@@ -1946,7 +2220,10 @@
     "pos": "tears of joy, hugging gift",
     "neg": ""
    }
-  ]
+  ],
+  "cost": 3000,
+  "payer": "me",
+  "reason_good": "{call}にプレゼントをもらった"
  },
  {
   "id": "message",
@@ -2020,6 +2297,294 @@
     },
     "pos": "whispering, covering mouth, surprised",
     "neg": "smile"
+   }
+  ]
+ },
+ {
+  "id": "work",
+  "name": "働きに行く",
+  "icon": "💼",
+  "category": "お金",
+  "when": "",
+  "cooldown": 240,
+  "earn": {
+   "p": [
+    6000,
+    12000
+   ]
+  },
+  "effects": {
+   "loneliness": 12,
+   "boredom": 8
+  },
+  "pos": "entrance, welcoming, smile",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "おかえりなさい！ お仕事お疲れさまでした。……ちょっと寂しかったんですよ？",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "おかえりなさい……！ ずっと待ってたんです。",
+    "when": "loneliness>=60",
+    "pos": "running toward viewer, happy",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（{amount}円稼いで帰ってきた。{name}はもうぐっすり眠っている）",
+    "when": "asleep=true",
+    "pos": "sleeping",
+    "neg": "",
+    "priority": 3
+   },
+   {
+    "text": "（{amount}円稼いで帰ってきた。{name}はまだ{location}にいるようだ）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3
+   }
+  ]
+ },
+ {
+  "id": "side_job",
+  "name": "内職する",
+  "icon": "🧵",
+  "category": "お金",
+  "when": "",
+  "cooldown": 60,
+  "earn": {
+   "p": [
+    1500,
+    3000
+   ]
+  },
+  "effects": {
+   "boredom": -3
+  },
+  "pos": "sitting at table, watching, curious",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "何してるんですか？ ……手伝いましょうか？",
+    "when": "free=true",
+    "pos": "leaning forward, curious",
+    "neg": ""
+   },
+   {
+    "text": "（黙々と作業を進めた。{amount}円になった）",
+    "when": "free=false",
+    "pos": "",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "invest_buy",
+  "name": "投資する",
+  "icon": "📈",
+  "category": "お金",
+  "when": "my_money>=10000",
+  "cooldown": 0,
+  "invest": "buy",
+  "generate": false,
+  "no_llm": true,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "（{amount}円分、投資した）",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "投資ですか？ ……損しないでくださいね？",
+    "when": "free=true",
+    "pos": "worried smile",
+    "neg": ""
+   }
+  ]
+ },
+ {
+  "id": "invest_sell",
+  "name": "投資を売る",
+  "icon": "💹",
+  "category": "お金",
+  "when": "invest_value>0",
+  "cooldown": 0,
+  "invest": "sell",
+  "generate": false,
+  "no_llm": true,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "（投資を売って{amount}円になった。{profit}円の得だ）",
+    "when": "profit>0",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "（投資を売って{amount}円になった。{profit}円の損だ……）",
+    "when": "profit<=0",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "{profit}円も増えたんですか！ すごいです！",
+    "when": "profit>0, free=true",
+    "pos": "surprised, clapping",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……{profit}円の損ですか。どんまいです。",
+    "when": "profit<=0, free=true",
+    "pos": "awkward smile",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "allowance",
+  "name": "お小遣いをあげる",
+  "icon": "💴",
+  "category": "お金",
+  "when": "my_money>=5000, away=false, asleep=false",
+  "cooldown": 180,
+  "transfer": {
+   "from": "p",
+   "to": "a",
+   "amount": 5000
+  },
+  "effects": {
+   "mood": 6
+  },
+  "reason_good": "{call}にお小遣いをもらった",
+  "pos": "holding money, envelope, surprised",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "えっ、いいんですか？ ……大事に使いますね。",
+    "when": "",
+    "pos": "blush, smile",
+    "neg": ""
+   },
+   {
+    "text": "助かります……！ 実はちょっとピンチだったんです。",
+    "when": "her_money<5000",
+    "pos": "relieved, teary eyes",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 8,
+     "affection": 2,
+     "stress": -10
+    }
+   },
+   {
+    "text": "……何のつもりですか？ でも、もらっておきます。",
+    "when": "affection<30",
+    "pos": "suspicious, narrowed eyes",
+    "neg": "",
+    "priority": 1
+   }
+  ]
+ },
+ {
+  "id": "borrow",
+  "name": "お金を借りる",
+  "icon": "🙏",
+  "category": "お金",
+  "when": "free=true",
+  "cooldown": 1440,
+  "transfer": {
+   "from": "a",
+   "to": "p",
+   "amount": 5000
+  },
+  "effects": {
+   "trust": -2
+  },
+  "pos": "holding wallet, sigh, small smile",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "しょうがないですね……ちゃんと返してくださいよ？",
+    "when": "her_money>=5000, affection>=50",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "お金の貸し借りは、ちょっと……",
+    "when": "affection<50",
+    "pos": "awkward, looking away",
+    "neg": "",
+    "priority": 1,
+    "override": true,
+    "effects": {}
+   },
+   {
+    "text": "ごめんなさい、{fp}もちょっと余裕がなくて……",
+    "when": "her_money<5000",
+    "pos": "apologetic, empty wallet",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {}
+   }
+  ]
+ },
+ {
+  "id": "expensive_gift",
+  "name": "高価なプレゼント",
+  "icon": "💎",
+  "category": "お金",
+  "when": "my_money>=30000, away=false, asleep=false",
+  "cooldown": 1440,
+  "cost": 30000,
+  "payer": "me",
+  "effects": {
+   "affection": 12,
+   "mood": 15,
+   "heart": 15,
+   "shyness": 15
+  },
+  "reason_good": "{call}にすごいプレゼントをもらった",
+  "pos": "holding jewelry box, necklace, surprised, blush",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "こ、こんな高いもの……！ ほんとにいいんですか……？",
+    "when": "",
+    "pos": "surprised, hands on own cheeks",
+    "neg": ""
+   },
+   {
+    "text": "……一生、大事にします。",
+    "when": "affection>=70",
+    "pos": "tears of joy, holding necklace",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "こんな高いもの、受け取れません……。気持ちだけで十分です。",
+    "when": "affection<30",
+    "pos": "awkward, pushing box back",
+    "neg": "",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "trust": 1
+    }
    }
   ]
  },
@@ -2155,6 +2720,124 @@
     "priority": 3,
     "pos": "holding phone, smile",
     "neg": ""
+   },
+   {
+    "text": "おかえりなさい！ ……あのね、{call}がいない間に、{away_text}んです。",
+    "when": "absent>=6, away_events>=1",
+    "pos": "smile, looking at viewer",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "……一週間も、どこに行ってたんですか。もう帰ってこないのかと思いました……",
+    "when": "absent>=168",
+    "pos": "teary eyes, hugging pillow",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "affection": -5,
+     "mood": -10,
+     "loneliness": -20
+    }
+   }
+  ]
+ },
+ {
+  "id": "_req_yes",
+  "name": "いいよ",
+  "icon": "👍",
+  "category": "system",
+  "when": "request=money|gift|treat|present",
+  "cooldown": 0,
+  "request_answer": "yes",
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "ありがとうございます……！ ちゃんと返しますから。",
+    "when": "req_kind=money",
+    "pos": "relieved, bowing",
+    "neg": "",
+    "effects": {
+     "mood": 10,
+     "affection": 2,
+     "trust": 3,
+     "stress": -10
+    }
+   },
+   {
+    "text": "ほんとですか！？ うれしい……大事にしますね！",
+    "when": "req_kind=gift",
+    "pos": "excited, happy, blush",
+    "neg": "",
+    "effects": {
+     "mood": 12,
+     "affection": 3,
+     "heart": 5
+    }
+   },
+   {
+    "text": "じゃあ、今日は{fp}のおごりです！ 遠慮しないでくださいね。",
+    "when": "req_kind=treat",
+    "pos": "smile, holding wallet",
+    "neg": "",
+    "effects": {
+     "mood": 8,
+     "affection": 2
+    }
+   },
+   {
+    "text": "（{name}が、照れくさそうに小さな包みを差し出した）……いつものお礼です。",
+    "when": "req_kind=present",
+    "pos": "holding gift box, blush, looking away",
+    "neg": "",
+    "effects": {
+     "affection": 3,
+     "heart": 8
+    }
+   }
+  ]
+ },
+ {
+  "id": "_req_no",
+  "name": "ごめんね",
+  "icon": "🙅",
+  "category": "system",
+  "when": "request=money|gift|treat",
+  "cooldown": 0,
+  "request_answer": "no",
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "……そうですよね。大丈夫です、なんとかします。",
+    "when": "req_kind=money",
+    "pos": "forced smile, looking down",
+    "neg": "",
+    "effects": {
+     "mood": -6,
+     "stress": 5
+    }
+   },
+   {
+    "text": "……ですよね。言ってみただけです。",
+    "when": "req_kind=gift",
+    "pos": "pout, small smile",
+    "neg": "",
+    "effects": {
+     "mood": -4
+    }
+   },
+   {
+    "text": "えー、たまにはいいのに……",
+    "when": "req_kind=treat",
+    "pos": "pout",
+    "neg": "",
+    "effects": {
+     "mood": -3
+    }
    }
   ]
  }

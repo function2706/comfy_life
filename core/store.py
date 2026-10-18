@@ -59,7 +59,7 @@ def bootstrap():
     """data/ が無ければ defaults/ から複製する."""
     for d in ("characters", "state", "log", "images"):
         os.makedirs(dpath(d), exist_ok=True)
-    for name in ("params.json", "actions.json", "world.json", "minigames.json"):
+    for name in ("params.json", "actions.json", "world.json", "minigames.json", "events.json"):
         if not os.path.exists(dpath(name)):
             shutil.copyfile(os.path.join(DEFAULTS, name), dpath(name))
     if not glob.glob(dpath("characters", "*.json")):

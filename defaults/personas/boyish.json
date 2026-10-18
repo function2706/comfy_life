@@ -970,6 +970,174 @@
   ],
   "go_home.mood_ge_70": [
    "もう帰るの？ ……もうちょっとだけ、いたかったな。"
+  ],
+  "ask_mood.default": [
+   "ん？ 別になんもないよ。なんで？",
+   "{fp}？ 元気元気。どうしたのさ、急に。"
+  ],
+  "ask_mood.untold_0__reason_good": [
+   "今日はなんか、調子いいんだよね。",
+   "理由？ 特にないけど、なんか気分いいんだ。へへ。"
+  ],
+  "ask_mood.untold_0__cause_player": [
+   "……わかってるくせに。",
+   "……{call}が一番わかってるでしょ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_good": [
+   "へへん、わかる？ 実はさ、{ev_text}んだよね！",
+   "顔に出てた？ 聞いてよ、{ev_text}んだ！"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad": [
+   "……聞いてくれる？ 実はさ、{ev_text}んだよね。",
+   "……{call}だから言うけど、{ev_text}んだ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad__affection_lt_30": [
+   "……別に、なんでもないって。",
+   "……平気。{call}が気にすることじゃないから。"
+  ],
+  "apologize.default": [
+   "え？ なんで謝んの？",
+   "謝られるようなこと、なんもないじゃん。"
+  ],
+  "apologize.cause_player": [
+   "……ったく。次から気をつけてよね。",
+   "……ちゃんと謝ったから、許す。今回だけだぞ？"
+  ],
+  "apologize.cause_player__mood_lt_25": [
+   "……謝ればいいってもんじゃないし。……でも、ちゃんと聞いたよ。"
+  ],
+  "apologize.cause_event__knows_false": [
+   "……何に謝ってんの？ わかってないのに謝られてもさ……",
+   "……理由も知らないくせに謝られると、なんかモヤモヤする。"
+  ],
+  "apologize.cause_event__knows_true": [
+   "{call}のせいじゃないって。……でも、ありがと。",
+   "{call}が謝ることじゃないよ。……その気持ちは、まあ、うれしいけど。"
+  ],
+  "comfort.default": [
+   "相談？ 今は別に悩みとかないよ。……でも、ありがと。"
+  ],
+  "comfort.cause_event__knows_true": [
+   "……話したら、すっきりした。ありがとね。",
+   "へへ……{call}に話したら、なんか軽くなったよ。"
+  ],
+  "comfort.cause_event__knows_false": [
+   "……実はさ、{bad_text}んだよね。……聞いてくれて、ありがと。"
+  ],
+  "comfort.cause_player": [
+   "……{call}がそれ言う？",
+   "……相談って、原因は{call}なんだけど。"
+  ],
+  "leave_alone.default": [
+   "（少し時間を置くことにした。{name}は黙ってボールを手の中で転がしている）",
+   "（そっとしておくことにした。{name}はクッションを抱えて、ふてくされたように寝転がっている）"
+  ],
+  "leave_alone.loneliness_ge_60": [
+   "（……背中から、少し寂しそうな気配がした）"
+  ],
+  "date.payer_her": [
+   "今日は{fp}が出すよ。いつものお礼ってことで。",
+   "へへ、今日は{fp}のおごり。たまにはカッコつけさせてよ。"
+  ],
+  "cafe.payer_her": [
+   "ここは{fp}のおごり。たまには、ね？"
+  ],
+  "work.default": [
+   "おかえり！ 仕事おつかれ。……ちょっと暇だったんだからな。",
+   "おつかれ、{call}！ なんか飲む？"
+  ],
+  "work.loneliness_ge_60": [
+   "おかえり……！ 遅いよ、ずっと待ってたんだから。"
+  ],
+  "work.asleep_true": [
+   "（{amount}円稼いで帰ってきた。{name}はもうぐっすり眠っている）"
+  ],
+  "work.away_true": [
+   "（{amount}円稼いで帰ってきた。{name}はまだ{location}にいるようだ）"
+  ],
+  "side_job.free_true": [
+   "何やってんの？ ……手伝おっか？",
+   "内職？ よし、どっちが早く終わるか勝負しよ！"
+  ],
+  "side_job.free_false": [
+   "（黙々と作業を進めた。{amount}円になった）"
+  ],
+  "invest_buy.default": [
+   "（{amount}円分、投資した）"
+  ],
+  "invest_buy.free_true": [
+   "投資？ ……損すんなよ？",
+   "へえ、勝負に出たね。でも無理はしないでよ？"
+  ],
+  "invest_sell.profit_gt_0": [
+   "（投資を売って{amount}円になった。{profit}円の得だ）"
+  ],
+  "invest_sell.profit_le_0": [
+   "（投資を売って{amount}円になった。{profit}円の損だ……）"
+  ],
+  "invest_sell.profit_gt_0__free_true": [
+   "{profit}円も増えたの！？ やるじゃん！"
+  ],
+  "invest_sell.profit_le_0__free_true": [
+   "……{profit}円の負けかぁ。どんまい、次で取り返そ！"
+  ],
+  "allowance.default": [
+   "えっ、いいの？ ……サンキュ、大事に使うよ。"
+  ],
+  "allowance.her_money_lt_5000": [
+   "助かる……！ 実はちょっとピンチだったんだよね。"
+  ],
+  "allowance.affection_lt_30": [
+   "……何のつもり？ まあ、もらっとくけど。"
+  ],
+  "borrow.her_money_ge_5000__affection_ge_50": [
+   "しょうがないなぁ……ちゃんと返してよ？",
+   "{call}だから貸すんだからな。約束だぞ。"
+  ],
+  "borrow.affection_lt_50": [
+   "お金の貸し借りは、ちょっとなぁ……"
+  ],
+  "borrow.her_money_lt_5000": [
+   "ごめん、{fp}もちょっと余裕なくてさ……"
+  ],
+  "expensive_gift.default": [
+   "こ、こんな高いもん……！ ほんとにいいの……？"
+  ],
+  "expensive_gift.affection_ge_70": [
+   "……一生、大事にする。",
+   "{call}からの贈り物か……へへ、宝物にするよ。"
+  ],
+  "expensive_gift.affection_lt_30": [
+   "こんな高いもん、受け取れないって。気持ちだけで十分。"
+  ],
+  "_return.absent_ge_6__away_events_ge_1": [
+   "おかえり！ あのさ、{call}がいない間に{away_text}んだよ。",
+   "おかえり！ 聞いてよ、留守の間に{away_text}んだ。"
+  ],
+  "_return.absent_ge_168": [
+   "……一週間も、どこ行ってたんだよ。もう帰ってこないのかと思ったじゃん……"
+  ],
+  "_req_yes.req_kind_money": [
+   "サンキュ……！ ちゃんと返すから。"
+  ],
+  "_req_yes.req_kind_gift": [
+   "マジで！？ やった……大事にするね！"
+  ],
+  "_req_yes.req_kind_treat": [
+   "よし、今日は{fp}のおごり！ 遠慮すんなよ？"
+  ],
+  "_req_yes.req_kind_present": [
+   "（{name}が、そっぽを向きながら小さな包みを差し出した）……い、いつものお礼。それだけだから。"
+  ],
+  "_req_no.req_kind_money": [
+   "……だよね。平気平気、なんとかするよ。"
+  ],
+  "_req_no.req_kind_gift": [
+   "……だよね。言ってみただけ。"
+  ],
+  "_req_no.req_kind_treat": [
+   "えー、たまにはいいじゃん……",
+   "……{fp}だって、{call}におごりたいのにさ。"
   ]
  }
 }

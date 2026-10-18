@@ -3,24 +3,47 @@
   "_dress": [
    "39818e2555f4f60344b656cfb4dad075"
   ],
+  "_req_no": [
+   "252c642f5868f16859711fbe21a283fc"
+  ],
+  "_req_yes": [
+   "239d2e9dfe4baebdcde5ab29708cfb1e"
+  ],
   "_return": [
    "fd3e9ca9651e311ddc71c217c2c0b57a",
-   "f564d18b86bcff6b299418e3107dbb21"
+   "f564d18b86bcff6b299418e3107dbb21",
+   "5ae0f3892a01c4813438deb19043c6be"
+  ],
+  "allowance": [
+   "fc26e7bbe04256a8f94d9af0de7cd162"
   ],
   "amusement": [
-   "73058d9d5490ac546249c9bef4fed3d6"
+   "73058d9d5490ac546249c9bef4fed3d6",
+   "633c551e6f6b4afaa8caa80a331d972e"
+  ],
+  "apologize": [
+   "f104ed45d336a8a3da6e06da901311ac"
   ],
   "aquarium": [
-   "3425adb8015daf2ab0b478d829aa83ae"
+   "3425adb8015daf2ab0b478d829aa83ae",
+   "67f9d65708a075e2c35427d86676033b"
+  ],
+  "ask_mood": [
+   "d079ed5a1772f6896d3b2b01c502841a"
   ],
   "bath": [
    "85d07773658319f98f9328cfdf4a8289"
   ],
   "beach": [
-   "466999399884e8e5bf8a0809098f40c9"
+   "466999399884e8e5bf8a0809098f40c9",
+   "a53b4e6955286435a70b18a1bb065dab"
+  ],
+  "borrow": [
+   "ec42e2b96cde5c4fa6ee9d4544dd0cd7"
   ],
   "cafe": [
-   "e1a4f024127fc93c931394a435650941"
+   "e1a4f024127fc93c931394a435650941",
+   "bbed5100be2c9441cb58207e686ec067"
   ],
   "call": [
    "4ad7afc857b9553f4e40df4f0fa2d21d"
@@ -28,26 +51,36 @@
   "clean": [
    "d4789f5dfd43fbc802450b1e45541d4c"
   ],
+  "comfort": [
+   "79877ee7a3fec49d7143504f78191ca7"
+  ],
   "cook": [
-   "7a2565f4e1dd3bdc4aa460f1164ca20c"
+   "7a2565f4e1dd3bdc4aa460f1164ca20c",
+   "23b98870c2ac5c9eb3f8dbf69c58e055"
   ],
   "date": [
+   "8b698762e11f50a7e5df23472b7811cc",
    "8648f7e249ebdd61b86fe6835d5ca2fd",
-   "8b698762e11f50a7e5df23472b7811cc"
+   "64c82437fd00882fe13c81d7889a40cd"
   ],
   "end_activity": [
    "8d8d9dd46acc23cb6773b71e087c1703"
+  ],
+  "expensive_gift": [
+   "f080242f94134d20a0787fccbfa65dd9"
   ],
   "full_body": [
    "b267bb87e12c77bf08262833937a4cc0"
   ],
   "game": [
-   "f1d122c9b4e0fd802a9bf0d9a542bdcb"
+   "f1d122c9b4e0fd802a9bf0d9a542bdcb",
+   "3c1fce349633ff4b6891afbf07ea9cd5"
   ],
   "gift": [
+   "969c72de33d4852c32a2c6231287205c",
    "ac027832b8a5ef8d4d14a7418cc09cce",
    "f9e9d329645f2f809e99691c3e7de004",
-   "969c72de33d4852c32a2c6231287205c"
+   "58d926e65661dd17cab3e35c0f555699"
   ],
   "go_home": [
    "5b2c63a00cf2426547cc2ecf88bb75ed"
@@ -56,29 +89,44 @@
    "11818e9851663b96293000db6fc300fd"
   ],
   "headpat": [
-   "4b971024ba64ee8cad23c732225d95d1"
+   "4b971024ba64ee8cad23c732225d95d1",
+   "1b8afef63dbc2a388e853f42298f6ce1"
   ],
   "hiking": [
-   "4b13af1ea173008b98c2469897a35392"
+   "4b13af1ea173008b98c2469897a35392",
+   "cf649643c7ea188af4ece6c5136e44b0"
   ],
   "hold_hands": [
-   "22af7cc78f82e0a4910cced5d9117053"
+   "22af7cc78f82e0a4910cced5d9117053",
+   "7a45591c0ea17ef1ef387ea668548026"
   ],
   "hug": [
-   "e912d644c5ca8a9ff3fff955183b95b5"
+   "e912d644c5ca8a9ff3fff955183b95b5",
+   "4fcb3213d38e5b1717e1c2d992cf4051"
+  ],
+  "invest_buy": [
+   "40435123f7d34748817a4d4f5f5d8e16"
+  ],
+  "invest_sell": [
+   "1966db8c9931113cfa7f9fd42fcca76b"
+  ],
+  "leave_alone": [
+   "c9e55b90f2ffd00ffaba1a566afc2874"
   ],
   "look": [
-   "f12ef173b04d6dd7838dabf355754c3e",
-   "5c4e1dec55a01f4e1fb766eca847673b"
+   "5c4e1dec55a01f4e1fb766eca847673b",
+   "f12ef173b04d6dd7838dabf355754c3e"
   ],
   "message": [
    "479a359e6a27e9804b99cae91c69765d"
   ],
   "movie": [
-   "e002d58b2e9487d3c5d7b28ca5e6c419"
+   "e002d58b2e9487d3c5d7b28ca5e6c419",
+   "3913ed8cfda23c024c771ed15be0dcde"
   ],
   "nurse": [
-   "f6e67d047d17753e749f8a4159c8276c"
+   "f6e67d047d17753e749f8a4159c8276c",
+   "16f1e1a37221e8d830e5060acf8d719a"
   ],
   "peek_face": [
    "f847ddde9c5336620753bde1b54f7479"
@@ -87,55 +135,137 @@
    "88743a44be610bd5e0b754ab10f13e21"
   ],
   "picnic": [
-   "b90384aab52c6097d2454b869ec373fb"
+   "b90384aab52c6097d2454b869ec373fb",
+   "cbf6ff5c98eb40cfd93d300bd5621d41"
   ],
   "praise": [
-   "3e2c9d1524284fb316f6c5ff46c56106"
+   "3e2c9d1524284fb316f6c5ff46c56106",
+   "8899358cb6f8a941def43a278a8e1838"
   ],
   "shopping": [
+   "63aa96df7c1130d427c079542a9ae9f5",
    "8aead86f573387c220ae1172973389c8",
-   "63aa96df7c1130d427c079542a9ae9f5"
+   "d1c3297284c2c1ed66ebac645280b2ee"
+  ],
+  "side_job": [
+   "46fe4e20c406762a07f2f261c79eb9a3"
   ],
   "sleep_together": [
-   "248aa5ec38842e735939f2d810bda6ac"
+   "248aa5ec38842e735939f2d810bda6ac",
+   "492693c59942f2c2dec4b1053907b845"
   ],
   "sleeping_face": [
    "a27ddbbe1360b9b35353a0a4d14252b6"
   ],
   "snack": [
-   "5d95c1bce1ce188eaeac7398adbeaf37"
+   "5d95c1bce1ce188eaeac7398adbeaf37",
+   "3669804c6a6df0627a63ba0f4221ad8a"
   ],
   "stare": [
    "2ac1e5154cdf01db146e70c13b4de351"
   ],
   "stargazing": [
-   "84ff2ee3e59c268272c0ce470aac25f9"
+   "84ff2ee3e59c268272c0ce470aac25f9",
+   "41ad92ff37150180c9472fe856b03f38"
   ],
   "talk": [
-   "210b7f6a4cab2c0e47d78888134c3f64"
+   "210b7f6a4cab2c0e47d78888134c3f64",
+   "2931d4888f4f87c8b59b79a5985dd07e"
   ],
   "tea": [
-   "14b58122494060d66d1dac8add519cc8"
+   "14b58122494060d66d1dac8add519cc8",
+   "aae0edf3631c093cfc90afca23bc24c0"
   ],
   "tease": [
-   "88c454701ffd378392d5edfb9422808b"
+   "88c454701ffd378392d5edfb9422808b",
+   "6d576c8eb56aa22853267e4f61feab23"
   ],
   "tuck_in": [
    "ed9b2ea09e413091b57b7d45896336f1"
   ],
   "wake": [
    "18640150ad933fa369ce0a92b2f08d87",
-   "14e5a3e9e00c5d67cef252e8a61065de"
+   "14e5a3e9e00c5d67cef252e8a61065de",
+   "a6e64f618891d528db3e372ebf78ba04"
   ],
   "walk": [
+   "59e706ac207164db48dfd9597321c6ca",
    "883482f0014371273fe7ab1ef6b07e36",
-   "59e706ac207164db48dfd9597321c6ca"
+   "5c2026246ecb516c19fb7c8df3a92be5"
   ],
   "watch_quietly": [
    "4107280be8757789d23e8ef17112681d"
   ],
   "water": [
    "2c4ba636c863cdb87f6d3c7bc0b4e169"
+  ],
+  "work": [
+   "b976df959d8812c5eb6e204c22c434e3"
+  ]
+ },
+ "events": {
+  "argument": [
+   "ae7002a9c9b60d53e865531c28ac47ee"
+  ],
+  "bad_dream": [
+   "c99b6e0026cb2cc1b36bb43b380d8215"
+  ],
+  "cat": [
+   "18d99c6063846488682a8dcd94145629"
+  ],
+  "cleaned_room": [
+   "da384e15004a0b8a65c30f1fb286ccea"
+  ],
+  "found_shop": [
+   "38eb9c6b7fc9f63566e136361949e5c1"
+  ],
+  "friend_contact": [
+   "a3aaf3df052a0d2c1525c43f79c9bb02"
+  ],
+  "good_sleep": [
+   "e3b400250cf7a0291eb804eed2a0cd01"
+  ],
+  "headache": [
+   "a9ae861d52a192dd656fd90a9253bea5"
+  ],
+  "her_gift": [
+   "be88e5d7a8b94106d84f3a6535f1e041"
+  ],
+  "her_treat": [
+   "e3de40d16feee7418133d9ce666b95e5"
+  ],
+  "impulse_buy": [
+   "2c2d0e2b11c0f75e31ada7f1eee2f5aa"
+  ],
+  "lonely_day": [
+   "73f920b9eafacaba156ee8d2623c597b"
+  ],
+  "lost_item": [
+   "16bee2c82903b3e4c732b754094221b4"
+  ],
+  "money_tight": [
+   "b2eaef3722f0073e33458cc09b9c3fd5"
+  ],
+  "nice_weather": [
+   "59560da0777c959c7351936c524cfad4"
+  ],
+  "part_time_pay": [
+   "9e17ea3609d5e92e015310e7913512fe"
+  ],
+  "praised": [
+   "6ccfdf318d90e9bb13c24c58c19483a1"
+  ],
+  "rain_cancel": [
+   "2716666ce54be013aded63078ac71b4a"
+  ],
+  "report": [
+   "735c7dff8beb43d932c3ac2461304eea"
+  ],
+  "scolded": [
+   "89f08c16fff2bb445d5fa83ac4f41013"
+  ],
+  "want_item": [
+   "110f3a049c7a3246bbcbd95ff5a303bf"
   ]
  },
  "minigames": {

@@ -68,6 +68,10 @@ def route(method, path, q, body):
             return {"persona": a.save_persona(b["persona"])}
         if path == "/api/persona/reset":
             return a.reset_persona(b["id"])
+        if path == "/api/events/force":
+            return {"event": a.force_event(b["id"], cid)}
+        if path == "/api/events":
+            return {"events": a.save_events(b["events"])}
         if path == "/api/minigames":
             return {"minigames": a.save_minigames(b["minigames"])}
         if path == "/api/reroll":
