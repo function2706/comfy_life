@@ -1664,11 +1664,7 @@ SEC.char = () => {
     }, h('div', { class: 'row' },
       h('select', { onchange: async (ev) => { await api('/api/character/select', { id: ev.target.value }); S.current = null; await reloadAll('char'); } },
         S.boot.characters.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))),
-      h('button', { class: 'btn', onclick: async () => {
-        const name = prompt('新しいキャラの名前（スケジュールは現在のキャラから複製）');
-        if (!name) return;
-        await api('/api/character/new', { name }); S.current = null; await reloadAll('char');
-      } }, '＋新規'),
+      h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'),
       h('button', { class: 'btn danger', onclick: async () => {
         if (!confirm(`「${c.name}」を削除しますか？（ログと画像は残ります）`)) return;
         try { await api('/api/character/delete', { id: c.id }); S.current = null; await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
@@ -1704,6 +1700,37 @@ SEC.char = () => {
     hist,
   ];
 };
+
+// キャラの追加: このワールドに現れるか・あなたとの間柄を確かめる (同居はいきなりは選べない)
+function newCharacterDialog() {
+  const v = { name: '', pos: '1girl, solo', persona_id: '', stage: 'contact' };
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(600px,94vw);height:auto;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { class: 'modal-body', style: 'padding:16px;max-width:560px' },
+    h('h3', {}, 'キャラクターを追加'),
+    fld('名前', inp(v, 'name', { ph: '例: みお' })),
+    fld('性格プリセット', inp(v, 'persona_id', { type: 'select', options: [['', 'なし（共通のセリフ）'], ...(S.boot.personas || []).map((p) => [p.id, p.name])] })),
+    fld('外見プロンプト', inp(v, 'pos', { type: 'textarea', rows: 3 }), '「現れない」を選ぶと、出会うまでこのワールドでは編集できないので、ここで決めておきます'),
+    fld('このワールドでの、あなたとの間柄', inp(v, 'stage', { type: 'select', options: [
+      ['contact', '📱 連絡先を知っている'], ['known', '👤 知り合い（顔は知っているが、連絡先は知らない）'],
+      ['absent', '— このワールドには現れない（偶然の出会いを待つ）'], ['random', '🎲 くじで決める']] }),
+      'どれを選んでも登録キャラになり、ほかのワールドでは出会いや新しいワールドの顔ぶれの候補になります。同居はいきなりは選べません（仲を深めて「一緒に住まない？」を）。スケジュールは今のキャラから複製します'),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' },
+      h('button', { class: 'btn', onclick: close }, 'やめる'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        if (!v.name.trim()) { toast('名前を入れてください', 'err'); return; }
+        try {
+          const r = await api('/api/character/new', v);
+          close();
+          const st = r.character._stage;
+          toast(st === 'absent' ? `${r.character.name}を登録しました（このワールドでは、偶然の出会いを待ちます）`
+            : `${r.character.name}を追加しました（${st === 'known' ? '知り合い' : '連絡先を知っている'}）`, 'ok');
+          S.current = null; await reloadAll('char');
+        } catch (e) { toast(e.message, 'err'); }
+      } }, '追加'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
 
 const curPersona = (c) => (S.boot.personas || []).find((p) => p.id === c.persona_id);
 

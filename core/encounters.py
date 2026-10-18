@@ -119,6 +119,8 @@ class Encounters:
         """登録済みのキャラ全員 (どのワールドで作ったか・手動かくじかを問わない). 名前と外見が同じなら同じ人とみなす.
         [(ワールドid, キャラ定義)]. include_defaults なら既定のキャラも含める (ワールドid は None)."""
         files = sorted(glob.glob(store.dpath("worlds", "*", "characters", "*.json")))
+        # どのワールドにもまだ現れていない登録キャラ (設定で追加して「現れない」を選んだ人). ワールド id は "registry"
+        files += sorted(glob.glob(store.dpath("registry", "characters", "*.json")))
         if include_defaults:
             files += sorted(glob.glob(os.path.join(store.DEFAULTS, "characters", "*.json")))
         out, seen = [], set()

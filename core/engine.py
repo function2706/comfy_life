@@ -1400,17 +1400,36 @@ class App:
             store.save_character(c)
             return c
 
-    def new_character(self, name, copy_from=None):
+    NEW_STAGES = ("contact", "known", "absent", "random")
+
+    def new_character(self, name, copy_from=None, stage="contact", pos=None, persona_id=None):
+        """設定からキャラを追加する. stage: このワールドでのあなたとの間柄.
+        contact = 連絡先を知っている / known = 知り合い / absent = このワールドには現れない (偶然の出会いを待つ) /
+        random = くじ (新しいワールドを作るときと同じ割合). 同居はいきなりは選べない (仲を深めて提案する).
+        どれを選んでも登録キャラになり, ほかのワールドでは出会いの候補・新しいワールドの顔ぶれの候補になる."""
+        if stage not in self.NEW_STAGES:
+            raise ValueError("間柄の指定が違います: %s" % stage)
         with self.lock:
             src = self.char(copy_from) if copy_from else self.char()
             cid = "c" + uuid.uuid4().hex[:8]
-            c = {"id": cid, "name": name or "新しいキャラ", "player_call": "", "first_person": "", "persona": "",
-                 "pos": "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
+            p = self.personas.get(persona_id or "") or {}
+            c = {"id": cid, "name": name or "新しいキャラ", "player_call": "", "first_person": "",
+                 "persona_id": p.get("id", ""), "persona": p.get("persona", ""),
+                 "pos": (pos or "").strip() or "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
                  "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
                  "prompt_history": []}
+            if stage == "random":
+                ec = self.encounters.cfg()
+                r = random.random()
+                pc, pk = float(ec["start_contact"]), float(ec["start_known"])
+                stage = "contact" if r < pc else "known" if r < pc + pk else "absent"
+            if stage == "absent":
+                store.save(store.dpath("registry", "characters", cid + ".json"), c)
+                return dict(c, _stage="absent")
             self.save_character(c)
+            self.bonds.set_stage(cid, stage)
             self.select_character(cid)
-            return c
+            return dict(c, _stage=stage)
 
     def delete_character(self, cid):
         with self.lock:

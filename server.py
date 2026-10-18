@@ -112,7 +112,8 @@ def route(method, path, q, body):
         if path == "/api/character/save":
             return {"character": a.save_character(b["data"])}
         if path == "/api/character/new":
-            return {"character": a.new_character(b.get("name"), b.get("copy_from"))}
+            return {"character": a.new_character(b.get("name"), b.get("copy_from"), b.get("stage") or "contact",
+                                                 b.get("pos"), b.get("persona_id"))}
         if path == "/api/character/delete":
             a.delete_character(b["id"])
             return {"ok": True}

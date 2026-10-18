@@ -141,6 +141,10 @@ python server.py --port 9000 --no-browser
 - 贈り物は `gift_feel`、高価なプレゼント・お小遣いは `money_feel`（性格 `money`、仲の浅さ、最近の贈り物の数）で、喜ばれない・重いと断られることがある。物の効き目は性格 `gift` 倍率。コマンドの `"gift": "item" / "money"`。
 - 偶然の出会いに偏りはない: 知らない人に会いやすくする補正も、誰かに必ず会わせる代わりもない。
 
+### キャラを追加するとき
+
+設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。`data/registry/characters/` に登録し、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。どれでも登録キャラとして、ほかのワールドの出会い・顔ぶれの候補になる。
+
 ### 偶然の出会い
 
 `core/encounters.py`。一人で出かけた帰り・仕事帰り・お出かけの帰りに、出かけていた時間に応じて起きる（世界設定の `encounters`）。
@@ -302,6 +306,7 @@ tools/test_bonds.py  あなたとの間柄（連絡・外で会う・訪問・�
 core/bonds.py      あなたと各キャラの間柄・いま誰と会っているか・嫉妬
 core/encounters.py 偶然の出会いと, 知り合った人の登録
 tools/test_encounters.py  偶然の出会い・知らない人の登録のテスト
+tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト
 tools/test_realism.py  現実的な深まり方 (揺らぎ・繰り返し・ご無沙汰・提案・贈り物・出会いの偏りなし) のテスト
 core/games.py      ミニゲームの進行 (全種類)
 core/mahjong.py    麻雀のルール・役・シャンテン数・AI
