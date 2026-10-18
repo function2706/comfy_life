@@ -47,6 +47,8 @@ def route(method, path, q, body):
             return a.jobs_view()
         if path == "/api/log":
             return a.log_page(cid, int(_q(q, "offset", 0)), int(_q(q, "limit", 60)), _q(q, "images") == "1")
+        if path == "/api/album":
+            return a.album(cid, _q(q, "key"))
         if path == "/api/prompt":
             return a.prompt_preview(cid)
         if path == "/api/workflow":
@@ -89,6 +91,8 @@ def route(method, path, q, body):
             return a.task_start(b.get("kind") or "sort", cid)
         if path == "/api/task/finish":
             return a.task_finish(b["token"], b.get("ok", 0), b.get("ng", 0), cid)
+        if path == "/api/image/delete":
+            return a.delete_image(b["path"])
         if path == "/api/reroll":
             return a.reroll(b["entry"], cid)
         if path == "/api/visit":

@@ -545,3 +545,12 @@ a.btn { color: inherit; }
 .task-result { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .task-result .big { font-size: 34px; font-weight: 700; color: var(--accent2); }
 @media (max-width: 980px) { .away-overlay { inset: 0; } }
+
+/* ---------- ギャラリー: シチュエーション別 ---------- */
+#gal-mode { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+#gal-mode button { background: none; border: 0; padding: 5px 12px; cursor: pointer; color: var(--muted); font-size: 13px; }
+#gal-mode button.on { background: var(--panel3); color: var(--text); }
+.gal-back { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.gal-back code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gal-n { position: absolute; top: 6px; right: 6px; font-size: 11px; background: rgba(0,0,0,.65); padding: 1px 8px; border-radius: 99px; }
+.gal-item.group { box-shadow: 4px 4px 0 -1px var(--panel2), 4px 4px 0 0 var(--line); }

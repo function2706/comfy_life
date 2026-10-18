@@ -1398,6 +1398,64 @@ class App:
             self.state(char["id"])["override"] = None
             self.save_state(char["id"])
 
+    def album(self, cid=None, key=None):
+        """アルバム: シチュエーション (= 合成後のプロンプト) ごとのまとまり. key を指定すればその中の画像."""
+        char = self.char(cid)
+        groups = {}
+        for e in self.log(char["id"]):
+            for im in e.get("images") or []:
+                if not os.path.exists(store.dpath("images", *im["path"].split("/"))):
+                    continue
+                k = self.prompt_key(im.get("pos", ""), im.get("neg", ""))
+                if key and k != key:
+                    continue
+                g = groups.setdefault(k, {"key": k, "items": []})
+                g["items"].append({"path": im["path"], "seed": im.get("seed"), "t": im.get("t") or e["t"], "pos": im.get("pos", ""),
+                                   "neg": im.get("neg", ""), "entry": {k2: e.get(k2) for k2 in ("id", "t", "text", "action_name", "icon", "scene")}})
+        if key:
+            g = groups.get(key) or {"key": key, "items": []}
+            g["items"].sort(key=lambda x: -x["t"])
+            return g
+        out = []
+        for g in groups.values():
+            last = max(g["items"], key=lambda x: x["t"])
+            labels = {}
+            for it in g["items"]:
+                lb = "%s%s・%s" % (it["entry"].get("icon") or "", it["entry"].get("action_name") or "", it["entry"].get("scene") or "")
+                labels[lb] = labels.get(lb, 0) + 1
+            out.append({"key": g["key"], "count": len(g["items"]), "t": last["t"], "cover": last["path"],
+                        "label": max(labels, key=labels.get), "pos": last["pos"]})
+        out.sort(key=lambda x: -x["t"])
+        return {"groups": out}
+
+    def delete_image(self, path):
+        """気に入らない画像を消す: ファイル・索引・全キャラのログから取り除く."""
+        with self.lock:
+            full = store.dpath("images", *[p for p in path.split("/") if p and p != ".."])
+            if not full.startswith(store.dpath("images")) or not path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                raise ValueError("消せない画像です")
+            if os.path.exists(full):
+                os.remove(full)
+            for k in list(self.img_index):
+                self.img_index[k] = [im for im in self.img_index[k] if im["path"] != path]
+                if not self.img_index[k]:
+                    del self.img_index[k]
+            store.save(store.dpath("images", "index.json"), self.img_index)
+            for f in glob.glob(store.dpath("log", "*.json")):
+                cid = os.path.splitext(os.path.basename(f))[0]
+                log = self.log(cid)
+                changed = False
+                for e in log:
+                    if any(im["path"] == path for im in e.get("images") or []):
+                        e["images"] = [im for im in e["images"] if im["path"] != path]
+                        changed = True
+                    if e.get("image") == path:
+                        e["image"] = e["images"][-1]["path"] if e.get("images") else None
+                        changed = True
+                if changed:
+                    self.save_log(cid)
+            return {"ok": True}
+
     def log_page(self, cid=None, offset=0, limit=60, images_only=False):
         char = self.char(cid)
         items = self.log(char["id"])

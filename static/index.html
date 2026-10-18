@@ -140,7 +140,8 @@
 </dialog>
 
 <dialog class="modal" id="gallery-dlg">
-  <div class="modal-head"><b>ギャラリー</b><span class="muted" id="gal-count"></span><div class="spacer"></div><button class="btn ghost" data-close>✕</button></div>
+  <div class="modal-head"><b>ギャラリー</b><span class="muted" id="gal-count"></span><div class="spacer"></div>
+    <div class="seg" id="gal-mode"><button data-mode="time" class="on">時系列</button><button data-mode="prompt">シチュエーション別</button></div><button class="btn ghost" data-close>✕</button></div>
   <div class="gallery" id="gallery"></div>
   <div class="center"><button class="btn ghost" id="gal-more" hidden>もっと見る</button></div>
 </dialog>
@@ -158,7 +159,7 @@
     <div class="lb-text" id="lb-text"></div>
     <div class="muted small" id="lb-meta"></div>
     <details><summary>プロンプト</summary><pre id="lb-prompt"></pre></details>
-    <div class="row"><button class="btn" id="lb-stage">ステージに表示</button><a class="btn ghost" id="lb-open" target="_blank">原寸で開く</a><div class="spacer"></div><button class="btn ghost" data-close>閉じる</button></div>
+    <div class="row"><button class="btn" id="lb-stage">ステージに表示</button><a class="btn ghost" id="lb-open" target="_blank">原寸で開く</a><button class="btn ghost danger" id="lb-delete">この画像を消す</button><div class="spacer"></div><button class="btn ghost" data-close>閉じる</button></div>
   </div>
 </dialog>
 

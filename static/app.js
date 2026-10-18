@@ -1298,38 +1298,78 @@ async function genFromDrawer(useEntry) {
 }
 
 /* ---------------------------------------------------------------- gallery */
+/* ---- ギャラリー: 時系列 / シチュエーション (= プロンプト) 別 */
 async function openGallery() {
-  const dlg = $('#gallery-dlg');
+  S.galMode = S.galMode || 'time';
+  $$('#gal-mode button').forEach((x) => { x.onclick = () => { S.galMode = x.dataset.mode; S.galKey = null; drawGallery(); }; });
+  $('#gallery-dlg').showModal();
+  await drawGallery();
+}
+
+function galItem(e, im) {
+  return h('div', { class: 'gal-item', style: `background-image:url("${imgUrl(im.path)}")`, 'data-path': im.path,
+    onclick: () => openLightbox(e, im) }, h('span', {}, `${fmtTime(im.t || e.t)} ${e.icon || ''}${e.action_name || ''}`));
+}
+
+async function drawGallery() {
   const box = $('#gallery');
   box.replaceChildren();
+  $$('#gal-mode button').forEach((x) => x.classList.toggle('on', x.dataset.mode === S.galMode));
+  $('#gal-more').hidden = true;
+  if (S.galMode === 'prompt' && S.galKey) {
+    const g = await api('/api/album?key=' + S.galKey);
+    $('#gal-count').textContent = `${g.items.length} 枚`;
+    box.append(h('div', { class: 'gal-back' }, h('button', { class: 'btn ghost', onclick: () => { S.galKey = null; drawGallery(); } }, '← シチュエーション一覧'),
+      g.items[0] ? h('code', { class: 'muted small' }, g.items[0].pos) : ''));
+    for (const it of g.items) box.append(galItem(it.entry, it));
+    return;
+  }
+  if (S.galMode === 'prompt') {
+    const r = await api('/api/album');
+    $('#gal-count').textContent = `${r.groups.length} シチュエーション`;
+    for (const g of r.groups) {
+      box.append(h('div', { class: 'gal-item group', style: `background-image:url("${imgUrl(g.cover)}")`, title: g.pos,
+        onclick: () => { S.galKey = g.key; drawGallery(); } },
+      h('b', { class: 'gal-n' }, `${g.count}枚`), h('span', {}, g.label)));
+    }
+    if (!r.groups.length) box.append(h('p', { class: 'muted' }, 'まだ画像がありません'));
+    return;
+  }
   let offset = 0;
   const load = async () => {
     const r = await api(`/api/log?images=1&offset=${offset}&limit=40`);
     offset += r.items.length;
     $('#gal-count').textContent = `${r.total} 件の記録`;
-    for (const e of r.items) {
-      for (const im of [...(e.images || [])].reverse()) {
-        const it = h('div', { class: 'gal-item', style: `background-image:url("${imgUrl(im.path)}")`,
-          onclick: () => openLightbox(e, im) }, h('span', {}, `${fmtTime(im.t || e.t)} ${e.icon || ''}${e.action_name}`));
-        box.append(it);
-      }
-    }
+    for (const e of r.items) for (const im of [...(e.images || [])].reverse()) box.append(galItem(e, im));
     $('#gal-more').hidden = offset >= r.total;
   };
   $('#gal-more').onclick = load;
-  dlg.showModal();
   await load();
 }
+
 function openLightbox(e, im) {
   $('#lb-img').src = imgUrl(im.path);
   $('#lb-open').href = imgUrl(im.path);
   $('#lb-text').textContent = e.text || e.action_name;
   $('#lb-meta').textContent = `${fmtTime(im.t || e.t)}・${e.action_name}・${e.scene || ''}・seed ${im.seed}`;
-  $('#lb-prompt').textContent = `${im.pos}\n\nNegative: ${im.neg}`;
+  $('#lb-prompt').textContent = `${im.pos}
+
+Negative: ${im.neg}`;
   $('#lb-stage').onclick = () => {
     showEntry(Object.assign({}, e, { image: im.path }), false);
     setImage(im.path);
     $('#lightbox').close(); $('#gallery-dlg').close();
+  };
+  $('#lb-delete').onclick = async () => {
+    if (!confirm('この画像を消しますか？（ファイルも削除され、元に戻せません）')) return;
+    try {
+      await api('/api/image/delete', { path: im.path });
+      $$(`.gal-item[data-path="${CSS.escape(im.path)}"]`).forEach((x) => x.remove());
+      if ($('#stage-img').dataset.rel === im.path) { $('#stage-img').classList.remove('show'); delete $('#stage-img').dataset.rel; }
+      $('#lightbox').close();
+      toast('消しました', 'ok');
+      await refresh();
+    } catch (err) { toast(err.message, 'err'); }
   };
   $('#lightbox').showModal();
 }
