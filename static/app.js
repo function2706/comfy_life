@@ -203,7 +203,7 @@ function renderCommands() {
       h('div', { class: 'cat-title' }, cat || 'その他'),
       h('div', { class: 'cmds' }, list.map((a) => {
         const st = av[a.id];
-        const tip = [a.when ? '条件: ' + a.when : '', a.effects && Object.keys(a.effects).length ?
+        const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
           '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
           st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
         return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
@@ -757,13 +757,14 @@ function setImage(rel) {
 
 /* ---- 会話欄の表示設定 (ブラウザごとに保存) */
 const UI_KEY = 'kurashi.ui';
-const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0 };
+const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact' };
 S.ui = (() => {
   try { return Object.assign({}, UI_DEFAULT, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return Object.assign({}, UI_DEFAULT); }
 })();
 function saveUi() {
   try { localStorage.setItem(UI_KEY, JSON.stringify(S.ui)); } catch (e) { /* 保存できなくても表示はできる */ }
   applyUi();
+  if (S.view) { renderStatus(); renderCommands(); }
 }
 function applyUi() {
   const st = $('#stage');
@@ -815,7 +816,7 @@ function showEntry(e, animate) {
   setDialogue(e.text || `（${e.action_name}）`, animate);
   $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`
     + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : e.busy_skip ? '（生成中のため新規生成なし）' : ''}` : '');
-  $('#deltas').replaceChildren(...Object.entries(e.deltas || {}).map(([k, v]) => {
+  $('#deltas').replaceChildren(...Object.entries(S.ui.deltas === false ? {} : (e.deltas || {})).map(([k, v]) => {
     const p = S.boot.params.find((x) => x.id === k) || {};
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
     return h('span', { class: 'delta ' + cls }, `${pname(k)} ${v > 0 ? '+' : ''}${v}`);
@@ -1246,12 +1247,43 @@ const SKILL_HINT = {
   cook: '料理・おやつ・お茶の効き目。低いと失敗することも、高いと絶品に',
   work: '仕事のお給料と、内職の単価',
 };
+/* ---- 見た目でわかること: 数値は出さず, 様子から受ける印象だけ (少しずれることもある) */
+const LOOK = {
+  satiety: ['ぺこぺこそう', 'お腹すいてそう', 'ふつう', '満たされてそう', 'お腹いっぱいそう'],
+  hydration: ['からからそう', '喉が渇いてそう', 'ふつう', '潤ってそう', '十分そう'],
+  energy: ['ぐったりしている', '疲れてそう', 'ふつう', '元気そう', 'とても元気そう'],
+  sleepiness: ['ぱっちり', '目は冴えてそう', 'ふつう', '眠そう', 'とても眠そう'],
+  hygiene: ['くたびれてる', 'ちょっと気になる', 'ふつう', 'さっぱりしてる', 'すっきり清潔'],
+  health: ['具合が悪そう', '顔色がいまいち', 'ふつう', '調子よさそう', 'はつらつ'],
+  mood: ['沈んでいる', '浮かない顔', 'ふつう', '機嫌よさそう', 'ご機嫌'],
+  stress: ['のびのびしてる', '落ち着いてる', 'ふつう', 'ぴりぴりしてそう', '張りつめてる'],
+  boredom: ['夢中そう', '楽しそう', 'ふつう', '退屈そう', 'とても退屈そう'],
+  loneliness: ['満たされてそう', '落ち着いてる', 'ふつう', '寂しそう', 'とても寂しそう'],
+  shyness: ['平然としてる', 'いつもどおり', 'ほんのり赤い', '照れてる', '真っ赤'],
+};
+const LOOK_FUZZ = { stress: 18, loneliness: 18 };       // 外からは読みにくいものは, ずれが大きい
+function lookWord(p, val) {
+  const words = LOOK[p.id];
+  if (!words) return null;                                // 好感度・信頼など, 見ただけではわからない
+  // 同じ時間帯のうちは同じ印象になるよう, ずれは param と時刻 (1時間単位) で決める
+  const seed = [...(p.id + Math.floor(Date.now() / 3600000))].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const fuzz = ((seed % 1000) / 1000 - 0.5) * 2 * (LOOK_FUZZ[p.id] || 10);
+  const n = Math.max(0, Math.min(99.9, ((val + fuzz) - (p.min ?? 0)) / ((p.max ?? 100) - (p.min ?? 0)) * 100));
+  return words[Math.floor(n / 20)];
+}
+function statMode() { return S.peek ? 'exact' : (S.ui.stats || 'exact'); }
+
 function renderStatus() {
   const v = S.view;
   const groups = [['physical', 'からだ'], ['mental', 'こころ']];
   const others = S.boot.params.filter((p) => !['physical', 'mental'].includes(p.group));
+  const mode = statMode();
   const rows = (list) => list.map((p) => {
     const val = v.params[p.id] ?? 0;
+    if (mode === 'look') {
+      const w = lookWord(p, val);
+      return h('div', { class: 'prow look' }, h('span', {}, p.name), h('span', { class: w ? '' : 'muted' }, w || '？（見ただけではわからない）'));
+    }
     const pct = ((val - (p.min ?? 0)) / ((p.max ?? 100) - (p.min ?? 0))) * 100;
     const d = S.lastDeltas[p.id];
     return h('div', { class: 'prow' + (d ? ' flash' : ''), title: p.id },
@@ -1284,8 +1316,18 @@ function renderStatus() {
         h('span', {}, SKILL_NAME[k] || k),
         h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
         h('span', { class: 'pval' }, Math.floor(val))))),
-    ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, label), rows(S.boot.params.filter((p) => p.group === g)))),
-    others.length ? h('div', { class: 'pgroup' }, h('h4', {}, 'その他'), rows(others)) : '',
+    (S.ui.stats || 'exact') !== 'exact' ? h('div', { class: 'peek row' },
+      h('span', { class: 'muted small' }, S.peek ? '一時的に正確な数値を表示中' : mode === 'look' ? `${v.name}の様子（見た感じ。正確とは限りません）` : `${v.name}のステータスは隠しています`),
+      h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small', onclick: () => {
+        S.peek = !S.peek;
+        clearTimeout(S.peekTimer);
+        if (S.peek) S.peekTimer = setTimeout(() => { S.peek = false; renderStatus(); }, 60000);
+        renderStatus();
+      } }, S.peek ? '戻す' : '数値を見る（1分）')) : '',
+    ...(mode === 'hidden' ? [] : [
+      ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}の${label}`), rows(S.boot.params.filter((p) => p.group === g)))),
+      others.length ? h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}のその他`), rows(others)) : '']),
   );
   setTimeout(() => { S.lastDeltas = {}; }, 4000);
 }
@@ -1961,6 +2003,11 @@ SEC.display = () => {
     h('div', { class: 'sect' }, '会話欄の位置'),
     h('div', { class: 'row' }, radio('pos', 'bottom', '画像に重ねる（下）'), radio('pos', 'top', '画像に重ねる（上）'),
       radio('pos', 'below', '画像の下に分ける（重ならない）')),
+    h('div', { class: 'sect' }, 'キャラクターのステータス'),
+    h('div', { class: 'row' }, radio('stats', 'exact', '正確な数値'), radio('stats', 'look', '見た目でわかることだけ'), radio('stats', 'hidden', '隠す')),
+    h('p', { class: 'hint' }, '「見た目でわかることだけ」は、眠そう・お腹すいてそう のような様子だけを出します（数値は出さず、少しずれることもあります。好感度や信頼など見えないものは「？」）。どちらの場合も、ステータスタブの「数値を見る」で1分だけ正確な数値を見られます。'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.deltas !== false, onchange: (ev) => set('deltas', ev.target.checked) }),
+      'パラメータの変化（機嫌 +3 など）を会話欄とコマンドの説明に出す'),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },
       h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),

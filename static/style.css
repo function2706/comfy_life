@@ -556,3 +556,5 @@ a.btn { color: inherit; }
 .gal-back code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .gal-n { position: absolute; top: 6px; right: 6px; font-size: 11px; background: rgba(0,0,0,.65); padding: 1px 8px; border-radius: 99px; }
 .gal-item.group { box-shadow: 4px 4px 0 -1px var(--panel2), 4px 4px 0 0 var(--line); }
+.prow.look { grid-template-columns: 90px 1fr; }
+.peek { margin: 0 0 6px; }
