@@ -102,6 +102,7 @@ async function refresh() {
   renderRequest();
   renderEncounter();
   renderStreet();
+  renderOffline();
   renderCommands();
   renderDress();
   renderGames();
@@ -1110,6 +1111,38 @@ function renderEncounter() {
       h('button', { class: 'btn', onclick: () => answer(false) }, 'やめておく')));
 }
 
+/* ---- オフラインの間のまとめ: 開いたときに一度だけ. 読んだら普段に戻る. 届いたメッセージにはここから返事できる */
+function renderOffline() {
+  const rep = S.view.offline_report;
+  if (!rep || S.offlineShown === rep.to) return;
+  S.offlineShown = rep.to;
+  const t = (x, f) => new Date(x * 1000).toLocaleString('ja-JP', f || { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const hm = (x) => t(x, { hour: '2-digit', minute: '2-digit' });
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(640px,94vw);height:auto;max-height:86vh;overflow:auto' });
+  const close = async () => { dlg.close(); dlg.remove(); try { await api('/api/offline/ack', {}); } catch (e) { /* noop */ } await refresh(); };
+  dlg.append(h('div', { style: 'padding:16px' },
+    h('h3', {}, '🌙 画面を閉じていたあいだ'),
+    h('p', { class: 'muted small' }, `${t(rep.from)} 〜 ${t(rep.to)}`),
+    h('div', { class: 'pgroup' }, h('h4', {}, '仕事'),
+      rep.works.length ? rep.works.map((w) => h('div', { class: 'small' },
+        `${t(w.start)}〜${hm(w.end)}（${w.hours.toFixed(1)}時間）${yen(w.pay)}`, w.notes.length ? h('span', { class: 'muted' }, '・' + w.notes.join('・')) : ''))
+        : h('div', { class: 'muted small' }, '仕事はなし。家で静かに過ごした')),
+    h('div', { class: 'small' }, `お金 ${rep.pay >= 0 ? '+' : ''}${yen(rep.pay)}・体力 ${Math.round(rep.stamina[0])} → ${Math.round(rep.stamina[1])}`),
+    rep.meets.length ? h('div', { class: 'pgroup' }, h('h4', {}, '出会い'), rep.meets.map((m) => h('div', { class: 'small' }, m))) : '',
+    h('div', { class: 'pgroup' }, h('h4', {}, '届いたメッセージ'),
+      rep.messages.length ? rep.messages.map((m) => h('div', { class: 'row', style: 'align-items:flex-start' },
+        h('div', { style: 'flex:1' }, h('b', {}, m.name), h('span', { class: 'muted small' }, ` ${t(m.t)}`), h('div', {}, m.text),
+          m.mood < 0 ? h('div', { class: 'muted small' }, '（返事がなくて、少し気にしているかも）') : ''),
+        h('button', { class: 'btn small', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try { const r = await api('/api/approach', { answer: 'accept', character: m.cid }); toast(`${m.name}に返事をした`, 'ok'); if (r && r.entry) S.lastDeltas = r.entry.deltas || {}; }
+          catch (e) { toast(e.message, 'err'); ev.target.disabled = false; }
+        } }, '返事をする'))) : h('div', { class: 'muted small' }, 'なし')),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 /* ---- 出先でのばったり: 声をかけられた / 見かけた. 選ばないまま時間が過ぎたら, 無難な対応に落ち着く.
    あえて目立たせない (音・点滅なし. タブが裏ならタイトルに小さな印だけ) */
 function streetCard() {
@@ -1791,11 +1824,17 @@ function pickJson() {
 }
 
 /* ---- あなた (プレイヤー) */
+const DAYS = [['mon', '月'], ['tue', '火'], ['wed', '水'], ['thu', '木'], ['fri', '金'], ['sat', '土'], ['sun', '日']];
 SEC.player = () => {
   const p = SE.settings.player = SE.settings.player || {};
+  // オフライン時の過ごし方 (画面を閉じている間): 曜日ごとの勤務時間. それ以外は家で静かに過ごす
+  const off = SE.settings.offline = SE.settings.offline || {};
+  if (off.enabled === undefined) off.enabled = true;
+  off.work = off.work || {};
+  DAYS.forEach(([d], i) => { off.work[d] = Object.assign({ on: i < 5, from: '09:00', to: '18:00' }, off.work[d] || {}); });
   if (!p.name) p.name = SE.settings.player_name || '';
   return [
-    saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p } }); await reloadAll('player'); }),
+    saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p, offline: off } }); await reloadAll('player'); }),
     h('p', { class: 'lead' }, 'あなた自身の情報です（全ワールド共通）。キャラクターはこれを踏まえて反応します：セリフの {player} {player_job} {player_like} などに入り、反応の条件（player_gender・player_age・player_has_job・player_likes）で使え、LLM でセリフを作るときにも伝わります。呼ばれ方はキャラクターごと（性格プリセット）です。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(p, 'name', { ph: 'ユウ' })),
@@ -1809,6 +1848,12 @@ SEC.player = () => {
     h('div', { class: 'sect' }, '画像'),
     fld('あなたの外見（Positive）', inp(p, 'looks', { type: 'textarea', rows: 2, ph: '1boy, short black hair, hoodie' }),
       '「あなたも写る」コマンド（抱きしめる・手をつなぐ・お出かけ など）の画像に加えます。空欄なら加えません'),
+    h('div', { class: 'sect' }, 'オフライン時の過ごし方（画面を閉じているあいだ）'),
+    h('label', { class: 'check' }, inp(off, 'enabled', { type: 'checkbox' }), ' 画面を閉じているあいだも、下の予定どおりに過ごす（オフラインモード）'),
+    h('p', { class: 'hint' }, '勤務時間には仕事に出て（給料・体力・仕事スキル。体力しだいで、うまくいかない・早退・残業も）、それ以外は家で静かに過ごします（誰にも会いません）。離れているキャラからメッセージが届くこともあります。30分未満の離席は対象外です。結果は、次に開いたときにまとめて見られます。'),
+    h('div', { class: 'offline-days' }, DAYS.map(([d, label]) => h('div', { class: 'row' },
+      h('label', { class: 'check', style: 'min-width:4.5em' }, inp(off.work[d], 'on', { type: 'checkbox' }), ` ${label}曜`),
+      inp(off.work[d], 'from', { type: 'time' }), h('span', {}, '〜'), inp(off.work[d], 'to', { type: 'time' })))),
   ];
 };
 

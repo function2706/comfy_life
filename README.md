@@ -158,6 +158,15 @@ python server.py --port 9000 --no-browser
 
 設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。`data/registry/characters/` に登録し、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。どれでも登録キャラとして、ほかのワールドの出会い・顔ぶれの候補になる。
 
+### オフラインモード
+
+`core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline`（全体共通: `enabled`、曜日ごとの `work.{mon..sun}.{on,from,to}`。既定は平日 9〜18 時）どおりに過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。
+
+- 勤務時間: `work_pay`・体力・仕事スキル。体力が低いと早退しやすく、うまくいかない（給料 6〜8.5 割・叱られる）は体力と仕事スキルしだい、残業もある。職場の出会いは `street.happen` → 無難な対応で自動決着。
+- それ以外: 家で静かに（体力回復。23〜7時は睡眠の速さ）。
+- 離れているキャラ（連絡先以上）から、働きかけ（`"apart": true`）がメッセージとして届くことがある。返事の遅れで機嫌が下がる量は `absence` × (1.3 − 信頼/100)。開いてから 30 分は返事ができる。
+- 結果は `player.json` の `offline_report` に入れ、`state_view` の `offline_report` で一度だけ表示、`POST /api/offline/ack` で既読。
+
 ### 外出と偶然の出会い
 
 `core/outdoor.py`（外出・行き先・天気）と `core/street.py`（誰に会うか・段階・反応）。
@@ -327,6 +336,7 @@ tools/test_bonds.py  あなたとの間柄（連絡・外で会う・訪問・�
 core/bonds.py      あなたと各キャラの間柄・いま誰と会っているか・嫉妬
 core/encounters.py 偶然の出会いと, 知り合った人の登録
 tools/test_encounters.py  偶然の出会い・知らない人の登録のテスト
+tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
 tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト

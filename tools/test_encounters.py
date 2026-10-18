@@ -131,6 +131,7 @@ def main():
         assert w["label"] in ("晴れ", "くもり", "雨", "雪") and outdoor_mod.weather(noon) == outdoor_mod.weather(noon), "同じ日は同じ天気"
 
         # ---- 6. 画面を閉じたら (心拍が途絶えたら), 外出はその時点で終わり, 家で静かに過ごしていた
+        app.save_settings({"offline": {"enabled": False}})     # 予定どおりに過ごす分は test_offline で見る
         p = app.presence.rec()
         app.presence.declare("work", time.time() - 3 * 3600)
         p["beat"] = time.time() - 2 * 3600                 # 1 時間働いたところで閉じた

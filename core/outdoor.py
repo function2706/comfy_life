@@ -160,8 +160,13 @@ class Outdoor:
         if mode in ("out", "work"):
             res = app.come_back(at=beat, quiet=True)
             msgs.append(res.get("text") or "")
-        if not msgs:
+        # オフラインモード: 閉じていた間は, 予定 (勤務時間) に沿って過ごした
+        rep = app.offline.simulate(beat, now)
+        if not msgs and not rep:
             return None
+        if rep:
+            return {"text": "（" + "。".join(m for m in msgs if m) + ("。" if any(msgs) else "") + "画面を閉じていたあいだのことは、まとめを見てください）",
+                    "report": True}
         text = "（画面を閉じていたあいだ、%s。家で静かに過ごしていた）" % "。".join(m for m in msgs if m)
         app.solo.note("home", text.strip("（）"), beat)
         return {"text": text}
