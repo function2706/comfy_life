@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import time
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
@@ -95,29 +96,61 @@ def main():
         assert len(app.encounters.candidates()) == 1, "このワールドにいる人は候補にしない"
         print("stranger from other world: OK")
 
-        # ---- 5. 仕事帰り・一人で出かけた帰り・お出かけの帰りに起きる
-        app.world["encounters"] = {"rate_work": 50, "rate_out": 50, "rate_outing": 50, "max_chance": 1, "stranger_share": 0}
+        # ---- 5. 出会いは外出中に (心拍のたび). 帰ったときには判定しない
+        from core import outdoor as outdoor_mod
+        O = app.outdoor
+        app.world["encounters"] = {"stranger_share": 0}
         app.presence.declare("work", time.time() - 3 * 3600)
-        r = app.come_back()
-        assert r.get("encounter") and r["encounter"]["kind"] == "bump", r.get("encounter")
-        app.presence.declare("out", time.time() - 3600)
-        assert app.come_back().get("encounter")
-        app.world["encounters"]["rate_work"] = 0
+        assert "encounter" not in app.come_back()
+        app.solo.start("walk", place="park")
+        assert O.current()["place"] == "park" and O.view()["current"]["label"] == "公園"
+        app.world["outdoor"] = {"rate_out": 0}
+        app.presence.rec()["enc_check"] = time.time() - 600
+        assert O.live() is None, "起きやすさ 0 なら会わない"
+        app.world["outdoor"] = {"rate_out": 1e6}
+        app.presence.rec()["enc_check"] = time.time() - 600
+        r = O.live()
+        assert r and r["kind"] == "bump" and O.view()["current"]["log"], r
+        app.presence.back()
+        assert O.live() is None, "家にいれば会わない"
+        # 起きやすさ: 行き先の人の多さ (時間帯) x 天気. 仕事・誰かとのお出かけは低め
+        app.world["outdoor"] = {}
+        noon = datetime.now().replace(hour=13)
+        cur = lambda k, pl: {"kind": k, "place": pl, "with": None}  # noqa: E731
+        real_w = outdoor_mod.weather
+        outdoor_mod.weather = lambda dt: dict(real_w(dt), outdoor=1.0, indoor=1.0)
+        sunny = O.rate(cur("out", "shopping_street"), noon)
+        assert sunny > O.rate(cur("out", "riverside"), noon) and sunny > O.rate(cur("outing", "shopping_street"), noon)
+        outdoor_mod.weather = lambda dt: dict(real_w(dt), outdoor=0.35, indoor=0.85)
+        assert O.rate(cur("out", "shopping_street"), noon) < sunny * 0.5, "雨の屋外は人が少ない"
+        assert O.rate(cur("out", "station"), noon) > O.rate(cur("out", "park"), noon), "雨でも屋内は減りにくい"
+        outdoor_mod.weather = real_w
+        assert outdoor_mod.PLACES["riverside"]["crowd"]["night"] < outdoor_mod.PLACES["shopping_street"]["crowd"]["noon"]
+        w = O.view()["weather"]
+        assert w["label"] in ("晴れ", "くもり", "雨", "雪") and outdoor_mod.weather(noon) == outdoor_mod.weather(noon), "同じ日は同じ天気"
+
+        # ---- 6. 画面を閉じたら (心拍が途絶えたら), 外出はその時点で終わり, 家で静かに過ごしていた
+        p = app.presence.rec()
         app.presence.declare("work", time.time() - 3 * 3600)
-        assert app.come_back().get("encounter") is None
-        # お出かけ (同居相手と) の帰り
-        app.switch_world(w1)
-        app.world["encounters"] = {"rate_outing": 50, "max_chance": 1, "stranger_share": 1}
+        p["beat"] = time.time() - 2 * 3600                 # 1 時間働いたところで閉じた
+        n0 = len(app.log(app.settings["active_character"]))
+        m0 = app.life.player_state()["money"]
+        g = O.check_gap()
+        assert g and "家で静かに" in g["text"] and p["mode"] == "none", g
+        assert 0 < app.life.player_state()["money"] - m0 < 3 * 1200 * 1.5, "給料は最後の心拍まで"
+        assert len(app.log(app.settings["active_character"])) == n0, "「おかえり」は出さない"
+        assert O.check_gap() is None
+        app.switch_world(w1)                               # 同居相手とのお出かけも, そのまま解散
         st = app.state("hina")
         st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": 9e12}
         app.set_params({"energy": 80, "sleepiness": 0, "mood": 70, "affection": 60, "health": 90})
         app.act("cafe")
-        st["override"]["until"] -= 30 * 60          # 30 分たった
-        r = app.act("go_home")
-        assert r.get("encounter") and r["encounter"]["kind"] == "stranger", r.get("encounter")
-        assert app.state_view()["encounter"]["with"] == "ひな"
-        reg = app.answer_encounter(True)["registered"]
-        assert app.relation("hina", reg["id"])["knows"], "一緒にいた人とは知り合い"
+        assert O.current()["kind"] == "outing" and O.current()["place"] == "cafe"
+        assert "encounter" not in app.act("go_home")
+        st["cooldowns"] = {}
+        app.act("cafe")
+        app.presence.rec()["beat"] = time.time() - 3600
+        assert "解散" in O.check_gap()["text"] and not st.get("override") and O.current() is None
         # 返事をしないまま日がたつと消える
         app.encounters.happen("out", stranger=True)
         app.life.player_state()["encounter"]["t"] -= 100 * 3600

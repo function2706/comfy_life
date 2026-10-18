@@ -86,7 +86,7 @@ def route(method, path, q, body):
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid)
         if path == "/api/solo/start":
-            return a.solo.start(b["kind"], b.get("skill"))
+            return a.solo.start(b["kind"], b.get("skill"), b.get("place"))
         if path == "/api/diary/write":
             return {"diary": a.solo.write_diary()}
         if path == "/api/encounter/force":

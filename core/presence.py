@@ -95,6 +95,8 @@ class Presence:
         p["mode"], p["since"] = mode, now
         p["input"] = now
         p.pop("solo", None)          # 一人の時間の中身は, solo.start がこのあと入れる
+        p.pop("place", None)         # 外出の行き先も (solo.start で)
+        p["street_log"], p["enc_check"] = [], now
         self.save()
 
     def back(self, now=None):

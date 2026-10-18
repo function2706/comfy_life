@@ -81,15 +81,25 @@ class Solo:
             ctx["outing"] = False     # 相手の外出は関係ない (あなたの予定)
         return cond.check(a.get("when", ""), ctx)
 
-    def start(self, kind, skill=None):
+    def _place(self, kind, place):
+        from .outdoor import CHOICES
+        ch = CHOICES.get(kind)
+        if not ch:
+            return None
+        if place not in ch:
+            raise ValueError("行き先を選んでください")
+        return place
+
+    def start(self, kind, skill=None, place=None):
         app = self.app
         if kind in PLAIN:
-            return self.start_plain(kind)
+            return self.start_plain(kind, place)
         k = KINDS.get(kind)
         if not k:
             raise ValueError("一人でできることではありません: %s" % kind)
         if kind == "practice" and skill not in SKILL_LABEL:
             raise ValueError("何を練習するか選んでください")
+        place = self._place(kind, place)
         p = app.presence.rec()
         if p.get("mode") not in ("none",) and app.presence.at(time.time()) not in ("here", "idle"):
             raise ValueError("いまは始められません（%s）" % app.presence.view(time.time())["label"])
@@ -106,21 +116,31 @@ class Solo:
             app.presence.declare(k["mode"], now)
         p = app.presence.rec()
         p["solo"] = {"kind": kind, "skill": skill, "t": now}
+        if place:
+            p["place"] = place
         app.presence.save()
         self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", "")), now)
         return {"started": kind, "label": k["doing"], "act": res}
 
-    def start_plain(self, kind):
+    def start_plain(self, kind, place=None):
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
         app = self.app
         k = PLAIN[kind]
+        place = self._place(kind, place)
         cid = self.near()
         if cid:
-            return {"started": kind, "label": k["label"], "act": app.act(k["go"], cid)}
+            r = app.act(k["go"], cid)
+            if place and app.presence.rec().get("mode") == "out":
+                app.presence.rec()["place"] = place
+                app.presence.save()
+            return {"started": kind, "label": k["label"], "act": r}
         if not self._plain_ok(k["go"], None):
             raise ValueError("いまは「%s」できません（%s）" % (k["label"], app.action(k["go"]).get("when", "")))
         now = time.time()
         app.presence.declare(k["mode"], now)
+        if place:
+            app.presence.rec()["place"] = place
+            app.presence.save()
         self.note(kind, k["text"], now)
         return {"started": kind, "label": k["label"], "act": None}
 

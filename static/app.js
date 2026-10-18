@@ -93,6 +93,8 @@ async function refresh() {
     return;
   }
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
+  if (S.view.gap) toast(S.view.gap.text, 'ok');
+  if (S.view.street) toast(S.view.street.text, 'ok');
   for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   renderWho();
   renderAway();
@@ -169,6 +171,8 @@ function renderWho() {
   }
   sel.value = v.character;
   $('#phase-chip').textContent = v.phase.label || '—';
+  const wx = (v.outdoor || {}).weather;
+  $('#weather-chip').textContent = wx ? `${wx.icon} ${wx.label}` : '';
   // 誰と暮らしているか・いまそばに誰がいるか (いなければ, そうはっきり書く)
   const nm = (id) => (S.boot.characters.find((x) => x.id === id) || {}).name || '';
   const liv = v.bond && v.bond.living;
@@ -224,7 +228,9 @@ function renderSolo(soloActs) {
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'practice'
     ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderCommands(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
-    : btn(k.icon, k.label, () => soloStart(k.id), k.mode === 'out' ? '出かけて、戻るまで（偶然の出会いが起こることも）' : '家で、戻るまで'));
+    : (OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderCommands(); },
+      '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
+      : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで')));
   // 誰かと一緒にいるときは畳んでおく (開け閉めは覚える)
   const open = S.soloOpen ?? !(v.bond && v.bond.mode);
   const head = h('div', { class: 'with-head', style: 'cursor:pointer', title: '開く／畳む',
@@ -239,18 +245,22 @@ function renderSolo(soloActs) {
         h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
       // 作業する・出かける・仕事・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
       ...(so.plain || []).map((p) => h('button', { class: 'cmd', disabled: !free || !p.ok || S.busy,
-        title: so.near ? `${so.near.name}に告げてから` : '告げる相手はいない（一人で）', onclick: () => soloStart(p.id) },
+        title: so.near ? `${so.near.name}に告げてから` : '告げる相手はいない（一人で）', onclick: () => (OD_CHOICES()[p.id] ? (S.placeFor = S.placeFor === p.id ? null : p.id, renderCommands()) : soloStart(p.id)) },
         h('span', { class: 'ic' }, p.icon), h('span', {}, p.label))),
       ...soloActs.filter((a) => !isPlainGo(a)).map(cmdButton)),
+    S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
+      h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（人の多さは時間帯と天気しだい）'),
+      OD_CHOICES()[S.placeFor].map((pl) => { const P = (S.view.outdoor.places || {})[pl] || {}; return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }); })) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
 }
 
-async function soloStart(kind, skill) {
+const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) || {};
+async function soloStart(kind, skill, place) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const r = await api('/api/solo/start', { kind, skill });
+    const r = await api('/api/solo/start', { kind, skill, place });
     if (r.act) handleActResult(r.act); else toast(`${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
@@ -1117,14 +1127,18 @@ function renderAway() {
   box.replaceChildren(h('div', { class: 'away-card' },
     h('div', { class: 'away-ic' }, a[0]),
     h('div', { class: 'away-title' }, p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
+    (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
+      return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
+    (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
+      c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),
     h('div', { class: 'muted' }, `${fmtDur(since)}経過`),
     p.work ? h('div', { class: 'away-pay' }, p.work.raw < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
       : `ここで帰ると ${yen(p.work.pay)}（給料の出る ${p.work.hours.toFixed(1)}時間分）`) : '',
     p.work ? h('div', { class: 'muted small' }, '給料が出るのは 6〜23時、1日合計9時間まで。働いた時間ぶん体力が減ります') : '',
     h('p', { class: 'muted small' }, S.view.bond && S.view.bond.mode ? `${name}のそばを離れています。このまま画面を閉じてもかまいません。`
       : '一人で過ごしています。このまま画面を閉じてもかまいません。',
-      h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' :
-        '開き直すか「' + a[2] + '」で戻ります。'),
+      h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' : '「' + a[2] + '」で戻ります。',
+      ['out', 'work'].includes(p.mode) ? h('span', {}, h('br'), '画面を閉じると、その時点で切り上げて家に帰ります（家では誰にも会いません。給料もそこまで）。') : ''),
     h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
 }
 

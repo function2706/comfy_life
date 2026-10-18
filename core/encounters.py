@@ -63,6 +63,15 @@ class Encounters:
             return None
         return self.happen(kind, with_cid, where, now)
 
+    def happen_at(self, cur, now=None):
+        """外出中 (outdoor.live) に起きた出会い. cur: {kind, place, with}."""
+        from .outdoor import PLACES
+        where = (PLACES.get(cur["place"]) or PLACES["town"])["label"]
+        r = self.happen(cur["kind"], cur.get("with"), where, now)
+        if r:
+            self.app.outdoor.note(r["text"].strip("（）"), now)
+        return r
+
     def happen(self, kind, with_cid=None, where=None, now=None, stranger=None):
         now = now or time.time()
         where = where or WHERE.get(kind) or "出かけた先"

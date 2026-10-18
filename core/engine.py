@@ -21,6 +21,7 @@ from datetime import datetime
 from . import bonds as bonds_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
+from . import outdoor as outdoor_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -108,6 +109,7 @@ class App:
         self.bonds = bonds_mod.Bonds(self)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
+        self.outdoor = outdoor_mod.Outdoor(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -680,11 +682,7 @@ class App:
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
                 ov["from_action"] = aid
                 st["override"] = ov
-            outing_h = 0.0
             if a.get("end_override") and not r.get("override"):
-                ov0 = st.get("override") or {}
-                if ov0.get("outing"):      # お出かけから帰る: 出かけていた時間 (偶然の出会いの起きやすさ)
-                    outing_h = max(0.0, now - (float(ov0.get("until", now)) - float(ov0.get("minutes", 30)) * 60)) / 3600.0
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
@@ -762,10 +760,7 @@ class App:
             if self.settings.get("auto_generate") and gen_ok:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
-        out = {"entry": entry, "job": job, "llm_error": llm_error}
-        if outing_h:
-            out["encounter"] = self.encounters.roll("outing", outing_h, cid, scene["location"] or None, now)
-        return out
+        return {"entry": entry, "job": job, "llm_error": llm_error}
 
     def _send_later(self, char, st, a, now, dt, scene, ctx):
         """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す."""
@@ -1226,12 +1221,15 @@ class App:
     # ------------------------------------------------------------------ views
     def state_view(self, cid=None, beat=False, idle=None):
         replies = self.deliver_due()
+        # 画面を閉じていた (心拍が途絶えた) なら, 外出はその時点で終わっていた: 家で静かに過ごしていた
+        gap = self.outdoor.check_gap() if beat else None
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
             self.tick(cid)                  # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
+            street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
             st = self.state(cid)
             now = time.time()
             if beat and cid == self.settings.get("active_character") and self.presence.live(char, st, now):
@@ -1256,7 +1254,7 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
-                "solo": self.solo.view(), "replies": replies,
+                "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street,
                 "pending_msg": bool(st.get("msg_pending")),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),
@@ -1275,29 +1273,33 @@ class App:
                 "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in char.get("wardrobe") or []}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
-    def come_back(self, cid=None):
-        """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る."""
+    def come_back(self, cid=None, at=None, quiet=False):
+        """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る.
+        at: 戻った時刻 (心拍が途絶えていたときは最後の心拍). quiet: 誰の反応もなく, 結果だけ (画面を閉じていたとき).
+        偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない."""
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
-            ll = self.presence.back()
+            ll = self.presence.back(at)
             if not ll:
                 raise ValueError("いまは離れていません")
             if ll["mode"] != "work":
                 solo = self.solo.finish(ll)          # 一人の時間 (休む・家事・研鑽・散歩・買い物) の結果
+                if quiet:
+                    return {"text": ((solo or {}).get("text") or "").strip("（）") or "出かけ先から帰った", "solo": solo}
                 r = self.act("_back", char["id"])
                 r["solo"] = solo
-                if ll["mode"] == "out":     # 一人で出かけていた: 偶然の出会い (補正はしない)
-                    r["encounter"] = self.encounters.roll("out", ll["h"])
                 return r
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
             mv = self.life.move(st, dp=pay) if pay else {}
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
+            if quiet:
+                self.save_state(char["id"])
+                return {"text": "仕事を終えて帰った（%s円）" % format(pay, ","), "pay": pay}
         r = self.act("work", char["id"], opts={"money": mv, "extra": {"amount": format(pay, ",")},
                                                "ctx": {"work_h": round(raw, 2), "paid_h": round(h, 2), "pay": pay},
                                                "skill": {"work": gain}})
-        r["encounter"] = self.encounters.roll("work", raw)        # 仕事中の出会い
         return r
 
     def answer_encounter(self, yes):

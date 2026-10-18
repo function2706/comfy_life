@@ -44,7 +44,7 @@ def main():
         assert r["act"] and r["act"]["entry"]["action"] == "go_busy", r
         assert app.presence.rec()["mode"] == "busy" and app.state_view()["presence"]["solo"]["kind"] == "rest"
         try:
-            S.start("walk")
+            S.start("walk", place="park")
             raise AssertionError("一人の時間の最中に, 別のことを始められてしまう")
         except ValueError:
             pass
@@ -89,17 +89,19 @@ def main():
         S, L = app.solo, app.life
         cid = app.settings["active_character"]
         assert not app.bonds.together(cid)
-        r = S.start("walk")
+        r = S.start("walk", place="park")
         assert r["act"] is None and app.presence.rec()["mode"] == "out"
         r = back_after(app, 1)
-        assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" in r
+        assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
         m0 = L.player_state()["money"]
-        S.start("shopping")
+        S.start("shopping", place="shopping_street")
         r = back_after(app, 1)
         assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0, r["solo"]
-        app.world["encounters"] = {"rate_out": 0}
-        S.start("walk")
-        assert back_after(app, 3)["encounter"] is None, "起きやすさ 0 なら会わない"
+        try:
+            S.start("walk")
+            raise AssertionError("行き先を選ばずに散歩に出られる")
+        except ValueError:
+            pass
         print("walk / shopping: OK")
 
         # 告げる相手がいない: 「ちょっと作業するね」ではなく, 一人で「作業する」「出かける」
@@ -109,13 +111,13 @@ def main():
         assert r["act"] is None and app.presence.rec()["mode"] == "busy"
         app.come_back()
         app.world["encounters"] = {"rate_out": 0}
-        assert S.start("out")["act"] is None and app.presence.rec()["mode"] == "out"
+        assert S.start("out", place="station")["act"] is None and app.presence.rec()["mode"] == "out"
         app.come_back()
         print("plain (alone): OK")
 
         # ---- 4. 日記: その日の出来事から (LLM が無ければ定型)
         d = S.write_diary()
-        assert d["src"] == "template" and d["text"].startswith("今日は一人で過ごした") and "散歩" in d["text"], d["text"]
+        assert d["src"] == "template" and d["text"].startswith("今日は一人で過ごした") and "買い物" in d["text"], d["text"]
         d2 = S.write_diary()
         assert len(S.diary_list()) == 1 and d2["day"] == d["day"], "同じ日は書き直し"
         assert app.state_view()["solo"]["diary_today"]
