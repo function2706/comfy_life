@@ -524,7 +524,7 @@ class App:
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
             out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx) and not (a.get("home_only") and ctx["outing"])
-                            and (not ctx["apart"] or self.bonds.allowed_apart(a)),
+                            and (not ctx["apart"] or self.bonds.allowed_apart(a, char["id"])),
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
@@ -549,7 +549,9 @@ class App:
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
-            if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a):
+            if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
+                if self.bonds.stage(cid) == "known":
+                    raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
                 raise ValueError("いまは%sと一緒にいません（連絡するか、会いに行きましょう）" % char.get("name", ""))
             ctx.update(opts.get("ctx") or {})
             outfit = None
@@ -1380,13 +1382,21 @@ class App:
             if copy_from and copy_from not in [w["id"] for w in meta["worlds"]]:
                 raise KeyError("ワールドが見つかりません: %s" % copy_from)
             wid = "w" + uuid.uuid4().hex[:8]
-            store.init_world(wid, copy_from)
+            start = None
+            if copy_from:
+                store.init_world(wid, copy_from)
+            else:
+                # 登録済みのキャラ (どのワールドで作ったかを問わない) から, くじで連絡先を知っている人・知り合いを決める
+                chars, start = self.encounters.start_cast()
+                store.init_world(wid, chars=chars)
             if copy_from:
                 rel = store.load(store.dpath("worlds", copy_from, "relations.json"))
                 if rel:
                     store.save(store.dpath("worlds", wid, "relations.json"), rel)
             # 新しいワールドでは, あなたは最初だれとも暮らしていない (登録したキャラとは連絡先を知っている仲)
             meta["worlds"].append({"id": wid, "name": (name or "").strip() or "新しいワールド", "created": time.time(), "alone": True})
+            if start is not None:
+                meta["worlds"][-1]["start_bonds"] = start
             store.save_worlds(meta)
             if switch:
                 self.switch_world(wid)

@@ -102,8 +102,9 @@ def bootstrap():
     init_world(WORLD)
 
 
-def init_world(wid, copy_from=None):
-    """ワールドのフォルダを用意する. 定義類とキャラは copy_from のワールド (無ければ defaults/) から複製."""
+def init_world(wid, copy_from=None, chars=None):
+    """ワールドのフォルダを用意する. 定義類とキャラは copy_from のワールド (無ければ defaults/) から複製.
+    chars を渡せば, キャラはそれ (キャラ定義のリスト) にする."""
     wdir = dpath("worlds", wid)
     src = dpath("worlds", copy_from) if copy_from else DEFAULTS
     for d in ("characters", "state", "log"):
@@ -115,6 +116,9 @@ def init_world(wid, copy_from=None):
     if copy_from and not os.path.exists(os.path.join(wdir, "local.json")):
         loc = {k: v for k, v in (load(os.path.join(src, "local.json"), {}) or {}).items() if k.startswith("seen_")}
         save(os.path.join(wdir, "local.json"), loc)
+    if chars:
+        for c in chars:
+            save(os.path.join(wdir, "characters", c["id"] + ".json"), c)
     if not glob.glob(os.path.join(wdir, "characters", "*.json")):
         for f in glob.glob(os.path.join(src, "characters", "*.json")):
             shutil.copy(f, os.path.join(wdir, "characters"))

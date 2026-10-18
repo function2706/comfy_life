@@ -152,7 +152,7 @@ function moodFace(p) {
   return '😢';
 }
 
-const BOND_IC = { contact: '📱', visit: '🔑', live: '🏠' };
+const BOND_IC = { known: '👤', contact: '📱', visit: '🔑', live: '🏠' };
 function renderWho() {
   const v = S.view;
   for (const o of $('#char-select').options) {   // キャラ切替に, あなたとの間柄を添える
@@ -2332,7 +2332,7 @@ SEC.data = () => {
 function worldManager() {
   const W = S.boot.worlds;
   const nameEl = h('input', { placeholder: '新しいワールドの名前' });
-  const fromEl = h('select', {}, h('option', { value: '' }, '既定のキャラ・設定から始める'),
+  const fromEl = h('select', {}, h('option', { value: '' }, '登録済みのキャラから始める（間柄はくじ）'),
     W.worlds.map((w) => h('option', { value: w.id }, `「${w.name}」のキャラ・コマンドなどを複製`)));
   return h('div', {},
     h('p', { class: 'hint' }, 'ワールドごとにキャラ・状態・ログ・お金・スキル・在席・コマンドなどの定義が別になります（同じキャラでもワールドが違えば無関係）。'

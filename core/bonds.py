@@ -1,6 +1,7 @@
 """あなたと各キャラの間柄 (data/worlds/<id>/player.json の bonds / with).
 
 段階 (stage):
+- known:   知り合い. 顔は知っているが連絡先は知らない (連絡も誘いもできない. 偶然会えば連絡先を交換する)
 - contact: 連絡先を知っている. メッセージ・電話・お出かけに誘える (外で会う)
 - visit:   家に遊びに行ける (「今度、家に行ってもいい？」を受けてもらった)
 - live:    一緒に暮らしている (一人だけ. 「一緒に住まない？」を受けてもらった)
@@ -19,8 +20,8 @@ import time
 
 from . import store
 
-STAGES = ("contact", "visit", "live")
-STAGE_LABEL = {"contact": "連絡先", "visit": "家に行ける仲", "live": "同居"}
+STAGES = ("known", "contact", "visit", "live")
+STAGE_LABEL = {"known": "知り合い", "contact": "連絡先", "visit": "家に行ける仲", "live": "同居"}
 # 一緒にいないときでもできるコマンドの分類 (個別には action の "apart": true / false で指定)
 APART_CATEGORIES = ("連絡", "会う", "あなたの予定")
 # 離れている相手のときの「あなたの予定」などの記録 (相手は見送りも出迎えもしない)
@@ -47,7 +48,10 @@ class Bonds:
             # 以前からのワールドは, 選んでいたキャラと暮らしている. 新しく作ったワールドは誰とも暮らしていない
             meta = next((w for w in store.load_worlds().get("worlds") or [] if w["id"] == store.WORLD), {})
             cur = self.app.settings.get("active_character")
-            ps["bonds"] = {} if meta.get("alone") or not cur else {cur: {"stage": "live", "t": time.time()}}
+            if meta.get("alone"):       # 作ったときにくじで決めた間柄 (無ければ, 全員「連絡先」)
+                ps["bonds"] = {cid: {"stage": s, "t": time.time()} for cid, s in (meta.get("start_bonds") or {}).items()}
+            else:
+                ps["bonds"] = {cur: {"stage": "live", "t": time.time()}} if cur else {}
             ps.setdefault("with", None)
             self.app.life.save_player()
         ps.setdefault("with", None)
@@ -137,7 +141,7 @@ class Bonds:
     # ------------------------------------------------------------------ 条件・表示
     def deep(self, cid):
         """あなたと深い仲か (家に行ける以上, または好感度が高い)."""
-        if self.stage(cid) != "contact":
+        if self.stage(cid) in ("visit", "live"):
             return True
         st = self.app.state(cid)
         return st["params"].get("affection", 0) >= float(self.cfg()["deep_affection"])
@@ -154,7 +158,10 @@ class Bonds:
                 "living_other": bool(live and live != cid), "rivals": len(rv),
                 "rivals_known": sum(1 for o in rv if o in known)}
 
-    def allowed_apart(self, a):
+    def allowed_apart(self, a, cid=None):
+        if cid and self.stage(cid) == "known":     # 連絡先を知らない: 連絡も誘いもできない
+            if a.get("category") in ("連絡", "会う") or (a.get("override") or {}).get("outing"):
+                return False
         if "apart" in a:
             return bool(a["apart"])
         return a.get("category") in APART_CATEGORIES or bool((a.get("override") or {}).get("outing") and a.get("home_only"))

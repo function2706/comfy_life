@@ -147,6 +147,8 @@ class Presence:
         ctx = self.app.context(char, st, d, scene)
         if not ctx["free"]:
             return None
+        if ctx.get("apart") and ctx.get("stage") == "known":    # 連絡先を知らない相手からは来ない
+            return None
         if ctx.get("apart"):         # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
             rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx)
         elif pres in ("out", "work"):

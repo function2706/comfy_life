@@ -52,7 +52,9 @@ def main():
         print("invest:", r["entry"]["text"], r["entry"].get("money"))
         assert "idx" not in L.player_state()["market"]["holdings"] and r["entry"]["money"]["p"] > 0
 
-        # ---- お出かけの支払い方針
+        # ---- お出かけの支払い方針 (カフェは夜には行けないので, 時間帯を昼にしておく)
+        phase_at = app.phase_at
+        app.phase_at = lambda dt: {"id": "noon", "label": "昼", "pos": "", "neg": ""}
         for pol in ("me", "split", "her"):
             char["pay_policy"] = pol
             m0, h0 = me(), her()
@@ -61,6 +63,7 @@ def main():
             r = app.act("cafe")
             print("cafe (%s): あなた %+d / %s %+d | %s" % (pol, me() - m0, char["name"], her() - h0, r["entry"]["text"]))
             assert {"me": (-2000, 0), "split": (-1000, -1000), "her": (0, -2000)}[pol] == (me() - m0, her() - h0)
+        app.phase_at = phase_at
         L.player_state()["money"], L.her_money(st)["a"] = 100, 100
         free()
         st["cooldowns"] = {}

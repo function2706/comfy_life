@@ -12,6 +12,9 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
 
+# 時間帯を昼に固定する (お出かけのコマンドは時間帯で出たり出なかったりするので, 実行する時刻に左右されないように)
+engine.App.phase_at = lambda self, dt: {"id": "noon", "label": "昼", "pos": "", "neg": ""}
+
 
 def main():
     random.seed(11)
@@ -48,22 +51,50 @@ def main():
         assert "カフェ" in app.log(nid)[-1]["text"]
         print("bump: OK", r["text"])
 
-        # ---- 3. 別のワールドでは, ワールド1で登録した人が「知らない人」の候補になる
+        # ---- 3. 新しいワールドの顔ぶれ: 登録済みの全員 (どのワールドで・手動でもくじでも) から, くじで連絡先/知り合い/まだ知らない
+        man = app.new_character("ゆかり")                 # 手動で作った人も対象
+        app.select_character("hina")
+        pool = sorted(c["name"] for _, c in E.registered(include_defaults=True))
+        assert pool == sorted(["ひな", res["registered"]["name"], "ゆかり"]), pool
+        app.world["encounters"] = {"start_contact": 1, "start_known": 0}
+        app.create_world("全員連絡先")
+        assert sorted(c["name"] for c in app.chars.values()) == pool, "全員そろう"
+        assert all(app.bonds.stage(c) == "contact" for c in app.chars), app.bonds.rec()
+        assert all(app.log(c) == [] and app.state(c)["params"]["affection"] == 40 for c in app.chars), "状態・ログは一から"
+        assert not any(app.relations.get(c) for c in app.chars), "関係も一から"
+        app.switch_world(w1)
+        app.world["encounters"] = {"start_contact": 0, "start_known": 1}
+        app.create_world("知り合い")
+        st_ = [app.bonds.stage(c) for c in app.chars]
+        assert len(st_) == 3 and st_.count("contact") == 1 and st_.count("known") == 2, "最低一人は連絡先を知っている"
+        kid = next(c for c in app.chars if app.bonds.stage(c) == "known")
+        app.select_character(kid)
+        av = app.state_view(kid)["available"]
+        assert not av["message"]["ok"] and not av["call"]["ok"] and not av["cafe"]["ok"], "知り合いには連絡も誘いもできない"
+        r = app.encounters.bump(kid, "out", None, "街", time.time())
+        assert r["exchanged"] and app.bonds.stage(kid) == "contact" and "連絡先を交換" in r["text"]
+        assert app.state_view(kid)["available"]["message"]["ok"]
+        print("new world cast: OK")
+
+        # ---- 4. まだ知らない人は「知らない人」の候補になる (ほかのワールドで登録済みの人)
+        app.switch_world(w1)
+        app.world["encounters"] = {"start_contact": 0, "start_known": 0}
         app.create_world("B")
-        cands = [c["name"] for _, c in app.encounters.candidates()]
-        assert cands == [app.encounters.candidates()[0][1]["name"]] and res["registered"]["name"] in cands, cands
+        assert len(app.chars) == 1
+        cands = sorted(c["name"] for _, c in app.encounters.candidates())
+        assert len(cands) == 2 and next(iter(app.chars.values()))["name"] not in cands, cands
         r = app.encounters.happen("work", stranger=True)
-        assert r["kind"] == "stranger" and r["name"] == res["registered"]["name"] and r["where"] == "職場"
+        assert r["kind"] == "stranger" and r["name"] in cands and r["where"] == "職場"
         assert app.state_view()["encounter"]["from_world"]
         app.answer_encounter(False)
         assert len(app.chars) == 1 and app.encounters.pending() is None, "断れば登録しない"
         r = app.encounters.happen("work", stranger=True)
         reg = app.answer_encounter(True)["registered"]
-        assert app.chars[reg["id"]]["met"]["src"] == {"type": "world", "world": w1}
-        assert not app.encounters.candidates(), "このワールドにいる人は候補にしない"
+        assert app.chars[reg["id"]]["met"]["src"]["type"] == "world"
+        assert len(app.encounters.candidates()) == 1, "このワールドにいる人は候補にしない"
         print("stranger from other world: OK")
 
-        # ---- 4. 仕事帰り・一人で出かけた帰り・お出かけの帰りに起きる
+        # ---- 5. 仕事帰り・一人で出かけた帰り・お出かけの帰りに起きる
         app.world["encounters"] = {"rate_work": 50, "rate_out": 50, "rate_outing": 50, "max_chance": 1, "stranger_share": 0}
         app.presence.declare("work", time.time() - 3 * 3600)
         r = app.come_back()
