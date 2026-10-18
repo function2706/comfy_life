@@ -149,6 +149,29 @@ def _same_def(a, b):
     return obj_hash(strip(a)) == obj_hash(strip(b))
 
 
+MIGRATED_MARK = "_migrated.txt"
+
+
+def _retire(d):
+    """移行が済んだ古いフォルダを .migrated に改名して残す. Windows でフォルダが使用中 (エクスプローラーで開いている,
+    ウイルス対策・同期ソフトが掴んでいる など) で改名できなければ, 中に「移行済み」の印を置いてそのまま残す."""
+    for i in range(5):
+        try:
+            os.replace(d, d + ".migrated")
+            return
+        except OSError:
+            time.sleep(0.3)
+    try:
+        with open(os.path.join(d, MIGRATED_MARK), "w", encoding="utf-8") as f:
+            f.write("このフォルダは移行済みです (使われません). 削除してかまいません.")
+    except OSError:
+        pass
+
+
+def _done(d):
+    return not os.path.isdir(d) or os.path.exists(os.path.join(d, MIGRATED_MARK))
+
+
 def migrate_characters(meta):
     """以前の形式 (ワールドごとに characters/ を持つ, 登録だけの registry/characters/) を, 全体の定義 + 顔ぶれへ移す.
     同じ id で中身が違うものは, 別のキャラとして新しい id を振り, そのワールドの記録の参照も付け替える."""
@@ -156,7 +179,7 @@ def migrate_characters(meta):
     for w in meta.get("worlds") or []:
         wdir = dpath("worlds", w["id"])
         cdir = os.path.join(wdir, "characters")
-        if not os.path.isdir(cdir):
+        if _done(cdir):
             continue
         cast = load(os.path.join(wdir, "cast.json"), []) or []
         rename = {}
@@ -167,7 +190,10 @@ def migrate_characters(meta):
             cid = c["id"]
             g = load(dpath("characters", cid + ".json"))
             if g is not None and not _same_def(g, c):
-                new = "c" + uuid.uuid4().hex[:8]
+                # 前回の移行が途中で止まっていた場合に二重に作らないよう, 同じ中身の定義が既にあればそれを使う
+                same = next((x for x in (load(f2) for f2 in glob.glob(dpath("characters", "*.json")))
+                             if x and x.get("id") != cid and _same_def(x, dict(c, id=x.get("id")))), None)
+                new = same["id"] if same else "c" + uuid.uuid4().hex[:8]
                 rename[cid] = new
                 c["id"] = cid = new
             if g is None or cid != (g or {}).get("id"):
@@ -177,9 +203,9 @@ def migrate_characters(meta):
         save(os.path.join(wdir, "cast.json"), cast)
         if rename:
             _rename_refs(w["id"], rename, meta)
-        os.replace(cdir, cdir + ".migrated")       # 念のため残す (使わない)
+        _retire(cdir)                               # 念のため残す (使わない)
     rdir = dpath("registry", "characters")
-    if os.path.isdir(rdir):
+    if not _done(rdir):
         for f in sorted(glob.glob(os.path.join(rdir, "*.json"))):
             c = load(f)
             if not c or not c.get("id"):
@@ -189,7 +215,7 @@ def migrate_characters(meta):
                 c["id"] = "c" + uuid.uuid4().hex[:8]
             if g is None or not _same_def(g, c):
                 save(dpath("characters", c["id"] + ".json"), c)
-        os.replace(rdir, rdir + ".migrated")
+        _retire(rdir)
     save(dpath("worlds.json"), meta)
 
 
