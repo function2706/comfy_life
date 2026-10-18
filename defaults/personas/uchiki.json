@@ -6,6 +6,23 @@
  "player_call": "{player}さん",
  "first_person": "私",
  "first_person_stutter": "わ、私",
+ "traits": {
+  "desc": "照れやすく、傷つきやすい。自分からはなかなか来られないが、寂しがり",
+  "rate": {
+   "loneliness": 1.2
+  },
+  "gain": {
+   "shyness": 1.5,
+   "affection": 1.1,
+   "trust": 0.85
+  },
+  "hurt": {
+   "mood": 1.3,
+   "stress": 1.2
+  },
+  "approach": 0.5,
+  "absence": 1.3
+ },
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、胸の前で小さく手を振った）",
@@ -1480,6 +1497,12 @@
   ],
   "ap.good_news.ignore": [
    "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "あ……{call}……。きゅ、急にいなくなるから……どうしたのかと……。"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……ま、丸一日……何も言わずに……。{fp_st}、すごく、心配しました……"
   ]
  }
 }

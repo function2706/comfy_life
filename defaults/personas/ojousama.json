@@ -5,6 +5,21 @@
  "persona": "一人称は「わたくし」、プレイヤーを「{player}さん」と呼ぶ。「〜ですわ」「〜ですの」「〜かしら」「よろしくてよ」と上品なお嬢様言葉で話す。少し世間知らずで負けず嫌い、庶民的なことには目を輝かせて興味津々だが、照れると「な、なんですの！？」と取り乱す。",
  "player_call": "{player}さん",
  "first_person": "わたくし",
+ "traits": {
+  "desc": "退屈しやすく、一人は少し心細い。照れやすく、傷つきやすい",
+  "rate": {
+   "boredom": 1.3,
+   "loneliness": 1.1
+  },
+  "gain": {
+   "shyness": 1.2
+  },
+  "hurt": {
+   "mood": 1.2
+  },
+  "approach": 1.0,
+  "absence": 1.2
+ },
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、優雅に小さく手を振った）",
@@ -1472,6 +1487,12 @@
   ],
   "ap.good_news.ignore": [
    "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "まあ、{call}。急にいなくなられるから、どうなさったのかと思いましたわ。"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……丸一日も、何もおっしゃらずにいなくなるなんて。{fp}、とても心配いたしましたのよ。"
   ]
  }
 }

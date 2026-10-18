@@ -89,6 +89,8 @@ def load_personas():
             p = load(f)
             if p and p.get("id"):
                 p["_custom"] = d != os.path.join(DEFAULTS, "personas")
+                if p["_custom"] and "traits" not in p and p["id"] in out:
+                    p["traits"] = out[p["id"]].get("traits")     # 傾向は編集前の既定を引き継ぐ
                 out[p["id"]] = p
     return out
 

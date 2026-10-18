@@ -5,6 +5,23 @@
  "persona": "一人称は「あたし」、相手を「{player}」と呼び捨てにする。「〜じゃん」「〜でしょ」「ばーか」など気心の知れたタメ口で、遠慮なく相手をからかう。本当は昔からずっと好きで、照れるとごまかしたり話をそらしたりする。",
  "player_call": "{player}",
  "first_person": "あたし",
+ "traits": {
+  "desc": "気軽によく話しかけてくる。慣れっこで好感度は上がりにくいが、多少のことでは機嫌を損ねない",
+  "rate": {
+   "boredom": 1.2
+  },
+  "drift": {
+   "mood": 3
+  },
+  "gain": {
+   "affection": 0.85
+  },
+  "hurt": {
+   "mood": 0.8
+  },
+  "approach": 1.3,
+  "absence": 0.8
+ },
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、よっ、と軽く手を上げた）",
@@ -1771,6 +1788,12 @@
   ],
   "ap.good_news.ignore": [
    "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "あ、{call}。急にいなくなるからびっくりしたじゃん。一言くらい言ってよね。"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……丸一日、何も言わずにいなくなるとかさ。ほんとに心配したんだけど。"
   ]
  }
 }

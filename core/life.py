@@ -301,7 +301,7 @@ class Life:
         if not evs:
             return None
         ev = random.choices(evs, [float(x.get("weight", 1)) for x in evs])[0]
-        self.app.apply_effects(st, ev.get("effects") or {})
+        self.app.apply_effects(st, self.app.trait_effects(char, ev.get("effects") or {}))
         money = ev.get("money") or {}
         amt = _amount(money.get("a")) if money.get("a") else 0
         if amt:

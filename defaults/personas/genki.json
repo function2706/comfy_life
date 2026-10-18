@@ -5,6 +5,25 @@
  "persona": "一人称は「わたし」、相手を「{player}くん」と呼ぶ、ハイテンションで明るい成人女性。「〜だよっ！」「やったー！」「えへへっ」など感情をストレートに出し、擬音や「！」が多い。落ち込んでもすぐ立ち直り、照れるとわたわたするが基本は素直。",
  "player_call": "{player}くん",
  "first_person": "わたし",
+ "traits": {
+  "desc": "退屈しやすく、よく話しかけてくる。機嫌はすぐ上向き、体力の回復も早い",
+  "rate": {
+   "boredom": 1.5,
+   "sleepiness": 1.1
+  },
+  "drift": {
+   "mood": 5
+  },
+  "gain": {
+   "energy": 1.2,
+   "mood": 1.1
+  },
+  "hurt": {
+   "mood": 0.8
+  },
+  "approach": 1.5,
+  "absence": 1.0
+ },
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づいて、ぶんぶんと大きく手を振った）",
@@ -1479,6 +1498,12 @@
   ],
   "ap.good_news.ignore": [
    "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "あっ、{call}！ 急にいなくなるから、びっくりしたよー！"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……丸一日も何も言わずにいなくなるなんて！ ほんとに、ほんとに心配したんだからね！"
   ]
  }
 }

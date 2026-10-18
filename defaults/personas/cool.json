@@ -5,6 +5,21 @@
  "persona": "一人称は「私」、相手を名前で呼び捨てにするクールな女性。「そう」「……別に」「悪くない」など短く淡々と話し、感情はほとんど顔に出さず少し毒舌。ただし、ふとした瞬間に素直な好意や本音を短い一言でこぼす。",
  "player_call": "{player}",
  "first_person": "私",
+ "traits": {
+  "desc": "機嫌の振れ幅が小さく、寂しさも表に出しにくい。自分からはめったに来ない",
+  "rate": {
+   "loneliness": 0.7,
+   "boredom": 1.1
+  },
+  "gain": {
+   "mood": 0.8
+  },
+  "hurt": {
+   "mood": 0.8
+  },
+  "approach": 0.5,
+  "absence": 0.8
+ },
  "lines": {
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、小さく片手を上げた）",
@@ -1467,6 +1482,12 @@
   ],
   "ap.good_news.ignore": [
    "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "……{call}。急にいなくなるから、少し驚いた。"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……丸一日、何も言わずに。……心配した。次はひと言、言って。"
   ]
  }
 }

@@ -330,6 +330,10 @@ class App:
         vals = st["params"]
         pres = self.presence.effects(dt.timestamp()) \
             if char["id"] == self.settings.get("active_character") and not scene["away"] else {}
+        tr = self.traits(char)
+        t_rate, t_drift, t_speed = tr.get("rate") or {}, tr.get("drift") or {}, tr.get("drift_speed") or {}
+        if pres and self.presence.at(dt.timestamp()) == "gone":     # 黙っていなくなった: 性格しだいで堪える
+            pres = {k: float(v) * float(tr.get("absence", 1)) for k, v in pres.items()}
         for p in self.params:
             pid = p["id"]
             v = vals.get(pid, float(p.get("init", 50)))
@@ -338,12 +342,13 @@ class App:
                 if cond.check(r.get("when", ""), ctx):
                     rate = float(r.get("rate", 0))
                     break
+            rate *= float(t_rate.get(pid, 1))
             d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
-                target = float(dr.get("target", v)) + sum(
+                target = float(dr.get("target", v)) + float(t_drift.get(pid, 0)) + sum(
                     float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
-                d += (target - v) * min(1.0, float(dr.get("rate", 0)) * h)
+                d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
             vals[pid] = self._clamp(p, v + d)
 
     def tick(self, cid, now=None):
@@ -455,6 +460,23 @@ class App:
             return texts
         return random.choice(texts) if texts else None
 
+    def traits(self, char):
+        """性格プリセットの傾向 (パラメータの動きやすさ・話しかけてくる多さなど)."""
+        return (self.personas.get(char.get("persona_id") or "") or {}).get("traits") or {}
+
+    def trait_effects(self, char, eff):
+        """性格による効き目の違い: うれしい方向は gain, つらい方向は hurt の倍率をかける."""
+        tr = self.traits(char)
+        gain, hurt = tr.get("gain") or {}, tr.get("hurt") or {}
+        if not (gain or hurt):
+            return dict(eff)
+        out = {}
+        for k, v in eff.items():
+            pd = self.param_def(k) or {}
+            good = (float(v) > 0) != bool(pd.get("invert"))
+            out[k] = float(v) * float((gain if good else hurt).get(k, 1))
+        return out
+
     def pick_reaction(self, act, ctx):
         cands = [r for r in act.get("reactions") or [] if cond.check(r.get("when", ""), ctx)]
         if not cands:
@@ -554,7 +576,9 @@ class App:
                     eff[k] = eff.get(k, 0) + v
             for k, v in (r.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
-            deltas = self.apply_effects(st, eff)
+            for k, v in (opts.get("effects") or {}).items():
+                eff[k] = eff.get(k, 0) + float(v)
+            deltas = self.apply_effects(st, self.trait_effects(char, eff))
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
@@ -778,13 +802,26 @@ class App:
                 declared = False
         if declared:
             return self.come_back(char["id"])
-        if absent < float(self.world.get("absent_greet_hours", 3)):
+        pc = self.presence.ctx(time.time())
+        silent = pc["left_mode"] == "gone" and not pc["said"]
+        if absent < float(self.world.get("absent_greet_hours", 3)) and not (silent and absent >= 1):
             return None
         try:
             self.action("_return")
         except KeyError:
             return None
-        return self.act("_return", char["id"])
+        return self.act("_return", char["id"], opts={"effects": self.silent_penalty(char, absent) if silent else {}})
+
+    def silent_penalty(self, char, hours):
+        """何も言わずにいなくなったぶんの機嫌・信頼の目減り (空けた時間・寂しさ・性格しだい)."""
+        st = self.state(char["id"])
+        k = float(self.traits(char).get("absence", 1)) * (0.4 + st["params"].get("loneliness", 30) / 100.0)
+        eff = {"mood": -min(10.0, 2 + hours * 0.4) * k}
+        if hours >= 3:
+            eff["trust"] = -min(4.0, hours * 0.1) * k
+        if hours >= 24:
+            eff["affection"] = -min(3.0, hours / 24.0) * k
+        return {key: round(v, 1) for key, v in eff.items()}
 
     # ------------------------------------------------------------------ generation
     def snapshot(self, cid=None, pos=None, neg=None, seed=None, entry_id=None):
@@ -987,9 +1024,9 @@ class App:
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
+            self.tick(cid)                  # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
-            self.tick(cid)
             st = self.state(cid)
             now = time.time()
             if beat and cid == self.settings.get("active_character") and self.presence.live(char, st, now):
@@ -1147,7 +1184,7 @@ class App:
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
                 "events": self.events, "approaches": self.approaches,
-                "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "first_person", "_custom")}
+                "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "first_person", "traits", "_custom")}
                              for p in sorted(self.personas.values(), key=lambda p: (
                                  PERSONA_ORDER.index(p["id"]) if p["id"] in PERSONA_ORDER else 99, p.get("name", "")))]}
 

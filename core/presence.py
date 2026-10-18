@@ -146,7 +146,8 @@ class Presence:
         ctx = self.app.context(char, st, d, scene)
         if not ctx["free"]:
             return None
-        rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx)
+        rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx) \
+            * float(self.app.traits(char).get("approach", 1))
         if random.random() >= 1 - math.exp(-rate * dt_h):
             return None
         return self.fire(char, st, now, ctx)
@@ -210,7 +211,7 @@ class Presence:
         mult = (0.4 if ap.get("presence") == "busy" or pres == "busy" else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
         mult *= 0.5 + lon / 100.0
         eff = {k: float(v) * mult for k, v in (ig.get("effects") or {"mood": -3, "loneliness": 5}).items()}
-        deltas = self.app.apply_effects(st, eff)
+        deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         busy = ap.get("presence") == "busy"
         text = (ig.get("busy_text") if busy else None) or ig.get("text") or "（返事がないので、{name}はそっと離れていった）"
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
@@ -245,7 +246,7 @@ class Presence:
         mult = self.app.life.skill_mult(out["skill"]) if out.get("skill") else 1.0
         eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                for k, v in (out.get("effects") or {}).items()}
-        deltas = self.app.apply_effects(st, eff)
+        deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         if out.get("skill"):
             self.app.life.train(out["skill"], 1.0)
         if out.get("reason_good") and deltas.get("mood", 0) > 0:

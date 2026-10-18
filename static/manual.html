@@ -364,13 +364,18 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="card"><div class="hd"><span class="ic">🛋</span>そばでのんびり</div><p>画面は開いているが、10分以上なにもしていない。少しは寂しさが紛れ、キャラのほうから話しかけてきやすくなります。</p></div>
   <div class="card"><div class="hd"><span class="ic">🖥</span>作業中</div><p>「ちょっと作業するね」と告げた。キャラは遠慮して、あまり話しかけてきません（とても寂しければ来ます）。名前の下の「作業中 → 終わる」で戻ります。</p></div>
   <div class="card"><div class="hd"><span class="ic">🚪</span>離れている</div><p>「ちょっと出かけてくる」「仕事に行ってくる」「先に寝るね」「またね」と告げた。画面は閉じてもかまいません。開き直すか「戻る」で戻ります。</p></div>
-  <div class="card"><div class="hd"><span class="ic">💨</span>いない</div><p>何も言わずに画面を閉じた。長く空けて、キャラが寂しがっていると「何も言わずにどこ行ってたの」と機嫌を損ねます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">💨</span>いない</div><p>何も言わずに画面を閉じた。告げて離れたときより寂しさが早く増え、戻ったときに空けた時間ぶん機嫌と信頼が下がります（1日以上なら好感度も）。どれだけ堪えるかは性格しだいです。</p></div>
 </div>
 <div class="flow">
   <div class="box"><b>告げる</b><small>コマンド「あなたの予定」から。キャラの反応は寂しさ・好感度しだい</small></div><div class="arr">→</div>
   <div class="box"><b>離れている間</b><small>画面を閉じてもよい。仕事なら時間ぶん稼ぐ</small></div><div class="arr">→</div>
   <div class="box hl"><b>戻る</b><small>「おかえり」の反応は、どう離れて、どれだけ空けたかで変わる</small></div>
 </div>
+<table>
+  <tr><th style="width:26%"></th><th>告げて離れた</th><th>何も言わずに閉じた</th></tr>
+  <tr><td>離れている間</td><td>寂しさは普通に増える</td><td>寂しさがさらに早く増える</td></tr>
+  <tr><td>戻ったとき</td><td>「おかえり、待ってた」</td><td>1時間以上で「急にいなくなるから…」。機嫌・信頼が下がり、1日以上なら好感度も。寂しがっていたり丸一日空けたりすると、機嫌の理由に残る</td></tr>
+</table>
 <p class="where">コマンド → あなたの予定</p>
 
 <!-- ============================================================ -->
@@ -489,6 +494,17 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="box"><b>置換文字</b><small><code>{fp}</code> 一人称、<code>{call}</code> あなたの呼び方 など</small></div><div class="arr">→</div>
   <div class="box q"><b>LLM（任意）</b><small>有効なら、そのセリフを参考に書き直す</small></div>
 </div>
+<h3>性格ごとの傾向</h3>
+<p>性格によって、口調だけでなく<b>パラメータの動き方</b>も違います。設定 → 主人公で性格を選ぶと、その傾向が説明に出ます。</p>
+<div class="cards">
+  <div class="card"><div class="hd"><span class="ic">🥺</span>甘えたがり</div><p>とても寂しがりで、しょっちゅう甘えに来る。構うとよく効くが、黙っていなくなると強く堪える。</p></div>
+  <div class="card"><div class="hd"><span class="ic">😤</span>ツンデレ・気高き令嬢</div><p>好感度が上がりにくく、自分からはあまり来ない。放っておかれると根に持つ。</p></div>
+  <div class="card"><div class="hd"><span class="ic">😐</span>クール・実務派</div><p>機嫌の振れ幅が小さく、寂しさも表に出しにくい。</p></div>
+  <div class="card"><div class="hd"><span class="ic">☀</span>元気・自由人</div><p>退屈しやすく、よく話しかけてくる。いやなことはすぐ忘れる。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🫣</span>無口・人見知り</div><p>自分からは来にくいが寂しがり。傷つきやすく、心を開くと深い。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🍵</span>おっとり</div><p>退屈しにくく、ストレスもためにくい。眠くなりやすい。</p></div>
+</div>
+<p>傾向は、基本変化の倍率（<code>rate</code>）、自然回帰の目標（<code>drift</code>）、うれしい方向・つらい方向の効き目の倍率（<code>gain</code> / <code>hurt</code>）、話しかけてくる多さ（<code>approach</code>）、黙って離れられたときの堪え方（<code>absence</code>）でできていて、設定 → 性格・セリフ集で編集できます。</p>
 <ul>
   <li>既定の性格は16種類です。例：素直なはにかみ屋、気心知れた幼馴染、面倒見のいい世話焼きさん、気高き令嬢、言葉少なな無口さん、淡々とした実務派、凛とした男前、サバサバなボクっ娘。</li>
   <li><b>一人称</b>と<b>あなたの呼び方</b>は、主人公の設定で固定できます。空欄なら、性格プリセットに従います。</li>

@@ -1592,6 +1592,7 @@ function personaPicker(c) {
     }, h('option', { value: '' }, 'なし（共通のセリフ）'), ps.map((p) => h('option', { value: p.id }, p.name)))),
     h('div', { class: 'fld' }, h('span', { class: 'fl' }, '説明'),
       h('div', { class: 'hint', style: 'font-size:12.5px' }, cur ? cur.desc : 'コマンドやミニゲームに書かれた共通のセリフをそのまま使います'),
+      cur && cur.traits && cur.traits.desc ? h('div', { class: 'hint', style: 'font-size:12.5px' }, '傾向: ' + cur.traits.desc) : '',
       cur ? h('button', { class: 'btn ghost', style: 'align-self:flex-start', onclick: () => { SE.personaSel = cur.id; showSection('personas'); } }, 'セリフ集を見る・編集') : ''));
 }
 
@@ -1628,7 +1629,11 @@ SEC.personas = () => {
         fld('名前', inp(p, 'name')), fld('あなたの呼び方', inp(p, 'player_call'), '{player} = あなたの名前'),
         fld('一人称', inp(p, 'first_person')), fld('一人称（言いよどみ）', inp(p, 'first_person_stutter', { ph: '例: わ、私（無ければ空欄）' })),
         fld('説明（一覧に出る一行）', inp(p, 'desc'), null, 'spanall'),
-        fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall')),
+        fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
+        fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
+          parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方',
+          'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、主人公の設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),
       search, list);

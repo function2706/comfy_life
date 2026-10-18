@@ -3240,6 +3240,27 @@
      "mood": "bad",
      "tell": "{call}が何も言わずにいなくなった"
     }
+   },
+   {
+    "text": "……あ、{call}。急にいなくなるから、どうしたのかと思いました。",
+    "when": "said=false, absent>=1",
+    "pos": "surprised, relieved, looking at viewer",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -1
+    }
+   },
+   {
+    "text": "……丸一日、何も言わずにいなくなるなんて。心配したんですから。",
+    "when": "said=false, absent>=24",
+    "pos": "teary eyes, pouting, looking at viewer",
+    "neg": "",
+    "priority": 2,
+    "reason": {
+     "mood": "bad",
+     "tell": "{call}が何も言わずに丸一日いなくなった"
+    }
    }
   ]
  },

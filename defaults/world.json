@@ -123,7 +123,7 @@
   }
  ],
  "presence": {
-  "_note": "あなたの在席状態ごとの, キャラのパラメータ変化 (1時間あたり). here=そばで構っている, idle=そばにいるが放置, busy=作業中と告げて在宅",
+  "_note": "あなたの在席状態ごとの, キャラのパラメータ変化 (1時間あたり). here=そばで構っている, idle=そばにいるが放置, busy=作業中と告げて在宅, gone=何も言わずにいなくなった (性格の absence 倍率がかかる)",
   "effects": {
    "here": {
     "loneliness": -3,
@@ -134,6 +134,9 @@
    },
    "busy": {
     "loneliness": -0.8
+   },
+   "gone": {
+    "loneliness": 1.0
    }
   },
   "idle_minutes": 10,

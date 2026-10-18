@@ -206,6 +206,40 @@ def main():
             raise AssertionError("お出かけ中に料理できてしまう")
         except ValueError:
             pass
+        # ---- 性格の傾向: 黙っていなくなると, 甘えたがりはクールよりずっと堪える
+        char = app.char()
+        res = {}
+        for pid in ("amaenbo", "cool"):
+            char["persona_id"] = pid
+            st["override"], st["approach"] = None, None
+            app.set_params({"loneliness": 40, "mood": 60, "trust": 50, "affection": 60})
+            now = time.time()
+            st["last_interaction"] = st["last_tick"] = now - 8 * 3600
+            P.rec().update(mode="none", beat=now - 8 * 3600, input=now - 8 * 3600)
+            app.state_view(beat=True, idle=0)          # 心拍が戻る: 8 時間, 黙っていなかった
+            lon = st["params"]["loneliness"]
+            r = app.visit()
+            res[pid] = (round(lon, 1), r["entry"]["deltas"], r["entry"]["text"])
+            print("黙って8時間 (%s): 寂しさ %s → %s | %s" % (pid, lon, r["entry"]["deltas"], r["entry"]["text"]))
+        assert res["amaenbo"][0] > res["cool"][0] + 10
+        assert res["amaenbo"][1].get("mood", 0) < res["cool"][1].get("mood", 0)
+        # 告げて離れた場合はお咎めなし
+        char["persona_id"] = "amaenbo"
+        app.set_params({"loneliness": 40, "mood": 60, "trust": 50})
+        app.act("go_leave")
+        P.rec()["since"] -= 8 * 3600
+        r = app.visit()
+        print("告げて8時間 (amaenbo):", r["entry"]["deltas"], r["entry"]["text"])
+        assert r["entry"]["deltas"].get("mood", 0) >= 0 and "trust" not in r["entry"]["deltas"]
+        # 黙って 1 時間でも, ひと言ある
+        st["override"] = None
+        now = time.time()
+        st["last_interaction"] = now - 1.5 * 3600
+        P.rec().update(mode="none", beat=now - 1.5 * 3600)
+        app.state_view(beat=True, idle=0)
+        r = app.visit()
+        assert r and "いなくな" in r["entry"]["text"], r
+        print("黙って1.5時間 (amaenbo):", r["entry"]["text"])
         print("OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
