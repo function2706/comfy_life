@@ -22,7 +22,8 @@
    "mood": 0.8
   },
   "approach": 1.5,
-  "absence": 1.0
+  "absence": 1.0,
+  "jealousy": 0.9
  },
  "lines": {
   "look.free_true": [
@@ -1510,6 +1511,39 @@
   ],
   "work.work_3d_ge_20__loneliness_ge_50": [
    "おかえり！ ……って、最近お仕事ばっかりじゃん！ たまには{fp}とも遊んでよー！"
+  ],
+  "message.apart_true": [
+   "📱『{call}だー！ ちょうど連絡しようと思ってたんだよっ！』"
+  ],
+  "message.apart_true__mood_lt_35": [
+   "📱『今日はちょっとへとへと〜……。でも{call}から来て元気出た！』"
+  ],
+  "ask_visit.default": [
+   "えっ、うちに来てくれるの？ やったー！ いつでもおいでよ！"
+  ],
+  "ask_visit.trust_lt_55__roll_lt_50": [
+   "うちはまだちょっと恥ずかしいかもっ。もうちょっと待って？"
+  ],
+  "visit_home.default": [
+   "いらっしゃーい、{call}！ 上がって上がって！"
+  ],
+  "visit_home.mood_lt_35": [
+   "ごめんね、今日はちょっと元気出なくて……また来てね？"
+  ],
+  "leave_visit.default": [
+   "えーっ、もう帰っちゃうの？ また来てねっ！"
+  ],
+  "ask_live.default": [
+   "一緒に住むの!? ……うんっ！ 住む住むっ！ 毎日楽しくなるね！"
+  ],
+  "ask_live.trust_lt_75__roll_lt_50": [
+   "うれしい！ ……けど、ちょっとだけ考えさせて？ ちゃんと決めたいの。"
+  ],
+  "ask_live.mood_lt_40": [
+   "……今は、そういう気持ちになれないや。ごめんね。"
+  ],
+  "move_out.default": [
+   "……そっか。……うん、わかった。荷物、まとめるね。"
   ]
  }
 }

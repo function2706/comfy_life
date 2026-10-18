@@ -109,7 +109,10 @@ async function refresh() {
 }
 
 function showGreeting() {
-  setDialogue(`（${S.boot.character.name}との暮らしが始まった。右のコマンドから話しかけてみよう）`, false);
+  const n = S.boot.character.name;
+  setDialogue(S.view.bond && !S.view.bond.mode
+    ? `（${n}とは連絡先を知っている仲。メッセージを送ったり、お出かけに誘ったりしてみよう）`
+    : `（${n}との暮らしが始まった。右のコマンドから話しかけてみよう）`, false);
 }
 
 /* ---------------------------------------------------------------- clock */
@@ -148,8 +151,14 @@ function moodFace(p) {
   return '😢';
 }
 
+const BOND_IC = { contact: '📱', visit: '🔑', live: '🏠' };
 function renderWho() {
   const v = S.view;
+  for (const o of $('#char-select').options) {   // キャラ切替に, あなたとの間柄を添える
+    const b = (v.bonds || {})[o.value];
+    const c = S.boot.characters.find((x) => x.id === o.value);
+    if (b && c) o.textContent = `${BOND_IC[b.stage] || ''} ${c.name}${b.mode && b.mode !== 'home' ? '（一緒）' : ''}`;
+  }
   $('#phase-chip').textContent = v.phase.label || '—';
   const sc = v.scene;
   const where = sc.location ? `📍${sc.location}` : '';
@@ -165,6 +174,8 @@ function renderWho() {
   else { face.style.backgroundImage = ''; face.textContent = moodFace(v.params); }
   $('#who-tags').replaceChildren(
     h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
+    v.bond ? h('span', { class: 'tag bond' + (v.bond.mode ? '' : ' apart'), title: 'あなたとの間柄・いまどこで会っているか' },
+      `${BOND_IC[v.bond.stage] || ''}${v.bond.stage_label}・${v.bond.label}`) : '',
     v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
     v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '作業を終えて戻る', onclick: comeBack }, '🖥 作業中 → 終わる') : '',
     v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
@@ -194,7 +205,7 @@ function renderCommands() {
         const tip = [a.when ? '条件: ' + a.when : '', a.effects && Object.keys(a.effects).length ?
           '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
           st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-        return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : doAct(a.id)) },
+        return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
           h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
           st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
       }))));
@@ -1709,7 +1720,7 @@ SEC.personas = () => {
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
         fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
           parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
-          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方',
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、主人公の設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),

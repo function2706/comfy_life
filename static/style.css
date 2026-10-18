@@ -151,6 +151,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 .outfit:disabled { opacity: .35; cursor: not-allowed; }
 .outfit .ic { font-size: 18px; width: 24px; text-align: center; }
 .tag.dress { background: #2a3140; color: #c6dcff; }
+.tag.bond { background: #2c3a2e; color: #c8f0cf; }
+.tag.bond.apart { background: #333; color: #bbb; }
 
 /* games */
 .game-card { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }

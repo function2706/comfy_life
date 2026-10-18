@@ -18,6 +18,7 @@ import time
 import uuid
 from datetime import datetime
 
+from . import bonds as bonds_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -102,6 +103,7 @@ class App:
         self.reload()
         self.games = games.Games(self)
         self.life = life.Life(self)
+        self.bonds = bonds_mod.Bonds(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -317,6 +319,9 @@ class App:
         ctx.update(self.life.money_ctx(st))                    # my_money / her_money / invest_value / profit
         ctx.update(self.life.mood_ctx(st, dt.timestamp()))     # cause / knows / reason / untold / request / away_events
         ctx.update(self.presence.ctx(dt.timestamp()))          # presence / said / left_mode / left_h
+        ctx.update(self.bonds.ctx(char["id"], st))             # stage / apart / with_mode / living_other / rivals
+        if ctx["apart"]:
+            ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx["roll"] = random.randint(0, 99)                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
         return ctx
 
@@ -331,7 +336,7 @@ class App:
         ctx = self.context(char, st, dt, scene)
         vals = st["params"]
         pres = self.presence.effects(dt.timestamp()) \
-            if char["id"] == self.settings.get("active_character") and not scene["away"] else {}
+            if char["id"] == self.settings.get("active_character") and not scene["away"] and self.bonds.together(char["id"]) else {}
         tr = self.traits(char)
         t_rate, t_drift, t_speed = tr.get("rate") or {}, tr.get("drift") or {}, tr.get("drift_speed") or {}
         if pres and self.presence.at(dt.timestamp()) == "gone":     # 黙っていなくなった: 性格しだいで堪える
@@ -364,6 +369,7 @@ class App:
         while t + STEP_SEC <= now:
             self._step(char, st, datetime.fromtimestamp(t + STEP_SEC / 2), STEP_SEC / 3600.0)
             self.life.step(char, st, t, t + STEP_SEC, STEP_SEC / 3600.0)   # お金の出入り・キャラ側の出来事
+            self.bonds.step(char, st, t + STEP_SEC, STEP_SEC / 3600.0)     # ほかの人との仲に気づく (嫉妬)
             t += STEP_SEC
             changed = True
         st["last_tick"] = t
@@ -371,6 +377,7 @@ class App:
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
             changed = True
+        self.bonds.sync(cid, st, now)         # 外で会っていたお出かけが終わった / 遊びに来ていた時間が過ぎた
         if changed:
             self.save_state(cid)
 
@@ -444,6 +451,8 @@ class App:
         system = (cfg.get("system") or "").replace("{name}", char.get("name", "")).replace("{call}", call) \
             .replace("{player}", player).replace("{persona}", char.get("persona", "")).replace("{fp}", fp)
         system += "\n一人称は必ず「%s」、%sのことは必ず「%s」と呼ぶ。" % (fp, player, call)
+        bv = self.bonds.view(char["id"])
+        system += "\n%sとの間柄: %s（いまは%s）。" % (player, bv["stage_label"], bv["label"])
         known = self.relations_text(char)
         if known:
             system += "\n知っている人: %s。それ以外の登場人物は知らない。" % known
@@ -512,7 +521,8 @@ class App:
                 continue
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
-            out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx) and not (a.get("home_only") and ctx["outing"]),
+            out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx) and not (a.get("home_only") and ctx["outing"])
+                            and (not ctx["apart"] or self.bonds.allowed_apart(a)),
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
@@ -536,6 +546,9 @@ class App:
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), a.get("when", "")))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
+            apart = ctx["apart"]
+            if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a):
+                raise ValueError("いまは%sと一緒にいません（連絡するか、会いに行きましょう）" % char.get("name", ""))
             ctx.update(opts.get("ctx") or {})
             outfit = None
             if dress is not None:
@@ -568,6 +581,12 @@ class App:
             if tr and tr.get("from") == "p" and self.life.player_state()["money"] < int(tr.get("amount", 0)):
                 raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
             r = self.pick_reaction(a, ctx)
+            invite = apart and (a.get("override") or {}).get("outing")
+            if invite and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
+                r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
+            narrate = apart and a.get("category") in ("system", "あなたの予定") and not a.get("request_answer")
+            if narrate:     # 離れている相手は見送りも出迎えもしない. あなたの行動だけを書く
+                r = {"text": "（%s）" % (a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid))}
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             sk = a.get("skill")
             sk_mult = self.life.skill_mult(sk) if sk else 1.0
@@ -583,6 +602,8 @@ class App:
                     eff[k] = eff.get(k, 0) + v
             for k, v in (r.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
+            if narrate:
+                eff = {}
             for k, v in (opts.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
@@ -595,6 +616,11 @@ class App:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
+            if not r.get("override"):
+                self.bonds.apply(a, cid, now)
+                if invite:
+                    self.bonds.start(cid, "meet", now)      # 誘いに乗ってくれた: 外で会う
+            self.bonds.sync(cid, st, now)                   # 「家に帰る」で別れる など
             money = self._act_money(char, st, a, r, plan, req, extra)
             for k, v in (opts.get("money") or {}).items():
                 money[k] = money.get(k, 0) + v
@@ -624,7 +650,14 @@ class App:
             for k, v in extra.items():                     # 先に差し込む (中の {call} なども下で置換される)
                 text = text.replace("{%s}" % k, str(v))
             text = self.format_text(text, char, scene, dt)
-            pos, neg, parts = self.build_prompt(char, st, dt, a, r)
+            gen_ok = a.get("generate", True)
+            selfie = False
+            if not self.bonds.together(cid):
+                # 離れている相手の画像は出さない. ただしメッセージには, テンションしだいで自撮りが添えられる
+                selfie = bool(a.get("selfie")) and not r.get("override") and random.random() < self.bonds.selfie_chance(ctx)
+                gen_ok = selfie
+            pa = dict(a, pos=a.get("selfie_pos") or "selfie, holding smartphone, looking at viewer, upper body") if selfie else a
+            pos, neg, parts = self.build_prompt(char, st, dt, pa, r)
             self.save_state(cid)
 
         text_src, llm_error = "template", None
@@ -637,15 +670,19 @@ class App:
             except Exception as e:  # noqa: BLE001 - LLM 失敗時は定型文で続行
                 llm_error = str(e)
 
+        if selfie:
+            text += "\n（📷 自撮りが添えられていた）"
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src
+            if selfie:
+                entry["selfie"] = True
             if money:
                 entry["money"] = money
             if any(skill_up.values()):
                 entry["skill"] = {k: v for k, v in skill_up.items() if v}
             job = None
-            if self.settings.get("auto_generate") and a.get("generate", True):
+            if self.settings.get("auto_generate") and gen_ok:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
         return {"entry": entry, "job": job, "llm_error": llm_error}
@@ -809,6 +846,8 @@ class App:
                 declared = False
         if declared:
             return self.come_back(char["id"])
+        if not self.bonds.together(char["id"]):
+            return None
         pc = self.presence.ctx(time.time())
         silent = pc["left_mode"] == "gone" and not pc["said"]
         if absent < float(self.world.get("absent_greet_hours", 3)) and not (silent and absent >= 1):
@@ -1073,6 +1112,7 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
+                "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(),
                 "presence": self.presence.view(now),
                 "approach": self.presence.pending_view(char, st),
                 "auto": st.get("last_auto"),
@@ -1295,6 +1335,11 @@ class App:
             self.relations.pop(cid, None)
             for r in self.relations.values():
                 r.pop(cid, None)
+            ps = self.bonds.rec()
+            ps["bonds"].pop(cid, None)
+            if (ps.get("with") or {}).get("cid") == cid:
+                ps["with"] = None
+            self.bonds.save()
             store.save(store.wpath("relations.json"), self.relations)
             if self.settings.get("active_character") == cid:
                 self.select_character(next(iter(self.chars)))
@@ -1316,7 +1361,8 @@ class App:
                 rel = store.load(store.dpath("worlds", copy_from, "relations.json"))
                 if rel:
                     store.save(store.dpath("worlds", wid, "relations.json"), rel)
-            meta["worlds"].append({"id": wid, "name": (name or "").strip() or "新しいワールド", "created": time.time()})
+            # 新しいワールドでは, あなたは最初だれとも暮らしていない (登録したキャラとは連絡先を知っている仲)
+            meta["worlds"].append({"id": wid, "name": (name or "").strip() or "新しいワールド", "created": time.time(), "alone": True})
             store.save_worlds(meta)
             if switch:
                 self.switch_world(wid)

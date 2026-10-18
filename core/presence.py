@@ -144,7 +144,7 @@ class Presence:
         d = datetime.fromtimestamp(now)
         scene = self.app.scene_at(char, st, d)
         ctx = self.app.context(char, st, d, scene)
-        if not ctx["free"]:
+        if not ctx["free"] or ctx.get("apart"):      # 離れている相手は話しかけてこない
             return None
         rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx) \
             * float(self.app.traits(char).get("approach", 1))

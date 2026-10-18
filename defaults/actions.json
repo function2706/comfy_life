@@ -2375,9 +2375,25 @@
     "when": "away=false",
     "pos": "laughing",
     "neg": ""
+   },
+   {
+    "text": "📱『{call}からだ！ ちょうど{call}のこと考えてたんです』",
+    "when": "apart=true",
+    "priority": 2,
+    "pos": "smile, looking at smartphone",
+    "neg": ""
+   },
+   {
+    "text": "📱『……ちょっと今日は疲れちゃって。でも、連絡くれてうれしいです』",
+    "when": "apart=true, mood<35",
+    "priority": 3,
+    "pos": "tired smile",
+    "neg": ""
    }
   ],
-  "skill": "talk"
+  "skill": "talk",
+  "selfie": true,
+  "selfie_pos": "selfie, holding smartphone, looking at viewer, upper body, smile"
  },
  {
   "id": "call",
@@ -2412,7 +2428,178 @@
     "neg": "smile"
    }
   ],
-  "skill": "talk"
+  "skill": "talk",
+  "apart": true
+ },
+ {
+  "id": "ask_visit",
+  "name": "家に行ってもいい？",
+  "icon": "🔑",
+  "category": "会う",
+  "when": "stage=contact, affection>=55, trust>=45, asleep=false, busy=false",
+  "cooldown": 720,
+  "apart": true,
+  "bond": "to_visit",
+  "generate": false,
+  "effects": {
+   "heart": 6,
+   "shyness": 4
+  },
+  "pos": "blush, surprised, looking at viewer",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "えっ、うちに……？ ……はい、いいですよ。散らかってても笑わないでくださいね。",
+    "when": "",
+    "pos": "blush, smile",
+    "neg": ""
+   },
+   {
+    "text": "う、うちはまだちょっと……。もう少し、仲良くなってからでもいいですか？",
+    "when": "trust<55, roll<50",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "shyness": 3
+    },
+    "pos": "embarrassed, looking away",
+    "neg": ""
+   }
+  ],
+  "reason_good": "{call}に家に来ていいと言えた"
+ },
+ {
+  "id": "visit_home",
+  "name": "家に遊びに行く",
+  "icon": "🚪",
+  "category": "会う",
+  "when": "stage=visit, apart=true, free=true, asleep=false, phase!=midnight",
+  "cooldown": 60,
+  "apart": true,
+  "bond": "visit_start",
+  "effects": {
+   "loneliness": -15,
+   "mood": 6,
+   "heart": 5
+  },
+  "pos": "doorway, opening door, welcoming, smile, looking at viewer",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "いらっしゃい、{call}。どうぞ、上がってください。",
+    "when": "",
+    "pos": "smile, welcoming",
+    "neg": ""
+   },
+   {
+    "text": "ごめんなさい、今日はちょっと……また今度にしてもらえますか？",
+    "when": "mood<35",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "apologetic, doorway",
+    "neg": "smile"
+   }
+  ],
+  "reason_good": "{call}が家に遊びに来てくれた"
+ },
+ {
+  "id": "leave_visit",
+  "name": "そろそろ帰るね",
+  "icon": "👋",
+  "category": "会う",
+  "when": "with_mode=visit",
+  "cooldown": 0,
+  "bond": "visit_end",
+  "effects": {
+   "loneliness": 3
+  },
+  "pos": "doorway, waving, seeing off",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "もう帰っちゃうんですか？ ……また来てくださいね。",
+    "when": "",
+    "pos": "smile, waving",
+    "neg": ""
+   }
+  ]
+ },
+ {
+  "id": "ask_live",
+  "name": "一緒に住まない？",
+  "icon": "🏡",
+  "category": "会う",
+  "when": "stage=visit, apart=false, living_other=false, affection>=75, trust>=65, asleep=false, busy=false",
+  "cooldown": 1440,
+  "bond": "to_live",
+  "effects": {
+   "heart": 20,
+   "affection": 5,
+   "mood": 10
+  },
+  "pos": "blush, tears of joy, hands on own chest, looking at viewer",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "一緒に……住む……？ ……はい。ずっと、そう言ってほしかったんです。",
+    "when": "",
+    "pos": "tears of joy, smile",
+    "neg": ""
+   },
+   {
+    "text": "うれしいです。……でも、もう少しだけ考えさせてください。",
+    "when": "trust<75, roll<50",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "heart": 5
+    },
+    "pos": "blush, looking down",
+    "neg": ""
+   },
+   {
+    "text": "……今は、そういう気持ちになれません。",
+    "when": "mood<40",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "mood": -2
+    },
+    "pos": "sad, looking away",
+    "neg": "smile"
+   }
+  ],
+  "reason_good": "{call}に一緒に住もうと言ってもらえた"
+ },
+ {
+  "id": "move_out",
+  "name": "同居をやめる",
+  "icon": "📦",
+  "category": "会う",
+  "when": "stage=live, apart=false",
+  "cooldown": 0,
+  "bond": "end_live",
+  "confirm": "同居をやめますか？（大きく心象が下がります）",
+  "effects": {
+   "mood": -30,
+   "trust": -25,
+   "affection": -20,
+   "stress": 20
+  },
+  "pos": "sad, tears, looking down",
+  "neg": "smile",
+  "reactions": [
+   {
+    "text": "……そう、ですか。……わかりました。荷物、まとめますね。",
+    "when": "",
+    "pos": "sad, tears, looking down",
+    "neg": "smile"
+   }
+  ],
+  "reason_good": ""
  },
  {
   "id": "go_busy",
@@ -2893,7 +3080,8 @@
   ],
   "home_only": true,
   "generate": false,
-  "no_llm": true
+  "no_llm": true,
+  "apart": true
  },
  {
   "id": "invest_buy",

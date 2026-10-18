@@ -18,7 +18,8 @@
    "mood": 0.7
   },
   "approach": 0.7,
-  "absence": 0.9
+  "absence": 0.9,
+  "jealousy": 0.8
  },
  "lines": {
   "look.free_true": [
@@ -1505,6 +1506,39 @@
   ],
   "work.work_3d_ge_20__loneliness_ge_50": [
    "おかえり。……最近は仕事ばかりね。{fp}との時間が不足している、と報告しておくわ。"
+  ],
+  "message.apart_true": [
+   "📱『{call}から受信。ちょうど連絡するところだった』"
+  ],
+  "message.apart_true__mood_lt_35": [
+   "📱『本日は疲労が大きい。……でも、連絡はうれしい』"
+  ],
+  "ask_visit.default": [
+   "自宅への来訪、了解。日程を調整しておくわ。"
+  ],
+  "ask_visit.trust_lt_55__roll_lt_50": [
+   "自宅は、まだ早いと判断するわ。もう少し時間をちょうだい。"
+  ],
+  "visit_home.default": [
+   "いらっしゃい、{call}。上がって。飲み物を用意するわ。"
+  ],
+  "visit_home.mood_lt_35": [
+   "本日は対応できない。また別の日にして。"
+  ],
+  "leave_visit.default": [
+   "帰るのね。了解。……また来て。"
+  ],
+  "ask_live.default": [
+   "同居の提案……。……承諾するわ。正直に言うと、とてもうれしい。"
+  ],
+  "ask_live.trust_lt_75__roll_lt_50": [
+   "重要な判断だから、検討の時間をちょうだい。"
+  ],
+  "ask_live.mood_lt_40": [
+   "……現時点では、その気持ちになれない。"
+  ],
+  "move_out.default": [
+   "……了解。手続きを進めるわ。……荷物をまとめる。"
   ]
  }
 }

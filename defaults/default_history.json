@@ -37,9 +37,15 @@
    "67f9d65708a075e2c35427d86676033b",
    "3425adb8015daf2ab0b478d829aa83ae"
   ],
+  "ask_live": [
+   "504e81ff85c693a225249c4d76cea6bd"
+  ],
   "ask_mood": [
    "e2b1cfefe69429417361810fbf14dd27",
    "d079ed5a1772f6896d3b2b01c502841a"
+  ],
+  "ask_visit": [
+   "06b8f50f56b2c8f8d7de4a07b19f2a3d"
   ],
   "bath": [
    "4e778ff703174a5897ba64983c0546f1",
@@ -60,7 +66,8 @@
   ],
   "call": [
    "5ade445de2f6ac29277bb8493a415649",
-   "4ad7afc857b9553f4e40df4f0fa2d21d"
+   "4ad7afc857b9553f4e40df4f0fa2d21d",
+   "7d0fd24f1821ef86f6a16531fb7e022e"
   ],
   "clean": [
    "7080cd6ee918c23b8e0f76c4f362dac9",
@@ -117,8 +124,8 @@
    "7cf76cb26000c25a7082b57523588814"
   ],
   "go_work": [
-   "39e277578c88369d9ed1200e8dfa9f5f",
-   "5a1df62d3c09c6559bb6a9e39419fb1f"
+   "5a1df62d3c09c6559bb6a9e39419fb1f",
+   "39e277578c88369d9ed1200e8dfa9f5f"
   ],
   "greet": [
    "5a2b8ad4d66d5a82be7278c163ae187f",
@@ -155,13 +162,20 @@
   "leave_alone": [
    "c9e55b90f2ffd00ffaba1a566afc2874"
   ],
+  "leave_visit": [
+   "294bb2d424092f15584f98653c3d4205"
+  ],
   "look": [
    "5c4e1dec55a01f4e1fb766eca847673b",
    "f12ef173b04d6dd7838dabf355754c3e"
   ],
   "message": [
    "69f12744fe599f673d09459e3b171b90",
-   "479a359e6a27e9804b99cae91c69765d"
+   "479a359e6a27e9804b99cae91c69765d",
+   "7ccb2c003a52ae748a223bb8bbb8f87c"
+  ],
+  "move_out": [
+   "7aa44d1048751c4b1e43b129217a34b2"
   ],
   "movie": [
    "a565d64ffdb181d9c39a9b27cbb0226c",
@@ -197,7 +211,8 @@
   ],
   "side_job": [
    "3a047f3e4799c6541f71b1a699de06ae",
-   "46fe4e20c406762a07f2f261c79eb9a3"
+   "46fe4e20c406762a07f2f261c79eb9a3",
+   "c9820c3a6c82cf4f7b64c12c57cddcb5"
   ],
   "sleep_together": [
    "9c9f3ceb703695ec490625cc38a402ef",
@@ -239,6 +254,9 @@
    "a504e0dbda45df2339493435090378a1",
    "ed9b2ea09e413091b57b7d45896336f1"
   ],
+  "visit_home": [
+   "b571f0d3b8042eef10fc80928e6c9369"
+  ],
   "wake": [
    "a6e64f618891d528db3e372ebf78ba04",
    "18640150ad933fa369ce0a92b2f08d87",
@@ -257,9 +275,9 @@
    "2c4ba636c863cdb87f6d3c7bc0b4e169"
   ],
   "work": [
+   "40f206b423917aeec5b2aed00d139dcd",
    "f85e806d937693a7fe14c50b183e3b87",
-   "b976df959d8812c5eb6e204c22c434e3",
-   "40f206b423917aeec5b2aed00d139dcd"
+   "b976df959d8812c5eb6e204c22c434e3"
   ]
  },
  "approaches": {
