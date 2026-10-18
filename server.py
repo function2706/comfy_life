@@ -83,6 +83,10 @@ def route(method, path, q, body):
             return a.come_back(cid)
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid)
+        if path == "/api/encounter/force":
+            return {"encounter": a.encounters.happen("out", stranger=b.get("stranger"))}
+        if path == "/api/encounter":
+            return a.answer_encounter(bool(b.get("yes")))
         if path == "/api/approach/force":
             return a.force_approach(b["id"], cid)
         if path == "/api/approaches":

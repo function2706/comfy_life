@@ -97,6 +97,7 @@ async function refresh() {
   renderAway();
   renderApproach();
   renderRequest();
+  renderEncounter();
   renderCommands();
   renderDress();
   renderGames();
@@ -729,6 +730,7 @@ async function doAct(aid, outfit) {
 
 function handleActResult(r) {
   if (r.llm_error) toast('LLM 失敗のため定型文を使用: ' + r.llm_error, 'err');
+  if (r.encounter) toast(r.encounter.text, 'ok');
   S.lastDeltas = r.entry.deltas || {};
   showEntry(r.entry, true);
   if (r.job) trackJob(r.job);
@@ -981,6 +983,28 @@ function renderRequest() {
       h('button', { class: 'btn primary', disabled: S.busy, onclick: () => doAct('_req_yes') },
         req.kind === 'present' ? '受け取る' : req.kind === 'treat' ? 'ごちそうになる' : 'いいよ'),
       req.kind !== 'present' ? h('button', { class: 'btn', disabled: S.busy, onclick: () => doAct('_req_no') }, 'ごめんね') : ''));
+}
+
+/* ---- 偶然知り合った人: 登録する (連絡先を交換する) か */
+function renderEncounter() {
+  const box = $('#encounter-box');
+  const en = S.view.encounter;
+  if (!en) { box.hidden = true; return; }
+  const answer = async (yes) => {
+    try {
+      const r = await api('/api/encounter', { yes });
+      if (r.registered) { toast(`${r.registered.name}を登録しました（キャラ切替から連絡できます）`, 'ok'); await loadBoot(); }
+    } catch (e) { toast(e.message, 'err'); }
+    await refresh();
+  };
+  box.hidden = false;
+  box.replaceChildren(
+    h('div', { class: 'req-text' }, h('b', {}, `🤝 ${en.where}で${en.name}と知り合った`),
+      h('div', { class: 'muted small' }, [en.persona ? `${en.persona}な感じの人` : '', en.with ? `${en.with}と一緒のとき` : '',
+        '連絡先を交換して、このワールドに登録しますか？'].filter(Boolean).join('。'))),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', onclick: () => answer(true) }, '登録する'),
+      h('button', { class: 'btn', onclick: () => answer(false) }, 'やめておく')));
 }
 
 /* ---- あなたの在席 (心拍で伝える) */
@@ -2285,6 +2309,13 @@ SEC.data = () => {
         try { const r = await api('/api/approach/force', { id: sel.value }); $('#settings-dlg').close(); handleActResult(r); await refresh(); } catch (e) { toast(e.message, 'err'); }
       } }, '起こす'));
     })(),
+    h('div', { class: 'sect' }, '偶然の出会いを起こす（テスト用）'),
+    h('div', { class: 'row' },
+      [['知らない人と知り合う', true], ['登録済みの人に偶然会う', false]].map(([label, stranger]) => h('button', { class: 'btn', onclick: async () => {
+        const r = await api('/api/encounter/force', { stranger });
+        toast(r.encounter ? r.encounter.text : '起きませんでした（返事待ちの人がいる・会える人がいない など）', r.encounter ? 'ok' : 'err');
+        await refresh();
+      } }, label))),
     h('div', { class: 'sect' }, 'エクスポート / インポート'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),
