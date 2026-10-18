@@ -2473,7 +2473,7 @@
   "name": "仕事に行ってくる",
   "icon": "💼",
   "category": "あなたの予定",
-  "when": "presence=here|idle|busy, outing=false",
+  "when": "presence=here|idle|busy, outing=false, hour>=6, hour<21, my_stamina>=20",
   "cooldown": 0,
   "presence_set": "work",
   "effects": {},
@@ -2515,6 +2515,16 @@
     "neg": "",
     "priority": 3,
     "override": true
+   },
+   {
+    "text": "……また、お仕事ですか。最近ずっとですね……",
+    "when": "work_3d>=20, loneliness>=50",
+    "pos": "sad smile, looking down",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": -3
+    }
    }
   ]
  },
@@ -2822,6 +2832,20 @@
     "priority": 2,
     "effects": {
      "loneliness": -10
+    }
+   },
+   {
+    "text": "おかえりなさい。……最近、お仕事ばっかりですね。{fp}のことも、ちょっとは構ってください。",
+    "when": "work_3d>=20, loneliness>=50",
+    "pos": "pouting, sad, looking at viewer",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": -3
+    },
+    "reason": {
+     "mood": "bad",
+     "tell": "{call}が仕事ばかりで、あまり構ってもらえない"
     }
    }
   ]

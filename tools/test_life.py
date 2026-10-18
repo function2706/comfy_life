@@ -31,6 +31,8 @@ def main():
         print("start: あなた %d / %s %d" % (me(), char["name"], her()))
 
         # ---- 稼ぐ・渡す・借りる・投資
+        app.world["economy"]["work_hours"] = [0, 24]            # テストは時刻に左右されないように
+        app.action("go_work")["when"] = "presence=here|idle|busy"
         m0 = me()
         app.act("go_work")
         app.presence.rec()["since"] -= 3 * 3600        # 3 時間働いたことにする

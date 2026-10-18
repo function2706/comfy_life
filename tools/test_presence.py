@@ -53,6 +53,8 @@ def main():
         assert P.rec()["mode"] == "none" and P.ctx(time.time())["left_mode"] == "out"
 
         # 仕事: 働いた時間ぶん稼ぐ. すぐ戻ると稼ぎなし
+        app.world["economy"]["work_hours"] = [0, 24]            # テストは時刻に左右されないように
+        app.action("go_work")["when"] = "presence=here|idle|busy"
         m0 = L.player_state()["money"]
         app.act("go_work")
         r = app.come_back()
@@ -64,6 +66,25 @@ def main():
         r = app.come_back()
         print("8.5時間働いた:", r["entry"]["money"], r["entry"].get("skill"), r["entry"]["text"])
         assert L.player_state()["money"] > m0 + 5000 and L.skill("work") > w0
+
+        # 体力が減り, 疲れていると構っても効きが悪い
+        print("仕事のあとの体力:", round(L.stamina(), 1))
+        assert L.stamina() <= 100 - 8 * 9 + 1
+        # 給料の出る時間帯と 1 日の上限 (固定の日時で)
+        import datetime as _d
+        app.world["economy"]["work_hours"] = [6, 23]
+        L.player_state()["work_log"] = {}
+        t22 = _d.datetime(2030, 1, 1, 22, 0).timestamp()
+        paid, raw = L.work_hours(t22, t22 + 9 * 3600)              # 22時〜翌7時: 22-23時と6-7時だけ
+        print("夜勤 9時間 → 給料の出る時間:", round(paid, 2))
+        assert abs(paid - 2) < 0.01
+        t8 = _d.datetime(2030, 1, 2, 8, 0).timestamp()
+        L.work_hours(t8, t8 + 6 * 3600, record=True)
+        paid2, _ = L.work_hours(t8 + 7 * 3600, t8 + 13 * 3600)    # 同じ日にもう 6 時間 → 上限 9 時間で残り 3 時間
+        print("同じ日の2回目 6時間 → ", round(paid2, 2))
+        assert abs(paid2 - 3) < 0.01
+        app.world["economy"]["work_hours"] = [0, 24]
+        L.player_state()["work_log"] = {}
 
         # ---- 働きかけ: 応じる / あとで / 放っておく
         free()
@@ -153,6 +174,13 @@ def main():
         # ---- 内職
         st["cooldowns"] = {}
         free()
+        L.player_state()["stamina"] = 5
+        try:
+            app.task_start("sort")
+            raise AssertionError("疲れていても内職できてしまう")
+        except ValueError as e:
+            print("  疲れて内職:", e)
+        L.player_state()["stamina"] = 100
         tk = app.task_start("sort")
         assert P.rec()["mode"] == "busy"
         try:

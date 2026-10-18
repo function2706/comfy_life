@@ -566,6 +566,8 @@ class App:
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             sk = a.get("skill")
             sk_mult = self.life.skill_mult(sk) if sk else 1.0
+            if a.get("category") not in ("system", "あなたの予定"):
+                sk_mult *= self.life.stamina_mult()        # 疲れていると, 構っても効きが悪い
             eff = {}
             if not r.get("override"):
                 for k, v in (a.get("effects") or {}).items():
@@ -1077,11 +1079,13 @@ class App:
                 raise ValueError("いまは離れていません")
             if ll["mode"] != "work":
                 return self.act("_back", char["id"])
-            pay, h = self.life.work_pay(ll["h"])
+            pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
             mv = self.life.move(st, dp=pay) if pay else {}
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
+            self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
         return self.act("work", char["id"], opts={"money": mv, "extra": {"amount": format(pay, ",")},
-                                                  "ctx": {"work_h": round(h, 2), "pay": pay}, "skill": {"work": gain}})
+                                                  "ctx": {"work_h": round(raw, 2), "paid_h": round(h, 2), "pay": pay},
+                                                  "skill": {"work": gain}})
 
     def answer_approach(self, ans, cid=None):
         with self.lock:
@@ -1140,6 +1144,9 @@ class App:
             last = max(st["cooldowns"].get("side_job", [0]) or [0])
             if cd and now - last < cd:
                 raise ValueError("まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60))
+            need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
+            if self.life.stamina() < need:
+                raise ValueError("疲れていて作業できません（体力 %d / %d 必要）" % (self.life.stamina(), need))
             token = uuid.uuid4().hex[:10]
             sec = int(self.world.get("economy", {}).get("side_job_seconds", 60))
             self.tasks = {k: v for k, v in self.tasks.items() if now - v["t0"] < 3600}
@@ -1163,6 +1170,7 @@ class App:
             pay = self.life.side_job_pay(ok, ng)
             mv = self.life.move(st, dp=pay) if pay else {}
             gain = self.life.train("work", 0.05 * ok)
+            self.life.tire(float(self.world.get("economy", {}).get("stamina_per_side_job", 10)))
             p = self.presence.rec()
             if p["mode"] == "busy":
                 p["mode"] = "none"

@@ -118,8 +118,8 @@ class Presence:
         m = self.at(now)
         out = {"mode": p["mode"], "state": m, "label": MODE_LABEL.get(m, m), "since": p.get("since")}
         if p["mode"] == "work":
-            pay, h = self.app.life.work_pay((now - p.get("since", now)) / 3600)
-            out["work"] = {"hours": round(h, 2), "pay": pay}
+            pay, h, raw = self.app.life.work_pay(p.get("since", now), now)
+            out["work"] = {"hours": round(h, 2), "raw": round(raw, 2), "pay": pay}
         return out
 
     # ------------------------------------------------------------------ 働きかけ

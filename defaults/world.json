@@ -70,7 +70,15 @@
     "{name}の決算、予想を下回る見込み",
     "{name}のライバル社が強力な新製品"
    ]
-  }
+  },
+  "work_hours": [
+   6,
+   23
+  ],
+  "stamina_recover": 5,
+  "stamina_recover_sleep": 12,
+  "stamina_per_work_hour": 9,
+  "stamina_per_side_job": 10
  },
  "phases": [
   {

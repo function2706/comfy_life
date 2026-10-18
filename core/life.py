@@ -40,6 +40,8 @@ class Life:
             self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t}
         ps = self.player
         ps.setdefault("skills", {k: 10.0 for k in SKILLS})
+        ps.setdefault("stamina", 100.0)          # あなたの体力 (仕事・内職で減り, 時間で戻る. 寝ると早い)
+        ps.setdefault("work_log", {})            # 日付 -> その日に給料が出た時間
         for k in SKILLS:
             ps["skills"].setdefault(k, 10.0)
         if "market" not in ps:
@@ -113,6 +115,10 @@ class Life:
                 if not st["history"] or t - st["history"][-1][0] >= 3600:
                     st["history"].append([t, round(st["price"], 2)])
                     del st["history"][:-168]
+            mode = self.app.presence.at(t)
+            if mode != "work":
+                rec = float(e.get("stamina_recover_sleep" if mode == "sleep" else "stamina_recover", 12 if mode == "sleep" else 5))
+                ps["stamina"] = min(100.0, float(ps.get("stamina", 100)) + rec * step / 3600.0)
             if datetime.fromtimestamp(t - step).date() != datetime.fromtimestamp(t).date():
                 ps["money"] += int(e.get("player_daily_income", 1000))
         ps["last_tick"] = t
@@ -191,13 +197,53 @@ class Life:
         return {"assets": out, "news": [dict(n, name=names.get(n["asset"], n["asset"])) for n in reversed(m["news"][-10:])]}
 
     # ---------------------------------------------------------- 仕事・内職
-    def work_pay(self, hours):
-        """仕事から帰ったときの稼ぎ (時給 x 時間 x 仕事スキル). 15 分未満は 0."""
+    def work_hours(self, t0, t1, record=False):
+        """t0〜t1 のうち給料が出る時間: 働ける時間帯 (work_hours) の中だけ, 1 日の上限 (work_max_hours) まで.
+        record=True ならその日の働いた時間に記録する. (給料の出る時間, 離れていた時間) を返す."""
         e = self.econ()
-        h = min(float(hours), float(e.get("work_max_hours", 9)))
-        if h < 0.25:
-            return 0, h
-        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") / 10.0)) * 10, h
+        lo, hi = (e.get("work_hours") or [6, 23])[:2]
+        cap = float(e.get("work_max_hours", 9))
+        log = dict(self.player_state().get("work_log") or {})
+        paid, t, step = 0.0, float(t0), 300.0
+        while t < t1:
+            dt = datetime.fromtimestamp(t)
+            day = dt.strftime("%Y-%m-%d")
+            seg = min(step, t1 - t) / 3600.0
+            if lo <= dt.hour < hi and log.get(day, 0) < cap:
+                add = min(seg, cap - log.get(day, 0))
+                log[day] = log.get(day, 0) + add
+                paid += add
+            t += step
+        if record:
+            keep = sorted(log)[-14:]
+            self.player_state()["work_log"] = {k: round(log[k], 3) for k in keep}
+            self.save_player()
+        return paid, (t1 - t0) / 3600.0
+
+    def work_pay(self, t0, t1, record=False):
+        """仕事から帰ったときの稼ぎ (時給 x 給料の出る時間 x 仕事スキル x 体力). 15 分未満は 0.
+        (稼ぎ, 給料の出る時間, 離れていた時間) を返す."""
+        e = self.econ()
+        if (t1 - t0) < 900:
+            return 0, 0.0, (t1 - t0) / 3600.0
+        h, raw = self.work_hours(t0, t1, record)
+        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") / 10.0)) * 10, h, raw
+
+    def stamina(self):
+        return float(self.player_state().get("stamina", 100))
+
+    def tire(self, amount):
+        ps = self.player_state()
+        ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - float(amount))
+        self.save_player()
+
+    def stamina_mult(self):
+        """体力が減っていると, キャラへの行動のうれしい効き目が落ちる (体力 0 で 0.6 倍)."""
+        return 0.6 + 0.4 * self.stamina() / 100.0
+
+    def recent_work(self, days=3):
+        log = self.player_state().get("work_log") or {}
+        return round(sum(v for k, v in sorted(log.items())[-days:]), 2)
 
     def side_job_pay(self, ok, ng):
         unit = float(self.econ().get("side_job_unit", 15)) * self.skill_mult("work")
@@ -215,6 +261,8 @@ class Life:
         ctx = {"my_money": ps["money"], "her_money": self.her_money(st)["a"], "invest_value": value,
                "profit": value - self.portfolio_cost() if value else 0}
         ctx.update({"sk_" + k: round(v, 1) for k, v in ps["skills"].items()})
+        ctx["my_stamina"] = round(float(ps.get("stamina", 100)), 1)
+        ctx["work_3d"] = self.recent_work(3)            # ここ 3 日で働いた時間
         return ctx
 
     def move(self, st, dp=0, da=0):
@@ -420,6 +468,8 @@ class Life:
                 "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},
                 "market": self.market_view(),
                 "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
+                "stamina": round(float(ps.get("stamina", 100)), 1), "work_today": round((ps.get("work_log") or {}).get(
+                    datetime.now().strftime("%Y-%m-%d"), 0), 2),
                 "pay_policy": char.get("pay_policy") or "auto", "living_policy": char.get("living_policy") or "split",
                 "request": req,
                 "hint": bool(untold), "hint_mood": untold[0]["mood"] if untold else None}

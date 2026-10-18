@@ -1488,6 +1488,12 @@
   ],
   "_return.said_false__absent_ge_24": [
    "……丸一日、何も言わずに。……心配した。次はひと言、言って。"
+  ],
+  "go_work.work_3d_ge_20__loneliness_ge_50": [
+   "……また仕事。最近、多いね。"
+  ],
+  "work.work_3d_ge_20__loneliness_ge_50": [
+   "……おかえり。最近、仕事ばかり。……少しは、こっちも見て。"
   ]
  }
 }

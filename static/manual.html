@@ -412,9 +412,17 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
     <ul><li>日給（バイト代・仕送り）</li><li>ときどきのバイト代</li><li>衝動買い・お金のピンチ</li></ul></div>
 </div>
 <h3>💼 仕事</h3>
-<p>「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに、離れていた時間（上限9時間）×時給×仕事スキルのお給料が入ります。15分未満で戻ると「忘れ物？」になり、稼ぎはありません。離れている間はキャラと過ごせないので、寂しさは普通に増えていきます。</p>
+<p>「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに、給料の出る時間×時給×仕事スキルのお給料が入ります。15分未満で戻ると「忘れ物？」になり、稼ぎはありません。</p>
+<ul>
+  <li><b>時間帯</b>：仕事に出られるのは 6〜21時。給料が出るのは 6〜23時の分だけです（夜通し離れても、夜の分は出ません）。</li>
+  <li><b>1日の上限</b>：その日の合計で9時間まで。何度出入りしても増えません。</li>
+  <li><b>体力</b>：働いた時間ぶん減ります（1時間で9）。体力20未満では仕事に出られません。</li>
+  <li><b>キャラ</b>：離れている間は一緒に過ごせないので寂しさが増えます。ここ3日で20時間以上働いていて寂しがっていると、「最近お仕事ばっかり」と機嫌を損ねます。</li>
+</ul>
+<h3>💪 あなたの体力</h3>
+<p>仕事と内職で減り、時間で戻ります（1時間で5。「先に寝るね」で寝ている間は12）。体力が減っていると、キャラに構っても効きが悪くなります（体力0で 0.6 倍）。ステータスタブで見られます。</p>
 <h3>🧵 内職</h3>
-<p>家でする1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。終わると30分は休憩です。</p>
+<p>家でする1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。体力を10使い、終わると30分は休憩です。</p>
 <div class="cards">
   <div class="card"><div class="hd"><span class="ic">🍎</span>仕分け</div><p>流れてくる品物を、果物・野菜・魚介・パンの箱に入れます。キー 1〜4 でも操作できます。</p></div>
   <div class="card"><div class="hd"><span class="ic">🧮</span>検算</div><p>計算が合っているか確かめます。← か F で「合っている」、→ か J で「間違い」。</p></div>
@@ -570,6 +578,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金、誰が払うか（me / her / split）</td></tr>
   <tr><td><code>presence</code> <code>said</code> <code>left_mode</code> <code>left_h</code></td><td>あなたの在席：here / idle / busy / out / work / sleep / left / gone、告げてから離れたか、どう離れていたか、何時間離れていたか（戻って15分まで）</td></tr>
   <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code></td><td>あなたのスキル（0〜100）</td></tr>
+  <tr><td><code>my_stamina</code> <code>work_3d</code></td><td>あなたの体力（0〜100）、ここ3日で給料の出た勤務時間</td></tr>
   <tr><td><code>roll</code></td><td>実行のたびに変わる 0〜99 の乱数。<code>sk_cook&lt;30, roll&lt;45</code> のように「ときどき」を書くのに使う</td></tr>
   <tr><td><code>work_h</code> <code>task_ok</code> <code>task_ng</code> <code>pay</code></td><td>仕事から帰ったとき・内職のあとだけ：働いた時間、こなした数、ミスの数、稼ぎ</td></tr>
   <tr><td><code>game_stage</code> <code>lives</code> など</td><td>ミニゲーム中だけ使えるキー（設定 → ミニゲームに一覧）</td></tr>

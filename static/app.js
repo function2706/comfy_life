@@ -981,8 +981,9 @@ function renderAway() {
     h('div', { class: 'away-ic' }, a[0]),
     h('div', { class: 'away-title' }, a[1]),
     h('div', { class: 'muted' }, `${fmtDur(since)}経過`),
-    p.work ? h('div', { class: 'away-pay' }, p.work.hours < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
-      : `ここで帰ると ${yen(p.work.pay)}（${p.work.hours.toFixed(1)}時間分）`) : '',
+    p.work ? h('div', { class: 'away-pay' }, p.work.raw < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
+      : `ここで帰ると ${yen(p.work.pay)}（給料の出る ${p.work.hours.toFixed(1)}時間分）`) : '',
+    p.work ? h('div', { class: 'muted small' }, '給料が出るのは 6〜23時、1日合計9時間まで。働いた時間ぶん体力が減ります') : '',
     h('p', { class: 'muted small' }, `${name}のそばを離れています。このまま画面を閉じてもかまいません。`,
       h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' :
         '開き直すか「' + a[2] + '」で戻ります。'),
@@ -1085,7 +1086,8 @@ function renderMoney() {
           title: '家で1分間の作業をします。こなした数とミスで稼ぎが決まります' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
           h('small', { class: 'muted' }, (av.side_job || {}).cooldown > 0 ? `あと${Math.ceil(av.side_job.cooldown / 60)}分` : '1分の作業'))),
-      h('div', { class: 'muted small' }, `仕事スキル ${Math.round((L.skills || {}).work || 0)}：上がるほどお給料と内職の単価が上がります`)),
+      h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
+      h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います')),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
       h('div', { class: 'muted small', style: 'margin-bottom:6px' }, 'ニュースは当たるとは限りません。値動きはリアル時間で進みます。'),
       ...M.assets.map(asset)),
@@ -1227,6 +1229,11 @@ function renderStatus() {
       h('div', {}, h('b', {}, 'あなた '), (v.presence || {}).label || '—')),
     h('div', { class: 'pgroup' }, h('h4', {}, 'いまの気分の理由'),
       reasons.length ? reasons : h('div', { class: 'muted small' }, '特になし')),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'あなた'),
+      h('div', { class: 'prow', title: '仕事・内職で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
+        h('span', {}, '体力'),
+        h('div', { class: 'bar' }, h('i', { style: `width:${L.stamina ?? 100}%;background:${(L.stamina ?? 100) >= 50 ? 'var(--good)' : (L.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
+        h('span', { class: 'pval' }, Math.floor(L.stamina ?? 100)))),
     h('div', { class: 'pgroup' }, h('h4', {}, 'あなたのスキル'),
       Object.entries(L.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
         h('span', {}, SKILL_NAME[k] || k),
