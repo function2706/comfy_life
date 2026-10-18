@@ -1599,6 +1599,21 @@
   ],
   "go_work.player_has_job_true": [
    "いってらっしゃい。{player_job}の業務、がんばって。"
+  ],
+  "enc.call.first": [
+   "落とし物よ。あなたのものだと判断したわ。"
+  ],
+  "enc.call.again": [
+   "この場所での遭遇は、これで何度目かしら。"
+  ],
+  "enc.call.known": [
+   "{call}。予定外の遭遇ね。"
+  ],
+  "enc.chat": [
+   "有意義な会話だったわ。……また。"
+  ],
+  "enc.decline": [
+   "了解。引き止めるつもりはないわ。"
   ]
  }
 }

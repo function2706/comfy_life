@@ -22,6 +22,7 @@ from . import bonds as bonds_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
+from . import street as street_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -110,6 +111,7 @@ class App:
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
+        self.street = street_mod.Street(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -1229,6 +1231,7 @@ class App:
             self.tick(cid)                  # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
+            street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
             st = self.state(cid)
             now = time.time()
@@ -1255,6 +1258,7 @@ class App:
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street,
+                "street_pending": self.street.view(), "street_auto": street_auto,
                 "pending_msg": bool(st.get("msg_pending")),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),

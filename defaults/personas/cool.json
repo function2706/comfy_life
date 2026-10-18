@@ -1588,6 +1588,21 @@
   ],
   "go_work.player_has_job_true": [
    "……いってらっしゃい。{player_job}、がんばって。"
+  ],
+  "enc.call.first": [
+   "……これ、落とした。"
+  ],
+  "enc.call.again": [
+   "……また会った。"
+  ],
+  "enc.call.known": [
+   "……{call}。偶然ね。"
+  ],
+  "enc.chat": [
+   "……少し話せて、悪くなかった。"
+  ],
+  "enc.decline": [
+   "……そう。急いでるなら、いい。"
   ]
  }
 }

@@ -110,7 +110,8 @@ def main():
         app.world["outdoor"] = {"rate_out": 1e6}
         app.presence.rec()["enc_check"] = time.time() - 600
         r = O.live()
-        assert r and r["kind"] == "bump" and O.view()["current"]["log"], r
+        assert r and r["kind"] in ("call", "sight") and O.view()["current"]["log"] and app.street.pending(), r
+        app.street.resolve("pass")
         app.presence.back()
         assert O.live() is None, "家にいれば会わない"
         # 起きやすさ: 行き先の人の多さ (時間帯) x 天気. 仕事・誰かとのお出かけは低め

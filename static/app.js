@@ -94,13 +94,14 @@ async function refresh() {
   }
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
   if (S.view.gap) toast(S.view.gap.text, 'ok');
-  if (S.view.street) toast(S.view.street.text, 'ok');
+  if (S.view.street_auto) toast(S.view.street_auto.text.split('\n')[0], 'ok');
   for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   renderWho();
   renderAway();
   renderApproach();
   renderRequest();
   renderEncounter();
+  renderStreet();
   renderCommands();
   renderDress();
   renderGames();
@@ -1109,6 +1110,32 @@ function renderEncounter() {
       h('button', { class: 'btn', onclick: () => answer(false) }, 'やめておく')));
 }
 
+/* ---- 出先でのばったり: 声をかけられた / 見かけた. 選ばないまま時間が過ぎたら, 無難な対応に落ち着く.
+   あえて目立たせない (音・点滅なし. タブが裏ならタイトルに小さな印だけ) */
+function streetCard() {
+  const sp = S.view.street_pending;
+  if (!sp) return null;
+  return h('div', { class: 'street-card' },
+    h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた` : `👀 ${sp.where}で、${sp.name}を見かけた`),
+    sp.text ? h('div', { class: 'muted' }, `「${sp.text}」`) : '',
+    h('div', { class: 'row' }, sp.options.map((o) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerStreet(o.id) }, o.label))));
+}
+function renderStreet() {
+  const box = $('#street-box');
+  const away = !$('#away-overlay').hidden;
+  const card = away ? null : streetCard();
+  box.hidden = !card;
+  if (card) box.replaceChildren(card);
+  document.title = S.view.street_pending && document.hidden ? '・くらし' : 'くらし';
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'くらし'; });
+async function answerStreet(choice) {
+  if (S.busy) return;
+  S.busy = true;
+  try { const r = await api('/api/street', { choice }); if (r) toast(r.text.replace(/\n/, ' '), 'ok'); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
 /* ---- あなたの在席 (心拍で伝える) */
 S.lastInput = Date.now();
 const idleSec = () => Math.round((Date.now() - S.lastInput) / 1000);
@@ -1129,6 +1156,7 @@ function renderAway() {
     h('div', { class: 'away-title' }, p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
+    streetCard() || '',
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),
     h('div', { class: 'muted' }, `${fmtDur(since)}経過`),

@@ -1601,6 +1601,21 @@
   ],
   "go_work.player_has_job_true": [
    "いってらっしゃい。{player_job}、しっかりな。"
+  ],
+  "enc.call.first": [
+   "おい、これ落としたぞ。"
+  ],
+  "enc.call.again": [
+   "また会ったな。ここはよく来るのか？"
+  ],
+  "enc.call.known": [
+   "{call}か。奇遇だな。"
+  ],
+  "enc.chat": [
+   "思ったより話し込んだな。またな。"
+  ],
+  "enc.decline": [
+   "そうか、急ぎか。引き止めて悪かった。"
   ]
  }
 }

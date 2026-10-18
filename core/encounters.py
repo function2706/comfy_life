@@ -64,13 +64,16 @@ class Encounters:
         return self.happen(kind, with_cid, where, now)
 
     def happen_at(self, cur, now=None):
-        """外出中 (outdoor.live) に起きた出会い. cur: {kind, place, with}."""
-        from .outdoor import PLACES
-        where = (PLACES.get(cur["place"]) or PLACES["town"])["label"]
-        r = self.happen(cur["kind"], cur.get("with"), where, now)
-        if r:
-            self.app.outdoor.note(r["text"].strip("（）"), now)
-        return r
+        """外出中 (outdoor.live) に起きた出会い. 中身 (誰に会うか・声をかけられるか) は street.py. cur: {kind, place, with}."""
+        return self.app.street.happen(cur, now)
+
+    def ask_register(self, c, where, with_cid, src, pid=None, now=None):
+        """知り合いになった人を, 登録する (連絡先を交換する) か尋ねる."""
+        c = {k: v for k, v in json.loads(json.dumps(c)).items() if k not in ("id", "prompt_history")}
+        p = (self.app.personas.get(c.get("persona_id") or "") or {})
+        self.app.life.player_state()["encounter"] = {"t": now or time.time(), "kind": "street", "where": where, "with": with_cid,
+                                                     "char": c, "src": src, "persona_name": p.get("name", ""), "pid": pid}
+        self.app.life.save_player()
 
     def happen(self, kind, with_cid=None, where=None, now=None, stranger=None):
         now = now or time.time()
@@ -234,6 +237,11 @@ class Encounters:
             c["id"] = "c" + uuid.uuid4().hex[:8]
             c["met"] = {"t": enc["t"], "where": enc["where"], "src": enc.get("src")}
             app.save_character(c)
+            if enc.get("pid"):           # 出先で段階的に知り合った人: 以後はキャラとして会う
+                ppl = app.street.people()
+                if enc["pid"] in ppl:
+                    ppl[enc["pid"]]["cid"] = c["id"]
+                    app.street.save_people(ppl)
             if enc.get("with") in app.chars:
                 for a, b in ((c["id"], enc["with"]), (enc["with"], c["id"])):
                     app.change_affinity(a, b, 0)

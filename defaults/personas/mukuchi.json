@@ -1600,6 +1600,21 @@
   ],
   "go_work.player_has_job_true": [
    "……いってらっしゃい。{player_job}、がんばって。"
+  ],
+  "enc.call.first": [
+   "……これ。落ちてた。"
+  ],
+  "enc.call.again": [
+   "……また。"
+  ],
+  "enc.call.known": [
+   "……{call}。"
+  ],
+  "enc.chat": [
+   "……話せて、よかった。"
+  ],
+  "enc.decline": [
+   "……ん。いってらっしゃい。"
   ]
  }
 }

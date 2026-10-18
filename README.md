@@ -158,13 +158,17 @@ python server.py --port 9000 --no-browser
 
 設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。`data/registry/characters/` に登録し、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。どれでも登録キャラとして、ほかのワールドの出会い・顔ぶれの候補になる。
 
-### 偶然の出会い
+### 外出と偶然の出会い
 
-`core/encounters.py`。一人で出かけた帰り・仕事帰り・お出かけの帰りに、出かけていた時間に応じて起きる（世界設定の `encounters`）。
+`core/outdoor.py`（外出・行き先・天気）と `core/street.py`（誰に会うか・段階・反応）。
 
-- 登録済みの人に偶然会う: その人のログに残る。一緒にいた人とは互いに知り合う（`relations.json`）。同居相手とは起きない。
-- 知らない人と知り合う: `player.json` の `encounter` に入り、登録するか尋ねる（未登録のキャラが増えるのはここだけ）。候補は「ほかのワールドで登録済みで、このワールドにいない人」（名前と外見プロンプトで同一視）、いなければ名前・外見タグ・性格プリセットをくじで作る。
-- `POST /api/encounter {yes}` で登録/見送り、`POST /api/encounter/force {stranger}` で試せる（設定 → データ）。
+- 外出（presence の out / work、誰かとの outing の一時シーン）は画面を開いている間だけ。心拍が途絶えたら `outdoor.check_gap()` が最後の心拍の時点で切り上げ（`come_back(at, quiet=True)`、給料もそこまで、お出かけは解散）、家で静かに過ごしていた扱い。
+- 出会いは外出中に心拍のたび `outdoor.live()` で判定: 1時間あたり `outdoor.rate_*` × 行き先の人の多さ（`PLACES[...].crowd[時間帯]`）× 天気（屋外/屋内の係数）。補正なし。天気はリアル日付から（`outdoor.weather`）。
+- 行き先は散歩・買い物・出かけるで選ぶ（`POST /api/solo/start {kind, place}`）。誰かとのお出かけは一時シーンの場所から。
+- 誰に会うか: 人ごとの「よく行く場所と時間帯」（`street.haunts_of`、名前と外見から決まる）で重み付け。仕事中は同僚だけ。初めての顔はほかのワールドの登録キャラ、いなければ生成し、`W/people.json` に記録（ここに来る習慣も付く）。
+- 段階: まだ知らない → 見かけた → 会釈する仲 → 立ち話する仲 → 知り合い（ここで登録を尋ねる）。進むかはこちらの反応 × 相手の `caution` × 偶然。
+- 声をかけられた / 見かけた: `presence.street_pending` に入り、`POST /api/street {choice}` で反応（chat / nod / decline、見かけたなら talk / nod / pass）。`street.TIMEOUT` 秒たつと、声をかけられたなら会釈して流し、見かけただけなら通り過ぎる。セリフは性格プリセットの `enc.call.first` / `enc.call.again` / `enc.call.known` / `enc.chat` / `enc.decline`。
+- 知り合いの登録は従来どおり `POST /api/encounter {yes}`。`POST /api/encounter/force {stranger}` でも試せる（設定 → データ）。
 
 ### 既定データの更新
 
@@ -323,6 +327,7 @@ tools/test_bonds.py  あなたとの間柄（連絡・外で会う・訪問・�
 core/bonds.py      あなたと各キャラの間柄・いま誰と会っているか・嫉妬
 core/encounters.py 偶然の出会いと, 知り合った人の登録
 tools/test_encounters.py  偶然の出会い・知らない人の登録のテスト
+tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
 tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト
 tools/test_realism.py  現実的な深まり方 (揺らぎ・繰り返し・ご無沙汰・提案・贈り物・出会いの偏りなし) のテスト

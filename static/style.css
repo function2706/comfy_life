@@ -132,6 +132,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 /* commands */
 .cat { margin-bottom: 14px; }
 .chip.weather { background: #262d38; color: #cfe0f5; }
+.street-card { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; text-align: left; max-width: 420px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.street-card .row { gap: 6px; flex-wrap: wrap; }
 .street-log { margin: 6px 0; text-align: left; max-width: 420px; color: var(--muted); }
 .chip.home { background: #263028; color: #cfe8d2; }
 .with-head { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; margin: 4px 0 8px; padding-top: 6px; border-top: 1px solid var(--line); }
