@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>くらし 説明書</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #131117; --panel: #1c1922; --panel2: #24202c; --panel3: #2d2837; --line: #36303f;
+  --text: #ede9f2; --muted: #9b94a8; --accent: #f08aa6; --accent2: #f3c27c;
+  --good: #7fd1b9; --bad: #f07a8b; --sky: #8fb6f0; --violet: #b9a2f0;
+  --font: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.75; }
+a { color: var(--accent); }
+code { background: var(--panel3); border-radius: 6px; padding: 1px 6px; font-size: 13px; font-family: Consolas, "Cascadia Mono", monospace; }
+.wrap { display: grid; grid-template-columns: 230px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+nav.toc { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 22px 14px; border-right: 1px solid var(--line); }
+nav.toc .brand { font-weight: 700; font-size: 20px; letter-spacing: .15em; color: var(--accent); margin-bottom: 4px; }
+nav.toc .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+nav.toc a { display: block; color: var(--text); text-decoration: none; padding: 4px 10px; border-radius: 8px; font-size: 13.5px; }
+nav.toc a:hover { background: var(--panel3); }
+nav.toc a.on { background: rgba(240,138,166,.16); color: var(--accent); }
+nav.toc .grp { color: var(--muted); font-size: 11.5px; margin: 12px 10px 2px; letter-spacing: .08em; }
+main { padding: 26px 34px 80px; min-width: 0; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 21px; margin: 54px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+h2 .ic { font-size: 22px; }
+h3 { font-size: 16px; margin: 26px 0 8px; color: var(--accent2); }
+p { margin: 8px 0; }
+.lead { color: var(--muted); }
+ul { padding-left: 22px; margin: 6px 0; }
+li { margin: 3px 0; }
+.note { background: var(--panel2); border-left: 3px solid var(--sky); border-radius: 0 10px 10px 0; padding: 8px 14px; margin: 12px 0; font-size: 14px; }
+.note.warn { border-color: var(--accent2); }
+.where { display: inline-block; font-size: 12.5px; color: var(--muted); background: var(--panel2); border: 1px solid var(--line); border-radius: 99px; padding: 1px 10px; margin-left: 4px; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 14px; }
+th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel2); font-weight: 500; }
+
+/* 手順 */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 14px 0; counter-reset: st; }
+.steps > div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 14px 12px 50px; position: relative; font-size: 14px; }
+.steps > div::before { counter-increment: st; content: counter(st); position: absolute; left: 14px; top: 13px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #2a1018; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+.steps b { display: block; margin-bottom: 2px; }
+
+/* 流れ図 */
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 16px 0; }
+.flow > .box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13.5px; min-width: 120px; flex: 1 1 130px; }
+.flow > .box b { display: block; font-size: 14px; }
+.flow > .box small { color: var(--muted); display: block; line-height: 1.5; margin-top: 2px; }
+.flow > .arr { display: grid; place-items: center; color: var(--accent); font-size: 20px; padding: 0 6px; }
+.box.hl { border-color: var(--accent); background: rgba(240,138,166,.08); }
+.box.q { border-style: dashed; }
+
+/* 画面の図 */
+.screen { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); margin: 16px 0; font-size: 12px; user-select: none; }
+.sc-top { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.sc-top .lg { color: var(--accent); font-weight: 700; letter-spacing: .15em; }
+.sc-top .pill { background: var(--panel3); border-radius: 99px; padding: 1px 9px; }
+.sc-body { display: grid; grid-template-columns: 1fr 230px; height: 340px; }
+.sc-stage { position: relative; background: radial-gradient(ellipse at 50% 35%, #3a2f45, #17141c 70%); }
+.sc-girl { position: absolute; left: 50%; top: 30px; transform: translateX(-50%); width: 120px; height: 230px; opacity: .55; }
+.sc-chip { position: absolute; left: 12px; top: 10px; background: rgba(20,17,24,.7); border-radius: 99px; padding: 1px 10px; }
+.sc-badge { position: absolute; right: 12px; top: 10px; background: rgba(240,138,166,.18); color: var(--accent); border-radius: 99px; padding: 1px 10px; }
+.sc-tools { position: absolute; right: 12px; top: 44px; display: flex; flex-direction: column; gap: 6px; }
+.sc-tools span { width: 26px; height: 26px; border-radius: 50%; background: rgba(20,17,24,.7); display: grid; place-items: center; font-size: 13px; }
+.sc-dlg { position: absolute; left: 16px; right: 60px; bottom: 12px; background: rgba(28,25,34,.88); border: 1px solid var(--line); border-radius: 12px; padding: 14px 14px 10px; }
+.sc-dlg .np { position: absolute; top: -10px; left: 14px; background: var(--accent); color: #2a1018; border-radius: 99px; padding: 0 10px; font-weight: 700; }
+.sc-side { border-left: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.sc-who { display: flex; gap: 8px; align-items: center; }
+.sc-who i { width: 30px; height: 30px; border-radius: 50%; background: var(--panel3); display: grid; place-items: center; font-style: normal; }
+.sc-req { background: rgba(243,194,124,.12); border: 1px solid rgba(243,194,124,.4); border-radius: 8px; padding: 4px 8px; }
+.sc-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.sc-tabs span { padding: 2px 6px; font-size: 11px; }
+.sc-tabs span:first-child { color: var(--accent); border-bottom: 2px solid var(--accent); }
+.sc-cmds { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.sc-cmds span { background: var(--panel3); border-radius: 7px; padding: 3px 6px; font-size: 11px; }
+.an { position: relative; }
+.mk { position: absolute; right: -10px; top: -10px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent2); color: #2a1a05; font-weight: 700; display: grid; place-items: center;
+  font-size: 12px; box-shadow: 0 0 0 3px rgba(243,194,124,.25); z-index: 2; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 18px; font-size: 14px; margin: 8px 0; }
+.legend div { display: flex; gap: 8px; align-items: baseline; }
+.legend .n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent2); color: #2a1a05; font-weight: 700; display: grid; place-items: center; font-size: 11.5px; transform: translateY(3px); }
+
+/* プロンプトの層 */
+.layers { display: flex; flex-direction: column; gap: 4px; margin: 14px 0; max-width: 640px; }
+.layers div { display: grid; grid-template-columns: 26px 150px 1fr; gap: 10px; align-items: center; border-radius: 9px; padding: 6px 12px; font-size: 13.5px; }
+.layers div span:first-child { font-weight: 700; opacity: .8; }
+.layers div small { color: rgba(237,233,242,.75); }
+
+/* 計算式 */
+.eq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0; font-size: 14px; }
+.eq .t { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; text-align: center; }
+.eq .t small { display: block; color: var(--muted); font-size: 12px; }
+.eq .op { color: var(--accent); font-size: 20px; font-weight: 700; }
+
+/* 時間軸 */
+.timeline { position: relative; display: flex; height: 46px; border-radius: 10px; overflow: hidden; margin: 14px 0 4px; font-size: 12px; }
+.timeline div { display: grid; place-items: center; border-right: 1px solid rgba(0,0,0,.35); color: #1b1720; font-weight: 500; text-align: center; line-height: 1.3; }
+.tl-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; margin-bottom: 14px; }
+
+/* 財布 */
+.wallets { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 10px; align-items: center; margin: 16px 0; }
+.wallet { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; text-align: center; }
+.wallet .big { font-size: 34px; }
+.wallet ul { text-align: left; font-size: 13px; color: var(--muted); padding-left: 18px; }
+.mid { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.mid div { background: var(--panel2); border-radius: 99px; padding: 3px 12px; text-align: center; }
+.mid .r { color: var(--good); } .mid .l { color: var(--sky); }
+
+/* 表(○×) */
+.matrix td.ok { color: var(--good); } .matrix td.ng { color: var(--bad); } .matrix td.so { color: var(--accent2); }
+
+/* 服の優先順位 */
+.ladder { display: flex; flex-direction: column; gap: 5px; margin: 14px 0; max-width: 620px; }
+.ladder div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; font-size: 13.5px; display: flex; gap: 10px; align-items: baseline; }
+.ladder div b { flex: none; width: 1.6em; color: var(--accent); }
+.ladder div:first-child { border-color: var(--accent); }
+
+/* カード */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 12px 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 13.5px; }
+.card .hd { font-weight: 700; font-size: 14.5px; display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+.card .hd .ic { font-size: 18px; }
+.card p { margin: 2px 0; color: var(--muted); }
+.card.sec { scroll-margin-top: 16px; }
+.card.sec:target { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(240,138,166,.2); }
+
+/* キー */
+kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width: 3px; border-radius: 6px; padding: 0 7px; font-family: inherit; font-size: 13px; }
+
+@media (max-width: 860px) {
+  .wrap { grid-template-columns: 1fr; }
+  nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 2px; padding: 12px 16px; }
+  nav.toc .grp, nav.toc .sub { display: none; }
+  nav.toc .brand { width: 100%; }
+  main { padding: 18px 16px 60px; }
+  .sc-body { grid-template-columns: 1fr; height: auto; }
+  .sc-stage { height: 280px; }
+  .wallets { grid-template-columns: 1fr; }
+  .layers div { grid-template-columns: 22px 110px 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" id="toc">
+  <div class="brand">くらし</div>
+  <div class="sub">説明書</div>
+  <div class="grp">はじめに</div>
+  <a href="#start">最初にすること</a>
+  <a href="#screen">画面の見方</a>
+  <a href="#keys">操作・ショートカット</a>
+  <div class="grp">しくみ</div>
+  <a href="#time">時間とスケジュール</a>
+  <a href="#params">パラメータ</a>
+  <a href="#command">コマンドと反応</a>
+  <a href="#image">画像ができるまで</a>
+  <a href="#mood">機嫌の理由</a>
+  <a href="#money">お金</a>
+  <a href="#dress">着せ替え・お出かけ</a>
+  <a href="#games">ミニゲーム</a>
+  <a href="#persona">性格・セリフ</a>
+  <div class="grp">設定</div>
+  <a href="#settings">設定の各画面</a>
+  <a href="#cond">条件・効果の書き方</a>
+  <a href="#placeholders">セリフの置換文字</a>
+  <div class="grp">その他</div>
+  <a href="#trouble">困ったとき</a>
+  <a href="#data">データの保存先</a>
+</nav>
+
+<main>
+<h1>くらし 説明書</h1>
+<p class="lead">リアルの時刻に合わせて、キャラクターと一緒に暮らすアプリです。話しかけたり出かけたりするたびに、ComfyUI でその場面の画像を描きます。</p>
+
+<!-- ============================================================ -->
+<h2 id="start"><span class="ic">🚀</span>最初にすること</h2>
+<div class="steps">
+  <div><b>ComfyUI につなぐ</b>⚙ 設定 →「画像生成 (ComfyUI)」でアドレスとポートを入れます。別の PC なら ComfyUI を <code>--listen</code> 付きで起動します。</div>
+  <div><b>接続テスト</b>「接続テスト」を押して「接続OK」を確かめます。チェックポイントの候補が出ます。</div>
+  <div><b>チェックポイントを選んで保存</b>使うモデルを選び、右上の「保存」を押します。</div>
+  <div><b>主人公を決める</b>「主人公」で名前、外見のプロンプト、性格プリセットを設定します。</div>
+  <div><b>話しかける</b>右の「コマンド」から選ぶと、セリフと画像が出ます。</div>
+</div>
+<div class="note">設定画面では、項目名の横の <b>ⓘ</b> にマウスを乗せると短い説明が出ます。各画面の右上の <b>📖</b> を押すと、この説明書の該当の箇所が開きます。</div>
+
+<!-- ============================================================ -->
+<h2 id="screen"><span class="ic">🖥</span>画面の見方</h2>
+<div class="screen" aria-hidden="true">
+  <div class="sc-top"><span class="lg">くらし</span><span class="an">13:56 <span class="pill">昼</span><span class="mk">1</span></span><span style="flex:1"></span>
+    <span class="an"><span class="pill">ひな ▾</span> 📖 🖼 ⚙<span class="mk">2</span></span></div>
+  <div class="sc-body">
+    <div class="sc-stage">
+      <svg class="sc-girl" viewBox="0 0 120 230"><circle cx="60" cy="45" r="30" fill="#b9a2f0"/><path d="M20 230 Q22 110 60 95 Q98 110 100 230Z" fill="#b9a2f0"/></svg>
+      <span class="sc-chip">📍リビング　くつろぎ中<span class="mk">3</span></span>
+      <span class="sc-badge">🖼 生成ジョブ<span class="mk">4</span></span>
+      <div class="sc-tools"><span>💬</span><span>🎲</span><span>⟳</span><span>📷</span><span>🧩</span><span class="mk" style="right:auto;left:-28px;top:2px">5</span></div>
+      <div class="sc-dlg"><span class="np">ひな</span>おかえりなさい。今日は早かったんですね。<div style="color:var(--muted);font-size:11px;margin-top:4px">13:56　機嫌 +3</div><span class="mk">6</span></div>
+    </div>
+    <div class="sc-side">
+      <div class="sc-who an"><i>🙂</i><div><b>ひな</b><div style="color:var(--muted);font-size:11px">くつろぎ中（リビング） 💭何かあったみたい</div></div><span class="mk">7</span></div>
+      <div class="sc-req an">🙏 お願い：これ買ってほしいな…<span class="mk">8</span></div>
+      <div class="sc-tabs an"><span>コマンド</span><span>着せ替え</span><span>ゲーム</span><span>ステータス</span><span>ログ</span><span class="mk">9</span></div>
+      <div class="sc-cmds"><span>💬 話しかける</span><span>🍵 お茶を淹れる</span><span>👀 様子を見る</span><span>🤗 抱きしめる</span><span>🚶 散歩に誘う</span><span>💴 お金</span></div>
+    </div>
+  </div>
+</div>
+<div class="legend">
+  <div><span class="n">1</span><span><b>時計と時間帯</b>：リアルの時刻です。朝・昼・夜などの時間帯で、画像の光や反応が変わります。</span></div>
+  <div><span class="n">2</span><span><b>キャラ切替・📖説明書・🖼ギャラリー・⚙設定</b></span></div>
+  <div><span class="n">3</span><span><b>いまの場面</b>：場所と過ごし方です。生活スケジュールで決まります。</span></div>
+  <div><span class="n">4</span><span><b>生成ジョブ</b>：押すと、生成の進み具合とエラーが見られます。</span></div>
+  <div><span class="n">5</span><span><b>画像の操作</b>：💬会話欄を隠す、🎲同じプロンプトの別の画像、⟳新しく生成、📷今の様子を撮る、🧩プロンプトを見る・編集。</span></div>
+  <div><span class="n">6</span><span><b>会話欄</b>：セリフと、その行動で変わったパラメータを表示します。文字送り中にクリックすると全文が出ます。</span></div>
+  <div><span class="n">7</span><span><b>キャラの様子</b>：表情、場面、状態タグです。「💭」は、まだ聞いていない出来事があるという印です。</span></div>
+  <div><span class="n">8</span><span><b>お願い</b>：キャラからのおねだりや申し出です。ここで答えます。</span></div>
+  <div><span class="n">9</span><span><b>タブ</b>：コマンド、着せ替え、ゲーム、ステータス（パラメータ・機嫌の理由・お金）、ログ。</span></div>
+</div>
+<p>会話欄が画像に被るときは、<a href="#keys">隠す操作</a>を使うか、設定の「表示」で位置を変えます（<a href="#sec-display">→ 表示</a>）。</p>
+
+<!-- ============================================================ -->
+<h2 id="keys"><span class="ic">⌨</span>操作・ショートカット</h2>
+<table>
+  <tr><th style="width:34%">操作</th><th>はたらき</th></tr>
+  <tr><td><kbd>H</kbd> キー ／ 💬 ／ 画像をクリック</td><td>会話欄を一時的に隠す・出す。新しいセリフが来ると、また表示されます。</td></tr>
+  <tr><td>会話欄をクリック</td><td>文字送りを飛ばして、全文を表示します。</td></tr>
+  <tr><td>🎲</td><td>同じプロンプトですでにある別の画像を表示します（生成はしません）。</td></tr>
+  <tr><td>⟳</td><td>この場面を新しく生成します。</td></tr>
+  <tr><td>📷</td><td>コマンドを使わずに、今の様子を撮ります。</td></tr>
+  <tr><td>🧩</td><td>合成されたプロンプトを層ごとに見て、手で直して生成できます。</td></tr>
+  <tr><td>生成ジョブのバッジ</td><td>生成の待ち行列、各ジョブの段階・ログ・エラー、取り消し、接続テスト。</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="time"><span class="ic">🕰</span>時間とスケジュール</h2>
+<p>キャラはリアルの時刻に合わせて暮らしています。「いまの場面」は、生活スケジュールの予定を上から順に見て、最初に当てはまったものになります。どれにも当てはまらない時間は「普段」の場面です。</p>
+<div class="timeline">
+  <div style="flex:7;background:#6f6a9e;color:#eee">睡眠<br><small>0:00〜7:00</small></div>
+  <div style="flex:1;background:#f3c27c">朝ごはん</div>
+  <div style="flex:2;background:#8fb6f0">身支度</div>
+  <div style="flex:5;background:#7fd1b9">大学<br><small>外出</small></div>
+  <div style="flex:4;background:#d9d2e6">普段<br><small>予定なし</small></div>
+  <div style="flex:1;background:#f3c27c">夕食</div>
+  <div style="flex:2;background:#f08aa6">お風呂・くつろぎ</div>
+  <div style="flex:2;background:#6f6a9e;color:#eee">睡眠</div>
+</div>
+<div class="tl-axis"><span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+<ul>
+  <li>予定には、曜日、開始と終了の時刻、場所、服装、画像のプロンプト、1時間あたりの効果を書きます。日をまたぐ予定（22:00〜02:00 など）も書けます。</li>
+  <li>状態の印：<b>外出</b>（家にいない）、<b>睡眠</b>、<b>手が離せない</b>、<b>一緒にお出かけ</b>、<b>服装固定</b>。印によって出せるコマンドが変わります。</li>
+  <li>散歩や入浴などのコマンドを実行すると、決まった時間だけ<b>一時シーン</b>に切り替わります。終わると予定どおりに戻ります。</li>
+</ul>
+<div class="flow">
+  <div class="box"><b>アプリを閉じる</b><small>キャラの時間は止まらない</small></div><div class="arr">→</div>
+  <div class="box"><b>次に開く</b><small>離れていた時間をまとめて計算（最大14日）</small></div><div class="arr">→</div>
+  <div class="box hl"><b>おかえり</b><small>留守中の出来事を話す。1週間以上空くと寂しがる</small></div>
+</div>
+<p class="where">設定 → 生活スケジュール</p> <p class="where">設定 → 共通プロンプト・時間帯</p>
+
+<!-- ============================================================ -->
+<h2 id="params"><span class="ic">📊</span>パラメータ</h2>
+<p>からだ（満腹度・水分・体力・眠気・清潔・健康）と、こころ（機嫌・ストレス・退屈・寂しさ・好感度・信頼・照れ・ドキドキ）があります。リアル時間の5分ごとに、次のように変わります。</p>
+<div class="eq">
+  <div class="t">基本変化<small>パラメータごと（/時）</small></div><span class="op">＋</span>
+  <div class="t">場面の毎時効果<small>今の予定・一時シーン</small></div><span class="op">＋</span>
+  <div class="t">自然回帰<small>目標値へ少しずつ戻る</small></div><span class="op">＝</span>
+  <div class="t" style="border-color:var(--accent)">5分ごとの変化</div>
+</div>
+<ul>
+  <li><b>変化の上書き</b>：条件に合うと、基本変化を別の値にします（例：寝ている間は空腹が進みにくい <code>asleep=true =&gt; -1</code>）。</li>
+  <li><b>目標の補正</b>：自然回帰の目標を条件でずらします（例：おなかが空いていると機嫌の目標が下がる <code>satiety&lt;25 =&gt; -15</code>）。</li>
+  <li><b>状態タグ</b>：条件を満たすと、画像のプロンプトにタグを足し、名前の下に表示します（空腹・眠そう・照れ など）。</li>
+</ul>
+<p class="where">設定 → パラメータ</p> <p class="where">設定 → データ（現在値を直接変更）</p>
+
+<!-- ============================================================ -->
+<h2 id="command"><span class="ic">💬</span>コマンドと反応</h2>
+<p>コマンドを押してから、セリフと画像が出るまでの流れです。</p>
+<div class="flow">
+  <div class="box q"><b>実行できる？</b><small>「実行できる条件」を満たすときだけ押せる</small></div><div class="arr">→</div>
+  <div class="box"><b>行動の効果</b><small>クールダウン中の連続実行は、効果に倍率がかかる</small></div><div class="arr">→</div>
+  <div class="box hl"><b>反応を選ぶ</b><small>条件に合う反応のうち、優先度が最大のものから選ぶ</small></div><div class="arr">→</div>
+  <div class="box"><b>反応の効果</b><small>「置き換え」なら行動の効果は使わない</small></div><div class="arr">→</div>
+  <div class="box"><b>セリフと画像</b><small>性格のセリフ、置換文字、LLM（任意）</small></div>
+</div>
+<h3>反応の選ばれ方</h3>
+<ol>
+  <li>反応の<b>条件</b>に合うものを集めます（条件が空欄なら、いつでも合います）。</li>
+  <li>その中で<b>優先度</b>が最大のものだけを残します。</li>
+  <li>条件が細かいもの（AND の数が多いもの）ほど選ばれやすい重みで、ランダムに1つ選びます。</li>
+</ol>
+<div class="note"><b>置き換え</b>（行動の効果・シーン切替を置き換える）は、断る反応に使います。例：機嫌が悪いときの「抱きしめる」で、好感度が上がらず、一時シーンにも移らないようにします。お金のやりとりも行われません。</div>
+<h3>一時シーン</h3>
+<p>「実行後、一時シーンに切り替える」をオンにすると、散歩や入浴のように、決まった分数だけ別の場面になります。場面ごとに、場所、服装、毎時の効果を持てます。お出かけ中は「家に帰る」、ゲームや映画の途中は「切り上げる」でいつでも戻れます。</p>
+<p class="where">設定 → コマンド</p>
+
+<!-- ============================================================ -->
+<h2 id="image"><span class="ic">🎨</span>画像ができるまで</h2>
+<p>プロンプトは次の層を上から順につなぎ、重複するタグを除いてから ComfyUI に送ります。🧩 を押すと、層ごとの中身が見られます。</p>
+<div class="layers">
+  <div style="background:#3a3346"><span>1</span><b>共通</b><small>品質タグなど、すべての画像に付く</small></div>
+  <div style="background:#4a3346"><span>2</span><b>主人公</b><small>外見・固有の特徴</small></div>
+  <div style="background:#563a4c"><span>3</span><b>服装</b><small>スケジュール、着せ替え、お出かけ着、ゲームの段階</small></div>
+  <div style="background:#4a3f33"><span>4</span><b>場面</b><small>予定・一時シーンのプロンプト</small></div>
+  <div style="background:#3f4433"><span>5</span><b>時間帯</b><small>朝の光、夕焼けなど</small></div>
+  <div style="background:#334440"><span>6</span><b>状態タグ</b><small>パラメータから（眠そう・照れ など）</small></div>
+  <div style="background:#333f4a"><span>7</span><b>行動</b><small>コマンドのプロンプト</small></div>
+  <div style="background:#3a3350"><span>8</span><b>反応</b><small>選ばれた反応のプロンプト</small></div>
+</div>
+<h3>同じプロンプトの画像があるとき</h3>
+<div class="flow">
+  <div class="box q"><b>合成後のプロンプトが同じ画像がある？</b><small>Positive と Negative が完全に一致するもの</small></div><div class="arr">→</div>
+  <div class="box hl"><b>ある → すぐ表示</b><small>ランダムに1枚。上限枚数に届くまでは、裏で新しく生成して差し替える</small></div><div class="arr">／</div>
+  <div class="box"><b>ない → 生成</b><small>できあがったら表示</small></div>
+</div>
+<ul>
+  <li>「毎回新しく生成する」に切り替えると、いつも生成します。</li>
+  <li>生成中に次のコマンドを実行したときは、同じプロンプトの画像があればそれを表示し、なければ待ち行列に入れます。</li>
+  <li>画像はこのアプリの <code>data/images</code> にだけ保存します。ComfyUI の output フォルダには、既定では残しません。</li>
+</ul>
+<h3>生成ジョブの段階</h3>
+<div class="flow">
+  <div class="box"><b>前のジョブ待ち</b></div><div class="arr">→</div>
+  <div class="box"><b>ComfyUI へ送信中</b></div><div class="arr">→</div>
+  <div class="box"><b>ComfyUI のキュー待ち</b></div><div class="arr">→</div>
+  <div class="box"><b>生成中</b></div><div class="arr">→</div>
+  <div class="box hl"><b>完了</b><small>または失敗（エラーを表示）</small></div>
+</div>
+<p class="where">設定 → 画像生成 (ComfyUI)</p> <p class="where">設定 → 共通プロンプト・時間帯</p>
+
+<!-- ============================================================ -->
+<h2 id="mood"><span class="ic">💭</span>機嫌の理由</h2>
+<p>機嫌は、あなたの行動だけでは決まりません。時間が経つと、キャラにもときどき出来事が起き、その出来事が<b>機嫌の理由</b>として記録されます。良い理由も悪い理由もあり、ステータスタブで見られます。</p>
+<div class="flow">
+  <div class="box"><b>キャラの出来事</b><small>友だちとケンカ、講義で褒められた、バイト代…</small></div><div class="arr">＋</div>
+  <div class="box"><b>あなたの行動</b><small>褒めた、からかった…</small></div><div class="arr">→</div>
+  <div class="box hl"><b>機嫌の理由</b><small>良い／悪い。まだ聞いていない出来事は「？」</small></div><div class="arr">→</div>
+  <div class="box"><b>会話のコマンドの結果が変わる</b></div>
+</div>
+<h3>会話のコマンドと結果</h3>
+<table class="matrix">
+  <tr><th>コマンド</th><th>あなたが原因</th><th>出来事が原因（まだ聞いていない）</th><th>出来事が原因（聞いたあと）</th></tr>
+  <tr><td>何かあった？</td><td class="so">「わかってるくせに」</td><td class="ok">打ち明けてくれる（好感度が低いとはぐらかす）</td><td>—</td></tr>
+  <tr><td>謝る</td><td class="ok">許してくれる</td><td class="ng">「何に謝ってるの？」かえって不機嫌</td><td class="so">「あなたのせいじゃない」</td></tr>
+  <tr><td>相談にのる</td><td class="ng">「あなたがそれを言う？」逆効果</td><td class="so">少し効く</td><td class="ok">よく効く</td></tr>
+  <tr><td>そっとしておく</td><td colspan="3">一人になりたいときは効く。寂しいときは逆効果</td></tr>
+</table>
+<p class="where">設定 → キャラの出来事</p>
+
+<!-- ============================================================ -->
+<h2 id="money"><span class="ic">💴</span>お金</h2>
+<p>あなたとキャラが、それぞれ所持金を持っています。</p>
+<div class="wallets">
+  <div class="wallet"><div class="big">🧑</div><b>あなた</b>
+    <ul><li>日給（放置でもたまる）</li><li>働きに行く・内職する</li><li>投資（値動きはリアル時間で進む）</li></ul></div>
+  <div class="mid">
+    <div class="r">プレゼント・お小遣い →</div>
+    <div class="r">お金を貸す・お願いに応える →</div>
+    <div class="l">← お金を借りる（断られることも）</div>
+    <div class="l">← おごってもらう・プレゼントをもらう</div>
+    <div>デート代・生活費は「誰が払うか」で分担</div>
+  </div>
+  <div class="wallet"><div class="big">👧</div><b>キャラ</b>
+    <ul><li>日給（バイト代・仕送り）</li><li>ときどきのバイト代</li><li>衝動買い・お金のピンチ</li></ul></div>
+</div>
+<ul>
+  <li><b>誰が払うか</b>はステータスタブで選びます。お出かけ代は「おまかせ／あなた／割り勘／おごってもらう」、生活費は「折半／あなた／キャラ」です。おまかせでは、好感度やキャラの懐具合で、おごってくれることもあります。</li>
+  <li>キャラがお金に困るとおねだりが、余裕があるとプレゼントやおごりの申し出が、<b>お願い</b>欄に出ます。</li>
+  <li>日給、生活費、投資は、アプリを閉じていた間の分もまとめて進みます。</li>
+</ul>
+<p class="where">設定 → 共通プロンプト・時間帯 → お金・出来事</p>
+
+<!-- ============================================================ -->
+<h2 id="dress"><span class="ic">👗</span>着せ替え・お出かけ</h2>
+<p>「着せ替え」タブで服を選ぶと、キャラが反応します。断られなければ、服装のプロンプトが差し替わります。服装は、上にあるものほど優先されます。</p>
+<div class="ladder">
+  <div><b>1</b><span><b>ミニゲームの段階</b>（野球拳などで脱いだ状態）</span></div>
+  <div><b>2</b><span><b>服装固定の場面</b>（既定では睡眠中。パジャマのまま）</span></div>
+  <div><b>3</b><span><b>着せ替えで選んだ服</b>（お出かけ中は「外に着ていける」服だけ）</span></div>
+  <div><b>4</b><span><b>お出かけ着</b>（一緒に出かける場面で、3 が無いとき）</span></div>
+  <div><b>5</b><span><b>予定の服装</b>、なければ<b>普段の服装</b></span></div>
+</div>
+<ul>
+  <li>服ごとに「着られる条件」を付けられます（例：<code>affection&gt;=40</code>）。条件を満たさない服は選べません。</li>
+  <li>着せ替えの反応は、コマンド「着せ替え」（<code>_dress</code>）にあります。条件に <code>outfit=maid</code> のように着替え先を書けます。</li>
+  <li>既定では、寝るとスケジュール通りの服に戻ります。</li>
+  <li>お出かけには、散歩、買い物、デート、ピクニック、ハイキング、海、遊園地、水族館、カフェ、星を見に行く、があります。季節で反応が変わります。</li>
+</ul>
+<p class="where">設定 → 着せ替え</p> <p class="where">設定 → 主人公（お出かけ着）</p>
+
+<!-- ============================================================ -->
+<h2 id="games"><span class="ic">🎲</span>ミニゲーム</h2>
+<p>「ゲーム」タブから遊べます。1手ごとにセリフが出て、パラメータが変わります。眠いときや不機嫌なときは、キャラの凡ミスが増えて弱くなります。好感度などが足りないと、誘いを断られます。</p>
+<div class="cards">
+  <div class="card"><div class="hd"><span class="ic">✊</span>野球拳</div><p>じゃんけんで負けたほうが1枚ずつ脱ぎます。キャラが降参したら勝ち、あなたのライフが尽きたら負けです。</p></div>
+  <div class="card"><div class="hd"><span class="ic">👉</span>あっち向いてホイ</div><p>じゃんけんの勝者が指さします。先に3本取ったほうの勝ちです。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🀄</span>脱衣麻雀</div><p>二人打ちの簡易麻雀です。鳴きはなく、リーチ・ツモ・ロンだけです。満貫以上は2段階、役満は一気に決着します。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🔴</span>コネクトフォー</div><p>上の ▼ からコマを落とし、縦・横・斜めに4つ並べます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">⬡</span>ヘックス</div><p>自分の色の辺どうしを、つながったコマで結びます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">⚫</span>リバーシ</div><p>はさんで裏返します。最後に多いほうの勝ちです。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🎲</span>ヨット</div><p>5個のサイコロを1ターン3回まで振り、12の役を埋めます。上段63点以上で+35点です。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🎴</span>花札こいこい</div><p>出来役ができたら「あがり」か「こいこい」。既定は3局の合計文数で勝負します。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🃏</span>脱衣ポーカー</div><p>ファイブカードドローです。交換後に「勝負」か「倍プッシュ」。キャラのひとことはブラフのこともあります。</p></div>
+  <div class="card"><div class="hd"><span class="ic">♠</span>ブラックジャック</div><p>キャラがディーラーです。ヒット・スタンド・ダブル。先に5勝したほうの勝ちです。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🧠</span>神経衰弱</div><p>12組24枚です。キャラの記憶力は強さと眠気で変わります。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🤡</span>ババ抜き</div><p>キャラの札に指をかけると、表情が変わります（嘘のことも）。もう一度押すと引きます。</p></div>
+</div>
+<p>脱ぐ段階は、それぞれ画像が変わります。段階は「今の服に追記」か「置き換え」と、外見から外すタグで定義します。</p>
+<p class="where">設定 → ミニゲーム</p>
+
+<!-- ============================================================ -->
+<h2 id="persona"><span class="ic">🎭</span>性格・セリフ</h2>
+<p>性格プリセットを選ぶと、コマンドの反応やミニゲームのセリフが、その性格の口調になります。条件、効果、画像は共通のままなので、変わるのは口調だけです。</p>
+<div class="flow">
+  <div class="box"><b>反応が選ばれる</b><small>共通のセリフと、場面のキー（例 <code>talk.mood_lt_35</code>）</small></div><div class="arr">→</div>
+  <div class="box hl"><b>性格のセリフ集</b><small>そのキーのセリフがあれば差し替える。空欄なら共通のセリフ</small></div><div class="arr">→</div>
+  <div class="box"><b>置換文字</b><small><code>{fp}</code> 一人称、<code>{call}</code> あなたの呼び方 など</small></div><div class="arr">→</div>
+  <div class="box q"><b>LLM（任意）</b><small>有効なら、そのセリフを参考に書き直す</small></div>
+</div>
+<ul>
+  <li>既定の性格は16種類です。例：素直なはにかみ屋、気心知れた幼馴染、面倒見のいい世話焼きさん、気高き令嬢、言葉少なな無口さん、淡々とした実務派、凛とした男前、サバサバなボクっ娘。</li>
+  <li><b>一人称</b>と<b>あなたの呼び方</b>は、主人公の設定で固定できます。空欄なら、性格プリセットに従います。</li>
+  <li>セリフ集は場面ごとに編集・複製できます。1行に1通り書くと、その中からランダムに選ばれます。</li>
+</ul>
+<p class="where">設定 → 主人公</p> <p class="where">設定 → 性格・セリフ集</p> <p class="where">設定 → セリフ生成 (LLM)</p>
+
+<!-- ============================================================ -->
+<h2 id="settings"><span class="ic">⚙</span>設定の各画面</h2>
+<p>各画面の右上の 📖 を押すと、ここの該当カードが開きます。変更は「保存」を押すまで反映されません（「表示」だけは、すぐ反映されます）。</p>
+<div class="cards">
+  <div class="card sec" id="sec-char"><div class="hd"><span class="ic">👧</span>主人公</div>
+    <p>名前、あなたの名前、一人称と呼び方の固定、外見のプロンプト、普段の服装、お出かけ着、性格プリセット、LLM 用の性格説明。外見のプロンプトは保存のたびに履歴に残り、「復元」で戻せます。キャラの追加・削除も、ここで行います。</p></div>
+  <div class="card sec" id="sec-personas"><div class="hd"><span class="ic">🎭</span>性格・セリフ集</div>
+    <p>性格ごとのセリフを、場面ごとに見て編集します。キー・場面・セリフで絞り込めます。「複製」で自分用の性格を作れます。編集した性格は「既定に戻す」で戻せます。</p></div>
+  <div class="card sec" id="sec-schedule"><div class="hd"><span class="ic">🗓</span>生活スケジュール</div>
+    <p>曜日と時刻ごとの予定です。上から順に、最初に一致した予定が使われます。予定ごとに、場所、服装、状態の印、毎時の効果、場面のプロンプトを書きます。<a href="#time">→ 時間とスケジュール</a></p></div>
+  <div class="card sec" id="sec-wardrobe"><div class="hd"><span class="ic">👗</span>着せ替え</div>
+    <p>着せ替えタブに出る服です。id、名前、アイコン、着られる条件、外に着ていけるか、服装のプロンプトを書きます。<a href="#dress">→ 着せ替え・お出かけ</a></p></div>
+  <div class="card sec" id="sec-actions"><div class="hd"><span class="ic">💬</span>コマンド</div>
+    <p>コマンドと、その反応を編集します。カテゴリを <code>system</code> にすると、一覧に出ないコマンドになります（<code>_return</code> は「おかえり」、<code>_dress</code> は着せ替えの反応）。<a href="#command">→ コマンドと反応</a></p></div>
+  <div class="card sec" id="sec-minigames"><div class="hd"><span class="ic">🎲</span>ミニゲーム</div>
+    <p>ゲームの定義を JSON で編集します。同じ種類で中身の違うゲームを、いくつでも作れます。画面にキーの説明があります。<a href="#games">→ ミニゲーム</a></p></div>
+  <div class="card sec" id="sec-events"><div class="hd"><span class="ic">💭</span>キャラの出来事</div>
+    <p>キャラに起きる出来事を JSON で編集します。良い・悪い、起きる条件、起きやすさ、お金の増減、お願いを書けます。<code>tell</code> は「何かあった？」で話す内容で、「〜んです」とつながる常体で書きます。<a href="#mood">→ 機嫌の理由</a></p></div>
+  <div class="card sec" id="sec-params"><div class="hd"><span class="ic">📊</span>パラメータ</div>
+    <p>パラメータの範囲、初期値、基本変化、変化の上書き、自然回帰、状態タグです。<a href="#params">→ パラメータ</a></p></div>
+  <div class="card sec" id="sec-comfy"><div class="hd"><span class="ic">🖼</span>画像生成 (ComfyUI)</div>
+    <p>接続先、画像の出し方（すぐ表示／毎回生成）、内蔵ワークフローの設定（チェックポイント、サイズ、Steps など）、カスタムワークフローの登録、ComfyUI 側に画像を残すかどうか。<a href="#image">→ 画像ができるまで</a></p></div>
+  <div class="card sec" id="sec-prompt"><div class="hd"><span class="ic">🌅</span>共通プロンプト・時間帯</div>
+    <p>すべての画像に付く品質タグ、時間帯ごとの光の演出、「おかえり」を出す不在時間、お金と出来事の数値（日給・生活費・投資・出来事の起きやすさ）。</p></div>
+  <div class="card sec" id="sec-llm"><div class="hd"><span class="ic">🤖</span>セリフ生成 (LLM)</div>
+    <p>Ollama か OpenAI 互換の API で、定型のセリフを参考に LLM がセリフを書きます。失敗したら定型のセリフのままです。ナレーションと「LLM を使わない」コマンドは定型のままです。</p></div>
+  <div class="card sec" id="sec-display"><div class="hd"><span class="ic">💬</span>表示</div>
+    <p>会話欄の位置（下に重ねる／上に重ねる／画像の下に分ける）、背景の濃さ、文字の大きさ、コンパクト、自動で隠す。このブラウザにだけ保存されます。</p></div>
+  <div class="card sec" id="sec-data"><div class="hd"><span class="ic">🗃</span>データ</div>
+    <p>パラメータの現在値を直接変える、一時シーンを解除する、出来事を起こす（テスト用）、コマンド・パラメータ・主人公の書き出しと読み込み。</p></div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="cond"><span class="ic">✏</span>条件・効果の書き方</h2>
+<h3>条件</h3>
+<p><code>free=true, mood&gt;=50, phase=night|midnight</code></p>
+<ul>
+  <li><b>カンマ</b>は「かつ」（AND）、<b>|</b> は「または」（OR）です。</li>
+  <li>比較は <code>= != &lt; &lt;= &gt; &gt;=</code> が使えます。<code>time</code> は <code>07:30</code> の形で比べます。</li>
+  <li>空欄は「いつでも」です。</li>
+</ul>
+<table>
+  <tr><th style="width:28%">キー</th><th>意味</th></tr>
+  <tr><td>パラメータの id</td><td><code>mood</code> <code>affection</code> <code>sleepiness</code> など（設定 → パラメータで確認）</td></tr>
+  <tr><td><code>activity</code> <code>location</code> <code>phase</code></td><td>今の過ごし方の id、場所、時間帯の id</td></tr>
+  <tr><td><code>free</code> <code>away</code> <code>asleep</code> <code>busy</code></td><td>手が空いている（外出・睡眠・手が離せない、のどれでもない）、外出中、睡眠中、手が離せない</td></tr>
+  <tr><td><code>outing</code> <code>overriding</code></td><td>一緒にお出かけ中、一時シーン中</td></tr>
+  <tr><td><code>hour</code> <code>time</code> <code>weekday</code> <code>day</code> <code>weekend</code></td><td>時、時刻、平日か、曜日（mon〜sun）、週末か</td></tr>
+  <tr><td><code>month</code> <code>season</code></td><td>月、季節（spring / summer / autumn / winter）</td></tr>
+  <tr><td><code>absent</code> <code>repeat</code></td><td>最後のふれあいからの時間（時間）、クールダウン中の連続回数</td></tr>
+  <tr><td><code>outfit</code></td><td>着せ替え中の服の id（おまかせなら空）。着せ替えの反応では着替え先</td></tr>
+  <tr><td><code>cause</code> <code>knows</code> <code>untold</code> <code>ev_mood</code></td><td>機嫌の理由まわり：原因（player / event）、理由を聞いたか、まだ話していない出来事の数、その出来事が good / bad か</td></tr>
+  <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金、誰が払うか（me / her / split）</td></tr>
+  <tr><td><code>game_stage</code> <code>lives</code> など</td><td>ミニゲーム中だけ使えるキー（設定 → ミニゲームに一覧）</td></tr>
+</table>
+<h3>効果</h3>
+<p><code>mood:+5, stress:-10</code>　パラメータの id と増減を、カンマで並べます。予定と一時シーンの「毎時の効果」は1時間あたり、コマンドと反応の効果は1回あたりです。</p>
+<h3>規則（変化の上書き・目標の補正）</h3>
+<p><code>asleep=true =&gt; 0</code>　1行に1つ、「条件 =&gt; 値」と書きます。変化の上書きは最初に一致した行、目標の補正は一致した行すべてを足します。</p>
+
+<!-- ============================================================ -->
+<h2 id="placeholders"><span class="ic">🔤</span>セリフの置換文字</h2>
+<table>
+  <tr><th style="width:28%">書き方</th><th>置き換わるもの</th></tr>
+  <tr><td><code>{name}</code> <code>{player}</code></td><td>キャラの名前、あなたの名前</td></tr>
+  <tr><td><code>{call}</code></td><td>あなたの呼び方（主人公の設定で固定、または性格プリセット）</td></tr>
+  <tr><td><code>{fp}</code> <code>{fp_st}</code></td><td>一人称、言いよどんだ一人称（例：わ、私）</td></tr>
+  <tr><td><code>{location}</code> <code>{activity_label}</code> <code>{time}</code></td><td>場所、過ごし方、時刻</td></tr>
+  <tr><td><code>{ev_text}</code> <code>{bad_text}</code> <code>{away_text}</code></td><td>出来事の説明（常体の節。例：友だちとちょっとケンカした）</td></tr>
+  <tr><td><code>{amount}</code> <code>{cost}</code> <code>{profit}</code> <code>{req_text}</code></td><td>金額（数字だけ）、費用、投資の損益、お願いの内容</td></tr>
+</table>
+<p>「（」で始まるセリフはナレーションとして表示されます。</p>
+
+<!-- ============================================================ -->
+<h2 id="trouble"><span class="ic">🛠</span>困ったとき</h2>
+<table>
+  <tr><th style="width:30%">こんなとき</th><th>確かめること</th></tr>
+  <tr><td>「生成待ち」のまま進まない</td><td>生成ジョブのバッジを押して段階を見ます。「ComfyUI へ送信中」で止まるなら、アドレス・ポート・ファイアウォール・プロキシ。「キュー待ち」なら ComfyUI 側で他の生成が進んでいます。</td></tr>
+  <tr><td>失敗して <code>Value not in list ckpt_name</code></td><td>チェックポイント名が違います。接続テストの候補から選び直します。</td></tr>
+  <tr><td>プロキシが必要な環境</td><td>画像生成の「システムのプロキシを使う」をオンにします。</td></tr>
+  <tr><td>コマンドが押せない</td><td>「実行できる条件」を満たしていません（寝ている、外出中など）。ボタンにマウスを乗せると、条件と効果が出ます。</td></tr>
+  <tr><td>会話欄が画像に被る</td><td><kbd>H</kbd> で隠すか、設定の「表示」で「画像の下に分ける」にします。</td></tr>
+  <tr><td>同じ画像ばかり出る</td><td>🎲 で別の画像、⟳ で新しく生成。または「1プロンプトあたりの上限枚数」を増やします。</td></tr>
+</table>
+<p>サーバのコンソールと <code>data/server.log</code> にも、生成の経過が記録されます。</p>
+
+<!-- ============================================================ -->
+<h2 id="data"><span class="ic">🗃</span>データの保存先</h2>
+<table>
+  <tr><th style="width:36%">ファイル</th><th>中身</th></tr>
+  <tr><td><code>data/characters/*.json</code></td><td>主人公（外見、スケジュール、着せ替え）</td></tr>
+  <tr><td><code>data/actions.json</code></td><td>コマンドと反応</td></tr>
+  <tr><td><code>data/params.json</code></td><td>パラメータの定義</td></tr>
+  <tr><td><code>data/minigames.json</code> <code>data/events.json</code></td><td>ミニゲーム、キャラの出来事</td></tr>
+  <tr><td><code>data/personas/</code></td><td>編集した性格プリセット</td></tr>
+  <tr><td><code>data/images/</code></td><td>生成した画像と索引</td></tr>
+  <tr><td><code>data/player.json</code></td><td>あなたの所持金・投資</td></tr>
+</table>
+<div class="note">アプリを更新すると、編集していないコマンド・ミニゲーム・出来事は、新しい既定に自動で置き換わります。手を加えたものはそのまま残ります。一度消したものは戻りません。</div>
+<p>すべて初期状態に戻すには、<code>data/</code> フォルダを削除してから起動します。</p>
+</main>
+</div>
+<script>
+// 目次: 今読んでいる章を強調する
+const links = [...document.querySelectorAll('#toc a')];
+const secs = links.map((a) => document.querySelector(a.getAttribute('href')));
+const mark = () => {
+  let cur = 0;
+  secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top < 120) cur = i; });
+  links.forEach((a, i) => a.classList.toggle('on', i === cur));
+};
+addEventListener('scroll', mark, { passive: true });
+mark();
+</script>
+</body>
+</html>

@@ -492,3 +492,14 @@ dialog { color: var(--text); }
   .mini-row { grid-template-columns: 1fr; }
   .dtext { font-size: calc(var(--dlg-font, 17px) - 2px); }
 }
+
+/* ---------- 説明書・項目の説明 ---------- */
+.manual-dlg iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+.tip { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 5px; border-radius: 50%; border: 1px solid #5a5166;
+  font-size: 10px; font-style: normal; color: var(--muted); cursor: help; position: relative; vertical-align: 1px; }
+.tip:hover, .tip:focus { color: var(--accent); border-color: var(--accent); outline: none; }
+.tipbox { position: fixed; max-width: 320px; white-space: pre-line; background: #0f0d13; color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 11px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 8px 24px rgba(0,0,0,.45); pointer-events: none; z-index: 100; }
+.tip { opacity: .45; transition: opacity .15s; }
+.fld:hover .tip, .check:hover .tip, .tip:focus { opacity: 1; }
+a.btn { color: inherit; }

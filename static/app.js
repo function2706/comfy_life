@@ -1108,9 +1108,12 @@ function openSettings(sec) {
 }
 function showSection(sec) {
   SE.sec = sec;
+  hideTip();
   $$('#snav button').forEach((b) => b.classList.toggle('on', b.dataset.sec === sec));
   const body = $('#sbody');
   body.replaceChildren(...[SEC[sec]()].flat().filter((x) => x != null && x !== false));
+  const head = $('.sbar h3', body);
+  if (head) head.after(h('button', { class: 'btn ghost', title: 'この画面の説明（説明書）', onclick: () => openManual('sec-' + sec) }, '📖'));
   body.scrollTop = 0;
 }
 async function reloadAll(sec) {
@@ -1144,8 +1147,83 @@ function inp(obj, key, o = {}) {
   });
   return el;
 }
-const fld = (label, el, hint, cls) => h('label', { class: 'fld ' + (cls || '') }, h('span', { class: 'fl' }, label), el, hint ? h('small', { class: 'hint' }, hint) : null);
-const chk = (obj, key, label, onchange) => h('label', { class: 'check' }, inp(obj, key, { type: 'checkbox', onchange }), label);
+// 項目名の横の ⓘ に出す説明. 画面にヒントが出ている項目と, 名前で分かる項目には付けない
+const TIPS = {
+  'あなたの名前': 'セリフの {player} に入ります。呼び方を固定していなければ、性格プリセットの呼び方（「{player}さん」など）の中で使われます',
+  'Positive（外見・固有の特徴）': '髪・目・体型など、服以外のいつも変わらない特徴を書きます。服は「普段の服装」や着せ替えに書きます',
+  '普段の服装（スケジュールで未指定のとき）': '生活スケジュールの予定で服装が空欄のときに着る服です',
+  'プリセット': 'セリフの口調が変わります。条件・効果・画像は変わりません',
+  '一人称': 'セリフの {fp} に入ります',
+  '一人称（言いよどみ）': 'セリフの {fp_st} に入ります。照れたときなど',
+  '終了': '開始より前の時刻にすると、日をまたぐ予定になります（22:00〜02:00 など）',
+  '表示名': '画面の「いまの場面」と、セリフの {activity_label} に出ます',
+  'activity id': '条件 activity=… で使う英数字の id です。反応やコマンドの条件で場面を見分けるのに使います',
+  '場所': '画面の場面表示と、セリフの {location} に出ます',
+  '服装（空欄=継続）': '空欄なら、そのときの服のまま。一時シーンでは @outing と書くとお出かけ着になります',
+  '毎時の効果': 'この場面にいる1時間あたりのパラメータ変化です（例: energy:+8, sleepiness:-10）',
+  'Positive（場面）': '背景・ポーズ・小物など、この場面の画像に足すタグです',
+  '継続（分）': '一時シーンが続く時間です。過ぎると予定どおりの場面に戻ります',
+  '着られる条件': '満たさないと、着せ替えタブで選べません。空欄ならいつでも',
+  'Positive（服装）': '服のタグです。外見とは別の層に入り、着替えるとここが差し替わります',
+  '実行できる条件': '満たさないとボタンが押せません。例: free=true（手が空いている）',
+  '連続時の効果倍率': 'クールダウン中にくり返したときに効果へ掛ける倍率です（0.5 = くり返すたびに半分）',
+  '効果': '1回あたりのパラメータ変化です（例: mood:+5, loneliness:-10）',
+  'Positive（行動）': 'この行動の画像に足すタグです（ポーズ・構図など）',
+  '条件': '空欄ならいつでも。例: mood>=50, affection<30',
+  '追加の効果': '行動の効果に足されます。「置き換える」がオンなら、これだけになります',
+  'Positive（反応）': 'この反応のときの表情・しぐさなどです',
+  '分類': 'ステータスタブでの並び（からだ／こころ）です',
+  '基本変化（/時）': '何もしなくても1時間に変わる量です（満腹度なら負）',
+  '目標値': '自然回帰で戻っていく先の値です',
+  'ホスト / アドレス': '同じ PC なら 127.0.0.1。別の PC なら、その PC の IP アドレス（ComfyUI は --listen 付きで起動）',
+  'ポート': 'ComfyUI の既定は 8188 です',
+  '同じプロンプトの画像があるとき': 'すぐ表示: 既存の画像を即座に出し、上限枚数までは裏で追加生成します\n毎回生成: 必ず ComfyUI で描きます',
+  '幅': '8 の倍数。モデルに合わせます（SD1.5 なら 512 前後、SDXL なら 1024 前後）',
+  '高さ': '8 の倍数。モデルに合わせます（SD1.5 なら 768 前後、SDXL なら 1216 前後）',
+  'Steps': 'サンプリングの回数です。多いほど丁寧で遅くなります（20〜30 が目安）',
+  'CFG': 'プロンプトへの忠実さです（5〜8 が目安）',
+  '共通 Positive（先頭）': 'すべての画像の先頭に付く品質タグです（masterpiece など）',
+  '共通 Negative': 'すべての画像に付くネガティブです',
+  '「おかえり」を出す不在時間（時間）': 'これより長く空けてから開くと、「おかえり」（コマンド _return）の反応が出ます',
+  '種類': 'Ollama か、LM Studio・llama.cpp などの OpenAI 互換 API',
+  'モデル名': 'Ollama なら ollama list で出る名前です',
+  'temperature': '高いほど自由な言い回しになります（0.7〜1.0 が目安）',
+  // チェックボックス
+  '行動の効果・シーン切替を置き換える': '断る反応などに使います。オンだと、行動の効果・一時シーン・お金のやりとりを行わず、この反応の効果だけになります',
+  '場面プロンプトを使わない（服装は残す）': '行動のプロンプトだけで場面を描くときに使います（出かけた先など）',
+  'LLM を使わない': 'セリフ生成 (LLM) が有効でも、定型のセリフのままにします',
+  '外出': '家にいない状態です。条件では away=true になります',
+  '睡眠': '寝ている状態です。条件では asleep=true になります',
+  '手が離せない': '用事の最中です。条件では busy=true になり、free=true ではなくなります',
+  '外に着ていける': 'オフの服（部屋着・パジャマなど）は、お出かけのときにお出かけ着へ替わります',
+  '寝たらスケジュール通りの服に戻す': '着せ替えた服は、寝るときに解除されます',
+  '高いほど悪い': 'ステータスのバーの色が逆になります（ストレス・眠気など）',
+  '中立': '良し悪しの色を付けません',
+  'HTTPS': 'リバースプロキシなどで https で公開しているとき',
+  'システムのプロキシを使う': '社内ネットワークなど、プロキシを通さないと届かないとき。既定では直接つなぎます',
+};
+const tipMark = (label) => TIPS[label] ? h('i', { class: 'tip', tabindex: 0, 'data-tip': TIPS[label] }, 'i') : null;
+const fld = (label, el, hint, cls) => h('label', { class: 'fld ' + (cls || '') }, h('span', { class: 'fl' }, label, hint ? null : tipMark(label)), el, hint ? h('small', { class: 'hint' }, hint) : null);
+const chk = (obj, key, label, onchange) => h('label', { class: 'check' }, inp(obj, key, { type: 'checkbox', onchange }), label, tipMark(label));
+
+// ⓘ の説明: ダイアログの中でも切れないよう, 画面に固定した吹き出しで出す
+function showTip(el) {
+  hideTip();
+  const box = h('div', { class: 'tipbox' }, el.dataset.tip);
+  (el.closest('dialog') || document.body).append(box);
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+  box.style.left = Math.max(8, Math.min(r.left - 8, innerWidth - b.width - 8)) + 'px';
+  box.style.top = (r.bottom + 7 + b.height > innerHeight ? r.top - b.height - 7 : r.bottom + 7) + 'px';
+  S.tipBox = box;
+}
+function hideTip() { if (S.tipBox) { S.tipBox.remove(); S.tipBox = null; } }
+
+function openManual(anchor) {
+  const url = '/static/manual.html' + (anchor ? '#' + anchor : '');
+  $('#manual-frame').src = url;
+  $('#manual-tab').href = url;
+  if (!$('#manual-dlg').open) $('#manual-dlg').showModal();
+}
 
 const fmtEff = (o) => Object.entries(o || {}).map(([k, v]) => `${k}:${v > 0 ? '+' : ''}${v}`).join(', ');
 function parseEff(s) {
@@ -1859,6 +1937,11 @@ function bind() {
   });
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
+  $('#btn-manual').addEventListener('click', () => openManual());
+  for (const t of ['mouseover', 'focusin']) document.addEventListener(t, (ev) => { const el = ev.target.closest?.('.tip'); if (el) showTip(el); });
+  for (const t of ['mouseout', 'focusout']) document.addEventListener(t, (ev) => { if (ev.target.closest?.('.tip')) hideTip(); });
+  // ⓘ は label の中にあるので, 押してもチェックや入力欄が反応しないようにする
+  document.addEventListener('click', (ev) => { if (ev.target.closest?.('.tip')) ev.preventDefault(); }, true);
   $$('#snav button').forEach((b) => b.addEventListener('click', () => showSection(b.dataset.sec)));
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
   $('#settings-dlg').addEventListener('close', () => refresh());
