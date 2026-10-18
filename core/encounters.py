@@ -68,13 +68,12 @@ class Encounters:
         where = where or WHERE.get(kind) or "出かけた先"
         live = self.app.bonds.living()       # 一緒に暮らしている人には「偶然」会わない
         known = [cid for cid in self.app.chars if cid not in (with_cid, live)]
+        # 偶然は偶然: 知らない人に会いやすくする補正も, 誰かに必ず会わせる代わりもない (会わないまま終わってよい)
         if stranger is None:
-            stranger = not known or random.random() < float(self.cfg()["stranger_share"])
-        if stranger and not self.pending():
-            return self.meet_stranger(kind, with_cid, where, now)
-        if known:
-            return self.bump(random.choice(known), kind, with_cid, where, now)
-        return None
+            stranger = random.random() < float(self.cfg()["stranger_share"])
+        if stranger:
+            return None if self.pending() else self.meet_stranger(kind, with_cid, where, now)
+        return self.bump(random.choice(known), kind, with_cid, where, now) if known else None
 
     # ------------------------------------------------------------------ 登録済みのキャラに偶然会う
     def bump(self, cid, kind, with_cid, where, now):
@@ -83,7 +82,9 @@ class Encounters:
         with app.lock:
             app.tick(cid)
             st = app.state(cid)
-            deltas = app.apply_effects(st, app.trait_effects(char, {"mood": 3, "loneliness": -6, "affection": 1}))
+            eff, _ = app.bonds.realize(char, st, {"mood": 3, "loneliness": -6, "affection": 1}, "_encounter", now)
+            app.bonds.touch(st, now)
+            deltas = app.apply_effects(st, app.trait_effects(char, eff))
             wname = app.chars[with_cid].get("name", "") if with_cid else ""
             text = "（%sで、偶然%sに会った%s）" % (where, char.get("name", ""), "。%sと一緒だったので紹介した" % wname if with_cid else "")
             exchanged = app.bonds.stage(cid) == "known"

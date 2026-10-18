@@ -177,6 +177,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <a href="#trouble">困ったとき</a>
   <a href="#world">ワールド・キャラ同士の関係</a>
   <a href="#bond">あなたとの間柄（連絡・訪問・同居）</a>
+  <a href="#real">現実的であること（仲の深まり方）</a>
   <a href="#data">データの保存先</a>
 </nav>
 
@@ -656,6 +657,18 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li>知らない人は、ほかのワールドで登録済みの人（外見と性格はそのまま、関係はゼロから）から選ばれます。いなければ、名前・外見・性格をくじで決めた新しい人です。ここで登録した人も、ほかのワールドでは出会いの候補になります。</li>
 </ul>
 <p>起きやすさは世界設定の <code>encounters</code>（<code>rate_work</code> <code>rate_out</code> <code>rate_outing</code> 1時間あたり、<code>stranger_share</code> 知らない人の割合、<code>max_chance</code> 1回の上限、<code>pending_hours</code> 返事を待つ時間）で変えられます。<b>設定 → データ</b> の「偶然の出会いを起こす」で試せます。</p>
+<p>出会いは偶然です。まだ知らない人に会いやすくする補正や、誰かに必ず会わせる仕組みはありません。会う相手がいなかったり、返事待ちの人がいたりすれば、何も起きずに終わります。</p>
+
+<!-- ============================================================ -->
+<h2 id="real"><span class="ic">⚖</span>現実的であること（仲の深まり方）</h2>
+<p>このアプリの公理は「現実的であること」です。回数をこなせば仲が深まる、とはしません。清濁併せ呑む感じで、うまくいかないこともあります。</p>
+<ul>
+  <li><b>揺らぎと鈍り</b>: 交流で上がる好感度・信頼は毎回揺らぎ（およそ 0.5〜1.25 倍）、その日のうちに上がるほど鈍ります（世界設定 <code>bonds</code> の <code>gain_cap_affection</code> <code>gain_cap_trust</code>）。機嫌が悪いと半分しか効きません。コマンドのほか、働きかけに応じたとき・ミニゲーム・偶然会ったときも同じです。</li>
+  <li><b>繰り返し</b>: 同じことを一日に何度も繰り返すと、3 回目あたりから、うんざりされて逆効果になることがあります（「（同じことの繰り返しに少しうんざりしているようだ）」と添えられます）。</li>
+  <li><b>ご無沙汰</b>: 同居していない相手とは、最後に交流してから <code>cool_after_days</code>（3 日）を過ぎると、好感度・信頼が少しずつ冷めます（1 日 <code>cool_per_day</code>、下限 <code>cool_floor</code>）。<code>drift_apart_days</code>（30 日）会わないと、家に行ける仲も「連絡先」に戻ります。</li>
+  <li><b>段階の提案</b>: 「家に行ってもいい？」「一緒に住まない？」は、数値が条件を満たしても、受けてもらえるとは限りません。好感度・信頼に加え、最近 14 日に交流した日数（<code>met_14d</code>）、ご無沙汰の日数（<code>gap_d</code>）、性格の慎重さ（傾向 <code>caution</code>）、その日の気分で決まる「気持ちの準備」（条件キー <code>ready</code>）しだいで断られます。</li>
+  <li><b>贈り物・お金</b>: プレゼントは、最近の贈り物が多い・仲が浅い・機嫌が悪いと、ありがたみが薄れます（<code>gift_feel</code>）。高価なプレゼントとお小遣いは、仲が浅いうちや、誇りの高い性格には「重い」「嫌」と受け取ってもらえず、信頼が下がります（<code>money_feel</code>。断られたらお金は動きません）。性格の傾向 <code>gift</code>（物の効き目の倍率）と <code>money</code>（お金の受け止め方）で変わります。気高い令嬢や凛とした男前はお金を嫌い、甘えたがりは素直に喜びます。</li>
+</ul>
 <p>しきい値などは世界設定の <code>bonds</code>（<code>visit_hours</code> 遊びに行ける時間、<code>meet_min_affection</code> 誘いに応じる好感度、<code>deep_affection</code> 深い仲とみなす好感度、<code>jealousy_per_day</code> 気づきやすさ、<code>renotice_days</code>、<code>selfie_rate</code> 自撮りの多さ）で変えられます。</p>
 
 <!-- ============================================================ -->

@@ -264,6 +264,9 @@ class Presence:
         mult = self.app.life.skill_mult(out["skill"]) if out.get("skill") else 1.0
         eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                for k, v in (out.get("effects") or {}).items()}
+        if ans == "accept":     # 応じても, 確実に仲が深まるわけではない (揺らぎ・鈍り・繰り返し)
+            eff, _ = self.app.bonds.realize(char, st, eff, "_ap_" + a["id"], now)
+            self.app.bonds.touch(st, now)
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         if out.get("skill"):
             self.app.life.train(out["skill"], 1.0)

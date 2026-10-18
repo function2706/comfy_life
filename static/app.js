@@ -1584,7 +1584,7 @@ function parseRules(s, key) {
 function paramKeysHint() {
   return h('div', { class: 'keys' },
     h('div', {}, 'パラメータ id: ', SE.params.map((p, i) => [i ? '、' : '', h('code', {}, p.id), `(${p.name})`])),
-    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat', 'outfit', 'outing', 'overriding', 'month', 'season']
+    h('div', {}, '条件キー: ', ['activity', 'location', 'phase', 'free', 'away', 'asleep', 'busy', 'hour', 'time', 'weekday', 'day', 'weekend', 'absent', 'repeat', 'outfit', 'outing', 'overriding', 'month', 'season', 'stage', 'apart', 'met_14d', 'gap_d', 'ready', 'gift_feel', 'money_feel']
       .map((k, i) => [i ? ' ' : '', h('code', {}, k)])),
     h('div', {}, '条件の書き方: ', h('code', {}, 'free=true, mood>=50, phase=night|midnight'), '（カンマで AND、| で OR、time は 07:30 形式）'),
     h('div', {}, '効果の書き方: ', h('code', {}, 'mood:+5, stress:-10'), '（1時間あたりの値はスケジュール・一時シーン）'));
@@ -1744,7 +1744,7 @@ SEC.personas = () => {
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
         fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
           parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
-          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ',
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、主人公の設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),

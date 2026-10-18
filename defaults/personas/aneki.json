@@ -18,7 +18,10 @@
   },
   "approach": 1.25,
   "absence": 1.2,
-  "jealousy": 0.9
+  "jealousy": 0.9,
+  "caution": 0,
+  "gift": 1.0,
+  "money": -10
  },
  "lines": {
   "look.free_true": [
@@ -1873,6 +1876,15 @@
   ],
   "greet.phase_evening__with_mode_meet": [
    "こんばんは、{call}。こんな時間に外で会うなんて、ちょっと新鮮ね。"
+  ],
+  "gift.gift_feel_lt_30": [
+   "あら、ありがとう。……気をつかわなくていいのに。"
+  ],
+  "expensive_gift.money_feel_lt_45": [
+   "こんな高いもの、受け取れないわ。……無理してるでしょう？"
+  ],
+  "allowance.money_feel_lt_45": [
+   "お金はいいの。そういうのは、あなたが自分のために使いなさい。"
   ]
  }
 }

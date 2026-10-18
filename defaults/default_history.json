@@ -21,7 +21,8 @@
    "f564d18b86bcff6b299418e3107dbb21"
   ],
   "allowance": [
-   "fc26e7bbe04256a8f94d9af0de7cd162"
+   "fc26e7bbe04256a8f94d9af0de7cd162",
+   "f79d8b7a1227e2a6c00a11be83b522fe"
   ],
   "amusement": [
    "05f8ae926119fae53c6336354b669958",
@@ -38,14 +39,16 @@
    "3425adb8015daf2ab0b478d829aa83ae"
   ],
   "ask_live": [
-   "504e81ff85c693a225249c4d76cea6bd"
+   "504e81ff85c693a225249c4d76cea6bd",
+   "6bc70dbf61559fe845e687815b709f6b"
   ],
   "ask_mood": [
    "e2b1cfefe69429417361810fbf14dd27",
    "d079ed5a1772f6896d3b2b01c502841a"
   ],
   "ask_visit": [
-   "06b8f50f56b2c8f8d7de4a07b19f2a3d"
+   "06b8f50f56b2c8f8d7de4a07b19f2a3d",
+   "37df30dfe646749dad4d80303db21b8f"
   ],
   "bath": [
    "4e778ff703174a5897ba64983c0546f1",
@@ -92,7 +95,8 @@
    "8d8d9dd46acc23cb6773b71e087c1703"
   ],
   "expensive_gift": [
-   "f080242f94134d20a0787fccbfa65dd9"
+   "f080242f94134d20a0787fccbfa65dd9",
+   "ebdac6fdad920526e14752eb0249dc7c"
   ],
   "full_body": [
    "b267bb87e12c77bf08262833937a4cc0"
@@ -106,14 +110,15 @@
    "58d926e65661dd17cab3e35c0f555699",
    "969c72de33d4852c32a2c6231287205c",
    "ac027832b8a5ef8d4d14a7418cc09cce",
-   "f9e9d329645f2f809e99691c3e7de004"
+   "f9e9d329645f2f809e99691c3e7de004",
+   "a1f9026c9f722fe31e75dd2ed7b19c5c"
   ],
   "go_busy": [
    "da3511c742b5a92faec70e329b5403c8"
   ],
   "go_home": [
-   "5b2c63a00cf2426547cc2ecf88bb75ed",
-   "b05f512ddc08d959e86f20aa40e59a2f"
+   "b05f512ddc08d959e86f20aa40e59a2f",
+   "5b2c63a00cf2426547cc2ecf88bb75ed"
   ],
   "go_leave": [
    "7925030797a40c903a3c0337d0ed6f38"
@@ -129,9 +134,9 @@
    "39e277578c88369d9ed1200e8dfa9f5f"
   ],
   "greet": [
+   "fb4ffcc44840cf539c65f924f5ca6665",
    "5a2b8ad4d66d5a82be7278c163ae187f",
-   "11818e9851663b96293000db6fc300fd",
-   "fb4ffcc44840cf539c65f924f5ca6665"
+   "11818e9851663b96293000db6fc300fd"
   ],
   "headpat": [
    "5ca625494759c0147384880989e40c17",

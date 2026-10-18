@@ -31,6 +31,7 @@ def main():
         # ---- 2. 新しいワールドは, 誰とも暮らしていない
         app.create_world("ひとり暮らし")
         B = app.bonds
+        B.readiness = lambda *a: 90.0          # 提案の受け方の揺らぎは test_realism で見る. ここでは受けてもらう
         assert B.stage("hina") == "contact" and B.mode("hina") is None
         st = app.state("hina")
         free = lambda: st.update(override={"activity": "relax", "label": "くつろぎ", "location": "ひなの部屋", "until": 9e12})  # noqa: E731

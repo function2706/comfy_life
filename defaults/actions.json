@@ -2346,11 +2346,23 @@
     "when": "affection>=70",
     "pos": "tears of joy, hugging gift",
     "neg": ""
+   },
+   {
+    "text": "あ……ありがとうございます。（少し困ったように受け取った）",
+    "when": "gift_feel<30",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "mood": 1
+    },
+    "pos": "awkward smile, holding gift box",
+    "neg": ""
    }
   ],
   "cost": 3000,
   "payer": "me",
-  "reason_good": "{call}にプレゼントをもらった"
+  "reason_good": "{call}にプレゼントをもらった",
+  "gift": "item"
  },
  {
   "id": "message",
@@ -2471,14 +2483,15 @@
    },
    {
     "text": "う、うちはまだちょっと……。もう少し、仲良くなってからでもいいですか？",
-    "when": "trust<55, roll<50",
+    "when": "ready<50",
     "priority": 1,
     "override": true,
     "effects": {
      "shyness": 3
     },
     "pos": "embarrassed, looking away",
-    "neg": ""
+    "neg": "",
+    "key": "trust_lt_55__roll_lt_50"
    }
   ],
   "reason_good": "{call}に家に来ていいと言えた"
@@ -2566,14 +2579,15 @@
    },
    {
     "text": "うれしいです。……でも、もう少しだけ考えさせてください。",
-    "when": "trust<75, roll<50",
+    "when": "ready<65",
     "priority": 1,
     "override": true,
     "effects": {
      "heart": 5
     },
     "pos": "blush, looking down",
-    "neg": ""
+    "neg": "",
+    "key": "trust_lt_75__roll_lt_50"
    },
    {
     "text": "……今は、そういう気持ちになれません。",
@@ -3209,8 +3223,21 @@
     "pos": "suspicious, narrowed eyes",
     "neg": "",
     "priority": 1
+   },
+   {
+    "text": "お金は……いいです。そういうの、なんだか嫌です。",
+    "when": "money_feel<45",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "trust": -3,
+     "mood": -3
+    },
+    "pos": "frown, shaking head, looking away",
+    "neg": "smile"
    }
-  ]
+  ],
+  "gift": "money"
  },
  {
   "id": "borrow",
@@ -3298,8 +3325,21 @@
     "effects": {
      "trust": 1
     }
+   },
+   {
+    "text": "こ、こんな高いもの……受け取れません。……ちょっと、重いです。",
+    "when": "money_feel<45",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "trust": -3,
+     "mood": -2
+    },
+    "pos": "troubled, pushing back gift box, looking away",
+    "neg": "smile"
    }
-  ]
+  ],
+  "gift": "item"
  },
  {
   "id": "_dress",

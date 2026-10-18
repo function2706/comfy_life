@@ -19,7 +19,10 @@
   },
   "approach": 0.7,
   "absence": 0.9,
-  "jealousy": 0.8
+  "jealousy": 0.8,
+  "caution": -3,
+  "gift": 0.8,
+  "money": 0
  },
  "lines": {
   "look.free_true": [
@@ -1581,6 +1584,15 @@
   ],
   "greet.phase_evening__with_mode_meet": [
    "こんばんは、{call}。屋外での面会は、新鮮ね。"
+  ],
+  "gift.gift_feel_lt_30": [
+   "受領したわ。……頻度が高すぎないかしら。"
+  ],
+  "expensive_gift.money_feel_lt_45": [
+   "この金額は受け取れない。関係として、釣り合わないわ。"
+  ],
+  "allowance.money_feel_lt_45": [
+   "金銭の授受は遠慮するわ。そういう関係にはしたくない。"
   ]
  }
 }

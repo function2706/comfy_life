@@ -93,7 +93,11 @@ class Games:
         """要所のログ記録を作り, 効果を適用し, 画像を出す."""
         now = time.time()
         dt = datetime.fromtimestamp(now)
-        deltas = self.app.apply_effects(st, (g.get("effects") or {}).get(effects_key) or {}) if effects_key else {}
+        eff = ((g.get("effects") or {}).get(effects_key) or {}) if effects_key else {}
+        if eff:     # 遊んでも, 確実に仲が深まるわけではない
+            eff, _ = self.app.bonds.realize(char, st, eff, None, now)     # 1 回のゲームで何度も来るので, 繰り返しは数えない
+            self.app.bonds.touch(st, now)
+        deltas = self.app.apply_effects(st, eff) if eff else {}
         scene = self.app.scene_at(char, st, dt)
         text = self._fmt(self._text(char, line), char, scene, dt, extra)
         pseudo = {"id": "_game_" + g["id"], "name": "%s%s" % (g.get("name", ""), label),

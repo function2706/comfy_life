@@ -614,6 +614,15 @@ class App:
                 eff = {}
             for k, v in (opts.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
+            real_note = None
+            social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer")
+            if social and not narrate:
+                # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
+                eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
+                self.bonds.touch(st, now)
+                if a.get("gift"):
+                    st.setdefault("gifts", []).append(now)
+                    st["gifts"] = [x for x in st["gifts"] if now - x < 30 * 86400]
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
@@ -686,6 +695,8 @@ class App:
 
         if selfie:
             text += "\n（📷 自撮りが添えられていた）"
+        if real_note:
+            text += "\n" + self.format_text(real_note, char, scene, dt)
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src
