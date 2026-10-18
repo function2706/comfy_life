@@ -12,6 +12,7 @@ import os
 import queue
 import random
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -109,16 +110,17 @@ class App:
     # ------------------------------------------------------------------ config
     def reload(self):
         self.settings = store.load_settings()
-        self.params = store.load(store.dpath("params.json"), [])
-        self.actions = store.load(store.dpath("actions.json"), [])
+        self.params = store.load(store.wpath("params.json"), [])
+        self.actions = store.load(store.wpath("actions.json"), [])
         # 既定に増えた項目 (economy など) も使えるよう, 既定の上に data を重ねる
         self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}),
-                                      store.load(store.dpath("world.json"), {}))
+                                      store.load(store.wpath("world.json"), {}))
         self.chars = store.load_characters()
-        self.minigames = store.load(store.dpath("minigames.json"), [])
-        self.events = store.load(store.dpath("events.json"), [])
-        self.approaches = store.load(store.dpath("approaches.json"), [])
+        self.minigames = store.load(store.wpath("minigames.json"), [])
+        self.events = store.load(store.wpath("events.json"), [])
+        self.approaches = store.load(store.wpath("approaches.json"), [])
         self.personas = store.load_personas()
+        self.relations = store.load(store.wpath("relations.json"), {}) or {}
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
         self._migrate()
@@ -175,14 +177,14 @@ class App:
             have.insert(at, d["id"])
             added.append(d["id"])
         if updated or added:
-            store.save(store.dpath(fname), items)
+            store.save(store.wpath(fname), items)
             self.logq.put("%s [INFO] 既定の%sを反映: 更新 %d 件 %s / 追加 %d 件 %s" % (
                 datetime.now().strftime("%m-%d %H:%M:%S"), kind, len(updated), ",".join(updated),
                 len(added), ",".join(added)))
         all_ids = sorted(seen | set(dmap))
         if all_ids != sorted(self.settings.get(key) or []):
             self.settings[key] = all_ids
-            store.save(store.dpath("settings.json"), self.settings)
+            store.save_settings(self.settings)
 
     def char(self, cid=None):
         cid = cid or self.settings.get("active_character")
@@ -207,7 +209,7 @@ class App:
     def state(self, cid):
         st = self.states.get(cid)
         if st is None:
-            st = store.load(store.dpath("state", cid + ".json"))
+            st = store.load(store.wpath("state", cid + ".json"))
             if st is None:
                 t = time.time()
                 st = {"params": {}, "last_tick": t, "last_interaction": t, "override": None,
@@ -218,15 +220,15 @@ class App:
         return st
 
     def save_state(self, cid):
-        store.save(store.dpath("state", cid + ".json"), self.states[cid])
+        store.save(store.wpath("state", cid + ".json"), self.states[cid])
 
     def log(self, cid):
         if cid not in self.logs:
-            self.logs[cid] = store.load(store.dpath("log", cid + ".json"), [])
+            self.logs[cid] = store.load(store.wpath("log", cid + ".json"), [])
         return self.logs[cid]
 
     def save_log(self, cid):
-        store.save(store.dpath("log", cid + ".json"), self.logs[cid])
+        store.save(store.wpath("log", cid + ".json"), self.logs[cid])
 
     def find_entry(self, cid, eid):
         for e in reversed(self.log(cid)):
@@ -442,6 +444,9 @@ class App:
         system = (cfg.get("system") or "").replace("{name}", char.get("name", "")).replace("{call}", call) \
             .replace("{player}", player).replace("{persona}", char.get("persona", "")).replace("{fp}", fp)
         system += "\n一人称は必ず「%s」、%sのことは必ず「%s」と呼ぶ。" % (fp, player, call)
+        known = self.relations_text(char)
+        if known:
+            system += "\n知っている人: %s。それ以外の登場人物は知らない。" % known
         user = ("現在 %s（%s曜 %s）\n%sの状況: %s（%s）\nパラメータ: %s\n目立つ状態: %s\n直近のやりとり:\n%s\n\n"
                 "%sの行動: %s\n参考セリフ（この方向性で）: %s\n\n%sとしてのセリフだけを返して。"
                 % (dt.strftime("%H:%M"), DAY_JA[dt.weekday()], self.phase_at(dt).get("label", ""),
@@ -723,11 +728,11 @@ class App:
         return hashlib.md5((pos + neg).encode("utf-8")).hexdigest()
 
     def _load_index(self):
-        """プロンプト → 生成済み画像の索引. 無ければ全キャラのログから作り直す."""
+        """プロンプト → 生成済み画像の索引 (全ワールド共通). 無ければ全ワールドのログから作り直す."""
         idx = store.load(store.dpath("images", "index.json"))
         if idx is None:
             idx = {}
-            for f in glob.glob(store.dpath("log", "*.json")):
+            for f in glob.glob(store.dpath("worlds", "*", "log", "*.json")):
                 for e in store.load(f, []):
                     for im in e.get("images") or []:
                         idx.setdefault(self.prompt_key(im.get("pos", ""), im.get("neg", "")), []).append(
@@ -893,7 +898,7 @@ class App:
         if seed in (None, "", -1):
             seed = random.randint(0, 2 ** 32 - 1)
         e = self.find_entry(cid, eid) or {}
-        j = {"id": jid, "status": "queued", "stage": "queued", "cid": cid, "entry": eid,
+        j = {"id": jid, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
              "action": e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
              "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
              "cancel": False, "events": []}
@@ -962,14 +967,29 @@ class App:
                 n += 1
         return {"cancelled": n}
 
-    def _clear_entry_job(self, j, error):
+    def _job_entry(self, j, fn):
+        """ジョブの元になったログ項目を fn(e) で書き換えて保存する.
+        生成中にワールドを切り替えていたら, 元のワールドのログファイルを直接直す."""
         with self.lock:
-            e = self.find_entry(j["cid"], j["entry"])
-            if e and e.get("job") == j["id"]:
-                e.pop("job", None)
-                if error:
-                    e["error"] = error
-                self.save_log(j["cid"])
+            if j.get("wid", store.WORLD) == store.WORLD:
+                e = self.find_entry(j["cid"], j["entry"])
+                if e and fn(e) is not False:
+                    self.save_log(j["cid"])
+                return
+            f = store.dpath("worlds", j["wid"], "log", j["cid"] + ".json")
+            log = store.load(f, [])
+            e = next((x for x in reversed(log) if x.get("id") == j["entry"]), None)
+            if e and fn(e) is not False:
+                store.save(f, log)
+
+    def _clear_entry_job(self, j, error):
+        def fn(e):
+            if e.get("job") != j["id"]:
+                return False
+            e.pop("job", None)
+            if error:
+                e["error"] = error
+        self._job_entry(j, fn)
 
     def _worker(self):
         while True:
@@ -997,17 +1017,17 @@ class App:
                 with open(full, "wb") as f:
                     f.write(data)
                 with self.lock:
-                    e = self.find_entry(j["cid"], j["entry"])
                     self.img_index.setdefault(self.prompt_key(j["pos"], j["neg"]), []).append(
                         {"path": rel, "seed": j["seed"], "t": time.time()})
                     store.save(store.dpath("images", "index.json"), self.img_index)
-                    if e:
-                        e["image"], e["seed"], e["reused"] = rel, j["seed"], False
-                        e.pop("error", None)
-                        e.setdefault("images", []).append({"path": rel, "seed": j["seed"], "pos": j["pos"],
-                                                           "neg": j["neg"], "t": time.time()})
-                        e.pop("job", None)
-                        self.save_log(j["cid"])
+
+                def put(e):
+                    e["image"], e["seed"], e["reused"] = rel, j["seed"], False
+                    e.pop("error", None)
+                    e.setdefault("images", []).append({"path": rel, "seed": j["seed"], "pos": j["pos"],
+                                                       "neg": j["neg"], "t": time.time()})
+                    e.pop("job", None)
+                self._job_entry(j, put)
                 j["image"], j["status"] = rel, "done"
                 self._set_stage(j, "done", "完了 %s（%.1f 秒）" % (rel, time.time() - j["started"]))
             except comfy.Cancelled:
@@ -1039,7 +1059,7 @@ class App:
             phase = self.phase_at(dt)
             log = self.log(cid)
             pending = [self.job_view(j["id"]) for j in self.jobs.values()
-                       if j["cid"] == cid and j["status"] in ("queued", "running")]
+                       if j["cid"] == cid and j.get("wid") == store.WORLD and j["status"] in ("queued", "running")]
             return {
                 "now": now, "character": cid, "name": char.get("name", ""),
                 "params": {k: round(v, 1) for k, v in st["params"].items()},
@@ -1187,7 +1207,7 @@ class App:
             return {"pos": pos, "neg": neg, "parts": parts}
 
     def boot_view(self):
-        return {"settings": self.settings, "params": self.params, "actions": self.actions, "world": self.world,
+        return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
@@ -1232,7 +1252,7 @@ class App:
             if "active_character" in obj and obj["active_character"] not in self.chars:
                 obj.pop("active_character")
             self.settings = store.deep_merge(self.settings, obj)
-            store.save(store.dpath("settings.json"), self.settings)
+            store.save_settings(self.settings)
             return self.settings
 
     def select_character(self, cid):
@@ -1272,8 +1292,120 @@ class App:
                 raise ValueError("最後のキャラクターは削除できません")
             self.chars.pop(cid, None)
             store.delete_character(cid)
+            self.relations.pop(cid, None)
+            for r in self.relations.values():
+                r.pop(cid, None)
+            store.save(store.wpath("relations.json"), self.relations)
             if self.settings.get("active_character") == cid:
                 self.select_character(next(iter(self.chars)))
+
+    # ------------------------------------------------------------------ worlds
+    def worlds_view(self):
+        meta = store.load_worlds()
+        return {"current": store.WORLD, "worlds": meta.get("worlds") or []}
+
+    def create_world(self, name, copy_from=None, switch=True):
+        """新しいワールド. copy_from を指定すればそのワールドの定義類とキャラ設定を複製 (状態・ログ・お金は引き継がない)."""
+        with self.lock:
+            meta = store.load_worlds()
+            if copy_from and copy_from not in [w["id"] for w in meta["worlds"]]:
+                raise KeyError("ワールドが見つかりません: %s" % copy_from)
+            wid = "w" + uuid.uuid4().hex[:8]
+            store.init_world(wid, copy_from)
+            if copy_from:
+                rel = store.load(store.dpath("worlds", copy_from, "relations.json"))
+                if rel:
+                    store.save(store.dpath("worlds", wid, "relations.json"), rel)
+            meta["worlds"].append({"id": wid, "name": (name or "").strip() or "新しいワールド", "created": time.time()})
+            store.save_worlds(meta)
+            if switch:
+                self.switch_world(wid)
+            return {"id": wid, "worlds": self.worlds_view()}
+
+    def switch_world(self, wid):
+        with self.lock:
+            meta = store.load_worlds()
+            if wid not in [w["id"] for w in meta["worlds"]]:
+                raise KeyError("ワールドが見つかりません: %s" % wid)
+            if wid == store.WORLD:
+                return self.worlds_view()
+            store.WORLD = wid
+            store.init_world(wid)
+            meta["current"] = wid
+            store.save_worlds(meta)
+            # ワールドごとの記憶を捨てて読み直す (生成中のジョブは元のワールドのログへ書き戻す)
+            self.states, self.logs, self.tasks = {}, {}, {}
+            self.life.player = None
+            self.reload()
+            return self.worlds_view()
+
+    def rename_world(self, wid, name):
+        with self.lock:
+            meta = store.load_worlds()
+            for w in meta["worlds"]:
+                if w["id"] == wid:
+                    w["name"] = (name or "").strip() or w["name"]
+                    store.save_worlds(meta)
+                    return self.worlds_view()
+            raise KeyError("ワールドが見つかりません: %s" % wid)
+
+    def delete_world(self, wid):
+        """ワールドを消す (キャラ設定・状態・ログ・お金). 画像は全体共通なので残す."""
+        with self.lock:
+            meta = store.load_worlds()
+            ids = [w["id"] for w in meta["worlds"]]
+            if wid not in ids:
+                raise KeyError("ワールドが見つかりません: %s" % wid)
+            if len(ids) <= 1:
+                raise ValueError("最後のワールドは削除できません")
+            if wid == store.WORLD:
+                self.switch_world(next(i for i in ids if i != wid))
+                meta = store.load_worlds()
+            meta["worlds"] = [w for w in meta["worlds"] if w["id"] != wid]
+            store.save_worlds(meta)
+            shutil.rmtree(store.dpath("worlds", wid), ignore_errors=True)
+            return self.worlds_view()
+
+    # ------------------------------------------------------------------ relations (同じワールドのキャラ同士)
+    def relation(self, a, b):
+        """a から見た b. knows: 知っているか / kind: 関係 (自由記述) / affinity: 好感度 (0〜100)."""
+        r = (self.relations.get(a) or {}).get(b) or {}
+        return {"knows": bool(r.get("knows")), "kind": r.get("kind", ""), "affinity": float(r.get("affinity", 50))}
+
+    def save_relations(self, cid, rels):
+        """cid から見た他キャラとの関係をまとめて保存. rels: {b: {knows, kind, affinity}}."""
+        with self.lock:
+            self.char(cid)
+            out = {}
+            for b, r in (rels or {}).items():
+                if b == cid or b not in self.chars:
+                    continue
+                out[b] = {"knows": bool(r.get("knows")), "kind": str(r.get("kind") or "").strip(),
+                          "affinity": max(0.0, min(100.0, float(r.get("affinity", 50))))}
+            self.relations[cid] = out
+            store.save(store.wpath("relations.json"), self.relations)
+            return self.relations
+
+    def change_affinity(self, a, b, delta):
+        """出来事などで a→b の好感度を動かす (知り合いになる)."""
+        with self.lock:
+            r = self.relation(a, b)
+            r["knows"] = True
+            r["affinity"] = max(0.0, min(100.0, r["affinity"] + delta))
+            self.relations.setdefault(a, {})[b] = r
+            store.save(store.wpath("relations.json"), self.relations)
+            return r
+
+    def relations_text(self, char):
+        """LLM へ渡す「このキャラが知っている人」."""
+        out = []
+        for b, r in sorted((self.relations.get(char["id"]) or {}).items()):
+            if not r.get("knows") or b not in self.chars:
+                continue
+            a = float(r.get("affinity", 50))
+            feel = "大好き" if a >= 80 else "好意的" if a >= 60 else "普通" if a >= 40 else "苦手" if a >= 20 else "嫌い"
+            out.append("%s（%s、%s）" % (self.chars[b].get("name", b), r.get("kind") or "知り合い", feel))
+        return "、".join(out)
 
     def _check_conds(self, items, label):
         for it in items:
@@ -1290,7 +1422,7 @@ class App:
             for a in actions:
                 self._check_conds([a] + list(a.get("reactions") or []), "行動「%s」" % a.get("name", a["id"]))
             self.actions = actions
-            store.save(store.dpath("actions.json"), actions)
+            store.save(store.wpath("actions.json"), actions)
             return actions
 
     def save_params(self, params):
@@ -1304,7 +1436,7 @@ class App:
                 self._check_conds(p.get("tags") or [], lab)
                 self._check_conds((p.get("drift") or {}).get("mods") or [], lab)
             self.params = params
-            store.save(store.dpath("params.json"), params)
+            store.save(store.wpath("params.json"), params)
             for cid in list(self.states):
                 self.state(cid)
                 self.save_state(cid)
@@ -1313,7 +1445,7 @@ class App:
     def save_world(self, world):
         with self.lock:
             self.world = world
-            store.save(store.dpath("world.json"), world)
+            store.save(store.wpath("world.json"), world)
             return world
 
     def force_event(self, eid, cid=None):
@@ -1337,7 +1469,7 @@ class App:
                 raise ValueError("出来事の id が空か重複しています")
             self._check_conds(items, "出来事")
             self.events = items
-            store.save(store.dpath("events.json"), items)
+            store.save(store.wpath("events.json"), items)
             return items
 
     def save_approaches(self, items):
@@ -1349,7 +1481,7 @@ class App:
                 raise ValueError("働きかけの id が空か重複しています")
             self._check_conds(items, "働きかけ")
             self.approaches = items
-            store.save(store.dpath("approaches.json"), items)
+            store.save(store.wpath("approaches.json"), items)
             return items
 
     def save_minigames(self, items):
@@ -1369,7 +1501,7 @@ class App:
                 if g["kind"] in games.STRIP_KINDS and not g.get("stages"):
                     raise ValueError("「%s」の stages が空です" % g.get("name", g["id"]))
             self.minigames = items
-            store.save(store.dpath("minigames.json"), items)
+            store.save(store.wpath("minigames.json"), items)
             for st in self.states.values():   # 消えたゲームの進行中状態は破棄
                 if st.get("game") and st["game"].get("id") not in ids:
                     st["game"] = None
@@ -1394,7 +1526,7 @@ class App:
         with self.lock:
             char = self.char(cid)
             self.states.pop(char["id"], None)
-            p = store.dpath("state", char["id"] + ".json")
+            p = store.wpath("state", char["id"] + ".json")
             if os.path.exists(p):
                 os.remove(p)
             self.state(char["id"])
@@ -1449,9 +1581,11 @@ class App:
                 if not self.img_index[k]:
                     del self.img_index[k]
             store.save(store.dpath("images", "index.json"), self.img_index)
-            for f in glob.glob(store.dpath("log", "*.json")):
+            # 画像は全ワールド共通なので, 他のワールドのログからも外す
+            for f in glob.glob(store.dpath("worlds", "*", "log", "*.json")):
                 cid = os.path.splitext(os.path.basename(f))[0]
-                log = self.log(cid)
+                here = os.path.normcase(os.path.dirname(f)) == os.path.normcase(store.wpath("log"))
+                log = self.log(cid) if here else store.load(f, [])
                 changed = False
                 for e in log:
                     if any(im["path"] == path for im in e.get("images") or []):
@@ -1461,7 +1595,7 @@ class App:
                         e["image"] = e["images"][-1]["path"] if e.get("images") else None
                         changed = True
                 if changed:
-                    self.save_log(cid)
+                    self.save_log(cid) if here else store.save(f, log)
             return {"ok": True}
 
     def log_page(self, cid=None, offset=0, limit=60, images_only=False):

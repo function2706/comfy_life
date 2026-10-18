@@ -53,6 +53,8 @@ def route(method, path, q, body):
             return a.prompt_preview(cid)
         if path == "/api/workflow":
             return {"workflow": store.load(store.dpath("workflow.json"))}
+        if path == "/api/worlds":
+            return a.worlds_view()
         if path == "/api/persona":
             return a.persona_full(_q(q, "id", ""))
     else:
@@ -113,6 +115,16 @@ def route(method, path, q, body):
         if path == "/api/character/select":
             a.select_character(b["id"])
             return {"ok": True}
+        if path == "/api/world/create":
+            return a.create_world(b.get("name"), b.get("copy_from") or None)
+        if path == "/api/world/switch":
+            return a.switch_world(b["id"])
+        if path == "/api/world/rename":
+            return a.rename_world(b["id"], b.get("name"))
+        if path == "/api/world/delete":
+            return a.delete_world(b["id"])
+        if path == "/api/relations":
+            return {"relations": a.save_relations(b["id"], b.get("relations") or {})}
         if path == "/api/actions":
             return {"actions": a.save_actions(b["actions"])}
         if path == "/api/params":

@@ -34,7 +34,7 @@ class Life:
     # ================================================================== あなたのお金・スキル・投資
     def player_state(self):
         if self.player is None:
-            self.player = store.load(store.dpath("player.json"))
+            self.player = store.load(store.wpath("player.json"))
         if self.player is None:
             t = time.time()
             self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t}
@@ -50,7 +50,7 @@ class Life:
         return ps
 
     def save_player(self):
-        store.save(store.dpath("player.json"), self.player)
+        store.save(store.wpath("player.json"), self.player)
 
     # ---------------------------------------------------------- スキル
     def skill(self, k):

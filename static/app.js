@@ -72,7 +72,17 @@ async function loadBoot() {
   const sel = $('#char-select');
   sel.replaceChildren(...S.boot.characters.map((c) => h('option', { value: c.id }, c.name)));
   sel.value = S.boot.character.id;
+  const ws = $('#world-select');
+  ws.replaceChildren(...S.boot.worlds.worlds.map((w) => h('option', { value: w.id }, '🌐 ' + w.name)));
+  ws.value = S.boot.worlds.current;
+  ws.hidden = S.boot.worlds.worlds.length < 2;
   $('#nameplate').textContent = S.boot.character.name;
+}
+
+// ワールドを切り替えたら, キャラ・ログ・お金・在席がすべて別になるので画面ごと読み直す
+async function switchWorld(id) {
+  await api('/api/world/switch', { id });
+  location.reload();
 }
 
 async function refresh() {
@@ -1568,6 +1578,14 @@ function pickJson() {
 /* ---- 主人公 */
 SEC.char = () => {
   const c = SE.char, st = SE.settings;
+  // 同じワールドのほかのキャラとの関係 (c から見た向き). 再描画しても編集中の値を保つ
+  const others = S.boot.characters.filter((x) => x.id !== c.id);
+  if (!SE.rels || SE.rels.cid !== c.id || SE.rels.boot !== S.boot) {
+    const mine = (S.boot.relations || {})[c.id] || {};
+    SE.rels = { cid: c.id, boot: S.boot, map: Object.fromEntries(others.map((o) => [o.id, {
+      knows: !!(mine[o.id] || {}).knows, kind: (mine[o.id] || {}).kind || '', affinity: (mine[o.id] || {}).affinity ?? 50 }])) };
+  }
+  const rels = SE.rels.map;
   const hist = h('div', { class: 'hist' });
   const posEl = inp(c, 'pos', { type: 'textarea', rows: 5, ph: '1girl, solo, long hair, ...' });
   const negEl = inp(c, 'neg', { type: 'textarea', rows: 3 });
@@ -1584,6 +1602,7 @@ SEC.char = () => {
     saveBar('主人公', async () => {
       await api('/api/settings', { settings: { player_name: st.player_name } });
       await api('/api/character/save', { data: c });
+      if (others.length) await api('/api/relations', { id: c.id, relations: rels });
       await reloadAll('char');
     }, h('div', { class: 'row' },
       h('select', { onchange: async (ev) => { await api('/api/character/select', { id: ev.target.value }); S.current = null; await reloadAll('char'); } },
@@ -1614,6 +1633,17 @@ SEC.char = () => {
     personaPicker(c),
     h('div', { class: 'sect' }, '性格・口調の説明（LLM 使用時に参照）'),
     inp(c, 'persona', { type: 'textarea', rows: 3 }),
+    h('div', { class: 'sect' }, `${c.name}から見たほかのキャラ（同じワールド内）`),
+    others.length ? h('div', {},
+      h('p', { class: 'hint' }, '知っている人だけ、関係と好感度（0〜100）が LLM のセリフ作りに渡ります。向きごとに別なので、相手から見た関係は相手を選んで設定します。'),
+      others.map((o) => {
+        const r = rels[o.id];
+        return h('div', { class: 'grid4 rel-row' },
+          h('label', { class: 'fld' }, h('span', { class: 'fl' }, o.name),
+            h('span', {}, h('input', { type: 'checkbox', checked: r.knows, onchange: (ev) => { r.knows = ev.target.checked; } }), ' 知っている')),
+          fld('関係', inp(r, 'kind', { ph: '友人・姉妹・同僚など' })),
+          fld('好感度', inp(r, 'affinity', { type: 'number' })));
+      })) : h('p', { class: 'hint' }, 'このワールドにはほかのキャラがいません（＋新規で増やせます）。'),
     h('div', { class: 'sect' }, `プロンプト履歴（${(c.prompt_history || []).length}）`),
     hist,
   ];
@@ -2218,7 +2248,9 @@ SEC.data = () => {
   });
   return [
     h('div', { class: 'sbar' }, h('h3', {}, 'データ')),
-    h('p', { class: 'lead' }, 'デバッグや調整用です。データは kurashi/data/ に JSON と画像で保存されています。'),
+    h('p', { class: 'lead' }, 'デバッグや調整用です。データは kurashi/data/ に JSON と画像で保存されています（ワールドごとの分は data/worlds/ の下）。'),
+    h('div', { class: 'sect' }, 'ワールド'),
+    worldManager(),
     h('div', { class: 'sect' }, `${v.name}の現在値を直接変更`),
     ...sliders,
     h('div', { class: 'row', style: 'margin-top:10px' },
@@ -2254,6 +2286,39 @@ SEC.data = () => {
   ];
 };
 
+function worldManager() {
+  const W = S.boot.worlds;
+  const nameEl = h('input', { placeholder: '新しいワールドの名前' });
+  const fromEl = h('select', {}, h('option', { value: '' }, '既定のキャラ・設定から始める'),
+    W.worlds.map((w) => h('option', { value: w.id }, `「${w.name}」のキャラ・コマンドなどを複製`)));
+  return h('div', {},
+    h('p', { class: 'hint' }, 'ワールドごとにキャラ・状態・ログ・お金・スキル・在席・コマンドなどの定義が別になります（同じキャラでもワールドが違えば無関係）。'
+      + 'ComfyUI・LLM・表示の設定、性格プリセット、画像ファイルは全ワールド共通です（同じプロンプトの画像はワールドをまたいで使い回します）。'),
+    W.worlds.map((w) => h('div', { class: 'row world-row' },
+      h('span', { style: 'min-width:10em' }, (w.id === W.current ? '▶ ' : '') + w.name),
+      w.id === W.current ? h('span', { class: 'muted' }, '開いています')
+        : h('button', { class: 'btn', onclick: () => switchWorld(w.id) }, '開く'),
+      h('button', { class: 'btn', onclick: async () => {
+        const name = prompt('ワールドの名前', w.name);
+        if (!name) return;
+        await api('/api/world/rename', { id: w.id, name }); await reloadAll('data');
+      } }, '名前変更'),
+      h('button', { class: 'btn danger', onclick: async () => {
+        if (!confirm(`ワールド「${w.name}」を削除しますか？（キャラ・状態・ログ・お金が消えます。画像ファイルは残ります）`)) return;
+        try {
+          const r = await api('/api/world/delete', { id: w.id });
+          if (w.id === W.current || r.current !== W.current) location.reload(); else await reloadAll('data');
+        } catch (e) { toast(e.message, 'err'); }
+      } }, '削除'))),
+    h('div', { class: 'row', style: 'margin-top:8px' }, nameEl, fromEl,
+      h('button', { class: 'btn primary', onclick: async () => {
+        const r = await api('/api/world/create', { name: nameEl.value, copy_from: fromEl.value });
+        toast('ワールドを作りました', 'ok');
+        location.reload();
+        return r;
+      } }, '＋作成して開く')));
+}
+
 /* ================================================================= events */
 function bind() {
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -2263,6 +2328,7 @@ function bind() {
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }
   });
+  $('#world-select').addEventListener('change', (ev) => switchWorld(ev.target.value));
   $('#char-select').addEventListener('change', async (ev) => {
     await api('/api/character/select', { id: ev.target.value });
     S.current = null;
