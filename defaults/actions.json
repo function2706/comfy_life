@@ -442,6 +442,12 @@
     "effects": {
      "boredom": -3
     }
+   },
+   {
+    "text": "そういえば{call}、{player_like}が好きなんですよね。{fp}も、ちょっと気になってきました。",
+    "when": "player_likes>=1, roll<30",
+    "pos": "smile, curious, looking at viewer",
+    "neg": ""
    }
   ],
   "reason_good": "{call}とたくさんおしゃべりした",
@@ -936,7 +942,8 @@
    }
   ],
   "reason_good": "{call}に頭をなでてもらった",
-  "skill": "touch"
+  "skill": "touch",
+  "with_player": true
  },
  {
   "id": "hug",
@@ -1006,7 +1013,8 @@
   ],
   "reason_good": "{call}にぎゅってしてもらった",
   "reason_bad": "{call}にいきなり抱きつかれた",
-  "skill": "touch"
+  "skill": "touch",
+  "with_player": true
  },
  {
   "id": "hold_hands",
@@ -1049,7 +1057,8 @@
    }
   ],
   "reason_good": "{call}と手をつないだ",
-  "skill": "touch"
+  "skill": "touch",
+  "with_player": true
  },
  {
   "id": "cook",
@@ -1451,7 +1460,8 @@
   ],
   "reason_good": "{call}と一緒に寝た",
   "home_only": true,
-  "skill": "touch"
+  "skill": "touch",
+  "with_player": true
  },
  {
   "id": "wake",
@@ -1759,7 +1769,8 @@
    }
   ],
   "reason_good": "{call}と散歩した",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "shopping",
@@ -1807,7 +1818,8 @@
   ],
   "cost": 3000,
   "reason_good": "{call}と買い物に行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "date",
@@ -1871,7 +1883,8 @@
   ],
   "cost": 8000,
   "reason_good": "{call}とデートした",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "picnic",
@@ -1934,7 +1947,8 @@
   ],
   "cost": 1000,
   "reason_good": "{call}とピクニックに行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "hiking",
@@ -1999,7 +2013,8 @@
   ],
   "cost": 1000,
   "reason_good": "{call}と山に登った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "beach",
@@ -2062,7 +2077,8 @@
   ],
   "cost": 2000,
   "reason_good": "{call}と海に行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "amusement",
@@ -2119,7 +2135,8 @@
   ],
   "cost": 7000,
   "reason_good": "{call}と遊園地に行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "aquarium",
@@ -2172,7 +2189,8 @@
   ],
   "cost": 4000,
   "reason_good": "{call}と水族館に行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "cafe",
@@ -2231,7 +2249,8 @@
   ],
   "cost": 2000,
   "reason_good": "{call}とカフェに行った",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "stargazing",
@@ -2282,7 +2301,8 @@
    }
   ],
   "reason_good": "{call}と星を見た",
-  "home_only": true
+  "home_only": true,
+  "with_player": true
  },
  {
   "id": "go_home",
@@ -2741,6 +2761,12 @@
     "effects": {
      "mood": -3
     }
+   },
+   {
+    "text": "いってらっしゃい！ {player_job}のお仕事、がんばってくださいね。",
+    "when": "player_has_job=true",
+    "pos": "smile, waving",
+    "neg": ""
    }
   ]
  },

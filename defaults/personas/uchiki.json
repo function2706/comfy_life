@@ -1597,6 +1597,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "お、お金は……いいです……。そういうの、ちょっと……。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "あ、あの……{call}、{player_like}が好き、なんですよね……。{fp_st}も、ちょっと、気になって……"
+  ],
+  "go_work.player_has_job_true": [
+   "い、いってらっしゃい……。{player_job}のお仕事、が、がんばってください……"
   ]
  }
 }

@@ -1595,6 +1595,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "金はいらない。そういうのは、好きじゃない。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "{call}は{player_like}が好きだったな。……{fp}も少し興味が湧いてきた。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい。{player_job}、しっかりな。"
   ]
  }
 }

@@ -1524,6 +1524,7 @@ const TIPS = {
   // チェックボックス
   '行動の効果・シーン切替を置き換える': '断る反応などに使います。オンだと、行動の効果・一時シーン・お金のやりとりを行わず、この反応の効果だけになります',
   '場面プロンプトを使わない（服装は残す）': '行動のプロンプトだけで場面を描くときに使います（出かけた先など）',
+  'あなたも写る': '画像に、設定「あなた」の外見（Positive）を加えます',
   '家でだけできる': 'お出かけ中（一緒に出かけている場面）は出しません',
   'LLM を使わない': 'セリフ生成 (LLM) が有効でも、定型のセリフのままにします',
   '外出': '家にいない状態です。条件では away=true になります',
@@ -1610,7 +1611,29 @@ function pickJson() {
   });
 }
 
-/* ---- 主人公 */
+/* ---- あなた (プレイヤー) */
+SEC.player = () => {
+  const p = SE.settings.player = SE.settings.player || {};
+  if (!p.name) p.name = SE.settings.player_name || '';
+  return [
+    saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p } }); await reloadAll('player'); }),
+    h('p', { class: 'lead' }, 'あなた自身の情報です（全ワールド共通）。キャラクターはこれを踏まえて反応します：セリフの {player} {player_job} {player_like} などに入り、反応の条件（player_gender・player_age・player_has_job・player_likes）で使え、LLM でセリフを作るときにも伝わります。呼ばれ方はキャラクターごと（性格プリセット）です。'),
+    h('div', { class: 'grid4' },
+      fld('名前', inp(p, 'name', { ph: 'ユウ' })),
+      fld('性別', inp(p, 'gender', { type: 'select', options: [['', '設定しない'], ['male', '男性'], ['female', '女性'], ['other', 'その他']] })),
+      fld('年齢', inp(p, 'age', { type: 'number' })),
+      fld('職業', inp(p, 'job', { ph: '会社員' })),
+      fld('人柄', inp(p, 'personality', { ph: '穏やかで少し不器用' }), null, 'span2'),
+      fld('好きなもの', inp(p, 'likes', { ph: 'コーヒー, 映画, 猫' }), 'カンマ区切り', 'span2'),
+      fld('苦手なもの', inp(p, 'dislikes', { ph: 'ピーマン, 早起き' }), 'カンマ区切り', 'span2'),
+      fld('その他（キャラクターに伝わること）', inp(p, 'note', { type: 'textarea', rows: 2 }), null, 'span2')),
+    h('div', { class: 'sect' }, '画像'),
+    fld('あなたの外見（Positive）', inp(p, 'looks', { type: 'textarea', rows: 2, ph: '1boy, short black hair, hoodie' }),
+      '「あなたも写る」コマンド（抱きしめる・手をつなぐ・お出かけ など）の画像に加えます。空欄なら加えません'),
+  ];
+};
+
+/* ---- キャラクター */
 SEC.char = () => {
   const c = SE.char, st = SE.settings;
   // 同じワールドのほかのキャラとの関係 (c から見た向き). 再描画しても編集中の値を保つ
@@ -1634,8 +1657,7 @@ SEC.char = () => {
       } }, '復元'))));
   }
   return [
-    saveBar('主人公', async () => {
-      await api('/api/settings', { settings: { player_name: st.player_name } });
+    saveBar('キャラクター', async () => {
       await api('/api/character/save', { data: c });
       if (others.length) await api('/api/relations', { id: c.id, relations: rels });
       await reloadAll('char');
@@ -1651,10 +1673,9 @@ SEC.char = () => {
         if (!confirm(`「${c.name}」を削除しますか？（ログと画像は残ります）`)) return;
         try { await api('/api/character/delete', { id: c.id }); S.current = null; await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
       } }, '削除'))),
-    h('p', { class: 'lead' }, '一緒に暮らす相手の設定です。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。'),
+    h('p', { class: 'lead' }, 'このワールドのキャラクターの設定です。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
-      fld('あなたの名前', inp(st, 'player_name')),
       fld('一人称（固定）', inp(c, 'first_person', { ph: `空欄＝プリセット（${(curPersona(c) || {}).first_person || '私'}）` }),
         '空欄なら性格プリセットに従う'),
       fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),
@@ -1747,7 +1768,7 @@ SEC.personas = () => {
           'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
-      h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、主人公の設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),
+      h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、キャラクターの設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),
       search, list);
   };
   load().catch((e) => box.replaceChildren(h('p', { class: 'result err' }, e.message)));
@@ -1771,7 +1792,7 @@ SEC.personas = () => {
         if (!confirm('編集内容を捨てて、既定の内容に戻しますか？（既定の無い自作の性格は削除されます）')) return;
         await api('/api/persona/reset', { id: cur.id }); SE.personaData = null; await reloadAll('personas');
       } }, '既定に戻す') : '')),
-    h('p', { class: 'lead' }, '性格ごとのセリフ集です。主人公の設定で選んだ性格のセリフが、コマンドの反応やミニゲームで使われます。条件・効果・画像プロンプトはコマンドやミニゲームの設定のままなので、口調だけが変わります。'),
+    h('p', { class: 'lead' }, '性格ごとのセリフ集です。キャラクターの設定で選んだ性格のセリフが、コマンドの反応やミニゲームで使われます。条件・効果・画像プロンプトはコマンドやミニゲームの設定のままなので、口調だけが変わります。'),
     box,
   ];
 };
@@ -2028,6 +2049,7 @@ SEC.actions = () => {
           chk(a, 'replace_scene', '場面プロンプトを使わない（服装は残す）'),
           chk(a, 'no_llm', 'LLM を使わない'),
           chk(a, 'home_only', '家でだけできる'),
+          chk(a, 'with_player', 'あなたも写る'),
           h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: a.generate !== false, onchange: (ev) => { a.generate = ev.target.checked; } }), '自動で画像生成'),
           h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: hasOv.v, onchange: (ev) => {
             if (ev.target.checked) a.override = a.override || { activity: a.id, label: a.name + '中', location: '', minutes: 30, pos: '', neg: '', outfit: '', effects: {} };
@@ -2051,7 +2073,7 @@ SEC.actions = () => {
       h('button', { class: 'btn', onclick: () => { moveIn(acts, SE.selAction, -1); SE.selAction = Math.max(0, SE.selAction - 1); drawList(); } }, '↑'),
       h('button', { class: 'btn', onclick: () => { moveIn(acts, SE.selAction, 1); SE.selAction = Math.min(acts.length - 1, SE.selAction + 1); drawList(); } }, '↓'),
       h('button', { class: 'btn danger', onclick: () => { const a = acts[SE.selAction]; if (!a || !confirm(`「${a.name}」を削除しますか？`)) return; acts.splice(SE.selAction, 1); SE.selAction = Math.max(0, SE.selAction - 1); drawList(); drawEd(); } }, '削除'))),
-    h('p', { class: 'lead' }, 'キャラへの行動と、その反応を編集します。行動・反応のどちらにも Positive / Negative プロンプトを指定でき、画像生成時に共通 → 主人公 → 服装 → 場面 → 時間帯 → 状態 → 行動 → 反応 の順で合成されます。'),
+    h('p', { class: 'lead' }, 'キャラへの行動と、その反応を編集します。行動・反応のどちらにも Positive / Negative プロンプトを指定でき、画像生成時に共通 → キャラクター →（あなた）→ 服装 → 場面 → 時間帯 → 状態 → 行動 → 反応 の順で合成されます。'),
     paramKeysHint(),
     h('datalist', { id: 'cat-list' }, [...cats, 'system'].map((c) => h('option', { value: c }))),
     h('div', { class: 'ed', style: 'margin-top:14px' }, listBox, edBox),
@@ -2321,11 +2343,11 @@ SEC.data = () => {
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),
       h('button', { class: 'btn', onclick: () => downloadJson('params.json', S.boot.params) }, 'パラメータを保存'),
-      h('button', { class: 'btn', onclick: () => downloadJson(`character_${S.boot.character.id}.json`, S.boot.character) }, '主人公を保存')),
+      h('button', { class: 'btn', onclick: () => downloadJson(`character_${S.boot.character.id}.json`, S.boot.character) }, 'キャラクターを保存')),
     h('div', { class: 'row', style: 'margin-top:8px' },
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/actions', { actions: j }); await reloadAll(); toast('コマンドを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'コマンドを読込'),
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/params', { params: j }); await reloadAll(); toast('パラメータを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'パラメータを読込'),
-      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); await api('/api/character/select', { id: j.id }); S.current = null; await reloadAll(); toast('主人公を読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, '主人公を読込')),
+      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); await api('/api/character/select', { id: j.id }); S.current = null; await reloadAll(); toast('キャラクターを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'キャラクターを読込')),
   ];
 };
 

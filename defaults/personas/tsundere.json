@@ -1580,6 +1580,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "お金なんていらないわよ！ ……そういうの、嫌い。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "{call}って{player_like}好きなんでしょ。べ、別に{fp}も気になるとかじゃないけど……ちょっとだけ。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい。{player_job}、せいぜいがんばりなさいよね。"
   ]
  }
 }

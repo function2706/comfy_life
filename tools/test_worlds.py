@@ -62,7 +62,7 @@ def main():
         app.set_params({"mood": 99}, "hina")
         app.life.player_state()["money"] = 1
         app.life.save_player()
-        app.save_settings({"player_name": "ユウ2"})          # 主人公の名前は全体共通
+        app.save_settings({"player_name": "ユウ2"})          # あなたの名前は全体共通
         app.switch_world(w1)
         assert app.state("hina")["params"]["mood"] == 12.0 and app.life.player_state()["money"] == 12345
         assert app.settings["player_name"] == "ユウ2"

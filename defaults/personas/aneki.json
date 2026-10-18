@@ -1885,6 +1885,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "お金はいいの。そういうのは、あなたが自分のために使いなさい。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "{call}、{player_like}好きだったわよね。今度、{fp}にも教えなさいよ。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい。{player_job}、無理しすぎないのよ。"
   ]
  }
 }

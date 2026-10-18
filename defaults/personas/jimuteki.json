@@ -1593,6 +1593,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "金銭の授受は遠慮するわ。そういう関係にはしたくない。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "{call}の好きなもの、{player_like}だったわね。覚えているわ。……{fp}も少し調べてみたの。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい。{player_job}の業務、がんばって。"
   ]
  }
 }

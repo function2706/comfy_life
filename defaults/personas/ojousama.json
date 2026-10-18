@@ -1587,6 +1587,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "お金は結構ですわ。そういうのは、なんだか嫌ですの。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "そういえば{call}は、{player_like}がお好きでしたわね。{fp}も、少し興味が出てきましたの。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃいませ。{player_job}のお仕事、ご無理なさらないでくださいね。"
   ]
  }
 }

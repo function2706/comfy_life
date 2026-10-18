@@ -191,7 +191,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div><b>ComfyUI につなぐ</b>⚙ 設定 →「画像生成 (ComfyUI)」でアドレスとポートを入れます。別の PC なら ComfyUI を <code>--listen</code> 付きで起動します。</div>
   <div><b>接続テスト</b>「接続テスト」を押して「接続OK」を確かめます。チェックポイントの候補が出ます。</div>
   <div><b>チェックポイントを選んで保存</b>使うモデルを選び、右上の「保存」を押します。</div>
-  <div><b>主人公を決める</b>「主人公」で名前、外見のプロンプト、性格プリセットを設定します。</div>
+  <div><b>あなたとキャラクターを決める</b>「あなた」で自分の名前や好きなものを、「キャラクター」で相手の名前・外見のプロンプト・性格プリセットを設定します。</div>
   <div><b>話しかける</b>右の「コマンド」から選ぶと、セリフと画像が出ます。</div>
 </div>
 <div class="note">設定画面では、項目名の横の <b>ⓘ</b> にマウスを乗せると短い説明が出ます。各画面の右上の <b>📖</b> を押すと、この説明書の該当の箇所が開きます。</div>
@@ -312,7 +312,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <p>プロンプトは次の層を上から順につなぎ、重複するタグを除いてから ComfyUI に送ります。🧩 を押すと、層ごとの中身が見られます。</p>
 <div class="layers">
   <div style="background:#3a3346"><span>1</span><b>共通</b><small>品質タグなど、すべての画像に付く</small></div>
-  <div style="background:#4a3346"><span>2</span><b>主人公</b><small>外見・固有の特徴</small></div>
+  <div style="background:#4a3346"><span>2</span><b>キャラクター</b><small>外見・固有の特徴（「あなたも写る」コマンドでは、このあとにあなたの外見）</small></div>
   <div style="background:#563a4c"><span>3</span><b>服装</b><small>スケジュール、着せ替え、お出かけ着、ゲームの段階</small></div>
   <div style="background:#4a3f33"><span>4</span><b>場面</b><small>予定・一時シーンのプロンプト</small></div>
   <div style="background:#3f4433"><span>5</span><b>時間帯</b><small>朝の光、夕焼けなど</small></div>
@@ -475,7 +475,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li>お出かけには、散歩、買い物、デート、ピクニック、ハイキング、海、遊園地、水族館、カフェ、星を見に行く、があります。季節で反応が変わります。</li>
   <li>お出かけ中は、料理・お風呂・掃除・映画など<b>家でだけできること</b>は出ません。別のお出かけ先へも、一度家に帰ってからです。</li>
 </ul>
-<p class="where">設定 → 着せ替え</p> <p class="where">設定 → 主人公（お出かけ着）</p>
+<p class="where">設定 → 着せ替え</p> <p class="where">設定 → キャラクター（お出かけ着）</p>
 
 <!-- ============================================================ -->
 <h2 id="games"><span class="ic">🎲</span>ミニゲーム</h2>
@@ -507,7 +507,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="box q"><b>LLM（任意）</b><small>有効なら、そのセリフを参考に書き直す</small></div>
 </div>
 <h3>性格ごとの傾向</h3>
-<p>性格によって、口調だけでなく<b>パラメータの動き方</b>も違います。設定 → 主人公で性格を選ぶと、その傾向が説明に出ます。</p>
+<p>性格によって、口調だけでなく<b>パラメータの動き方</b>も違います。設定 → キャラクターで性格を選ぶと、その傾向が説明に出ます。</p>
 <div class="cards">
   <div class="card"><div class="hd"><span class="ic">🥺</span>甘えたがり</div><p>とても寂しがりで、しょっちゅう甘えに来る。構うとよく効くが、黙っていなくなると強く堪える。</p></div>
   <div class="card"><div class="hd"><span class="ic">😤</span>ツンデレ・気高き令嬢</div><p>好感度が上がりにくく、自分からはあまり来ない。放っておかれると根に持つ。</p></div>
@@ -519,16 +519,21 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <p>傾向は、基本変化の倍率（<code>rate</code>）、自然回帰の目標（<code>drift</code>）、うれしい方向・つらい方向の効き目の倍率（<code>gain</code> / <code>hurt</code>）、話しかけてくる多さ（<code>approach</code>）、黙って離れられたときの堪え方（<code>absence</code>）でできていて、設定 → 性格・セリフ集で編集できます。</p>
 <ul>
   <li>既定の性格は16種類です。例：素直なはにかみ屋、気心知れた幼馴染、面倒見のいい世話焼きさん、気高き令嬢、言葉少なな無口さん、淡々とした実務派、凛とした男前、サバサバなボクっ娘。</li>
-  <li><b>一人称</b>と<b>あなたの呼び方</b>は、主人公の設定で固定できます。空欄なら、性格プリセットに従います。</li>
+  <li><b>一人称</b>と<b>あなたの呼び方</b>は、キャラクターの設定で固定できます。空欄なら、性格プリセットに従います。</li>
   <li>セリフ集は場面ごとに編集・複製できます。1行に1通り書くと、その中からランダムに選ばれます。</li>
 </ul>
-<p class="where">設定 → 主人公</p> <p class="where">設定 → 性格・セリフ集</p> <p class="where">設定 → セリフ生成 (LLM)</p>
+<p class="where">設定 → キャラクター</p> <p class="where">設定 → 性格・セリフ集</p> <p class="where">設定 → セリフ生成 (LLM)</p>
 
 <!-- ============================================================ -->
 <h2 id="settings"><span class="ic">⚙</span>設定の各画面</h2>
 <p>各画面の右上の 📖 を押すと、ここの該当カードが開きます。変更は「保存」を押すまで反映されません（「表示」だけは、すぐ反映されます）。</p>
 <div class="cards">
-  <div class="card sec" id="sec-char"><div class="hd"><span class="ic">👧</span>主人公</div>
+  <div class="card sec" id="sec-player"><div class="hd"><span class="ic">&#x1F9D1;</span>あなた</div>
+    <p>あなた自身の情報（全ワールド共通）：名前、性別、年齢、職業、人柄、
+好きなもの・苦手なもの、その他、画像に写るときの外見。キャラクターはこれを踏まえて反応します（セリフの
+<code>{player}</code> <code>{player_job}</code> <code>{player_like}</code>、反応の条件 <code>player_gender</code> <code>player_age</code> <code>player_has_job</code> <code>player_likes</code>、
+LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
+  <div class="card sec" id="sec-char"><div class="hd"><span class="ic">👧</span>キャラクター</div>
     <p>名前、あなたの名前、一人称と呼び方の固定、外見のプロンプト、普段の服装、お出かけ着、性格プリセット、LLM 用の性格説明。外見のプロンプトは保存のたびに履歴に残り、「復元」で戻せます。キャラの追加・削除も、ここで行います。同じワールドのほかのキャラとの関係（知っているか・関係・好感度）もここです。<a href="#world">→ キャラ同士の関係</a></p></div>
   <div class="card sec" id="sec-personas"><div class="hd"><span class="ic">🎭</span>性格・セリフ集</div>
     <p>性格ごとのセリフを、場面ごとに見て編集します。キー・場面・セリフで絞り込めます。「複製」で自分用の性格を作れます。編集した性格は「既定に戻す」で戻せます。</p></div>
@@ -555,7 +560,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="card sec" id="sec-display"><div class="hd"><span class="ic">💬</span>表示</div>
     <p>会話欄の位置（下に重ねる／上に重ねる／画像の下に分ける）、背景の濃さ、文字の大きさ、コンパクト、自動で隠す。このブラウザにだけ保存されます。</p></div>
   <div class="card sec" id="sec-data"><div class="hd"><span class="ic">🗃</span>データ</div>
-    <p>ワールドの作成・切り替え・名前変更・削除、偶然の出会いを起こす（テスト用）、パラメータの現在値を直接変える、一時シーンを解除する、出来事・働きかけを起こす（テスト用）、コマンド・パラメータ・主人公の書き出しと読み込み。<a href="#world">→ ワールド</a></p></div>
+    <p>ワールドの作成・切り替え・名前変更・削除、偶然の出会いを起こす（テスト用）、パラメータの現在値を直接変える、一時シーンを解除する、出来事・働きかけを起こす（テスト用）、コマンド・パラメータ・キャラクターの書き出しと読み込み。<a href="#world">→ ワールド</a></p></div>
 </div>
 
 <!-- ============================================================ -->
@@ -581,6 +586,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金、誰が払うか（me / her / split）</td></tr>
   <tr><td><code>presence</code> <code>said</code> <code>left_mode</code> <code>left_h</code></td><td>あなたの在席：here / idle / busy / out / work / sleep / left / gone、告げてから離れたか、どう離れていたか、何時間離れていたか（戻って15分まで）</td></tr>
   <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code></td><td>あなたのスキル（0〜100）</td></tr>
+  <tr><td><code>player_gender</code> <code>player_age</code> <code>player_has_job</code> <code>player_likes</code></td><td>設定「あなた」の性別（male / female / other / none）、年齢（未設定は 0）、職業があるか、好きなものの数</td></tr>
   <tr><td><code>my_stamina</code> <code>work_3d</code></td><td>あなたの体力（0〜100）、ここ3日で給料の出た勤務時間</td></tr>
   <tr><td><code>roll</code></td><td>実行のたびに変わる 0〜99 の乱数。<code>sk_cook&lt;30, roll&lt;45</code> のように「ときどき」を書くのに使う</td></tr>
   <tr><td><code>work_h</code> <code>task_ok</code> <code>task_ng</code> <code>pay</code></td><td>仕事から帰ったとき・内職のあとだけ：働いた時間、こなした数、ミスの数、稼ぎ</td></tr>
@@ -596,7 +602,8 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <table>
   <tr><th style="width:28%">書き方</th><th>置き換わるもの</th></tr>
   <tr><td><code>{name}</code> <code>{player}</code></td><td>キャラの名前、あなたの名前</td></tr>
-  <tr><td><code>{call}</code></td><td>あなたの呼び方（主人公の設定で固定、または性格プリセット）</td></tr>
+  <tr><td><code>{player_job}</code> <code>{player_like}</code> <code>{player_dislike}</code></td><td>設定「あなた」の職業、好きなもの・苦手なもの（複数あればその中から1つ）</td></tr>
+  <tr><td><code>{call}</code></td><td>あなたの呼び方（キャラクターの設定で固定、または性格プリセット）</td></tr>
   <tr><td><code>{fp}</code> <code>{fp_st}</code></td><td>一人称、言いよどんだ一人称（例：わ、私）</td></tr>
   <tr><td><code>{location}</code> <code>{activity_label}</code> <code>{time}</code></td><td>場所、過ごし方、時刻</td></tr>
   <tr><td><code>{ev_text}</code> <code>{bad_text}</code> <code>{away_text}</code></td><td>出来事の説明（常体の節。例：友だちとちょっとケンカした）</td></tr>
@@ -628,7 +635,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li>ワールドを消すと、そのワールドのキャラ・状態・ログ・お金が消えます。画像ファイルは残ります。</li>
 </ul>
 <h3>キャラ同士の関係</h3>
-<p>同じワールドのキャラ同士は、<b>設定 → 主人公</b> の下の「ほかのキャラ」で、知っているか・関係（友人・姉妹・同僚など自由に）・好感度（0〜100）を設定できます。向きごとに別なので、「ひなはみおを知っているが、みおはひなを知らない」もできます。知っている相手は、LLM でセリフを作るときに渡されます。</p>
+<p>同じワールドのキャラ同士は、<b>設定 → キャラクター</b> の下の「ほかのキャラ」で、知っているか・関係（友人・姉妹・同僚など自由に）・好感度（0〜100）を設定できます。向きごとに別なので、「ひなはみおを知っているが、みおはひなを知らない」もできます。知っている相手は、LLM でセリフを作るときに渡されます。</p>
 
 <!-- ============================================================ -->
 <h2 id="bond"><span class="ic">💞</span>あなたとの間柄（連絡・訪問・同居）</h2>
@@ -677,7 +684,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <table>
   <tr><th style="width:36%">ファイル</th><th>中身</th></tr>
   <tr><td><code>data/worlds.json</code></td><td>ワールドの一覧と、開いているワールド</td></tr>
-  <tr><td><code>W/characters/*.json</code></td><td>主人公（外見、スケジュール、着せ替え）</td></tr>
+  <tr><td><code>W/characters/*.json</code></td><td>キャラクター（外見、スケジュール、着せ替え）</td></tr>
   <tr><td><code>W/state/</code> <code>W/log/</code></td><td>キャラの状態、ログ</td></tr>
   <tr><td><code>W/relations.json</code></td><td>キャラ同士の関係</td></tr>
   <tr><td><code>W/actions.json</code></td><td>コマンドと反応</td></tr>

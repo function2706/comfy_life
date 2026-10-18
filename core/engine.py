@@ -324,7 +324,8 @@ class App:
         ctx.update(self.bonds.ctx(char["id"], st))             # stage / apart / with_mode / living_other / rivals
         if ctx["apart"]:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
-        ctx["roll"] = random.randint(0, 99)                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
+        ctx["roll"] = random.randint(0, 99)
+        ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -399,9 +400,12 @@ class App:
         phase = self.phase_at(dt)
         pr = self.settings.get("prompt") or {}
         parts = [{"src": "共通", "pos": pr.get("prefix_pos", ""), "neg": pr.get("prefix_neg", "")},
-                 {"src": "主人公", "pos": char.get("pos", ""), "neg": char.get("neg", "")},
+                 {"src": "キャラクター", "pos": char.get("pos", ""), "neg": char.get("neg", "")},
                  {"src": "服装" + (": " + scene["dress"] if scene["dress"] else ""),
                   "pos": scene["outfit"], "neg": scene["outfit_neg"]}]
+        looks = (self.player_profile().get("looks") or "").strip()
+        if act and act.get("with_player") and looks:
+            parts.append({"src": "あなた", "pos": looks, "neg": ""})
         if not (act and act.get("replace_scene")):
             parts.append({"src": "場面: " + scene["label"], "pos": scene["pos"], "neg": scene["neg"]})
         parts.append({"src": "時間帯: " + phase.get("label", ""), "pos": phase.get("pos", ""), "neg": phase.get("neg", "")})
@@ -421,17 +425,55 @@ class App:
 
     # ------------------------------------------------------------------ text
     def pronouns(self, char):
-        """(一人称, 言いよどみの一人称, 呼び方). 主人公で固定していればそれ, 無ければ性格プリセットに従う."""
+        """(一人称, 言いよどみの一人称, 呼び方). キャラクターで固定していればそれ, 無ければ性格プリセットに従う."""
         p = self.personas.get(char.get("persona_id") or "") or {}
-        player = self.settings.get("player_name") or "あなた"
+        player = self.player_name()
         fixed_fp = (char.get("first_person") or "").strip()
         fp = fixed_fp or p.get("first_person") or "私"
         fp_st = fixed_fp or p.get("first_person_stutter") or fp
         call = (char.get("player_call") or "").strip() or p.get("player_call") or "{player}"
         return fp, fp_st, call.replace("{player}", player)
 
+    # ------------------------------------------------------------------ あなた (プレイヤー)
+    def player_profile(self):
+        """あなたの情報 (全ワールド共通). キャラクターはこれを見て反応する."""
+        p = dict(self.settings.get("player") or {})
+        p["name"] = (p.get("name") or self.settings.get("player_name") or "").strip()
+        return p
+
+    def player_name(self):
+        return self.player_profile()["name"] or "あなた"
+
+    @staticmethod
+    def _items(s):
+        return [x.strip() for x in str(s or "").replace("、", ",").split(",") if x.strip()]
+
+    def player_ctx(self):
+        p = self.player_profile()
+        age = p.get("age")
+        return {"player_gender": p.get("gender") or "none", "player_age": float(age) if str(age or "").strip() else 0,
+                "player_has_job": bool((p.get("job") or "").strip()),
+                "player_likes": len(self._items(p.get("likes"))), "player_dislikes": len(self._items(p.get("dislikes")))}
+
+    def player_text(self):
+        """LLM に渡す, あなたの紹介."""
+        p = self.player_profile()
+        g = {"male": "男性", "female": "女性", "other": "その他"}.get(p.get("gender") or "", "")
+        bits = [x for x in (g, ("%s歳" % p["age"]) if str(p.get("age") or "").strip() else "",
+                            ("職業: " + p["job"]) if p.get("job") else "",
+                            ("人柄: " + p["personality"]) if p.get("personality") else "",
+                            ("好きなもの: " + p["likes"]) if p.get("likes") else "",
+                            ("苦手なもの: " + p["dislikes"]) if p.get("dislikes") else "",
+                            p.get("note") or "") if x]
+        return "、".join(bits)
+
     def format_text(self, text, char, scene, dt):
-        player = self.settings.get("player_name") or "あなた"
+        player = self.player_name()
+        prof = self.player_profile()
+        likes, dislikes = self._items(prof.get("likes")), self._items(prof.get("dislikes"))
+        text = text.replace("{player_job}", prof.get("job") or "お仕事") \
+            .replace("{player_like}", random.choice(likes) if likes else "好きなもの") \
+            .replace("{player_dislike}", random.choice(dislikes) if dislikes else "苦手なもの")
         fp, fp_st, call = self.pronouns(char)
         for k, v in (("{fp_st}", fp_st), ("{fp}", fp), ("{call}", call), ("{player}", player), ("{name}", char.get("name", "")),
                      ("{location}", scene["location"]), ("{activity_label}", scene["label"]),
@@ -441,7 +483,7 @@ class App:
 
     def _llm_text(self, char, st, dt, act, template, scene):
         cfg = self.settings.get("llm") or {}
-        player = self.settings.get("player_name") or "あなた"
+        player = self.player_name()
         fp, _, call = self.pronouns(char)
         ctx = self.context(char, st, dt, scene)
         lines = []
@@ -453,6 +495,9 @@ class App:
         system = (cfg.get("system") or "").replace("{name}", char.get("name", "")).replace("{call}", call) \
             .replace("{player}", player).replace("{persona}", char.get("persona", "")).replace("{fp}", fp)
         system += "\n一人称は必ず「%s」、%sのことは必ず「%s」と呼ぶ。" % (fp, player, call)
+        if self.player_text():
+            system += "\n%sについて知っていること: %s。これを踏まえて話す（好きなものの話題に乗る、苦手なものは避ける など）。" % (
+                player, self.player_text())
         bv = self.bonds.view(char["id"])
         system += "\n%sとの間柄: %s（いまは%s）。" % (player, bv["stage_label"], bv["label"])
         known = self.relations_text(char)
@@ -467,7 +512,7 @@ class App:
 
     # ------------------------------------------------------------------ actions
     def persona_text(self, char, key):
-        """主人公の性格プリセットにそのキーのセリフがあれば 1 つ選んで返す."""
+        """キャラクターの性格プリセットにそのキーのセリフがあれば 1 つ選んで返す."""
         if not key:
             return None
         p = self.personas.get(char.get("persona_id") or "")
@@ -1329,6 +1374,10 @@ class App:
             if "active_character" in obj and obj["active_character"] not in self.chars:
                 obj.pop("active_character")
             self.settings = store.deep_merge(self.settings, obj)
+            # あなたの名前は player.name に一本化 (古い player_name も同じ値にそろえておく)
+            if "player_name" in obj and "player" not in obj:
+                self.settings.setdefault("player", {})["name"] = obj["player_name"]
+            self.settings["player_name"] = (self.settings.get("player") or {}).get("name") or self.settings.get("player_name", "")
             store.save_settings(self.settings)
             return self.settings
 

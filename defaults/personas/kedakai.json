@@ -1580,6 +1580,12 @@
   ],
   "allowance.money_feel_lt_45": [
    "施しは結構よ。……見くびらないで。"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "{call}は{player_like}が好きだったわね。……{fp}も、少し知ってみたくなったわ。"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい。{player_job}の務め、しっかり果たしてきなさい。"
   ]
  }
 }
