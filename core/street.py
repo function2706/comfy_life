@@ -6,7 +6,8 @@
   何度か会ううちに進むかどうかは, こちらの反応・相手の性格 (慎重さ)・偶然しだいで, 進まないこともある.
 - 相手から声をかけられたら, こちらも反応を選ぶ (応じる / 会釈だけ / 急いでいると断る). 気づかずに時間が過ぎたら,
   無視ではなく, 無難に会釈して流したことになる. 見かけただけなら (声をかける / 会釈 / 通り過ぎる), 気づかなければ通り過ぎる.
-  通知はあえて目立たせない (現実と同じく, 気づけるかどうか).
+  相手から声をかけられたときは, 名前を呼ばれれば気づくのと同じく知らせる (画面の知らせ・控えめな音・タブの題名).
+  見かけただけのときは控えめ (こちらが気づくかどうか).
 記録は data/worlds/<id>/people.json (登録していない人) と, 登録キャラのログ.
 """
 import hashlib
@@ -293,5 +294,5 @@ class Street:
         pend = self.pending()
         if not pend:
             return None
-        return {"type": pend["type"], "name": pend["name"], "where": pend["where"], "text": pend.get("text", ""),
+        return {"type": pend["type"], "name": pend["name"], "where": pend["where"], "text": pend.get("text", ""), "t": pend["t"],
                 "options": [{"id": i, "label": l} for i, l in OPTIONS[pend["type"]]]}

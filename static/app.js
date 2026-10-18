@@ -866,7 +866,7 @@ function setImage(rel) {
 
 /* ---- 会話欄の表示設定 (ブラウザごとに保存) */
 const UI_KEY = 'kurashi.ui';
-const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact', showApart: false };
+const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact', showApart: false, callSound: true };
 S.ui = (() => {
   try { return Object.assign({}, UI_DEFAULT, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return Object.assign({}, UI_DEFAULT); }
 })();
@@ -1173,11 +1173,11 @@ function renderOffline() {
 }
 
 /* ---- 出先でのばったり: 声をかけられた / 見かけた. 選ばないまま時間が過ぎたら, 無難な対応に落ち着く.
-   あえて目立たせない (音・点滅なし. タブが裏ならタイトルに小さな印だけ) */
+   声をかけられたときは知らせる (画面の知らせ・控えめな音・タブの題名). 見かけただけなら控えめ (タブの題名に小さな印) */
 function streetCard() {
   const sp = S.view.street_pending;
   if (!sp) return null;
-  return h('div', { class: 'street-card' },
+  return h('div', { class: 'street-card' + (sp.type === 'call' ? ' calling' : '') },
     h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた` : `👀 ${sp.where}で、${sp.name}を見かけた`),
     sp.text ? h('div', { class: 'muted' }, `「${sp.text}」`) : '',
     h('div', { class: 'row' }, sp.options.map((o) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerStreet(o.id) }, o.label))));
@@ -1188,9 +1188,31 @@ function renderStreet() {
   const card = away ? null : streetCard();
   box.hidden = !card;
   if (card) box.replaceChildren(card);
-  document.title = S.view.street_pending && document.hidden ? '・くらし' : 'くらし';
+  const sp = S.view.street_pending;
+  if (sp && sp.type === 'call' && S.lastCallT !== sp.t) {
+    // 声をかけられた: 名前を呼ばれれば気づくのと同じく, はっきり知らせる (見かけただけのときは控えめのまま)
+    S.lastCallT = sp.t;
+    toast(`💬 ${sp.where}で、${sp.name}に声をかけられた`, 'ok');
+    if (S.ui.callSound !== false) chime();
+  }
+  document.title = sp && document.hidden ? (sp.type === 'call' ? '💬 声をかけられた - くらし' : '・くらし') : 'くらし';
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'くらし'; });
+// 声をかけられたときの, 控えめな 2 音
+function chime() {
+  try {
+    const ac = S.audio || (S.audio = new (window.AudioContext || window.webkitAudioContext)());
+    [[660, 0], [880, 0.16]].forEach(([f, d]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, ac.currentTime + d);
+      g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + d + 0.35);
+      o.connect(g).connect(ac.destination);
+      o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.4);
+    });
+  } catch (e) { /* 音が出せない環境でも, 画面の知らせはある */ }
+}
 async function answerStreet(choice) {
   if (S.busy) return;
   S.busy = true;
@@ -2227,6 +2249,8 @@ SEC.display = () => {
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.showApart, onchange: (ev) => set('showApart', ev.target.checked) }),
       '離れている相手の様子も見る（いまの場面・ステータス・表情・機嫌の理由）'),
     h('p', { class: 'hint' }, '既定では、一緒に暮らしていない・会っていない相手の様子は見えません（本人から聞いた機嫌の理由だけ）。'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.callSound !== false, onchange: (ev) => set('callSound', ev.target.checked) }),
+      '出先で声をかけられたときに、控えめな音でも知らせる'),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },
       h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),

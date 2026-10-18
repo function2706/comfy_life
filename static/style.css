@@ -138,6 +138,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 .phone-list { display: flex; flex-direction: column; gap: 4px; min-width: 300px; text-align: left; }
 .phone-list .row { gap: 6px; align-items: center; }
 .street-card { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; text-align: left; max-width: 420px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.street-card.calling { border-color: var(--accent); background: #2f2633; }
 .street-card .row { gap: 6px; flex-wrap: wrap; }
 .street-log { margin: 6px 0; text-align: left; max-width: 420px; color: var(--muted); }
 .chip.home { background: #263028; color: #cfe8d2; }
