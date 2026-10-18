@@ -1834,6 +1834,42 @@
   ],
   "move_out.default": [
    "……そっか。わかった。……荷物、まとめるね。"
+  ],
+  "ap.msg_chat.call": [
+   "📱『{call}、いま何してんの？ ちょっと話そうよ』"
+  ],
+  "ap.msg_chat.accept": [
+   "📱『返事はやっ。……ま、{call}と話すのは楽しいけどさ』"
+  ],
+  "ap.msg_chat.later": [
+   "📱『はーい。手が空いたら返事してよね』"
+  ],
+  "ap.msg_chat.ignore": [
+   "（{name}からのメッセージは、返事がないまま止まった）"
+  ],
+  "ap.msg_miss.call": [
+   "📱『……ねえ{call}。ちょっと会いたいかも。……やっぱなし！ 今のなし！』"
+  ],
+  "ap.msg_miss.accept": [
+   "📱『……ん。返事くれたから、許したげる』"
+  ],
+  "ap.msg_miss.later": [
+   "📱『……待ってるからね、ばーか』"
+  ],
+  "ap.msg_miss.ignore": [
+   "（返事がないまま、{name}のメッセージは画面の奥に流れていった）"
+  ],
+  "ap.msg_today.call": [
+   "📱『{call}、聞いてよ！ 今日こんなことあってさー！』"
+  ],
+  "ap.msg_today.accept": [
+   "📱『でしょ！ {call}に話したかったんだよね』"
+  ],
+  "ap.msg_today.later": [
+   "📱『あとで絶対読んでよね』"
+  ],
+  "ap.msg_today.ignore": [
+   "（{name}からの長いメッセージが、読まれないまま残っている）"
   ]
  }
 }

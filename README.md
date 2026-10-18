@@ -124,6 +124,7 @@ python server.py --port 9000 --no-browser
 - 一緒にいない相手には「連絡」「会う」「あなたの予定」と、お出かけへの誘い（`home_only` で一時シーンが外出のもの）だけ。個別にはコマンドの `"apart": true/false`。条件キー `stage` `apart` `with_mode` `living_other` `rivals` `rivals_known`。
 - 誘いに応じてくれたら外で会う（お出かけの一時シーンが終われば別れる）。「家に遊びに行く」は `visit_hours` 時間で帰る。
 - コマンドの `"bond"`: `to_visit`（家に行ってもいい？）/ `to_live`（一緒に住まない？。同居は一人だけ）/ `end_live` / `visit_start` / `visit_end`。断る反応（置き換え）なら変わらない。
+- 一緒にいない相手からの働きかけは、`approaches.json` の `"apart": true` のものだけ（📱 メッセージ、画像なし。一緒のときは逆に出ない）。来やすさは `presence.approach_apart_rate_per_hour` × 寂しさ・好感度・機嫌。あなたが外出中・仕事中でも届く。
 - メッセージは画像なし。`"selfie": true` のコマンドは、機嫌・好感度・ドキドキが高いほど自撮りが添えられる（上限 35%）。
 - 嫉妬: あなたと深い仲のキャラは、時間経過であなたとほかの人との深い仲に気づく（同居だと気づきやすい。性格の `jealousy` 倍率）。機嫌の理由に残り、その相手への好感度も下がる。
 

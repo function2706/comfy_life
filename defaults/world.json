@@ -150,6 +150,7 @@
   "idle_minutes": 10,
   "gone_minutes": 5,
   "approach_rate_per_hour": 0.8,
+  "approach_apart_rate_per_hour": 0.25,
   "approach_wait_minutes": 15,
   "approach_quiet_minutes": 20
  }

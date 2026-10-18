@@ -67,6 +67,33 @@ def main():
         app.presence.back()
         print("narration: OK")
 
+        # 離れている相手からの働きかけ: "apart": true のメッセージだけ. 画像なし. 仲が浅く寂しくなければほとんど来ない
+        def tries(n):
+            ids = []
+            for i in range(n):
+                free()
+                st["approach"], st["ap_quiet_until"], st["ap_last"] = None, 0, {}
+                st["ap_check"] = time.time() - 600
+                e = app.presence.live(app.char(), st, time.time())
+                if e:
+                    ids.append(e["approach"])
+                    assert e["text"].startswith("📱") and not e.get("job"), e
+            return ids
+        app.presence.beat()
+        app.set_params({"loneliness": 10, "affection": 30, "mood": 40, "boredom": 60})
+        few = tries(200)
+        app.set_params({"loneliness": 90, "affection": 80, "mood": 70, "boredom": 60})
+        many = tries(200)
+        assert all(i.startswith("msg_") for i in few + many), few + many
+        assert len(few) < len(many) and 5 <= len(many) <= 60, (len(few), len(many))
+        free()
+        st["approach"], st["ap_last"] = None, {}
+        e = app.presence.fire(app.char(), st, time.time(), app.context(app.char(), st, __import__("datetime").datetime.now()))
+        assert e["approach"].startswith("msg_")
+        r = app.answer_approach("accept")
+        assert r["entry"]["text"].startswith("📱") and r["entry"]["deltas"].get("loneliness", 0) < 0 and not r["job"], r
+        print("apart approach: %d -> %d / 200, OK" % (len(few), len(many)))
+
         # ---- 3. お出かけに誘う = 外で会う. 帰れば別れる
         app.set_params({"affection": 20})
         e = app.act("cafe")["entry"]

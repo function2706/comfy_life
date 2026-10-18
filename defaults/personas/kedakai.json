@@ -1526,6 +1526,42 @@
   ],
   "move_out.default": [
    "……そう。わかったわ。……荷物をまとめるわね。"
+  ],
+  "ap.msg_chat.call": [
+   "📱『{call}。今、何をしているの？ 少し話し相手になりなさい』"
+  ],
+  "ap.msg_chat.accept": [
+   "📱『……ふふ。返事が早いのは、褒めてあげるわ』"
+  ],
+  "ap.msg_chat.later": [
+   "📱『そう。手が空いたら返事をなさい』"
+  ],
+  "ap.msg_chat.ignore": [
+   "（{name}からのメッセージは、返事がないまま止まった）"
+  ],
+  "ap.msg_miss.call": [
+   "📱『{call}。……会いに来てもいいのよ。別に、命令ではないけれど』"
+  ],
+  "ap.msg_miss.accept": [
+   "📱『……そう。それで十分よ』"
+  ],
+  "ap.msg_miss.later": [
+   "📱『いいわ。待っていてあげる』"
+  ],
+  "ap.msg_miss.ignore": [
+   "（返事がないまま、{name}のメッセージは画面の奥に流れていった）"
+  ],
+  "ap.msg_today.call": [
+   "📱『{call}、聞きなさい。今日、少し面白いことがあったの』"
+  ],
+  "ap.msg_today.accept": [
+   "📱『でしょう。{call}には話しておきたかったの』"
+  ],
+  "ap.msg_today.later": [
+   "📱『あとで必ず読みなさい』"
+  ],
+  "ap.msg_today.ignore": [
+   "（{name}からの長いメッセージが、読まれないまま残っている）"
   ]
  }
 }

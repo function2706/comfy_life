@@ -1539,6 +1539,42 @@
   ],
   "move_out.default": [
    "……了解。手続きを進めるわ。……荷物をまとめる。"
+  ],
+  "ap.msg_chat.call": [
+   "📱『{call}、今いいかしら。雑談の時間を提案したいの』"
+  ],
+  "ap.msg_chat.accept": [
+   "📱『返信を確認した。……こういう時間、悪くないわね』"
+  ],
+  "ap.msg_chat.later": [
+   "📱『了解。手が空いたら返信して』"
+  ],
+  "ap.msg_chat.ignore": [
+   "（{name}からのメッセージは、返事がないまま止まった）"
+  ],
+  "ap.msg_miss.call": [
+   "📱『{call}。報告。……会いたい、という状態になっている。以上』"
+  ],
+  "ap.msg_miss.accept": [
+   "📱『確認した。……少し、落ち着いたわ』"
+  ],
+  "ap.msg_miss.later": [
+   "📱『了解。待機する』"
+  ],
+  "ap.msg_miss.ignore": [
+   "（返事がないまま、{name}のメッセージは画面の奥に流れていった）"
+  ],
+  "ap.msg_today.call": [
+   "📱『{call}、今日の出来事を共有するわ。少し長くなる』"
+  ],
+  "ap.msg_today.accept": [
+   "📱『そう。{call}に共有しておきたかったの』"
+  ],
+  "ap.msg_today.later": [
+   "📱『了解。あとで確認して』"
+  ],
+  "ap.msg_today.ignore": [
+   "（{name}からの長いメッセージが、読まれないまま残っている）"
   ]
  }
 }

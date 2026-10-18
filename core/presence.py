@@ -10,7 +10,8 @@
 画面は 30 秒ごとに /api/state を呼ぶ (心拍). 途絶えて gone_minutes 経つと gone とみなす.
 
 働きかけ (data/approaches.json): あなたがそばにいる (here / idle / busy) ときに, キャラの状態しだいで
-キャラのほうから話しかけてくる. 「応じる」「あとで」と答えるか, 放っておくと approach_wait_minutes で
+キャラのほうから話しかけてくる. 一緒に暮らしていない相手 (apart) からは, "apart": true の働きかけだけが
+メッセージとして届く (画像なし. 頻度は寂しさ・好感度・機嫌しだいで控えめ). 「応じる」「あとで」と答えるか, 放っておくと approach_wait_minutes で
 「返事がなかった」になり, キャラの状態 (寂しさなど) に応じてパラメータが動く.
 """
 import math
@@ -139,15 +140,20 @@ class Presence:
         if not dt_h:
             return None
         pres = self.at(now)
-        if pres not in ("here", "idle", "busy") or st.get("game"):
+        if pres not in ("here", "idle", "busy", "out", "work") or st.get("game"):
             return None
         d = datetime.fromtimestamp(now)
         scene = self.app.scene_at(char, st, d)
         ctx = self.app.context(char, st, d, scene)
-        if not ctx["free"] or ctx.get("apart"):      # 離れている相手は話しかけてこない
+        if not ctx["free"]:
             return None
-        rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx) \
-            * float(self.app.traits(char).get("approach", 1))
+        if ctx.get("apart"):         # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
+            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx)
+        elif pres in ("out", "work"):
+            return None
+        else:
+            rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx)
+        rate *= float(self.app.traits(char).get("approach", 1))
         if random.random() >= 1 - math.exp(-rate * dt_h):
             return None
         return self.fire(char, st, now, ctx)
@@ -162,12 +168,20 @@ class Presence:
             f *= 0.3
         return max(0.05, min(2.0, f))
 
+    def eagerness_apart(self, ctx):
+        """離れている相手がメッセージを送りたくなる度合い. 寂しさ・好感度・機嫌しだい (仲が浅いうちはほとんど来ない)."""
+        f = ctx.get("loneliness", 30) / 80.0 + (ctx.get("affection", 50) - 50) / 80.0 + (ctx.get("mood", 50) - 50) / 200.0
+        return max(0.05, min(1.5, f))
+
     def fire(self, char, st, now, ctx, force=None):
         cands = []
+        apart = bool(ctx.get("apart"))
         for a in self.app.approaches:
             if force and a["id"] != force:
                 continue
             if not force:
+                if bool(a.get("apart")) != apart:      # 離れているときはメッセージだけ, 一緒のときはメッセージ以外
+                    continue
                 if now - (st.get("ap_last") or {}).get(a["id"], 0) < float(a.get("cooldown_h", 3)) * 3600:
                     continue
                 if not cond.check(a.get("when", ""), ctx):
@@ -179,7 +193,7 @@ class Presence:
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
-        e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True))
+        e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True) and not a.get("apart"))
         st["approach"]["entry"] = e["id"]
         return e
 
@@ -208,7 +222,8 @@ class Presence:
         ig = a.get("ignore") or {}
         pres = self.at(now)
         lon = st["params"].get("loneliness", 50)
-        mult = (0.4 if ap.get("presence") == "busy" or pres == "busy" else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
+        mult = (0.5 if a.get("apart") else 0.4 if ap.get("presence") == "busy" or pres == "busy"
+                else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
         mult *= 0.5 + lon / 100.0
         eff = {k: float(v) * mult for k, v in (ig.get("effects") or {"mood": -3, "loneliness": 5}).items()}
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
@@ -217,7 +232,8 @@ class Presence:
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         call = self.app.pronouns(char)[2]
         if deltas.get("mood", 0) <= -2 and (lon >= 75 or (lon >= 50 and not busy)):
-            tell = "{call}が作業に夢中で、構ってもらえなかった" if busy else "{call}に話しかけたのに、返事がなかった"
+            tell = ("{call}にメッセージを送ったのに、返事がなかった" if a.get("apart") else
+                    "{call}が作業に夢中で、構ってもらえなかった" if busy else "{call}に話しかけたのに、返事がなかった")
             self.app.life.add_reason(st, "player", "bad", tell.replace("{call}", call), now, told=False,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         e = self._entry(char, st, now, a, "busy" if busy and ig.get("busy_text") else "ignore", text, deltas, None, gen=False)
@@ -253,7 +269,7 @@ class Presence:
             self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", self.app.pronouns(char)[2]),
                                      now, told=True, delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         e = self._entry(char, st, now, a, ans, out.get("text") or "", deltas, out if (out.get("pos") or out.get("neg")) else None,
-                        gen=bool(out.get("pos") or out.get("neg")))
+                        gen=bool(out.get("pos") or out.get("neg")) and not a.get("apart"))
         self.app.save_state(char["id"])
         return e, None
 
