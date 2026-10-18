@@ -51,7 +51,8 @@ def main():
         av = app.state_view()["available"]
         assert not av["go_out"]["ok"] and not av["talk"]["ok"] or True
         P.rec()["since"] -= 7 * 3600
-        r = app.visit()                                   # 画面を開き直す = 戻る
+        assert app.visit() is None and P.rec()["mode"] == "out", "開き直しただけなら外出は続く (閉じていたら家に帰っている)"
+        r = app.come_back()                               # 「ただいま」で戻る
         print("出かけて戻る:", r["entry"]["text"])
         assert P.rec()["mode"] == "none" and P.ctx(time.time())["left_mode"] == "out"
 

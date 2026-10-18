@@ -1226,10 +1226,14 @@ function renderAway() {
     p.work ? h('div', { class: 'away-pay' }, p.work.raw < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
       : `ここで帰ると ${yen(p.work.pay)}（給料の出る ${p.work.hours.toFixed(1)}時間分）`) : '',
     p.work ? h('div', { class: 'muted small' }, '給料が出るのは 6〜23時、1日合計9時間まで。働いた時間ぶん体力が減ります') : '',
-    h('p', { class: 'muted small' }, S.view.bond && S.view.bond.mode ? `${name}のそばを離れています。このまま画面を閉じてもかまいません。`
-      : '一人で過ごしています。このまま画面を閉じてもかまいません。',
-      h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' : '「' + a[2] + '」で戻ります。',
-      ['out', 'work'].includes(p.mode) ? h('span', {}, h('br'), '画面を閉じると、その時点で切り上げて家に帰ります（家では誰にも会いません。給料もそこまで）。') : ''),
+    // 外出・仕事は画面を開いているあいだだけ (閉じたら家に帰る). 就寝・またね は閉じてかまわない
+    ['out', 'work'].includes(p.mode) ? h('p', { class: 'muted small' },
+      p.mode === 'work' ? '働いているあいだに、同僚と顔を合わせることがあります。' : '出かけているあいだに、偶然だれかに会うことがあります（会わないことも）。',
+      h('br'), `画面を閉じると、そこで${p.mode === 'work' ? '仕事' : '外出'}を切り上げて家に帰ります。誰かに会えるのは、画面を開いて出かけているあいだだけです${p.mode === 'work' ? '（給料も閉じた時点まで）' : ''}。`,
+      (S.boot.settings.offline || {}).enabled !== false ? h('span', {}, h('br'), '閉じたあとは「オフライン時の過ごし方」どおりに過ごします（勤務時間なら仕事、それ以外は家で静かに）。') : '',
+      h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' : '「' + a[2] + '」で戻ります。')
+      : h('p', { class: 'muted small' }, S.view.bond && S.view.bond.mode ? `${name}のそばを離れています。このまま画面を閉じてもかまいません。`
+        : '一人で過ごしています。このまま画面を閉じてもかまいません。', h('br'), '「' + a[2] + '」で戻ります。'),
     h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
 }
 
@@ -1323,7 +1327,7 @@ function renderMoney() {
     h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
       h('div', { class: 'earn' },
         h('button', { class: 'cmd', disabled: S.busy || !(av.go_work || {}).ok, onclick: () => doAct('go_work'),
-          title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます' },
+          title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
           h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
         h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || (av.side_job || {}).cooldown > 0, onclick: openTask,
           title: '家で1分間の作業をします。こなした数とミスで稼ぎが決まります' },

@@ -132,6 +132,10 @@ def main():
 
         # ---- 6. 画面を閉じたら (心拍が途絶えたら), 外出はその時点で終わり, 家で静かに過ごしていた
         app.save_settings({"offline": {"enabled": False}})     # 予定どおりに過ごす分は test_offline で見る
+        app.solo.start("walk", place="park")                 # 開き直しただけ (心拍が続いている) なら, 外出は続く
+        app.state_view(beat=True, idle=0)
+        assert app.visit() is None and app.presence.rec()["mode"] == "out"
+        app.presence.back()
         p = app.presence.rec()
         app.presence.declare("work", time.time() - 3 * 3600)
         p["beat"] = time.time() - 2 * 3600                 # 1 時間働いたところで閉じた

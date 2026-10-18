@@ -1035,6 +1035,10 @@ class App:
             st = self.state(char["id"])
             absent = (time.time() - st.get("last_interaction", time.time())) / 3600.0
             p = self.presence.rec()
+            if p["mode"] in ("out", "work"):
+                # 外出・仕事は画面を開いているあいだ続く. 開き直しただけ (心拍が途絶えていない) なら続き.
+                # 閉じていたなら, もう outdoor.check_gap で家に帰っている
+                return None
             if p["mode"] in presence_mod.AWAY_MODES or (p["mode"] == "busy" and self.presence.at(time.time() - 1) == "gone"):
                 declared = True
             else:
