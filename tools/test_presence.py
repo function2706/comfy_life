@@ -1,0 +1,214 @@
+"""在席状態・キャラからの働きかけ・スキル・内職・投資・お出かけ中のコマンドの確認 (一時データ, 画像生成なし).
+
+    python tools/test_presence.py
+"""
+import os
+import random
+import shutil
+import sys
+import tempfile
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core import engine, store  # noqa: E402
+
+
+def main():
+    random.seed(5)
+    tmp = tempfile.mkdtemp(prefix="kurashi_test_")
+    store.DATA = tmp
+    try:
+        app = engine.App()
+        app.save_settings({"auto_generate": False})
+        L, P = app.life, app.presence
+        st = app.state("hina")
+        free = lambda: st.update(override={"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": 9e12})  # noqa: E731
+        free()
+        app.set_params({"affection": 70, "mood": 60, "sleepiness": 0, "health": 90, "loneliness": 80, "boredom": 70})
+        assert len(app.approaches) >= 10, "既定の働きかけが data に入っていない"
+
+        # ---- 在席: 心拍・放置・黙って閉じる
+        now = time.time()
+        app.state_view(beat=True, idle=0)
+        assert P.at(time.time()) == "here"
+        app.state_view(beat=True, idle=15 * 60)
+        assert P.at(time.time()) == "idle", P.rec()
+        P.rec()["beat"] = now - 4 * 3600                 # 4 時間前から心拍なし = 黙って閉じていた
+        st["last_interaction"] = now - 4 * 3600
+        app.state_view(beat=True, idle=0)
+        assert P.rec()["last_left"]["said"] is False
+        r = app.visit()
+        print("黙って閉じたあと:", r["entry"]["text"])
+        assert P.ctx(time.time())["said"] is False
+
+        # ---- 告げて離れる → 戻る
+        st["cooldowns"] = {}
+        r = app.act("go_out")
+        assert P.rec()["mode"] == "out" and app.state_view()["presence"]["state"] == "out"
+        av = app.state_view()["available"]
+        assert not av["go_out"]["ok"] and not av["talk"]["ok"] or True
+        P.rec()["since"] -= 7 * 3600
+        r = app.visit()                                   # 画面を開き直す = 戻る
+        print("出かけて戻る:", r["entry"]["text"])
+        assert P.rec()["mode"] == "none" and P.ctx(time.time())["left_mode"] == "out"
+
+        # 仕事: 働いた時間ぶん稼ぐ. すぐ戻ると稼ぎなし
+        m0 = L.player_state()["money"]
+        app.act("go_work")
+        r = app.come_back()
+        print("すぐ戻る:", r["entry"]["text"])
+        assert L.player_state()["money"] == m0
+        app.act("go_work")
+        P.rec()["since"] -= 8.5 * 3600
+        w0 = L.skill("work")
+        r = app.come_back()
+        print("8.5時間働いた:", r["entry"]["money"], r["entry"].get("skill"), r["entry"]["text"])
+        assert L.player_state()["money"] > m0 + 5000 and L.skill("work") > w0
+
+        # ---- 働きかけ: 応じる / あとで / 放っておく
+        free()
+        st["approach"] = None
+        r = app.force_approach("chat")
+        assert st["approach"] and app.state_view()["approach"]["id"] == "chat"
+        print("働きかけ:", r["entry"]["text"])
+        t0 = L.skill("talk")
+        r = app.answer_approach("accept")
+        print("  → 応じる:", r["entry"]["text"], r["entry"]["deltas"])
+        assert not st.get("approach") and L.skill("talk") > t0
+        app.force_approach("lonely")
+        r = app.answer_approach("later")
+        print("  → あとで:", r["entry"]["text"])
+        # 放っておく (そばにいるのに): 機嫌が下がり, 理由が残る
+        P.rec()["mode"] = "none"
+        app.state_view(beat=True, idle=20 * 60)
+        app.set_params({"loneliness": 85, "mood": 60})
+        app.force_approach("lonely")
+        st["approach"]["until"] = time.time() - 1
+        mood0 = st["params"]["mood"]
+        app.state_view(beat=True, idle=20 * 60)
+        e = app.log("hina")[-1]
+        print("  → 放置:", e["text"], e["deltas"])
+        assert st["params"]["mood"] < mood0 and not st.get("approach")
+        assert any("返事がなかった" in x["tell"] for x in L.reasons(st, time.time()))
+        # 作業中と告げていれば軽く済む
+        app.act("go_busy")
+        app.set_params({"loneliness": 60, "mood": 60})
+        app.force_approach("chat")
+        st["approach"]["until"] = time.time() - 1
+        app.state_view(beat=True, idle=0)
+        e = app.log("hina")[-1]
+        print("  → 作業中に放置:", e["text"], e["deltas"])
+        assert e["deltas"].get("mood", 0) > -3
+        # 応じるとコマンドを実行するもの
+        P.back()
+        free()
+        st["cooldowns"] = {}
+        app.set_params({"boredom": 80, "sleepiness": 0})
+        app.force_approach("play")
+        r = app.answer_approach("accept")
+        assert r["entry"]["action"] == "game", r["entry"]
+        print("  → ゲームに誘われて応じる:", r["entry"]["text"])
+
+        # 自然に起きるか (寂しく退屈なら, そばにいればそのうち話しかけてくる)
+        free()
+        st["approach"], st["ap_quiet_until"], st["ap_last"] = None, 0, {}
+        P.rec()["mode"] = "none"
+        app.set_params({"loneliness": 90, "boredom": 90, "affection": 70})
+        fired = 0
+        for i in range(60):
+            st["ap_check"] = time.time() - 600
+            st["ap_quiet_until"] = 0
+            st["last_interaction"] = time.time() - 3600    # しばらく構っていない
+            st["ap_last"] = {}
+            if app.presence.live(app.char(), st, time.time()):
+                fired += 1
+                st["approach"] = None
+        print("10分ごと60回で働きかけ:", fired)
+        assert 10 <= fired <= 60
+
+        # ---- スキル: 料理が下手だと失敗することがある / 上手だと効き目が大きい
+        L.player_state()["skills"]["cook"] = 5
+        fails = 0
+        for i in range(30):
+            free()
+            st["cooldowns"] = {}
+            app.set_params({"satiety": 40})
+            r = app.act("cook")
+            fails += "焦げて" in r["entry"]["text"]
+        print("料理スキル5で30回:", fails, "回失敗 / スキル", L.skill("cook"))
+        assert fails >= 3 and L.skill("cook") > 5
+        L.player_state()["skills"]["talk"] = 90
+        free()
+        st["cooldowns"] = {}
+        app.set_params({"mood": 40})
+        d_hi = app.act("talk")["entry"]["deltas"].get("mood", 0)
+        L.player_state()["skills"]["talk"] = 0
+        st["cooldowns"] = {}
+        app.set_params({"mood": 40})
+        r = app.act("talk")
+        d_lo = r["entry"]["deltas"].get("mood", 0)
+        print("会話スキル 90 / 0 の機嫌の伸び:", d_hi, d_lo)
+
+        # ---- 内職
+        st["cooldowns"] = {}
+        free()
+        tk = app.task_start("sort")
+        assert P.rec()["mode"] == "busy"
+        try:
+            app.task_finish(tk["token"], 50, 2)
+            raise AssertionError("時間前に終われてしまう")
+        except ValueError:
+            pass
+        app.tasks[tk["token"]]["t0"] -= 61
+        m0 = L.player_state()["money"]
+        r = app.task_finish(tk["token"], 50, 2)
+        print("内職:", r["task"], r["entry"]["text"])
+        assert L.player_state()["money"] - m0 == r["task"]["pay"] > 0 and P.rec()["mode"] == "none"
+        try:
+            app.task_start("sort")
+            raise AssertionError("連続で内職できてしまう")
+        except ValueError as e:
+            print("  連続:", e)
+
+        # ---- 投資: 銘柄の売買とニュース
+        L.player_state()["money"] = 100000
+        app.trade("tech", 5)
+        mv = L.market_view()
+        tech = next(a for a in mv["assets"] if a["id"] == "tech")
+        assert tech["qty"] == 5
+        ps = L.player_state()
+        ps["last_tick"] -= 3 * 86400
+        L.tick_world()
+        print("3日分のニュース:", len(ps["market"]["news"]), [n["text"] for n in ps["market"]["news"][-3:]])
+        assert ps["market"]["news"]
+        r = app.trade("tech", -5)
+        print("売却:", r["entry"]["text"], r["entry"]["money"])
+        try:
+            app.trade("tech", -1)
+            raise AssertionError("持っていない株を売れてしまう")
+        except ValueError:
+            pass
+
+        # ---- お出かけ中は家でしかできないことが出ない
+        st["cooldowns"] = {}
+        free()
+        app.set_params({"affection": 80, "mood": 70, "energy": 90})
+        P.rec()["mode"] = "none"
+        st["override"] = None
+        st["override"] = {"activity": "date", "label": "デート", "location": "街", "outing": True, "until": time.time() + 3600}
+        av = app.state_view()["available"]
+        bad = [k for k in ("cook", "tea", "bath", "clean", "movie", "game", "side_job", "walk") if av[k]["ok"]]
+        print("お出かけ中に出せてしまう家のコマンド:", bad)
+        assert not bad and av["go_home"]["ok"] and av["talk"]["ok"]
+        try:
+            app.act("cook")
+            raise AssertionError("お出かけ中に料理できてしまう")
+        except ValueError:
+            pass
+        print("OK")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

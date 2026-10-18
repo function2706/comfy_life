@@ -39,7 +39,8 @@ def route(method, path, q, body):
         if path == "/api/boot":
             return a.boot_view()
         if path == "/api/state":
-            return a.state_view(cid)
+            return a.state_view(cid, beat=_q(q, "beat") == "1",
+                                idle=float(_q(q, "idle")) if _q(q, "idle") not in (None, "") else None)
         if path == "/api/job":
             return a.job_view(_q(q, "id", ""))
         if path == "/api/jobs":
@@ -74,6 +75,20 @@ def route(method, path, q, body):
             return {"events": a.save_events(b["events"])}
         if path == "/api/minigames":
             return {"minigames": a.save_minigames(b["minigames"])}
+        if path == "/api/presence/back":
+            return a.come_back(cid)
+        if path == "/api/approach":
+            return a.answer_approach(b["answer"], cid)
+        if path == "/api/approach/force":
+            return a.force_approach(b["id"], cid)
+        if path == "/api/approaches":
+            return {"approaches": a.save_approaches(b["approaches"])}
+        if path == "/api/market/trade":
+            return a.trade(b["asset"], int(b["qty"]), cid)
+        if path == "/api/task/start":
+            return a.task_start(b.get("kind") or "sort", cid)
+        if path == "/api/task/finish":
+            return a.task_finish(b["token"], b.get("ok", 0), b.get("ng", 0), cid)
         if path == "/api/reroll":
             return a.reroll(b["entry"], cid)
         if path == "/api/visit":

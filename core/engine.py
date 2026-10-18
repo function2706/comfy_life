@@ -7,6 +7,7 @@
 import glob
 import hashlib
 import json
+import math
 import os
 import queue
 import random
@@ -16,6 +17,7 @@ import time
 import uuid
 from datetime import datetime
 
+from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
 from .keys import line_keys
@@ -99,6 +101,8 @@ class App:
         self.reload()
         self.games = games.Games(self)
         self.life = life.Life(self)
+        self.presence = presence_mod.Presence(self)
+        self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
         self._ensure_worker()
 
@@ -113,6 +117,7 @@ class App:
         self.chars = store.load_characters()
         self.minigames = store.load(store.dpath("minigames.json"), [])
         self.events = store.load(store.dpath("events.json"), [])
+        self.approaches = store.load(store.dpath("approaches.json"), [])
         self.personas = store.load_personas()
         if self.settings.get("active_character") not in self.chars and self.chars:
             self.settings["active_character"] = next(iter(self.chars))
@@ -123,6 +128,7 @@ class App:
         self._sync_defaults("actions", self.actions, "actions.json")
         self._sync_defaults("minigames", self.minigames, "minigames.json")
         self._sync_defaults("events", self.events, "events.json")
+        self._sync_defaults("approaches", self.approaches, "approaches.json")
         for c in self.chars.values():
             # お出かけ着と, 着せ替えの服を外に着ていけるか (既定の服だけ判定. 自作の服は設定で選ぶ)
             if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []):
@@ -308,6 +314,8 @@ class App:
         })
         ctx.update(self.life.money_ctx(st))                    # my_money / her_money / invest_value / profit
         ctx.update(self.life.mood_ctx(st, dt.timestamp()))     # cause / knows / reason / untold / request / away_events
+        ctx.update(self.presence.ctx(dt.timestamp()))          # presence / said / left_mode / left_h
+        ctx["roll"] = random.randint(0, 99)                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -320,6 +328,8 @@ class App:
             st["dress"] = None   # 寝たら翌日はスケジュール通りの服に戻る
         ctx = self.context(char, st, dt, scene)
         vals = st["params"]
+        pres = self.presence.effects(dt.timestamp()) \
+            if char["id"] == self.settings.get("active_character") and not scene["away"] else {}
         for p in self.params:
             pid = p["id"]
             v = vals.get(pid, float(p.get("init", 50)))
@@ -328,7 +338,7 @@ class App:
                 if cond.check(r.get("when", ""), ctx):
                     rate = float(r.get("rate", 0))
                     break
-            d = rate * h + float(scene["effects"].get(pid, 0)) * h
+            d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
                 target = float(dr.get("target", v)) + sum(
@@ -475,12 +485,14 @@ class App:
                 continue
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
-            out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx),
+            out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx) and not (a.get("home_only") and ctx["outing"]),
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
-    def act(self, aid, cid=None, dress=None):
-        """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す."""
+    def act(self, aid, cid=None, dress=None, opts=None):
+        """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す.
+        opts: 呼び出し側で済ませたお金の動きなど {"money": {p, a}, "extra": 置換文字, "ctx": 条件に足す値}."""
+        opts = opts or {}
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
@@ -488,10 +500,16 @@ class App:
             st, a = self.state(cid), self.action(aid)
             now = time.time()
             dt = datetime.fromtimestamp(now)
+            if a.get("category") != "system":       # 画面から操作した = そばにいる
+                pr = self.presence.rec()
+                pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
             if not cond.check(a.get("when", ""), ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), a.get("when", "")))
+            if a.get("home_only") and ctx["outing"]:
+                raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
+            ctx.update(opts.get("ctx") or {})
             outfit = None
             if dress is not None:
                 if dress:
@@ -506,6 +524,7 @@ class App:
             ctx["repeat"] = len(hist)
             # ---- お金: 誰が払うか・払えるかを先に決める (反応の条件 payer で使える)
             extra = self.life.mood_text(st, now)          # {ev_text} {bad_text} {away_text} {req_text} {amount}
+            extra.update(opts.get("extra") or {})
             plan, req = None, st.get("request")
             if a.get("cost"):
                 plan = self.life.plan_payment(char, st, int(a["cost"]), "me" if a.get("payer") == "me" else None)
@@ -523,10 +542,16 @@ class App:
                 raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
             r = self.pick_reaction(a, ctx)
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
+            sk = a.get("skill")
+            sk_mult = self.life.skill_mult(sk) if sk else 1.0
             eff = {}
             if not r.get("override"):
                 for k, v in (a.get("effects") or {}).items():
-                    eff[k] = eff.get(k, 0) + float(v) * scale
+                    v = float(v) * scale
+                    pd = self.param_def(k) or {}
+                    if (v < 0) == bool(pd.get("invert")) or pd.get("neutral"):
+                        v *= sk_mult          # あなたのスキルで, うれしい方向の効き目が変わる
+                    eff[k] = eff.get(k, 0) + v
             for k, v in (r.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
             deltas = self.apply_effects(st, eff)
@@ -540,7 +565,18 @@ class App:
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
             money = self._act_money(char, st, a, r, plan, req, extra)
+            for k, v in (opts.get("money") or {}).items():
+                money[k] = money.get(k, 0) + v
             self._act_reasons(char, st, a, r, deltas, now)
+            skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk else {}
+            skill_up.update(opts.get("skill") or {})
+            if a.get("presence_set"):
+                self.presence.declare(a["presence_set"], now)
+            elif a.get("category") != "system":
+                self.presence.touch(now)
+                if self.presence.rec()["mode"] == "busy":
+                    self.presence.rec()["mode"] = "none"     # 作業中でも, 構いに来たら作業はおしまい
+                self.presence.drop(st)
             if cd:
                 st["cooldowns"][aid] = hist + [now]
             st["last_interaction"] = now
@@ -575,6 +611,8 @@ class App:
             entry["text_src"] = text_src
             if money:
                 entry["money"] = money
+            if any(skill_up.values()):
+                entry["skill"] = {k: v for k, v in skill_up.items() if v}
             job = None
             if self.settings.get("auto_generate") and a.get("generate", True):
                 job = self._present_image(cid, entry)
@@ -609,10 +647,6 @@ class App:
             if amt:
                 add(L.move(st, dp=-amt, da=amt) if tr.get("from") == "p" else L.move(st, dp=amt, da=-amt))
             extra["amount"] = format(amt, ",")
-        if a.get("invest"):
-            mv, amt, profit = L.invest(a["invest"])
-            add(mv)
-            extra.update(amount=format(amt, ","), profit=format(abs(profit), ","))
         ans = a.get("request_answer")
         if ans and req:
             amt = int(req.get("amount", 0))
@@ -630,6 +664,11 @@ class App:
         """機嫌の理由: 聞いた (ask) / 相談にのった (comfort) / 謝った (apologize) を反映し,
         それ以外の行動で機嫌が大きく動いたら, あなたの行動を理由として記録する."""
         L = self.life
+        rr = r.get("reason")
+        if rr and rr.get("tell"):          # 反応に理由が書いてあれば, それを記録する (例: 黙っていなくなった)
+            L.add_reason(st, "player", rr.get("mood", "bad"), rr["tell"].replace("{call}", self.pronouns(char)[2]), now,
+                         told=True, delta=deltas.get("mood", 0), action=a.get("id"))
+            return
         ma = a.get("mood_action")
         if ma:
             if r.get("override"):           # はぐらかされた・逆効果: 理由は分からないまま
@@ -726,12 +765,19 @@ class App:
         return e
 
     def visit(self, cid=None):
-        """一定時間空けて開いたときの「おかえり」イベント."""
+        """開いたときの「おかえり」. 告げて離れていたなら, その戻り (仕事なら稼ぎも). 黙って閉じていたら一定時間で."""
         char = self.char(cid)
         with self.lock:
             self.tick(char["id"])
             st = self.state(char["id"])
             absent = (time.time() - st.get("last_interaction", time.time())) / 3600.0
+            p = self.presence.rec()
+            if p["mode"] in presence_mod.AWAY_MODES or (p["mode"] == "busy" and self.presence.at(time.time() - 1) == "gone"):
+                declared = True
+            else:
+                declared = False
+        if declared:
+            return self.come_back(char["id"])
         if absent < float(self.world.get("absent_greet_hours", 3)):
             return None
         try:
@@ -937,13 +983,17 @@ class App:
                 self.worker.update(current=None, since=time.time())
 
     # ------------------------------------------------------------------ views
-    def state_view(self, cid=None):
+    def state_view(self, cid=None, beat=False, idle=None):
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
+            if beat:
+                self.presence.beat(time.time(), idle)
             self.tick(cid)
             st = self.state(cid)
             now = time.time()
+            if beat and cid == self.settings.get("active_character") and self.presence.live(char, st, now):
+                self.save_state(cid)
             dt = datetime.fromtimestamp(now)
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
@@ -964,6 +1014,9 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
+                "presence": self.presence.view(now),
+                "approach": self.presence.pending_view(char, st),
+                "auto": st.get("last_auto"),
             }
 
     def _dress_view(self, char, st, scene, ctx):
@@ -975,6 +1028,111 @@ class App:
         return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"],
                 "outfit": scene["outfit"], "fixed": scene["fixed_outfit"], "can": can, "why": why,
                 "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in char.get("wardrobe") or []}}
+
+    # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
+    def come_back(self, cid=None):
+        """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る."""
+        with self.lock:
+            char = self.char(cid)
+            st = self.state(char["id"])
+            ll = self.presence.back()
+            if not ll:
+                raise ValueError("いまは離れていません")
+            if ll["mode"] != "work":
+                return self.act("_back", char["id"])
+            pay, h = self.life.work_pay(ll["h"])
+            mv = self.life.move(st, dp=pay) if pay else {}
+            gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
+        return self.act("work", char["id"], opts={"money": mv, "extra": {"amount": format(pay, ",")},
+                                                  "ctx": {"work_h": round(h, 2), "pay": pay}, "skill": {"work": gain}})
+
+    def answer_approach(self, ans, cid=None):
+        with self.lock:
+            char = self.char(cid)
+            st = self.state(char["id"])
+            ap = st.get("approach") or {}
+            spec = (self.presence.find(ap.get("id")) or {}).get(ans) or {}
+            aid = spec.get("action")
+            if aid:           # 応じたら, そのコマンドをする (できない状況なら, ふつうに応じたことにする)
+                try:
+                    a = self.action(aid)
+                    now = time.time()
+                    ctx = self.context(char, st, datetime.fromtimestamp(now))
+                    if not cond.check(a.get("when", ""), ctx) or (a.get("home_only") and ctx["outing"]):
+                        aid = None
+                except KeyError:
+                    aid = None
+            e, run = self.presence.answer(char, st, ans, use_action=bool(aid))
+        if run:
+            return self.act(run, char["id"])
+        return {"entry": e, "job": e.get("job") if e else None}
+
+    def force_approach(self, aid, cid=None):
+        with self.lock:
+            char = self.char(cid)
+            st = self.state(char["id"])
+            if st.get("approach"):
+                st["approach"] = None
+            now = time.time()
+            d = datetime.fromtimestamp(now)
+            e = self.presence.fire(char, st, now, self.context(char, st, d), force=aid)
+            if not e:
+                raise KeyError("働きかけが見つかりません: %s" % aid)
+            self.save_state(char["id"])
+            return {"entry": e, "job": e.get("job")}
+
+    def trade(self, asset, qty, cid=None):
+        with self.lock:
+            mv, amt, profit = self.life.trade(asset, qty)
+        name = next((a.get("name", asset) for a in self.life.assets() if a["id"] == asset), asset)
+        return self.act("invest_buy" if int(qty) > 0 else "invest_sell", cid, opts={
+            "money": mv, "ctx": {"profit": profit},
+            "extra": {"amount": format(amt, ","), "profit": format(abs(profit), ","), "asset": name, "qty": format(abs(int(qty)), ",")}})
+
+    def task_start(self, kind, cid=None):
+        """内職を始める. 連続ではできない (コマンド side_job のクールダウン)."""
+        with self.lock:
+            char = self.char(cid)
+            st = self.state(char["id"])
+            a = self.action("side_job")
+            now = time.time()
+            ctx = self.context(char, st, datetime.fromtimestamp(now))
+            if not cond.check(a.get("when", ""), ctx) or (a.get("home_only") and ctx["outing"]):
+                raise ValueError("今は内職できません")
+            cd = float(a.get("cooldown", 0)) * 60
+            last = max(st["cooldowns"].get("side_job", [0]) or [0])
+            if cd and now - last < cd:
+                raise ValueError("まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60))
+            token = uuid.uuid4().hex[:10]
+            sec = int(self.world.get("economy", {}).get("side_job_seconds", 60))
+            self.tasks = {k: v for k, v in self.tasks.items() if now - v["t0"] < 3600}
+            self.tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "sec": sec}
+            self.presence.declare("busy", now)
+            return {"token": token, "seconds": sec, "skill": round(self.life.skill("work"), 1),
+                    "unit": round(float(self.world.get("economy", {}).get("side_job_unit", 15)) * self.life.skill_mult("work"), 1)}
+
+    def task_finish(self, token, ok, ng, cid=None):
+        with self.lock:
+            t = self.tasks.get(token)
+            if not t:
+                raise ValueError("作業が見つかりません（やり直してください）")
+            now = time.time()
+            if now - t["t0"] < t["sec"] - 3:
+                raise ValueError("作業時間が足りません")
+            self.tasks.pop(token, None)
+            ok = max(0, min(int(ok), t["sec"] * 3))        # 1 秒に 3 個より速いのはありえない
+            ng = max(0, int(ng))
+            st = self.state(t["cid"])
+            pay = self.life.side_job_pay(ok, ng)
+            mv = self.life.move(st, dp=pay) if pay else {}
+            gain = self.life.train("work", 0.05 * ok)
+            p = self.presence.rec()
+            if p["mode"] == "busy":
+                p["mode"] = "none"
+        r = self.act("side_job", t["cid"], opts={"money": mv, "extra": {"amount": format(pay, ","), "ok": ok, "ng": ng},
+                                                 "ctx": {"task_ok": ok, "task_ng": ng, "pay": pay}, "skill": {"work": gain}})
+        r["task"] = {"ok": ok, "ng": ng, "pay": pay}
+        return r
 
     def prompt_preview(self, cid=None):
         with self.lock:
@@ -988,7 +1146,7 @@ class App:
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
-                "events": self.events,
+                "events": self.events, "approaches": self.approaches,
                 "personas": [{k: p.get(k) for k in ("id", "name", "desc", "persona", "player_call", "first_person", "_custom")}
                              for p in sorted(self.personas.values(), key=lambda p: (
                                  PERSONA_ORDER.index(p["id"]) if p["id"] in PERSONA_ORDER else 99, p.get("name", "")))]}
@@ -1135,6 +1293,18 @@ class App:
             self._check_conds(items, "出来事")
             self.events = items
             store.save(store.dpath("events.json"), items)
+            return items
+
+    def save_approaches(self, items):
+        with self.lock:
+            if not isinstance(items, list):
+                raise ValueError("働きかけは配列で指定してください")
+            ids = [e.get("id") for e in items]
+            if any(not i for i in ids) or len(set(ids)) != len(ids):
+                raise ValueError("働きかけの id が空か重複しています")
+            self._check_conds(items, "働きかけ")
+            self.approaches = items
+            store.save(store.dpath("approaches.json"), items)
             return items
 
     def save_minigames(self, items):

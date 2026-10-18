@@ -77,21 +77,25 @@ async function loadBoot() {
 
 async function refresh() {
   try {
-    S.view = await api('/api/state');
+    S.view = await api('/api/state?beat=1&idle=' + idleSec());
   } catch (e) {
     toast('状態の取得に失敗: ' + e.message, 'err');
     return;
   }
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
   renderWho();
+  renderAway();
+  renderApproach();
   renderRequest();
   renderCommands();
   renderDress();
   renderGames();
   renderStatus();
+  renderMoney();
   renderLog();
   if (!S.current && S.view.log.length) showEntry(S.view.log[S.view.log.length - 1], false);
   if (!S.view.log.length && !S.current) showGreeting();
+  showAutoEntry();
 }
 
 function showGreeting() {
@@ -111,6 +115,12 @@ function tickClock() {
     if (rest === 0) refresh();
   }
   updateGenBadge();
+  if (S.view && S.view.approach) {
+    const rest = Math.max(0, Math.round(S.view.approach.until - Date.now() / 1000));
+    const el = $('#ap-rest');
+    if (el) el.textContent = `（あと${Math.ceil(rest / 60)}分）`;
+    if (rest === 0 && !S.apRefresh) { S.apRefresh = true; refresh().finally(() => { S.apRefresh = false; }); }
+  }
 }
 
 /* ---------------------------------------------------------------- who / scene */
@@ -146,6 +156,7 @@ function renderWho() {
   $('#who-tags').replaceChildren(
     h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
     v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
+    v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '作業を終えて戻る', onclick: comeBack }, '🖥 作業中 → 終わる') : '',
     v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
       v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
     ...v.tags.map((t) => h('span', { class: 'tag' }, t.label)),
@@ -173,7 +184,7 @@ function renderCommands() {
         const tip = [a.when ? '条件: ' + a.when : '', a.effects && Object.keys(a.effects).length ?
           '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
           st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-        return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => doAct(a.id) },
+        return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : doAct(a.id)) },
           h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
           st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
       }))));
@@ -786,7 +797,8 @@ function showEntry(e, animate) {
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
     return h('span', { class: 'delta ' + cls }, `${pname(k)} ${v > 0 ? '+' : ''}${v}`);
   }), ...Object.entries(e.money || {}).map(([k, v]) => h('span', { class: 'delta money ' + (v > 0 ? 'up' : 'down') },
-    `${k === 'p' ? 'あなた' : S.boot.character.name} ${v > 0 ? '+' : ''}${yen(v)}`)));
+    `${k === 'p' ? 'あなた' : S.boot.character.name} ${v > 0 ? '+' : ''}${yen(v)}`)),
+  ...Object.entries(e.skill || {}).map(([k, v]) => h('span', { class: 'delta skill up' }, `${SKILL_NAME[k] || k}スキル +${v}`)));
   if (e.image) setImage(e.image);
   else if (!$('#stage-img').dataset.rel) $('#stage-empty').hidden = false;
   $$('.log-item').forEach((x) => x.classList.toggle('cur', x.dataset.id === e.id));
@@ -916,7 +928,8 @@ function level(p, v) {
 
 const yen = (n) => `${Math.round(n).toLocaleString()}円`;
 
-function sparkline(vals) {
+const SKILL_NAME = { talk: '会話', touch: 'スキンシップ', cook: '料理', work: '仕事' };
+function sparkline(vals, title) {
   const w = 300, hgt = 36, mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn || 1;
   const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${hgt - ((v - mn) / span) * (hgt - 4) - 2}`).join(' ');
   const NS = 'http://www.w3.org/2000/svg';
@@ -929,7 +942,7 @@ function sparkline(vals) {
   pl.setAttribute('stroke', vals[vals.length - 1] >= vals[0] ? 'var(--good)' : 'var(--bad)');
   pl.setAttribute('stroke-width', '2');
   svg.append(pl);
-  return h('div', { class: 'spark-wrap', title: '投資の値動き（直近48時間）' }, svg);
+  return h('div', { class: 'spark-wrap', title: title || '' }, svg);
 }
 
 /* ---- キャラからのお願い */
@@ -949,6 +962,243 @@ function renderRequest() {
       req.kind !== 'present' ? h('button', { class: 'btn', disabled: S.busy, onclick: () => doAct('_req_no') }, 'ごめんね') : ''));
 }
 
+/* ---- あなたの在席 (心拍で伝える) */
+S.lastInput = Date.now();
+const idleSec = () => Math.round((Date.now() - S.lastInput) / 1000);
+const fmtDur = (sec) => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}時間${m % 60}分` : `${m}分`; };
+const AWAY = { out: ['🚪', '外出中', 'ただいま'], work: ['💼', '仕事中', '仕事から帰る'], sleep: ['🌙', '就寝中', 'おはよう'],
+  left: ['👋', 'そばを離れています', '戻る'] };
+
+function renderAway() {
+  const box = $('#away-overlay');
+  const p = S.view.presence || {};
+  const a = AWAY[p.mode];
+  if (!a) { box.hidden = true; return; }
+  const name = S.view.name;
+  const since = p.since ? Math.max(0, Date.now() / 1000 - p.since) : 0;
+  box.hidden = false;
+  box.replaceChildren(h('div', { class: 'away-card' },
+    h('div', { class: 'away-ic' }, a[0]),
+    h('div', { class: 'away-title' }, a[1]),
+    h('div', { class: 'muted' }, `${fmtDur(since)}経過`),
+    p.work ? h('div', { class: 'away-pay' }, p.work.hours < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
+      : `ここで帰ると ${yen(p.work.pay)}（${p.work.hours.toFixed(1)}時間分）`) : '',
+    h('p', { class: 'muted small' }, `${name}のそばを離れています。このまま画面を閉じてもかまいません。`,
+      h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' :
+        '開き直すか「' + a[2] + '」で戻ります。'),
+    h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
+}
+
+async function comeBack() {
+  if (S.busy) return;
+  S.busy = true;
+  try { handleActResult(await api('/api/presence/back', {})); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
+/* ---- キャラからの働きかけ */
+function renderApproach() {
+  const box = $('#approach-box');
+  const ap = S.view.approach;
+  if (!ap) { box.hidden = true; return; }
+  const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
+  box.hidden = false;
+  box.replaceChildren(
+    h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${S.view.name}が${ap.label}`),
+      h('span', { class: 'muted small', id: 'ap-rest' }, `（あと${Math.ceil(rest / 60)}分）`)),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach('accept') }, ap.accept),
+      h('button', { class: 'btn', disabled: S.busy, onclick: () => answerApproach('later') }, ap.later)));
+}
+
+async function answerApproach(ans) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/approach', { answer: ans });
+    if (r.entry) handleActResult(r);
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
+// キャラのほうから起きた記録 (働きかけ・返事がなかった) を会話欄に出す
+function showAutoEntry() {
+  const au = S.view.auto;
+  if (!au) return;
+  if (S.autoSeen === undefined) { S.autoSeen = au.id; return; }   // 開いた直後は出し直さない
+  if (au.id === S.autoSeen) return;
+  S.autoSeen = au.id;
+  const e = S.view.log.find((x) => x.id === au.id);
+  if (!e) return;
+  showEntry(e, true);
+  if (e.job) trackJob(e.job);
+  if (document.hidden) {
+    S.titleBase = S.titleBase || document.title;
+    document.title = '💬 ' + S.titleBase;
+  }
+}
+
+/* ---- お金タブ: 財布・支払い・銘柄・ニュース・稼ぐ */
+function renderMoney() {
+  const v = S.view;
+  const L = v.life || {};
+  const M = L.market || { assets: [], news: [] };
+  const inv = L.invest || {};
+  const policy = (key, opts) => h('select', { value: L[key], onchange: async (ev) => {
+    const c = clone(S.boot.character);
+    c[key] = ev.target.value;
+    try { await api('/api/character/save', { data: c }); await loadBoot(); await refresh(); } catch (e) { toast(e.message, 'err'); }
+  } }, opts.map(([k, l]) => h('option', { value: k }, l)));
+  const asset = (a) => {
+    const qty = h('input', { type: 'number', min: 1, step: 1, value: S.tradeQty?.[a.id] || 1, class: 'qty',
+      oninput: (ev) => { (S.tradeQty = S.tradeQty || {})[a.id] = ev.target.value; } });
+    const pl = a.qty ? a.value - a.cost : 0;
+    return h('div', { class: 'asset' },
+      h('div', { class: 'asset-head', title: a.desc }, h('span', { class: 'ic' }, a.icon), h('b', {}, a.name),
+        h('div', { class: 'spacer' }), h('b', {}, yen(a.price)),
+        h('span', { class: 'chg ' + (a.day >= 0 ? 'up' : 'down') }, `${a.day >= 0 ? '+' : ''}${a.day}%`)),
+      a.history.length > 1 ? sparkline(a.history, `${a.name}の値動き（直近72時間・1時間ごと）`) : '',
+      a.qty ? h('div', { class: 'muted small' }, `保有 ${a.qty}株・評価 ${yen(a.value)}（`,
+        h('span', { class: pl >= 0 ? 'up' : 'down' }, `${pl >= 0 ? '+' : ''}${yen(pl)}`), '）') : '',
+      h('div', { class: 'row trade' }, qty, h('span', { class: 'muted small' }, '株'),
+        h('button', { class: 'btn', disabled: S.busy, onclick: () => trade(a.id, +qty.value) }, '買う'),
+        h('button', { class: 'btn', disabled: S.busy || !a.qty, onclick: () => trade(a.id, -qty.value) }, '売る'),
+        a.qty ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => trade(a.id, -a.qty) }, '全部売る') : ''));
+  };
+  const av = v.available || {};
+  $('#tab-money').replaceChildren(
+    h('div', { class: 'pgroup money-box' }, h('h4', {}, '財布'),
+      h('div', { class: 'money-row' }, h('span', {}, 'あなた'), h('b', {}, yen(L.my_money || 0))),
+      h('div', { class: 'money-row' }, h('span', {}, v.name), h('b', {}, yen(L.her_money || 0))),
+      inv.value ? h('div', { class: 'money-row' }, h('span', {}, '株（評価額）'),
+        h('b', { class: inv.value >= inv.invested ? 'up' : 'down' }, `${yen(inv.value)}（${inv.value >= inv.invested ? '+' : ''}${yen(inv.value - inv.invested)}）`)) : '',
+      h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),
+        policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
+      h('div', { class: 'money-row' }, h('span', {}, '生活費'),
+        policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${v.name}が払う`]]))),
+    h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
+      h('div', { class: 'earn' },
+        h('button', { class: 'cmd', disabled: S.busy || !(av.go_work || {}).ok, onclick: () => doAct('go_work'),
+          title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます' },
+          h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
+        h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || (av.side_job || {}).cooldown > 0, onclick: openTask,
+          title: '家で1分間の作業をします。こなした数とミスで稼ぎが決まります' },
+          h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
+          h('small', { class: 'muted' }, (av.side_job || {}).cooldown > 0 ? `あと${Math.ceil(av.side_job.cooldown / 60)}分` : '1分の作業'))),
+      h('div', { class: 'muted small' }, `仕事スキル ${Math.round((L.skills || {}).work || 0)}：上がるほどお給料と内職の単価が上がります`)),
+    h('div', { class: 'pgroup' }, h('h4', {}, '株'),
+      h('div', { class: 'muted small', style: 'margin-bottom:6px' }, 'ニュースは当たるとは限りません。値動きはリアル時間で進みます。'),
+      ...M.assets.map(asset)),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'ニュース'),
+      M.news.length ? M.news.map((n) => h('div', { class: 'news' },
+        h('span', { class: n.dir > 0 ? 'up' : 'down' }, n.dir > 0 ? '▲' : '▼'), h('span', {}, n.text),
+        h('span', { class: 'muted small' }, fmtTime(n.t)))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
+}
+
+async function trade(asset, qty) {
+  qty = Math.trunc(qty);
+  if (!qty) return toast('株数を入れてください', 'err');
+  if (S.busy) return;
+  S.busy = true;
+  try { handleActResult(await api('/api/market/trade', { asset, qty })); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
+/* ---- 内職 (1分間の作業ミニゲーム) */
+const TASKS = {
+  sort: { name: '仕分け', desc: '流れてくる品物を、正しい箱に入れます（キー 1〜4 でも）',
+    bins: [['🍎', '果物', ['🍎', '🍌', '🍇', '🍑', '🍊', '🍓']], ['🥕', '野菜', ['🥕', '🥦', '🍆', '🌽', '🥒', '🧅']],
+      ['🐟', '魚介', ['🐟', '🐠', '🦐', '🦑', '🐙', '🦀']], ['🍞', 'パン', ['🍞', '🥐', '🥖', '🥯', '🥨', '🧇']]],
+    next() { const b = Math.floor(Math.random() * 4); const it = this.bins[b][2]; return { show: it[Math.floor(Math.random() * it.length)], ans: b }; },
+    buttons() { return this.bins.map((b, i) => `${i + 1} ${b[0]} ${b[1]}`); } },
+  check: { name: '検算', desc: '計算が合っているか確かめます（キー ←/F = 合っている、→/J = 間違い）',
+    next() {
+      const a = 10 + Math.floor(Math.random() * 90), b = 10 + Math.floor(Math.random() * 90), plus = Math.random() < 0.6;
+      let r = plus ? a + b : a - b;
+      const ok = Math.random() < 0.5;
+      if (!ok) r += [1, -1, 10, -10, 2][Math.floor(Math.random() * 5)];
+      return { show: `${a} ${plus ? '+' : '−'} ${b} = ${r}`, ans: ok ? 0 : 1 };
+    },
+    buttons() { return ['← 合っている', '間違い →']; } },
+};
+
+function openTask() {
+  const dlg = $('#task-dlg');
+  $('#task-sub').textContent = '';
+  $('#task-body').replaceChildren(
+    h('p', { class: 'muted' }, '1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。仕事スキルが上がると単価も上がります。'),
+    h('div', { class: 'task-pick' }, Object.entries(TASKS).map(([k, t]) => h('button', { class: 'cmd', onclick: () => startTask(k) },
+      h('b', {}, t.name), h('small', { class: 'muted' }, t.desc)))));
+  dlg.showModal();
+}
+
+async function startTask(kind) {
+  let tk;
+  try { tk = await api('/api/task/start', { kind }); } catch (e) { toast(e.message, 'err'); return; }
+  const T = TASKS[kind];
+  const run = { ok: 0, ng: 0, cur: T.next(), end: Date.now() + tk.seconds * 1000, done: false };
+  S.task = run;
+  $('#task-sub').textContent = `${T.name}・1個 ${tk.unit}円`;
+  const item = h('div', { class: 'task-item' }, run.cur.show);
+  const score = h('div', { class: 'task-score' });
+  const bar = h('i');
+  const pick = (i) => {
+    if (run.done) return;
+    if (i === run.cur.ans) { run.ok++; item.classList.remove('ng'); item.classList.add('ok'); } else { run.ng++; item.classList.remove('ok'); item.classList.add('ng'); }
+    run.cur = T.next();
+    item.textContent = run.cur.show;
+    setTimeout(() => item.classList.remove('ok', 'ng'), 150);
+    score.textContent = `できた ${run.ok}　ミス ${run.ng}`;
+  };
+  run.key = (ev) => {
+    const k = ev.key;
+    const idx = kind === 'sort' ? ['1', '2', '3', '4'].indexOf(k)
+      : (k === 'ArrowLeft' || k === 'f' || k === 'F') ? 0 : (k === 'ArrowRight' || k === 'j' || k === 'J') ? 1 : -1;
+    if (idx >= 0) { ev.preventDefault(); pick(idx); }
+  };
+  document.addEventListener('keydown', run.key);
+  score.textContent = 'できた 0　ミス 0';
+  $('#task-body').replaceChildren(
+    h('div', { class: 'task-timer' }, bar), score, item,
+    h('div', { class: 'task-btns ' + kind }, T.buttons().map((label, i) => h('button', { class: 'btn', onclick: () => pick(i) }, label))));
+  run.timer = setInterval(async () => {
+    const rest = run.end - Date.now();
+    bar.style.width = Math.max(0, rest / (tk.seconds * 10)) + '%';
+    if (rest > 0 || run.done) return;
+    run.done = true;
+    clearInterval(run.timer);
+    document.removeEventListener('keydown', run.key);
+    try {
+      const r = await api('/api/task/finish', { token: tk.token, ok: run.ok, ng: run.ng });
+      $('#task-body').replaceChildren(h('div', { class: 'task-result' },
+        h('div', { class: 'big' }, yen(r.task.pay)), h('div', {}, `できた ${r.task.ok}　ミス ${r.task.ng}`),
+        r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
+        h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));
+      handleActResult(r);
+    } catch (e) { toast(e.message, 'err'); $('#task-dlg').close(); }
+    S.task = null;
+    await refresh();
+  }, 100);
+}
+
+function closeTask() {
+  const run = S.task;
+  if (run && !run.done) {
+    if (!confirm('作業を途中でやめますか？（稼ぎはありません）')) return;
+    run.done = true;
+    clearInterval(run.timer);
+    document.removeEventListener('keydown', run.key);
+    S.task = null;
+  }
+  $('#task-dlg').close();
+}
+
+const SKILL_HINT = {
+  talk: '会話のコマンドの効き目。上がると話が弾みやすく、低いと沈黙することも',
+  touch: 'ふれあいのコマンドの効き目。低いうちは、急にするとびっくりされることも',
+  cook: '料理・おやつ・お茶の効き目。低いと失敗することも、高いと絶品に',
+  work: '仕事のお給料と、内職の単価',
+};
 function renderStatus() {
   const v = S.view;
   const groups = [['physical', 'からだ'], ['mental', 'こころ']];
@@ -969,29 +1219,19 @@ function renderStatus() {
     h('span', {}, r.mood === 'good' ? '😊' : '😣'),
     h('span', {}, r.tell || '？（まだ聞いていない）'),
     h('span', { class: 'muted small' }, fmtTime(r.t))));
-  const inv = L.invest || {};
-  const policy = (key, opts) => h('select', { value: L[key], onchange: async (ev) => {
-    const c = clone(S.boot.character);
-    c[key] = ev.target.value;
-    try { await api('/api/character/save', { data: c }); await loadBoot(); await refresh(); } catch (e) { toast(e.message, 'err'); }
-  } }, opts.map(([k, l]) => h('option', { value: k }, l)));
   $('#tab-status').replaceChildren(
     h('div', { class: 'scene-box' },
       h('div', {}, h('b', {}, '時間帯 '), v.phase.label),
       h('div', {}, h('b', {}, 'いま '), `${sc.label}（${sc.location || '—'}）`, flags ? `　${flags}` : ''),
-      h('div', {}, h('b', {}, '最後のふれあい '), v.absent < 1 ? `${Math.round(v.absent * 60)}分前` : `${v.absent.toFixed(1)}時間前`)),
+      h('div', {}, h('b', {}, '最後のふれあい '), v.absent < 1 ? `${Math.round(v.absent * 60)}分前` : `${v.absent.toFixed(1)}時間前`),
+      h('div', {}, h('b', {}, 'あなた '), (v.presence || {}).label || '—')),
     h('div', { class: 'pgroup' }, h('h4', {}, 'いまの気分の理由'),
       reasons.length ? reasons : h('div', { class: 'muted small' }, '特になし')),
-    h('div', { class: 'pgroup money-box' }, h('h4', {}, 'お金'),
-      h('div', { class: 'money-row' }, h('span', {}, 'あなた'), h('b', {}, yen(L.my_money || 0))),
-      h('div', { class: 'money-row' }, h('span', {}, v.name), h('b', {}, yen(L.her_money || 0))),
-      inv.units ? h('div', { class: 'money-row' }, h('span', {}, '投資（評価額）'),
-        h('b', { class: inv.value >= inv.invested ? 'up' : 'down' }, `${yen(inv.value)}（${inv.value >= inv.invested ? '+' : ''}${yen(inv.value - inv.invested)}）`)) : '',
-      inv.history && inv.history.length > 1 ? sparkline(inv.history) : '',
-      h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),
-        policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
-      h('div', { class: 'money-row' }, h('span', {}, '生活費'),
-        policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${v.name}が払う`]]))),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'あなたのスキル'),
+      Object.entries(L.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
+        h('span', {}, SKILL_NAME[k] || k),
+        h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
+        h('span', { class: 'pval' }, Math.floor(val))))),
     ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, label), rows(S.boot.params.filter((p) => p.group === g)))),
     others.length ? h('div', { class: 'pgroup' }, h('h4', {}, 'その他'), rows(others)) : '',
   );
@@ -1188,9 +1428,11 @@ const TIPS = {
   '種類': 'Ollama か、LM Studio・llama.cpp などの OpenAI 互換 API',
   'モデル名': 'Ollama なら ollama list で出る名前です',
   'temperature': '高いほど自由な言い回しになります（0.7〜1.0 が目安）',
+  'あなたのスキル': 'このコマンドの効き目が、あなたのスキルで 0.6〜1.4 倍になり、使うたびにスキルが伸びます。反応の条件では sk_talk などで参照できます',
   // チェックボックス
   '行動の効果・シーン切替を置き換える': '断る反応などに使います。オンだと、行動の効果・一時シーン・お金のやりとりを行わず、この反応の効果だけになります',
   '場面プロンプトを使わない（服装は残す）': '行動のプロンプトだけで場面を描くときに使います（出かけた先など）',
+  '家でだけできる': 'お出かけ中（一緒に出かけている場面）は出しません',
   'LLM を使わない': 'セリフ生成 (LLM) が有効でも、定型のセリフのままにします',
   '外出': '家にいない状態です。条件では away=true になります',
   '睡眠': '寝ている状態です。条件では asleep=true になります',
@@ -1588,6 +1830,25 @@ SEC.events = () => {
   ];
 };
 
+/* ---- キャラからの働きかけ */
+SEC.approaches = () => {
+  const ta = h('textarea', { rows: 30, style: 'min-height:55vh', value: JSON.stringify(S.boot.approaches || [], null, 1) });
+  const res = h('div', { class: 'result', hidden: true });
+  ta.addEventListener('input', () => {
+    try { JSON.parse(ta.value); ta.classList.remove('bad'); res.hidden = true; }
+    catch (e) { ta.classList.add('bad'); res.hidden = false; res.className = 'result err'; res.textContent = 'JSON の書式エラー: ' + e.message; }
+  });
+  return [
+    saveBar('キャラからの働きかけ', async () => { await api('/api/approaches', { approaches: JSON.parse(ta.value) }); await reloadAll(); }),
+    h('p', { class: 'lead' }, 'あなたが画面を開いてそばにいるとき（構っている・放置している・作業中）に、キャラのほうから話しかけてくる内容です。寂しさ・退屈・好感度が高いほど来やすく、「作業するね」と告げていれば遠慮します（とても寂しければ来ます）。答えずに放っておくと、待ち時間のあとで「返事がなかった」になり、寂しいときほど機嫌が下がります。'),
+    h('div', { class: 'keys' },
+      h('div', {}, h('code', {}, 'when'), ' 来る条件（presence=busy なら作業中だけ）　', h('code', {}, 'weight'), ' 来やすさ　', h('code', {}, 'cooldown_h'), ' 同じ働きかけの間隔　', h('code', {}, 'text'), ' 話しかけるセリフ'),
+      h('div', {}, h('code', {}, 'accept'), ' / ', h('code', {}, 'later'), ' 答えたとき（label ボタン名・text・effects・skill・reason_good）。accept に ', h('code', {}, 'action'), ' を書くと、そのコマンドを実行（例: walk, game）'),
+      h('div', {}, h('code', {}, 'ignore'), ' 放っておいたとき（text・busy_text 作業中だったとき・effects）。効き目は寂しさで増え、作業中・不在なら減る')),
+    h('div', { style: 'margin-top:10px' }, ta), res,
+  ];
+};
+
 /* ---- コマンド */
 SEC.actions = () => {
   const acts = SE.actions;
@@ -1642,12 +1903,14 @@ SEC.actions = () => {
         fld('実行できる条件', inp(a, 'when', { ph: 'free=true' }), null, 'span2'),
         fld('クールダウン（分）', inp(a, 'cooldown', { type: 'number' }), 'この間の連続実行は repeat が増え効果減'),
         fld('連続時の効果倍率', inp(a, 'repeat_scale', { type: 'number', step: '0.1', ph: '0.5' })),
+        fld('あなたのスキル', inp(a, 'skill', { type: 'select', options: [['', 'なし'], ['talk', '会話'], ['touch', 'スキンシップ'], ['cook', '料理'], ['work', '仕事']] })),
         fld('効果', inp(a, 'effects', { fmt: fmtEff, parse: parseEff, ph: 'mood:+5, loneliness:-10' }), null, 'spanall'),
         fld('Positive（行動）', inp(a, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative（行動）', inp(a, 'neg', { type: 'textarea', rows: 2 }), null, 'span2'),
         h('div', { class: 'row spanall' },
           chk(a, 'replace_scene', '場面プロンプトを使わない（服装は残す）'),
           chk(a, 'no_llm', 'LLM を使わない'),
+          chk(a, 'home_only', '家でだけできる'),
           h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: a.generate !== false, onchange: (ev) => { a.generate = ev.target.checked; } }), '自動で画像生成'),
           h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: hasOv.v, onchange: (ev) => {
             if (ev.target.checked) a.override = a.override || { activity: a.id, label: a.name + '中', location: '', minutes: 30, pos: '', neg: '', outfit: '', effects: {} };
@@ -1846,9 +2109,23 @@ SEC.prompt = () => {
         n('player_daily_income', 'あなたの日給（放置でたまる）', '日付が変わるたびに入る'),
         n('her_daily_income', 'キャラの日給', 'バイト代・仕送りなど'),
         n('living_cost_per_day', '生活費（1日）', '負担の割合はステータス画面で選ぶ'),
-        n('invest_unit', '投資の1口'),
-        n('invest_vol', '投資の値動きの大きさ', '5分あたり。0.004 ≒ 1日で数%動く', '0.001'),
+        n('work_wage_per_hour', '仕事の時給', '仕事スキルで 0.6〜1.4 倍', '10'),
+        n('work_max_hours', '仕事の上限（時間）', '1回の仕事で稼げる時間の上限', '1'),
+        n('side_job_unit', '内職の単価（1個）', '仕事スキルで 0.6〜1.4 倍', '1'),
+        n('news_rate_per_hour', '株のニュースの出やすさ（1時間あたり）', '0.12 ≒ 1日に3回ほど', '0.01'),
+        n('news_accuracy', 'ニュースの当たりやすさ', '0.7 = 7割はニュースどおりに動く', '0.05'),
         n('event_rate_per_hour', '出来事の起きやすさ（1時間あたり）', '0.08 ≒ 起きている間に1日1〜2回', '0.01'));
+    })(),
+    h('div', { class: 'sect' }, '在席・働きかけ'),
+    (() => {
+      const e = w.presence = w.presence || {};
+      const n = (k, label, hint, step) => fld(label, inp(e, k, { type: 'number', step: step || '1' }), hint);
+      return h('div', { class: 'grid3' },
+        n('idle_minutes', '「のんびり」になるまで（分）', 'この間なにも操作しないと、そばで放置している扱い'),
+        n('gone_minutes', '「いない」になるまで（分）', '画面を閉じてから、この時間で不在とみなす'),
+        n('approach_rate_per_hour', '働きかけの来やすさ（1時間あたり）', 'キャラの寂しさ・退屈・好感度でさらに増減', '0.1'),
+        n('approach_wait_minutes', '返事を待ってくれる時間（分）'),
+        n('approach_quiet_minutes', '次の働きかけまでの間隔（分）'));
     })(),
   ];
 };
@@ -1906,6 +2183,13 @@ SEC.data = () => {
         try { const r = await api('/api/events/force', { id: sel.value }); toast(`起こしました: ${r.event.label}`, 'ok'); await refresh(); } catch (e) { toast(e.message, 'err'); }
       } }, '起こす'));
     })(),
+    h('div', { class: 'sect' }, '働きかけを起こす（テスト用）'),
+    (() => {
+      const sel = h('select', {}, (S.boot.approaches || []).map((e) => h('option', { value: e.id }, `${e.icon || ''} ${e.label || e.id}`)));
+      return h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: async () => {
+        try { const r = await api('/api/approach/force', { id: sel.value }); $('#settings-dlg').close(); handleActResult(r); await refresh(); } catch (e) { toast(e.message, 'err'); }
+      } }, '起こす'));
+    })(),
     h('div', { class: 'sect' }, 'エクスポート / インポート'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),
@@ -1922,7 +2206,7 @@ SEC.data = () => {
 function bind() {
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    for (const t of ['commands', 'dress', 'games', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
+    for (const t of ['commands', 'dress', 'games', 'money', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
   }));
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }
@@ -1938,6 +2222,15 @@ function bind() {
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
   $('#btn-manual').addEventListener('click', () => openManual());
+  const seen = () => { S.lastInput = Date.now(); };
+  for (const t of ['keydown', 'pointerdown', 'wheel', 'touchstart']) document.addEventListener(t, seen, { passive: true, capture: true });
+  document.addEventListener('pointermove', () => { if (Date.now() - S.lastInput > 5000) seen(); }, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && S.titleBase) { document.title = S.titleBase; S.titleBase = null; }
+    if (!document.hidden) refresh();
+  });
+  $('#task-close').addEventListener('click', closeTask);
+  $('#task-dlg').addEventListener('cancel', (ev) => { ev.preventDefault(); closeTask(); });
   for (const t of ['mouseover', 'focusin']) document.addEventListener(t, (ev) => { const el = ev.target.closest?.('.tip'); if (el) showTip(el); });
   for (const t of ['mouseout', 'focusout']) document.addEventListener(t, (ev) => { if (ev.target.closest?.('.tip')) hideTip(); });
   // ⓘ は label の中にあるので, 押してもチェックや入力欄が反応しないようにする

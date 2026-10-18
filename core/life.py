@@ -14,6 +14,7 @@ from datetime import datetime
 from . import cond, store
 
 WHO = {"p": "あなた", "a": "キャラ"}
+SKILLS = ("talk", "touch", "cook", "work")     # あなたのスキル: 会話・スキンシップ・料理・仕事
 
 
 def _amount(v):
@@ -30,40 +31,177 @@ class Life:
     def econ(self):
         return self.app.world.get("economy") or {}
 
-    # ================================================================== あなたのお金・投資
+    # ================================================================== あなたのお金・スキル・投資
     def player_state(self):
         if self.player is None:
             self.player = store.load(store.dpath("player.json"))
         if self.player is None:
             t = time.time()
-            self.player = {"money": int(self.econ().get("start_money_player", 30000)), "units": 0.0, "invested": 0,
-                           "price": 1000.0, "history": [[t, 1000.0]], "last_tick": t}
+            self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t}
+        ps = self.player
+        ps.setdefault("skills", {k: 10.0 for k in SKILLS})
+        for k in SKILLS:
+            ps["skills"].setdefault(k, 10.0)
+        if "market" not in ps:
+            self._init_market(ps)
             self.save_player()
-        return self.player
+        return ps
 
     def save_player(self):
         store.save(store.dpath("player.json"), self.player)
 
+    # ---------------------------------------------------------- スキル
+    def skill(self, k):
+        return float(self.player_state()["skills"].get(k, 10.0))
+
+    def skill_mult(self, k):
+        """スキルによる効き目の倍率 (0.6〜1.4)."""
+        return 0.6 + self.skill(k) / 100.0 * 0.8
+
+    def train(self, k, gain):
+        """スキルを伸ばす (上がるほど伸びにくい). 伸びた量を返す."""
+        sk = self.player_state()["skills"]
+        old = float(sk.get(k, 10.0))
+        new = min(100.0, old + float(gain) * (1.0 - old / 110.0))
+        sk[k] = round(new, 2)
+        self.save_player()
+        return round(new - old, 2)
+
+    # ---------------------------------------------------------- 市場 (銘柄・ニュース)
+    def assets(self):
+        return self.econ().get("assets") or []
+
+    def _init_market(self, ps):
+        t = time.time()
+        m = ps["market"] = {"assets": {}, "holdings": {}, "news": []}
+        for a in self.assets():
+            self._asset_state(m, a, t)
+        # 以前の「投資」(1 銘柄) を持っていたら, 最初の銘柄 (インデックス) の保有に移す
+        if ps.get("units") and self.assets():
+            first = self.assets()[0]
+            st = self._asset_state(m, first, t)
+            value = float(ps["units"]) * float(ps.get("price", 1000))
+            m["holdings"][first["id"]] = {"qty": max(1, int(round(value / st["price"]))), "cost": int(ps.get("invested", value))}
+        for k in ("units", "invested", "price", "history"):
+            ps.pop(k, None)
+
+    def _asset_state(self, m, a, t=None):
+        st = m["assets"].get(a["id"])
+        if st is None:          # 後から増えた銘柄
+            p0 = float(a.get("price", 1000))
+            st = m["assets"][a["id"]] = {"price": p0, "history": [[t or time.time(), p0]], "bias": 0.0, "bias_until": 0}
+        return st
+
     def tick_world(self, now=None):
-        """市場の値動きと, あなたの定期収入 (放置でもたまる) をリアル時間で進める."""
+        """市場の値動き・ニュースと, あなたの定期収入をリアル時間で進める."""
         ps, e = self.player_state(), self.econ()
         now = now or time.time()
         t = max(ps.get("last_tick", now), now - 14 * 86400)
         step = 300
         changed = False
-        drift, vol = float(e.get("invest_drift", 0.00003)), float(e.get("invest_vol", 0.004))
+        m = ps["market"]
+        assets = self.assets()
         while t + step <= now:
             t += step
             changed = True
-            ps["price"] = max(1.0, ps["price"] * math.exp(drift + vol * random.gauss(0, 1)))
-            if t - ps["history"][-1][0] >= 3600:
-                ps["history"].append([t, round(ps["price"], 2)])
-                del ps["history"][:-72]
+            if assets and random.random() < float(e.get("news_rate_per_hour", 0.12)) * step / 3600.0:
+                self._news(m, random.choice(assets), t)
+            for a in assets:
+                st = self._asset_state(m, a, t)
+                mu = float(a.get("drift", 0)) + (st["bias"] if st.get("bias_until", 0) > t else 0.0)
+                st["price"] = max(1.0, st["price"] * math.exp(mu + float(a.get("vol", 0.003)) * random.gauss(0, 1)))
+                if not st["history"] or t - st["history"][-1][0] >= 3600:
+                    st["history"].append([t, round(st["price"], 2)])
+                    del st["history"][:-168]
             if datetime.fromtimestamp(t - step).date() != datetime.fromtimestamp(t).date():
-                ps["money"] += int(e.get("player_daily_income", 3000))
+                ps["money"] += int(e.get("player_daily_income", 1000))
         ps["last_tick"] = t
         if changed:
             self.save_player()
+
+    def _news(self, m, a, t):
+        """銘柄のニュース. 見出しの向きどおりに動くとは限らない (的中率 news_accuracy)."""
+        e = self.econ()
+        d = random.choice((1, -1))
+        heads = (e.get("news") or {}).get("up" if d > 0 else "down") or ["{name}に関するニュース"]
+        real = d if random.random() < float(e.get("news_accuracy", 0.7)) else -d
+        lo, hi = (e.get("news_hours") or [6, 18])[:2]
+        st = self._asset_state(m, a, t)
+        st["bias"] = real * float(e.get("news_bias", 0.0005)) * random.uniform(0.6, 1.4)
+        st["bias_until"] = t + random.uniform(float(lo), float(hi)) * 3600
+        m["news"].append({"t": t, "asset": a["id"], "dir": d, "text": random.choice(heads).replace("{name}", a.get("name", a["id"]))})
+        del m["news"][:-30]
+
+    def portfolio_value(self):
+        m = self.player_state()["market"]
+        return int(sum(h["qty"] * m["assets"].get(k, {}).get("price", 0) for k, h in m["holdings"].items()))
+
+    def portfolio_cost(self):
+        return int(sum(h.get("cost", 0) for h in self.player_state()["market"]["holdings"].values()))
+
+    def trade(self, asset, qty):
+        """銘柄を売買する (qty > 0 で買い, < 0 で売り. 株数は整数). (お金の動き, 金額, 売却損益) を返す."""
+        ps = self.player_state()
+        m = ps["market"]
+        a = next((x for x in self.assets() if x["id"] == asset), None)
+        if not a:
+            raise KeyError("銘柄が見つかりません: %s" % asset)
+        qty = int(qty)
+        if not qty:
+            raise ValueError("株数を指定してください")
+        price = self._asset_state(m, a)["price"]
+        if qty > 0:
+            amt = int(round(price * qty))
+            if ps["money"] < amt:
+                raise ValueError("お金が足りません（%s円必要）" % format(amt, ","))
+            hold = m["holdings"].setdefault(asset, {"qty": 0, "cost": 0})
+            ps["money"] -= amt
+            hold["qty"] = int(hold["qty"]) + qty
+            hold["cost"] = int(hold.get("cost", 0)) + amt
+            self.save_player()
+            return {"p": -amt}, amt, 0
+        n = -qty
+        hold = m["holdings"].get(asset)
+        if not hold or hold["qty"] < n:
+            raise ValueError("そんなに持っていません（%s株）" % format(int((hold or {}).get("qty", 0)), ","))
+        amt = int(round(price * n))
+        cost = int(round(hold.get("cost", 0) * n / hold["qty"]))
+        hold["qty"] = int(hold["qty"]) - n
+        hold["cost"] = int(hold.get("cost", 0)) - cost
+        if hold["qty"] <= 0:
+            m["holdings"].pop(asset, None)
+        ps["money"] += amt
+        self.save_player()
+        return {"p": amt}, amt, amt - cost
+
+    def market_view(self):
+        m = self.player_state()["market"]
+        now = time.time()
+        out = []
+        for a in self.assets():
+            st = self._asset_state(m, a)
+            hist = [x[1] for x in st["history"]]
+            day = next((x[1] for x in reversed(st["history"]) if now - x[0] >= 86400), hist[0] if hist else st["price"])
+            h = m["holdings"].get(a["id"]) or {}
+            out.append({"id": a["id"], "name": a.get("name", a["id"]), "icon": a.get("icon", ""), "desc": a.get("desc", ""),
+                        "price": round(st["price"], 1), "day": round((st["price"] / day - 1) * 100, 1) if day else 0,
+                        "history": hist[-72:] + [round(st["price"], 1)],
+                        "qty": int(h.get("qty", 0)), "cost": int(h.get("cost", 0)), "value": int(h.get("qty", 0) * st["price"])})
+        names = {a["id"]: a.get("name", a["id"]) for a in self.assets()}
+        return {"assets": out, "news": [dict(n, name=names.get(n["asset"], n["asset"])) for n in reversed(m["news"][-10:])]}
+
+    # ---------------------------------------------------------- 仕事・内職
+    def work_pay(self, hours):
+        """仕事から帰ったときの稼ぎ (時給 x 時間 x 仕事スキル). 15 分未満は 0."""
+        e = self.econ()
+        h = min(float(hours), float(e.get("work_max_hours", 9)))
+        if h < 0.25:
+            return 0, h
+        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") / 10.0)) * 10, h
+
+    def side_job_pay(self, ok, ng):
+        unit = float(self.econ().get("side_job_unit", 15)) * self.skill_mult("work")
+        return max(0, int(round((ok - ng * 0.5) * unit / 10.0)) * 10)
 
     def her_money(self, st):
         m = st.setdefault("money", {})
@@ -73,9 +211,11 @@ class Life:
 
     def money_ctx(self, st):
         ps = self.player_state()
-        value = int(ps["units"] * ps["price"])
-        return {"my_money": ps["money"], "her_money": self.her_money(st)["a"], "invest_value": value,
-                "profit": value - int(ps.get("invested", 0)) if ps["units"] else 0}
+        value = self.portfolio_value()
+        ctx = {"my_money": ps["money"], "her_money": self.her_money(st)["a"], "invest_value": value,
+               "profit": value - self.portfolio_cost() if value else 0}
+        ctx.update({"sk_" + k: round(v, 1) for k, v in ps["skills"].items()})
+        return ctx
 
     def move(self, st, dp=0, da=0):
         """お金を動かす (マイナス可). 実際に動いた額を返す."""
@@ -113,26 +253,6 @@ class Life:
             return {"payer": "her", "p": 0, "a": -cost}
         raise ValueError("お金が足りません（費用 %s円 / あなた %s円 / %s %s円）"
                          % (format(cost, ","), format(ps["money"], ","), char.get("name", ""), format(hm["a"], ",")))
-
-    def invest(self, mode, unit=None):
-        ps = self.player_state()
-        if mode == "buy":
-            unit = int(unit or self.econ().get("invest_unit", 10000))
-            if ps["money"] < unit:
-                raise ValueError("投資するお金が足りません（%s円必要）" % format(unit, ","))
-            ps["money"] -= unit
-            ps["units"] += unit / ps["price"]
-            ps["invested"] = int(ps.get("invested", 0)) + unit
-            self.save_player()
-            return {"p": -unit}, unit, 0
-        if not ps["units"]:
-            raise ValueError("売れる投資がありません")
-        value = int(ps["units"] * ps["price"])
-        profit = value - int(ps.get("invested", 0))
-        ps["money"] += value
-        ps["units"], ps["invested"] = 0.0, 0
-        self.save_player()
-        return {"p": value}, value, profit
 
     # ================================================================== キャラの毎日
     def step(self, char, st, t0, t1, h):
@@ -297,9 +417,9 @@ class Life:
         return {
                 "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
                              "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],"my_money": ps["money"], "her_money": self.her_money(st)["a"],
-                "invest": {"units": round(ps["units"], 4), "price": round(ps["price"], 2),
-                           "value": int(ps["units"] * ps["price"]), "invested": int(ps.get("invested", 0)),
-                           "history": [h[1] for h in ps.get("history", [])][-48:]},
+                "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},
+                "market": self.market_view(),
+                "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
                 "pay_policy": char.get("pay_policy") or "auto", "living_policy": char.get("living_policy") or "split",
                 "request": req,
                 "hint": bool(untold), "hint_mood": untold[0]["mood"] if untold else None}

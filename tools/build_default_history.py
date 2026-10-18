@@ -16,7 +16,8 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 from core.store import obj_hash  # noqa: E402
 
-FILES = {"actions": "defaults/actions.json", "minigames": "defaults/minigames.json", "events": "defaults/events.json"}
+FILES = {"actions": "defaults/actions.json", "minigames": "defaults/minigames.json", "events": "defaults/events.json",
+         "approaches": "defaults/approaches.json"}
 
 
 def versions(path):

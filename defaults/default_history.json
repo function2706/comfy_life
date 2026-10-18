@@ -1,7 +1,11 @@
 {
  "actions": {
+  "_back": [
+   "aedf5e13a1ae7021ec3a179f706ff856"
+  ],
   "_dress": [
-   "39818e2555f4f60344b656cfb4dad075"
+   "39818e2555f4f60344b656cfb4dad075",
+   "7ed6fce0a8df31c18482fcfc4de29863"
   ],
   "_req_no": [
    "252c642f5868f16859711fbe21a283fc"
@@ -10,58 +14,71 @@
    "239d2e9dfe4baebdcde5ab29708cfb1e"
   ],
   "_return": [
+   "5ae0f3892a01c4813438deb19043c6be",
    "fd3e9ca9651e311ddc71c217c2c0b57a",
    "f564d18b86bcff6b299418e3107dbb21",
-   "5ae0f3892a01c4813438deb19043c6be"
+   "d1421a9f476592a6038b4a622bee38e7"
   ],
   "allowance": [
    "fc26e7bbe04256a8f94d9af0de7cd162"
   ],
   "amusement": [
+   "633c551e6f6b4afaa8caa80a331d972e",
    "73058d9d5490ac546249c9bef4fed3d6",
-   "633c551e6f6b4afaa8caa80a331d972e"
+   "05f8ae926119fae53c6336354b669958"
   ],
   "apologize": [
-   "f104ed45d336a8a3da6e06da901311ac"
+   "f104ed45d336a8a3da6e06da901311ac",
+   "e557a5a6e0f921a72a1ff01bfa047e31"
   ],
   "aquarium": [
+   "67f9d65708a075e2c35427d86676033b",
    "3425adb8015daf2ab0b478d829aa83ae",
-   "67f9d65708a075e2c35427d86676033b"
+   "099ebe967998c09974f0a0b7521ecd1a"
   ],
   "ask_mood": [
-   "d079ed5a1772f6896d3b2b01c502841a"
+   "d079ed5a1772f6896d3b2b01c502841a",
+   "e2b1cfefe69429417361810fbf14dd27"
   ],
   "bath": [
-   "85d07773658319f98f9328cfdf4a8289"
+   "85d07773658319f98f9328cfdf4a8289",
+   "4e778ff703174a5897ba64983c0546f1"
   ],
   "beach": [
+   "a53b4e6955286435a70b18a1bb065dab",
    "466999399884e8e5bf8a0809098f40c9",
-   "a53b4e6955286435a70b18a1bb065dab"
+   "37a8f4bb5ccac70204c4780fc0958693"
   ],
   "borrow": [
    "ec42e2b96cde5c4fa6ee9d4544dd0cd7"
   ],
   "cafe": [
+   "bbed5100be2c9441cb58207e686ec067",
    "e1a4f024127fc93c931394a435650941",
-   "bbed5100be2c9441cb58207e686ec067"
+   "79e7f19efebe74107215aab48b960921"
   ],
   "call": [
-   "4ad7afc857b9553f4e40df4f0fa2d21d"
+   "4ad7afc857b9553f4e40df4f0fa2d21d",
+   "5ade445de2f6ac29277bb8493a415649"
   ],
   "clean": [
-   "d4789f5dfd43fbc802450b1e45541d4c"
+   "d4789f5dfd43fbc802450b1e45541d4c",
+   "7080cd6ee918c23b8e0f76c4f362dac9"
   ],
   "comfort": [
-   "79877ee7a3fec49d7143504f78191ca7"
+   "79877ee7a3fec49d7143504f78191ca7",
+   "0e3250f6ccba254a776709474b8091e4"
   ],
   "cook": [
+   "23b98870c2ac5c9eb3f8dbf69c58e055",
    "7a2565f4e1dd3bdc4aa460f1164ca20c",
-   "23b98870c2ac5c9eb3f8dbf69c58e055"
+   "b30c86f709e6e9eca00837379a87bb32"
   ],
   "date": [
+   "64c82437fd00882fe13c81d7889a40cd",
    "8b698762e11f50a7e5df23472b7811cc",
    "8648f7e249ebdd61b86fe6835d5ca2fd",
-   "64c82437fd00882fe13c81d7889a40cd"
+   "100c50df52db211e97ca9e9c508369de"
   ],
   "end_activity": [
    "8d8d9dd46acc23cb6773b71e087c1703"
@@ -73,42 +90,65 @@
    "b267bb87e12c77bf08262833937a4cc0"
   ],
   "game": [
+   "3c1fce349633ff4b6891afbf07ea9cd5",
    "f1d122c9b4e0fd802a9bf0d9a542bdcb",
-   "3c1fce349633ff4b6891afbf07ea9cd5"
+   "1ebbc9e9f9e43f8df704f3e31a33a498"
   ],
   "gift": [
+   "58d926e65661dd17cab3e35c0f555699",
    "969c72de33d4852c32a2c6231287205c",
    "ac027832b8a5ef8d4d14a7418cc09cce",
-   "f9e9d329645f2f809e99691c3e7de004",
-   "58d926e65661dd17cab3e35c0f555699"
+   "f9e9d329645f2f809e99691c3e7de004"
+  ],
+  "go_busy": [
+   "da3511c742b5a92faec70e329b5403c8"
   ],
   "go_home": [
    "5b2c63a00cf2426547cc2ecf88bb75ed"
   ],
+  "go_leave": [
+   "7925030797a40c903a3c0337d0ed6f38"
+  ],
+  "go_out": [
+   "4004d0a443315f8eb140c896e459e59a"
+  ],
+  "go_sleep": [
+   "7cf76cb26000c25a7082b57523588814"
+  ],
+  "go_work": [
+   "39e277578c88369d9ed1200e8dfa9f5f"
+  ],
   "greet": [
-   "11818e9851663b96293000db6fc300fd"
+   "11818e9851663b96293000db6fc300fd",
+   "5a2b8ad4d66d5a82be7278c163ae187f"
   ],
   "headpat": [
+   "1b8afef63dbc2a388e853f42298f6ce1",
    "4b971024ba64ee8cad23c732225d95d1",
-   "1b8afef63dbc2a388e853f42298f6ce1"
+   "5ca625494759c0147384880989e40c17"
   ],
   "hiking": [
+   "cf649643c7ea188af4ece6c5136e44b0",
    "4b13af1ea173008b98c2469897a35392",
-   "cf649643c7ea188af4ece6c5136e44b0"
+   "e5dac6eeb872c8f5a5102fcf09f72376"
   ],
   "hold_hands": [
+   "7a45591c0ea17ef1ef387ea668548026",
    "22af7cc78f82e0a4910cced5d9117053",
-   "7a45591c0ea17ef1ef387ea668548026"
+   "27d6df3c49ae7f51b25d3cd2499e6529"
   ],
   "hug": [
+   "4fcb3213d38e5b1717e1c2d992cf4051",
    "e912d644c5ca8a9ff3fff955183b95b5",
-   "4fcb3213d38e5b1717e1c2d992cf4051"
+   "4973505112227bea5e175494148e6ab0"
   ],
   "invest_buy": [
-   "40435123f7d34748817a4d4f5f5d8e16"
+   "40435123f7d34748817a4d4f5f5d8e16",
+   "2c5711ff63775e81579344ecf899b802"
   ],
   "invest_sell": [
-   "1966db8c9931113cfa7f9fd42fcca76b"
+   "1966db8c9931113cfa7f9fd42fcca76b",
+   "af943e222290034c6219d6693586adfd"
   ],
   "leave_alone": [
    "c9e55b90f2ffd00ffaba1a566afc2874"
@@ -118,15 +158,18 @@
    "f12ef173b04d6dd7838dabf355754c3e"
   ],
   "message": [
-   "479a359e6a27e9804b99cae91c69765d"
+   "479a359e6a27e9804b99cae91c69765d",
+   "69f12744fe599f673d09459e3b171b90"
   ],
   "movie": [
+   "3913ed8cfda23c024c771ed15be0dcde",
    "e002d58b2e9487d3c5d7b28ca5e6c419",
-   "3913ed8cfda23c024c771ed15be0dcde"
+   "a565d64ffdb181d9c39a9b27cbb0226c"
   ],
   "nurse": [
+   "16f1e1a37221e8d830e5060acf8d719a",
    "f6e67d047d17753e749f8a4159c8276c",
-   "16f1e1a37221e8d830e5060acf8d719a"
+   "f9938104f9c7fdc0121295f13412cb25"
   ],
   "peek_face": [
    "f847ddde9c5336620753bde1b54f7479"
@@ -135,63 +178,75 @@
    "88743a44be610bd5e0b754ab10f13e21"
   ],
   "picnic": [
+   "cbf6ff5c98eb40cfd93d300bd5621d41",
    "b90384aab52c6097d2454b869ec373fb",
-   "cbf6ff5c98eb40cfd93d300bd5621d41"
+   "b1b4d7f2f62c9d8903ec36dd57b3a1f5"
   ],
   "praise": [
+   "8899358cb6f8a941def43a278a8e1838",
    "3e2c9d1524284fb316f6c5ff46c56106",
-   "8899358cb6f8a941def43a278a8e1838"
+   "4021eb1993ee93d21d8002942b43f992"
   ],
   "shopping": [
+   "d1c3297284c2c1ed66ebac645280b2ee",
    "63aa96df7c1130d427c079542a9ae9f5",
    "8aead86f573387c220ae1172973389c8",
-   "d1c3297284c2c1ed66ebac645280b2ee"
+   "2f0c80072620e0c10455fb5510ae471d"
   ],
   "side_job": [
-   "46fe4e20c406762a07f2f261c79eb9a3"
+   "46fe4e20c406762a07f2f261c79eb9a3",
+   "3a047f3e4799c6541f71b1a699de06ae"
   ],
   "sleep_together": [
+   "492693c59942f2c2dec4b1053907b845",
    "248aa5ec38842e735939f2d810bda6ac",
-   "492693c59942f2c2dec4b1053907b845"
+   "9c9f3ceb703695ec490625cc38a402ef"
   ],
   "sleeping_face": [
    "a27ddbbe1360b9b35353a0a4d14252b6"
   ],
   "snack": [
+   "3669804c6a6df0627a63ba0f4221ad8a",
    "5d95c1bce1ce188eaeac7398adbeaf37",
-   "3669804c6a6df0627a63ba0f4221ad8a"
+   "5067fc4ddf8fb68f823bdd4e4ea3321c"
   ],
   "stare": [
    "2ac1e5154cdf01db146e70c13b4de351"
   ],
   "stargazing": [
+   "41ad92ff37150180c9472fe856b03f38",
    "84ff2ee3e59c268272c0ce470aac25f9",
-   "41ad92ff37150180c9472fe856b03f38"
+   "2e29ce6979ece33560df9197f5d98f04"
   ],
   "talk": [
+   "2931d4888f4f87c8b59b79a5985dd07e",
    "210b7f6a4cab2c0e47d78888134c3f64",
-   "2931d4888f4f87c8b59b79a5985dd07e"
+   "5da30efe21feec7c2017b38d343fcf81"
   ],
   "tea": [
+   "aae0edf3631c093cfc90afca23bc24c0",
    "14b58122494060d66d1dac8add519cc8",
-   "aae0edf3631c093cfc90afca23bc24c0"
+   "fe17bcfd3d51f692ea8568477afa9ae2"
   ],
   "tease": [
+   "6d576c8eb56aa22853267e4f61feab23",
    "88c454701ffd378392d5edfb9422808b",
-   "6d576c8eb56aa22853267e4f61feab23"
+   "db90febf5f285e5e062b5793a5b74a93"
   ],
   "tuck_in": [
-   "ed9b2ea09e413091b57b7d45896336f1"
+   "ed9b2ea09e413091b57b7d45896336f1",
+   "a504e0dbda45df2339493435090378a1"
   ],
   "wake": [
+   "a6e64f618891d528db3e372ebf78ba04",
    "18640150ad933fa369ce0a92b2f08d87",
-   "14e5a3e9e00c5d67cef252e8a61065de",
-   "a6e64f618891d528db3e372ebf78ba04"
+   "14e5a3e9e00c5d67cef252e8a61065de"
   ],
   "walk": [
+   "5c2026246ecb516c19fb7c8df3a92be5",
    "59e706ac207164db48dfd9597321c6ca",
    "883482f0014371273fe7ab1ef6b07e36",
-   "5c2026246ecb516c19fb7c8df3a92be5"
+   "ade1a91a005ff5347f2dde17777e2a7f"
   ],
   "watch_quietly": [
    "4107280be8757789d23e8ef17112681d"
@@ -200,7 +255,55 @@
    "2c4ba636c863cdb87f6d3c7bc0b4e169"
   ],
   "work": [
-   "b976df959d8812c5eb6e204c22c434e3"
+   "b976df959d8812c5eb6e204c22c434e3",
+   "f85e806d937693a7fe14c50b183e3b87"
+  ]
+ },
+ "approaches": {
+  "bored": [
+   "1109a6493520cd806d4fbbfcb6080647"
+  ],
+  "chat": [
+   "464c01327a2333786f749845495efb62"
+  ],
+  "coffee": [
+   "5a34ff91caf08fadde04550f9255ddc5"
+  ],
+  "cook_for": [
+   "030cd2bd75b68e9361d9a4c25f7b22fa"
+  ],
+  "good_news": [
+   "ae26b283c2ebe9de6f9df1010525f207"
+  ],
+  "lean": [
+   "dc8516a521f4937a381b3f8497b16d5d"
+  ],
+  "lonely": [
+   "98325b9b80648caedcbd31ea8261eb21"
+  ],
+  "peek_work": [
+   "72e511fb244f71cb05206e3c0ff7ac36"
+  ],
+  "play": [
+   "a5be0d343eef11772c97630eab17f9ec"
+  ],
+  "show": [
+   "84b3475efb2a680730fa5a3b7e0d998b"
+  ],
+  "sleepy": [
+   "28a11b1f694344278f48dfa3620a8cf1"
+  ],
+  "sulk": [
+   "9f46d370da0e3610fc460bcf96d5d6b4"
+  ],
+  "tea": [
+   "eee7b401544aa3234ac901faf3c00567"
+  ],
+  "vent": [
+   "74165d2902033283c0021433efc41f30"
+  ],
+  "walk_invite": [
+   "4c5e2d76f63f8887c341e8edc9420d1f"
   ]
  },
  "events": {

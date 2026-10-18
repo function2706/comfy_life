@@ -420,9 +420,32 @@
     "priority": 1,
     "pos": "smile, blush",
     "neg": ""
+   },
+   {
+    "text": "（話が弾んで、気づけば一時間も話し込んでいた）",
+    "when": "sk_talk>=65, roll<35",
+    "pos": "laughing, smile, looking at viewer",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 4,
+     "affection": 1
+    }
+   },
+   {
+    "text": "……（会話が続かず、微妙な沈黙が流れた）",
+    "when": "sk_talk<20, roll<35",
+    "pos": "awkward, looking away",
+    "neg": "",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "boredom": -3
+    }
    }
   ],
-  "reason_good": "{call}とたくさんおしゃべりした"
+  "reason_good": "{call}とたくさんおしゃべりした",
+  "skill": "talk"
  },
  {
   "id": "greet",
@@ -475,7 +498,8 @@
     "pos": "laughing",
     "neg": ""
    }
-  ]
+  ],
+  "skill": "talk"
  },
  {
   "id": "praise",
@@ -524,7 +548,8 @@
     "neg": "smile"
    }
   ],
-  "reason_good": "{call}に褒められた"
+  "reason_good": "{call}に褒められた",
+  "skill": "talk"
  },
  {
   "id": "tease",
@@ -568,7 +593,8 @@
    }
   ],
   "reason_good": "{call}とじゃれあった",
-  "reason_bad": "{call}にからかわれた"
+  "reason_bad": "{call}にからかわれた",
+  "skill": "talk"
  },
  {
   "id": "stare",
@@ -669,7 +695,8 @@
     "override": true,
     "effects": {}
    }
-  ]
+  ],
+  "skill": "talk"
  },
  {
   "id": "apologize",
@@ -733,7 +760,8 @@
      "mood": 3
     }
    }
-  ]
+  ],
+  "skill": "talk"
  },
  {
   "id": "comfort",
@@ -792,7 +820,8 @@
      "mood": -5
     }
    }
-  ]
+  ],
+  "skill": "talk"
  },
  {
   "id": "leave_alone",
@@ -880,9 +909,20 @@
     "priority": 3,
     "pos": "sleeping, smile",
     "neg": ""
+   },
+   {
+    "text": "ふにゃ……{call}の撫で方、落ち着きます……",
+    "when": "sk_touch>=60, roll<50",
+    "pos": "eyes closed, blush, relaxed smile",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 5
+    }
    }
   ],
-  "reason_good": "{call}に頭をなでてもらった"
+  "reason_good": "{call}に頭をなでてもらった",
+  "skill": "touch"
  },
  {
   "id": "hug",
@@ -936,10 +976,23 @@
     },
     "pos": "flustered, raised hands, stepping back",
     "neg": "hug"
+   },
+   {
+    "text": "ひゃっ……！ い、いきなりはびっくりします……",
+    "when": "sk_touch<20, affection<50, roll<50",
+    "pos": "surprised, blush, stiff",
+    "neg": "",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "shyness": 10,
+     "mood": -2
+    }
    }
   ],
   "reason_good": "{call}にぎゅってしてもらった",
-  "reason_bad": "{call}にいきなり抱きつかれた"
+  "reason_bad": "{call}にいきなり抱きつかれた",
+  "skill": "touch"
  },
  {
   "id": "hold_hands",
@@ -981,7 +1034,8 @@
     "neg": "holding hands"
    }
   ],
-  "reason_good": "{call}と手をつないだ"
+  "reason_good": "{call}と手をつないだ",
+  "skill": "touch"
  },
  {
   "id": "cook",
@@ -1028,11 +1082,37 @@
     },
     "pos": "",
     "neg": ""
+   },
+   {
+    "text": "……ちょっと焦げてますね。でも、{call}が作ってくれたので全部食べます！",
+    "when": "sk_cook<30, roll<45",
+    "pos": "awkward smile, eating",
+    "neg": "",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "satiety": 40,
+     "mood": 2,
+     "affection": 2
+    }
+   },
+   {
+    "text": "なにこれ、お店の味……！ {call}、すごすぎます！",
+    "when": "sk_cook>=70, roll<50",
+    "pos": "sparkling eyes, eating, happy",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 5,
+     "affection": 2
+    }
    }
   ],
   "cost": 800,
   "payer": "me",
-  "reason_good": "{call}がご飯を作ってくれた"
+  "reason_good": "{call}がご飯を作ってくれた",
+  "home_only": true,
+  "skill": "cook"
  },
  {
   "id": "tea",
@@ -1072,7 +1152,9 @@
     "neg": ""
    }
   ],
-  "reason_good": "{call}がお茶を淹れてくれた"
+  "reason_good": "{call}がお茶を淹れてくれた",
+  "home_only": true,
+  "skill": "cook"
  },
  {
   "id": "snack",
@@ -1112,10 +1194,22 @@
     },
     "pos": "holding cookie, apologetic smile",
     "neg": "eating"
+   },
+   {
+    "text": "ん……ちょっと甘すぎ、かも？ ふふ、でもうれしいです。",
+    "when": "sk_cook<25, roll<40",
+    "pos": "awkward smile",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -2
+    }
    }
   ],
   "cost": 300,
-  "payer": "me"
+  "payer": "me",
+  "home_only": true,
+  "skill": "cook"
  },
  {
   "id": "water",
@@ -1196,7 +1290,8 @@
     "pos": "tilted head, confused",
     "neg": "holding towel"
    }
-  ]
+  ],
+  "home_only": true
  },
  {
   "id": "nurse",
@@ -1229,7 +1324,8 @@
     "neg": ""
    }
   ],
-  "reason_good": "{call}が看病してくれた"
+  "reason_good": "{call}が看病してくれた",
+  "home_only": true
  },
  {
   "id": "tuck_in",
@@ -1278,7 +1374,8 @@
     "pos": "blush, reaching out",
     "neg": ""
    }
-  ]
+  ],
+  "home_only": true
  },
  {
   "id": "sleep_together",
@@ -1338,7 +1435,9 @@
     "neg": "lying on side"
    }
   ],
-  "reason_good": "{call}と一緒に寝た"
+  "reason_good": "{call}と一緒に寝た",
+  "home_only": true,
+  "skill": "touch"
  },
  {
   "id": "wake",
@@ -1445,7 +1544,8 @@
     "neg": "game controller, excited"
    }
   ],
-  "reason_good": "{call}とゲームで遊んだ"
+  "reason_good": "{call}とゲームで遊んだ",
+  "home_only": true
  },
  {
   "id": "movie",
@@ -1494,7 +1594,8 @@
     "neg": ""
    }
   ],
-  "reason_good": "{call}と映画を観た"
+  "reason_good": "{call}と映画を観た",
+  "home_only": true
  },
  {
   "id": "clean",
@@ -1528,7 +1629,8 @@
     "pos": "tired, sitting",
     "neg": "broom"
    }
-  ]
+  ],
+  "home_only": true
  },
  {
   "id": "photo",
@@ -1642,7 +1744,8 @@
     "neg": "walking, outdoors"
    }
   ],
-  "reason_good": "{call}と散歩した"
+  "reason_good": "{call}と散歩した",
+  "home_only": true
  },
  {
   "id": "shopping",
@@ -1689,7 +1792,8 @@
    }
   ],
   "cost": 3000,
-  "reason_good": "{call}と買い物に行った"
+  "reason_good": "{call}と買い物に行った",
+  "home_only": true
  },
  {
   "id": "date",
@@ -1752,7 +1856,8 @@
    }
   ],
   "cost": 8000,
-  "reason_good": "{call}とデートした"
+  "reason_good": "{call}とデートした",
+  "home_only": true
  },
  {
   "id": "picnic",
@@ -1814,7 +1919,8 @@
    }
   ],
   "cost": 1000,
-  "reason_good": "{call}とピクニックに行った"
+  "reason_good": "{call}とピクニックに行った",
+  "home_only": true
  },
  {
   "id": "hiking",
@@ -1878,7 +1984,8 @@
    }
   ],
   "cost": 1000,
-  "reason_good": "{call}と山に登った"
+  "reason_good": "{call}と山に登った",
+  "home_only": true
  },
  {
   "id": "beach",
@@ -1940,7 +2047,8 @@
    }
   ],
   "cost": 2000,
-  "reason_good": "{call}と海に行った"
+  "reason_good": "{call}と海に行った",
+  "home_only": true
  },
  {
   "id": "amusement",
@@ -1996,7 +2104,8 @@
    }
   ],
   "cost": 7000,
-  "reason_good": "{call}と遊園地に行った"
+  "reason_good": "{call}と遊園地に行った",
+  "home_only": true
  },
  {
   "id": "aquarium",
@@ -2048,7 +2157,8 @@
    }
   ],
   "cost": 4000,
-  "reason_good": "{call}と水族館に行った"
+  "reason_good": "{call}と水族館に行った",
+  "home_only": true
  },
  {
   "id": "cafe",
@@ -2106,7 +2216,8 @@
    }
   ],
   "cost": 2000,
-  "reason_good": "{call}とカフェに行った"
+  "reason_good": "{call}とカフェに行った",
+  "home_only": true
  },
  {
   "id": "stargazing",
@@ -2156,7 +2267,8 @@
     "priority": 1
    }
   ],
-  "reason_good": "{call}と星を見た"
+  "reason_good": "{call}と星を見た",
+  "home_only": true
  },
  {
   "id": "go_home",
@@ -2264,7 +2376,8 @@
     "pos": "laughing",
     "neg": ""
    }
-  ]
+  ],
+  "skill": "talk"
  },
  {
   "id": "call",
@@ -2298,24 +2411,370 @@
     "pos": "whispering, covering mouth, surprised",
     "neg": "smile"
    }
+  ],
+  "skill": "talk"
+ },
+ {
+  "id": "go_busy",
+  "name": "ちょっと作業するね",
+  "icon": "🖥",
+  "category": "あなたの予定",
+  "when": "presence=here|idle",
+  "cooldown": 0,
+  "presence_set": "busy",
+  "generate": false,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "はーい。がんばってくださいね。",
+    "when": "",
+    "pos": "smile, looking at viewer",
+    "neg": ""
+   },
+   {
+    "text": "えー……。終わったら、ちゃんと構ってくださいね？",
+    "when": "loneliness>=70",
+    "pos": "pouting, looking at viewer",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "loneliness": 3
+    }
+   },
+   {
+    "text": "邪魔しないので……隣にいてもいいですか？",
+    "when": "affection>=75, loneliness>=50",
+    "pos": "sitting next to viewer, blush",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（{name}は眠っている。静かに作業を始めた）",
+    "when": "asleep=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "（{name}は出かけている。今のうちに作業を片づけよう）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   }
+  ]
+ },
+ {
+  "id": "go_work",
+  "name": "仕事に行ってくる",
+  "icon": "💼",
+  "category": "あなたの予定",
+  "when": "presence=here|idle|busy, outing=false",
+  "cooldown": 0,
+  "presence_set": "work",
+  "effects": {},
+  "pos": "entrance, seeing off, waving",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "いってらっしゃい！ 気をつけてくださいね。",
+    "when": "",
+    "pos": "smile, waving",
+    "neg": ""
+   },
+   {
+    "text": "……早く帰ってきてくださいね？",
+    "when": "loneliness>=70",
+    "pos": "sad smile, waving",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "いってらっしゃい！ 晩ごはん、楽しみにしてますね。",
+    "when": "affection>=70, phase=morning|noon",
+    "pos": "happy, waving",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（{name}を起こさないよう、そっと家を出た）",
+    "when": "asleep=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "（{name}は出かけている。書き置きを残して家を出た）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   }
+  ]
+ },
+ {
+  "id": "go_out",
+  "name": "ちょっと出かけてくる",
+  "icon": "🚪",
+  "category": "あなたの予定",
+  "when": "presence=here|idle|busy, outing=false",
+  "cooldown": 0,
+  "presence_set": "out",
+  "effects": {},
+  "pos": "entrance, seeing off",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "いってらっしゃい。どこ行くんですか？",
+    "when": "",
+    "pos": "smile, tilting head",
+    "neg": ""
+   },
+   {
+    "text": "一人で行っちゃうんですか……？ 早く帰ってきてくださいね。",
+    "when": "loneliness>=70",
+    "pos": "sad, looking at viewer",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "loneliness": 3
+    }
+   },
+   {
+    "text": "（{name}を起こさないよう、そっと出かけた）",
+    "when": "asleep=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "（{name}も出かけている。戸締まりをして家を出た）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   }
+  ]
+ },
+ {
+  "id": "go_sleep",
+  "name": "先に寝るね",
+  "icon": "🌙",
+  "category": "あなたの予定",
+  "when": "presence=here|idle|busy, phase=night|midnight|dawn",
+  "cooldown": 0,
+  "presence_set": "sleep",
+  "effects": {},
+  "pos": "night, dim light, smile",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "おやすみなさい、{call}。",
+    "when": "",
+    "pos": "smile, looking at viewer",
+    "neg": ""
+   },
+   {
+    "text": "もう寝ちゃうんですか？ ……おやすみなさい。",
+    "when": "sleepiness<40, free=true",
+    "pos": "pouting, smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "おやすみなさい。……いい夢を。",
+    "when": "affection>=70",
+    "pos": "gentle smile, blush",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（{name}の寝顔を確かめてから、眠りについた）",
+    "when": "asleep=true",
+    "pos": "sleeping",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   }
+  ]
+ },
+ {
+  "id": "go_leave",
+  "name": "またね（そばを離れる）",
+  "icon": "👋",
+  "category": "あなたの予定",
+  "when": "presence=here|idle|busy",
+  "cooldown": 0,
+  "presence_set": "left",
+  "effects": {},
+  "pos": "waving, looking at viewer",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "はい、またね。……待ってますから。",
+    "when": "",
+    "pos": "smile, waving",
+    "neg": ""
+   },
+   {
+    "text": "もう行っちゃうんですか……？ 早く戻ってきてくださいね。",
+    "when": "loneliness>=70",
+    "pos": "sad, waving",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "loneliness": 3
+    }
+   },
+   {
+    "text": "はーい！ またあとで！",
+    "when": "mood>=70, affection>=60",
+    "pos": "happy, waving",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "（眠っている{name}に小さく手を振って、そばを離れた）",
+    "when": "asleep=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "（{name}は出かけている。またあとで来よう）",
+    "when": "away=true",
+    "pos": "",
+    "neg": "",
+    "priority": 3,
+    "override": true
+   }
+  ]
+ },
+ {
+  "id": "_back",
+  "name": "戻る",
+  "icon": "🏠",
+  "category": "system",
+  "when": "",
+  "cooldown": 0,
+  "effects": {
+   "loneliness": -8
+  },
+  "pos": "smile, looking at viewer",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "おかえりなさい、{call}。",
+    "when": "",
+    "pos": "smile, looking at viewer",
+    "neg": ""
+   },
+   {
+    "text": "作業、終わりました？ お疲れさまです。",
+    "when": "left_mode=busy",
+    "pos": "smile",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "やっと終わったんですね！ ……待ってたんですよ？",
+    "when": "left_mode=busy, loneliness>=60",
+    "pos": "happy, leaning forward",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "おかえりなさい。どこ行ってたんですか？",
+    "when": "left_mode=out",
+    "pos": "smile, tilting head",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "遅かったですね……ちょっと心配しました。",
+    "when": "left_mode=out, left_h>=6",
+    "pos": "worried, relieved",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "おはようございます、{call}。よく眠れました？",
+    "when": "left_mode=sleep",
+    "pos": "morning, smile, sleepy",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "おかえりなさい！ 待ってました。",
+    "when": "left_mode=left",
+    "pos": "happy, smile, waving",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……久しぶりですね。ずっと待ってたんですよ。",
+    "when": "left_mode=left, left_h>=24",
+    "pos": "teary eyes, smile",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": -15
+    }
+   },
+   {
+    "text": "一週間も……。もう来ないのかと思いました。",
+    "when": "left_mode=left, left_h>=168",
+    "pos": "teary eyes, hugging pillow",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "affection": -3,
+     "mood": -5,
+     "loneliness": -20
+    }
+   },
+   {
+    "text": "おかえりなさい！ ……あのね、{call}がいない間に、{away_text}んです。",
+    "when": "left_h>=3, away_events>=1",
+    "pos": "smile, looking at viewer",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "（{name}はまだ眠っている）",
+    "when": "asleep=true",
+    "pos": "sleeping",
+    "neg": "",
+    "priority": 4,
+    "override": true
+   },
+   {
+    "text": "📱『おかえりなさい！ {fp}はいま{location}です』",
+    "when": "away=true",
+    "pos": "holding phone, smile",
+    "neg": "",
+    "priority": 4
+   }
   ]
  },
  {
   "id": "work",
-  "name": "働きに行く",
+  "name": "仕事から帰る",
   "icon": "💼",
-  "category": "お金",
+  "category": "system",
   "when": "",
-  "cooldown": 240,
-  "earn": {
-   "p": [
-    6000,
-    12000
-   ]
-  },
+  "cooldown": 0,
   "effects": {
-   "loneliness": 12,
-   "boredom": 8
+   "loneliness": -10
   },
   "pos": "entrance, welcoming, smile",
   "neg": "",
@@ -2346,6 +2805,24 @@
     "pos": "",
     "neg": "",
     "priority": 3
+   },
+   {
+    "text": "あれ？ もう帰ってきたんですか？ 忘れ物ですか？",
+    "when": "work_h<0.25",
+    "pos": "surprised, tilting head",
+    "neg": "",
+    "priority": 4,
+    "override": true
+   },
+   {
+    "text": "遅くまでお疲れさまでした……。ずっと待ってたんですよ？",
+    "when": "work_h>=8",
+    "pos": "relieved, smile, teary eyes",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": -10
+    }
    }
   ]
  },
@@ -2355,13 +2832,7 @@
   "icon": "🧵",
   "category": "お金",
   "when": "",
-  "cooldown": 60,
-  "earn": {
-   "p": [
-    1500,
-    3000
-   ]
-  },
+  "cooldown": 30,
   "effects": {
    "boredom": -3
   },
@@ -2380,17 +2851,33 @@
     "pos": "",
     "neg": "",
     "priority": 1
+   },
+   {
+    "text": "すごい手際ですね……！ {amount}円も？",
+    "when": "task_ok>=45, free=true",
+    "pos": "surprised, clapping",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……ちょっと雑じゃないですか？ ふふ、ミスが{ng}個も。",
+    "when": "task_ng>=8, free=true",
+    "pos": "teasing smile",
+    "neg": "",
+    "priority": 1
    }
-  ]
+  ],
+  "home_only": true,
+  "generate": false,
+  "no_llm": true
  },
  {
   "id": "invest_buy",
-  "name": "投資する",
+  "name": "株を買う",
   "icon": "📈",
-  "category": "お金",
-  "when": "my_money>=10000",
+  "category": "system",
+  "when": "",
   "cooldown": 0,
-  "invest": "buy",
   "generate": false,
   "no_llm": true,
   "effects": {},
@@ -2398,7 +2885,7 @@
   "neg": "",
   "reactions": [
    {
-    "text": "（{amount}円分、投資した）",
+    "text": "（{asset}を{qty}株、{amount}円で買った）",
     "when": "",
     "pos": "",
     "neg": ""
@@ -2413,12 +2900,11 @@
  },
  {
   "id": "invest_sell",
-  "name": "投資を売る",
+  "name": "株を売る",
   "icon": "💹",
-  "category": "お金",
-  "when": "invest_value>0",
+  "category": "system",
+  "when": "",
   "cooldown": 0,
-  "invest": "sell",
   "generate": false,
   "no_llm": true,
   "effects": {},
@@ -2667,7 +3153,8 @@
     "pos": "looking away, annoyed",
     "neg": "smile"
    }
-  ]
+  ],
+  "home_only": true
  },
  {
   "id": "_return",
@@ -2738,6 +3225,20 @@
      "affection": -5,
      "mood": -10,
      "loneliness": -20
+    }
+   },
+   {
+    "text": "……何も言わずに、どこ行ってたんですか。ちょっと寂しかったです。",
+    "when": "said=false, absent>=3, loneliness>=60",
+    "pos": "pouting, sad, looking at viewer",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": -3
+    },
+    "reason": {
+     "mood": "bad",
+     "tell": "{call}が何も言わずにいなくなった"
     }
    }
   ]

@@ -32,7 +32,9 @@ def main():
 
         # ---- 稼ぐ・渡す・借りる・投資
         m0 = me()
-        r = app.act("work")
+        app.act("go_work")
+        app.presence.rec()["since"] -= 3 * 3600        # 3 時間働いたことにする
+        r = app.come_back()
         assert me() > m0 and r["entry"]["money"]["p"] > 0
         print("work:", r["entry"]["money"], r["entry"]["text"])
         m0, h0 = me(), her()
@@ -41,12 +43,12 @@ def main():
         m0, h0 = me(), her()
         r = app.act("borrow")
         print("borrow:", r["entry"]["text"], r["entry"].get("money"))
-        app.act("invest_buy")
-        assert L.player_state()["units"] > 0
-        L.player_state()["price"] *= 1.1          # 値上がりしたことにする
-        r = app.act("invest_sell")
+        app.trade("idx", 10)
+        assert L.player_state()["market"]["holdings"]["idx"]["qty"] == 10
+        L.player_state()["market"]["assets"]["idx"]["price"] *= 1.1          # 値上がりしたことにする
+        r = app.trade("idx", -10)
         print("invest:", r["entry"]["text"], r["entry"].get("money"))
-        assert L.player_state()["units"] == 0
+        assert "idx" not in L.player_state()["market"]["holdings"] and r["entry"]["money"]["p"] > 0
 
         # ---- お出かけの支払い方針
         for pol in ("me", "split", "her"):
@@ -127,8 +129,8 @@ def main():
         r = app.visit()
         print("おかえり:", r["entry"]["text"])
         print("留守中のお金: あなた %+d" % (me() - m0))
-        assert "猫" in r["entry"]["text"] or "久しぶり" in r["entry"]["text"], r["entry"]["text"]
-        assert me() - m0 >= 3000 - 3000, "日をまたいだ収入"
+        assert any(w in r["entry"]["text"] for w in ("猫", "久しぶり", "留守", "いない間")), r["entry"]["text"]
+        assert me() - m0 >= 1000 - 3000, "日をまたいだ収入 (日給 - 生活費)"
         v = app.state_view()["life"]
         print("view:", {k: v[k] for k in ("my_money", "her_money", "pay_policy", "hint")}, [x["tell"] for x in v["reasons"]])
         for e in app.log("hina"):

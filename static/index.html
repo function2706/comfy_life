@@ -59,21 +59,31 @@
         <div class="tags" id="who-tags"></div>
       </div>
     </div>
+    <div class="approach-box" id="approach-box" hidden></div>
     <div class="request-box" id="request-box" hidden></div>
     <nav class="tabs" id="tabs">
       <button data-tab="commands" class="on">コマンド</button>
       <button data-tab="dress">着せ替え</button>
       <button data-tab="games">ゲーム</button>
+      <button data-tab="money">お金</button>
       <button data-tab="status">ステータス</button>
       <button data-tab="log">ログ</button>
     </nav>
     <div class="tab-body" id="tab-commands"></div>
     <div class="tab-body" id="tab-dress" hidden></div>
     <div class="tab-body" id="tab-games" hidden></div>
+    <div class="tab-body" id="tab-money" hidden></div>
     <div class="tab-body" id="tab-status" hidden></div>
     <div class="tab-body" id="tab-log" hidden></div>
   </aside>
 </main>
+
+<div class="away-overlay" id="away-overlay" hidden></div>
+
+<dialog class="modal task-dlg" id="task-dlg">
+  <div class="modal-head"><b>内職</b><span class="muted small" id="task-sub"></span><div class="spacer"></div><button class="btn ghost" id="task-close">✕</button></div>
+  <div class="task-body" id="task-body"></div>
+</dialog>
 
 <div class="drawer" id="prompt-drawer" hidden>
   <div class="drawer-head">
@@ -117,6 +127,7 @@
       <button data-sec="actions">コマンド</button>
       <button data-sec="minigames">ミニゲーム</button>
       <button data-sec="events">キャラの出来事</button>
+      <button data-sec="approaches">キャラからの働きかけ</button>
       <button data-sec="params">パラメータ</button>
       <button data-sec="comfy">画像生成 (ComfyUI)</button>
       <button data-sec="prompt">共通プロンプト・時間帯</button>

@@ -3,20 +3,143 @@
  "economy": {
   "start_money_player": 30000,
   "start_money_her": 20000,
-  "player_daily_income": 3000,
+  "player_daily_income": 1000,
   "her_daily_income": 2500,
   "living_cost_per_day": 3000,
-  "invest_unit": 10000,
-  "invest_drift": 0.00003,
-  "invest_vol": 0.004,
-  "event_rate_per_hour": 0.08
+  "event_rate_per_hour": 0.08,
+  "work_wage_per_hour": 1200,
+  "work_max_hours": 9,
+  "side_job_unit": 15,
+  "news_rate_per_hour": 0.12,
+  "news_accuracy": 0.7,
+  "news_bias": 0.0005,
+  "news_hours": [
+   6,
+   18
+  ],
+  "assets": [
+   {
+    "id": "idx",
+    "name": "くらしインデックス",
+    "icon": "📊",
+    "price": 1000,
+    "vol": 0.0015,
+    "drift": 2e-05,
+    "desc": "いろいろな会社をまとめた投資信託。値動きは小さい"
+   },
+   {
+    "id": "food",
+    "name": "まんぷく食品",
+    "icon": "🍙",
+    "price": 2400,
+    "vol": 0.0025,
+    "drift": 1e-05,
+    "desc": "食品メーカー。景気に左右されにくい"
+   },
+   {
+    "id": "tech",
+    "name": "ミライ電機",
+    "icon": "🔌",
+    "price": 5200,
+    "vol": 0.004,
+    "drift": 2e-05,
+    "desc": "電機メーカー。新製品しだいで大きく動く"
+   },
+   {
+    "id": "game",
+    "name": "ピコピコ堂",
+    "icon": "🎮",
+    "price": 800,
+    "vol": 0.006,
+    "drift": 0.0,
+    "desc": "ゲーム会社。ヒット作が出るかどうかの博打"
+   }
+  ],
+  "news": {
+   "up": [
+    "{name}、新製品の評判が上々",
+    "{name}、大口の取引が決まったとの噂",
+    "{name}の決算、予想を上回る見込み",
+    "{name}に追い風、関連の需要が急増",
+    "アナリストが{name}を「買い」と評価"
+   ],
+   "down": [
+    "{name}、新製品の発売延期を発表",
+    "{name}に不祥事の報道",
+    "{name}、原材料の値上がりが重荷に",
+    "{name}の決算、予想を下回る見込み",
+    "{name}のライバル社が強力な新製品"
+   ]
+  }
  },
  "phases": [
-  {"id": "dawn", "label": "早朝", "from": "04:00", "to": "06:00", "pos": "dawn, early morning, pale blue light", "neg": ""},
-  {"id": "morning", "label": "朝", "from": "06:00", "to": "10:00", "pos": "morning, soft sunlight", "neg": ""},
-  {"id": "noon", "label": "昼", "from": "10:00", "to": "16:00", "pos": "daytime, bright", "neg": ""},
-  {"id": "evening", "label": "夕方", "from": "16:00", "to": "19:00", "pos": "evening, sunset, orange light", "neg": ""},
-  {"id": "night", "label": "夜", "from": "19:00", "to": "23:00", "pos": "night, warm indoor lighting", "neg": ""},
-  {"id": "midnight", "label": "深夜", "from": "23:00", "to": "04:00", "pos": "late night, dark, dim light", "neg": ""}
- ]
+  {
+   "id": "dawn",
+   "label": "早朝",
+   "from": "04:00",
+   "to": "06:00",
+   "pos": "dawn, early morning, pale blue light",
+   "neg": ""
+  },
+  {
+   "id": "morning",
+   "label": "朝",
+   "from": "06:00",
+   "to": "10:00",
+   "pos": "morning, soft sunlight",
+   "neg": ""
+  },
+  {
+   "id": "noon",
+   "label": "昼",
+   "from": "10:00",
+   "to": "16:00",
+   "pos": "daytime, bright",
+   "neg": ""
+  },
+  {
+   "id": "evening",
+   "label": "夕方",
+   "from": "16:00",
+   "to": "19:00",
+   "pos": "evening, sunset, orange light",
+   "neg": ""
+  },
+  {
+   "id": "night",
+   "label": "夜",
+   "from": "19:00",
+   "to": "23:00",
+   "pos": "night, warm indoor lighting",
+   "neg": ""
+  },
+  {
+   "id": "midnight",
+   "label": "深夜",
+   "from": "23:00",
+   "to": "04:00",
+   "pos": "late night, dark, dim light",
+   "neg": ""
+  }
+ ],
+ "presence": {
+  "_note": "あなたの在席状態ごとの, キャラのパラメータ変化 (1時間あたり). here=そばで構っている, idle=そばにいるが放置, busy=作業中と告げて在宅",
+  "effects": {
+   "here": {
+    "loneliness": -3,
+    "boredom": -1
+   },
+   "idle": {
+    "loneliness": -1.5
+   },
+   "busy": {
+    "loneliness": -0.8
+   }
+  },
+  "idle_minutes": 10,
+  "gone_minutes": 5,
+  "approach_rate_per_hour": 0.8,
+  "approach_wait_minutes": 15,
+  "approach_quiet_minutes": 20
+ }
 }

@@ -162,7 +162,10 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <a href="#command">コマンドと反応</a>
   <a href="#image">画像ができるまで</a>
   <a href="#mood">機嫌の理由</a>
-  <a href="#money">お金</a>
+  <a href="#presence">そばにいる・離れる</a>
+  <a href="#approach">キャラからの働きかけ</a>
+  <a href="#money">お金（仕事・内職・株）</a>
+  <a href="#skills">あなたのスキル</a>
   <a href="#dress">着せ替え・お出かけ</a>
   <a href="#games">ミニゲーム</a>
   <a href="#persona">性格・セリフ</a>
@@ -219,8 +222,8 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div><span class="n">5</span><span><b>画像の操作</b>：💬会話欄を隠す、🎲同じプロンプトの別の画像、⟳新しく生成、📷今の様子を撮る、🧩プロンプトを見る・編集。</span></div>
   <div><span class="n">6</span><span><b>会話欄</b>：セリフと、その行動で変わったパラメータを表示します。文字送り中にクリックすると全文が出ます。</span></div>
   <div><span class="n">7</span><span><b>キャラの様子</b>：表情、場面、状態タグです。「💭」は、まだ聞いていない出来事があるという印です。</span></div>
-  <div><span class="n">8</span><span><b>お願い</b>：キャラからのおねだりや申し出です。ここで答えます。</span></div>
-  <div><span class="n">9</span><span><b>タブ</b>：コマンド、着せ替え、ゲーム、ステータス（パラメータ・機嫌の理由・お金）、ログ。</span></div>
+  <div><span class="n">8</span><span><b>お願い・働きかけ</b>：キャラからのおねだりや、話しかけてきたことです。ここで答えます。</span></div>
+  <div><span class="n">9</span><span><b>タブ</b>：コマンド、着せ替え、ゲーム、お金（財布・稼ぐ・株）、ステータス（パラメータ・機嫌の理由・あなたのスキル）、ログ。</span></div>
 </div>
 <p>会話欄が画像に被るときは、<a href="#keys">隠す操作</a>を使うか、設定の「表示」で位置を変えます（<a href="#sec-display">→ 表示</a>）。</p>
 
@@ -354,11 +357,44 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <p class="where">設定 → キャラの出来事</p>
 
 <!-- ============================================================ -->
-<h2 id="money"><span class="ic">💴</span>お金</h2>
-<p>あなたとキャラが、それぞれ所持金を持っています。</p>
+<h2 id="presence"><span class="ic">🏠</span>そばにいる・離れる</h2>
+<p>画面を開いているあいだ、あなたは<b>キャラのそばにいる</b>ことになります。何をしているかで、キャラの過ごし方が変わります。</p>
+<div class="cards">
+  <div class="card"><div class="hd"><span class="ic">😊</span>そばにいる</div><p>画面を開いて、操作している。寂しさがいちばん紛れます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🛋</span>そばでのんびり</div><p>画面は開いているが、10分以上なにもしていない。少しは寂しさが紛れ、キャラのほうから話しかけてきやすくなります。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🖥</span>作業中</div><p>「ちょっと作業するね」と告げた。キャラは遠慮して、あまり話しかけてきません（とても寂しければ来ます）。名前の下の「作業中 → 終わる」で戻ります。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🚪</span>離れている</div><p>「ちょっと出かけてくる」「仕事に行ってくる」「先に寝るね」「またね」と告げた。画面は閉じてもかまいません。開き直すか「戻る」で戻ります。</p></div>
+  <div class="card"><div class="hd"><span class="ic">💨</span>いない</div><p>何も言わずに画面を閉じた。長く空けて、キャラが寂しがっていると「何も言わずにどこ行ってたの」と機嫌を損ねます。</p></div>
+</div>
+<div class="flow">
+  <div class="box"><b>告げる</b><small>コマンド「あなたの予定」から。キャラの反応は寂しさ・好感度しだい</small></div><div class="arr">→</div>
+  <div class="box"><b>離れている間</b><small>画面を閉じてもよい。仕事なら時間ぶん稼ぐ</small></div><div class="arr">→</div>
+  <div class="box hl"><b>戻る</b><small>「おかえり」の反応は、どう離れて、どれだけ空けたかで変わる</small></div>
+</div>
+<p class="where">コマンド → あなたの予定</p>
+
+<!-- ============================================================ -->
+<h2 id="approach"><span class="ic">💬</span>キャラからの働きかけ</h2>
+<p>あなたがそばにいる（そばにいる・のんびり・作業中）あいだ、キャラのほうから話しかけてくることがあります。名前の下に欄が出て、少しのあいだ返事を待ってくれます。</p>
+<div class="flow">
+  <div class="box"><b>話しかけてくる</b><small>寂しい・退屈・好感度が高いほど来やすい。いま構っている最中や、作業中と告げているときは来にくい</small></div><div class="arr">→</div>
+  <div class="box hl"><b>応じる</b><small>一緒に過ごす。散歩やゲームに誘われたら、そのまま出かける・遊ぶ</small></div><div class="arr">／</div>
+  <div class="box"><b>あとで</b><small>少しがっかりするが、またあとで来る</small></div><div class="arr">／</div>
+  <div class="box q"><b>放っておく</b><small>寂しいときほど機嫌が下がり、「返事がなかった」が機嫌の理由に残る。作業中・不在なら軽く済む</small></div>
+</div>
+<ul>
+  <li>例：おしゃべり、お茶の差し入れ、肩にもたれる、ゲームや散歩のお誘い、まだ怒っていることを言いに来る、聞いてほしい出来事がある。</li>
+  <li>必ず応えなければいけないものではありません。キャラの状態しだいで、来ること自体が少ない日もあります。</li>
+  <li>画面が裏に隠れているときに話しかけられると、タブの名前に 💬 が付きます。</li>
+</ul>
+<p class="where">設定 → キャラからの働きかけ</p>
+
+<!-- ============================================================ -->
+<h2 id="money"><span class="ic">💴</span>お金（仕事・内職・株）</h2>
+<p>あなたとキャラが、それぞれ所持金を持っています。「お金」タブで見られます。</p>
 <div class="wallets">
   <div class="wallet"><div class="big">🧑</div><b>あなた</b>
-    <ul><li>日給（放置でもたまる）</li><li>働きに行く・内職する</li><li>投資（値動きはリアル時間で進む）</li></ul></div>
+    <ul><li>仕事（実際に離れた時間ぶん）</li><li>内職（1分の作業）</li><li>株（自分で銘柄を選んで売買）</li><li>わずかな日給</li></ul></div>
   <div class="mid">
     <div class="r">プレゼント・お小遣い →</div>
     <div class="r">お金を貸す・お願いに応える →</div>
@@ -369,12 +405,41 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="wallet"><div class="big">👧</div><b>キャラ</b>
     <ul><li>日給（バイト代・仕送り）</li><li>ときどきのバイト代</li><li>衝動買い・お金のピンチ</li></ul></div>
 </div>
+<h3>💼 仕事</h3>
+<p>「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに、離れていた時間（上限9時間）×時給×仕事スキルのお給料が入ります。15分未満で戻ると「忘れ物？」になり、稼ぎはありません。離れている間はキャラと過ごせないので、寂しさは普通に増えていきます。</p>
+<h3>🧵 内職</h3>
+<p>家でする1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。終わると30分は休憩です。</p>
+<div class="cards">
+  <div class="card"><div class="hd"><span class="ic">🍎</span>仕分け</div><p>流れてくる品物を、果物・野菜・魚介・パンの箱に入れます。キー 1〜4 でも操作できます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🧮</span>検算</div><p>計算が合っているか確かめます。← か F で「合っている」、→ か J で「間違い」。</p></div>
+</div>
+<h3>📈 株</h3>
+<p>4つの銘柄を、株数を決めて売買します。値動きはリアル時間で進み、閉じている間も動きます。</p>
 <ul>
-  <li><b>誰が払うか</b>はステータスタブで選びます。お出かけ代は「おまかせ／あなた／割り勘／おごってもらう」、生活費は「折半／あなた／キャラ」です。おまかせでは、好感度やキャラの懐具合で、おごってくれることもあります。</li>
+  <li>銘柄ごとに値動きの大きさが違います（インデックスは穏やか、ゲーム会社は博打）。</li>
+  <li>ときどき<b>ニュース</b>が出ます。良いニュースのあとは上がりやすく、悪いニュースのあとは下がりやすくなりますが、<b>外れることもあります</b>。ニュースを見て、買うか売るかを決めます。</li>
+  <li>売ったときの損益で、キャラの反応が変わります。</li>
+</ul>
+<h3>支払い</h3>
+<ul>
+  <li><b>誰が払うか</b>は「お金」タブで選びます。お出かけ代は「おまかせ／あなた／割り勘／おごってもらう」、生活費は「折半／あなた／キャラ」です。おまかせでは、好感度やキャラの懐具合で、おごってくれることもあります。</li>
   <li>キャラがお金に困るとおねだりが、余裕があるとプレゼントやおごりの申し出が、<b>お願い</b>欄に出ます。</li>
-  <li>日給、生活費、投資は、アプリを閉じていた間の分もまとめて進みます。</li>
+  <li>日給、生活費、株の値動きは、アプリを閉じていた間の分もまとめて進みます。</li>
 </ul>
 <p class="where">設定 → 共通プロンプト・時間帯 → お金・出来事</p>
+
+<!-- ============================================================ -->
+<h2 id="skills"><span class="ic">🎓</span>あなたのスキル</h2>
+<p>あなたにも、得意・不得意があります。使うほど伸びます（上がるほど伸びにくくなります）。ステータスタブで見られます。</p>
+<table>
+  <tr><th style="width:22%">スキル</th><th>伸びるとき</th><th>効くところ</th></tr>
+  <tr><td>💬 会話</td><td>会話のコマンド、話しかけられて応じる</td><td>会話の効き目。高いと話が弾み、低いと沈黙してしまうことも</td></tr>
+  <tr><td>🤗 スキンシップ</td><td>ふれあいのコマンド、寄り添う</td><td>ふれあいの効き目。低いうちは、急にするとびっくりされることも</td></tr>
+  <tr><td>🍳 料理</td><td>ご飯・おやつ・お茶</td><td>料理の効き目。低いと焦がすことも、高いと絶品に</td></tr>
+  <tr><td>💼 仕事</td><td>仕事、内職</td><td>お給料と内職の単価</td></tr>
+</table>
+<p>スキルは、コマンドのうれしい方向の効き目を 0.6〜1.4 倍にします。</p>
+<p class="where">設定 → コマンド（各コマンドの「あなたのスキル」）</p>
 
 <!-- ============================================================ -->
 <h2 id="dress"><span class="ic">👗</span>着せ替え・お出かけ</h2>
@@ -391,6 +456,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li>着せ替えの反応は、コマンド「着せ替え」（<code>_dress</code>）にあります。条件に <code>outfit=maid</code> のように着替え先を書けます。</li>
   <li>既定では、寝るとスケジュール通りの服に戻ります。</li>
   <li>お出かけには、散歩、買い物、デート、ピクニック、ハイキング、海、遊園地、水族館、カフェ、星を見に行く、があります。季節で反応が変わります。</li>
+  <li>お出かけ中は、料理・お風呂・掃除・映画など<b>家でだけできること</b>は出ません。別のお出かけ先へも、一度家に帰ってからです。</li>
 </ul>
 <p class="where">設定 → 着せ替え</p> <p class="where">設定 → 主人公（お出かけ着）</p>
 
@@ -448,18 +514,20 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
     <p>ゲームの定義を JSON で編集します。同じ種類で中身の違うゲームを、いくつでも作れます。画面にキーの説明があります。<a href="#games">→ ミニゲーム</a></p></div>
   <div class="card sec" id="sec-events"><div class="hd"><span class="ic">💭</span>キャラの出来事</div>
     <p>キャラに起きる出来事を JSON で編集します。良い・悪い、起きる条件、起きやすさ、お金の増減、お願いを書けます。<code>tell</code> は「何かあった？」で話す内容で、「〜んです」とつながる常体で書きます。<a href="#mood">→ 機嫌の理由</a></p></div>
+  <div class="card sec" id="sec-approaches"><div class="hd"><span class="ic">💬</span>キャラからの働きかけ</div>
+    <p>キャラのほうから話しかけてくる内容を JSON で編集します。来る条件、来やすさ、間隔、応じた・あとで・放っておいたときの反応と効果を書きます。応じたらコマンドを実行させることもできます。<a href="#approach">→ キャラからの働きかけ</a></p></div>
   <div class="card sec" id="sec-params"><div class="hd"><span class="ic">📊</span>パラメータ</div>
     <p>パラメータの範囲、初期値、基本変化、変化の上書き、自然回帰、状態タグです。<a href="#params">→ パラメータ</a></p></div>
   <div class="card sec" id="sec-comfy"><div class="hd"><span class="ic">🖼</span>画像生成 (ComfyUI)</div>
     <p>接続先、画像の出し方（すぐ表示／毎回生成）、内蔵ワークフローの設定（チェックポイント、サイズ、Steps など）、カスタムワークフローの登録、ComfyUI 側に画像を残すかどうか。<a href="#image">→ 画像ができるまで</a></p></div>
   <div class="card sec" id="sec-prompt"><div class="hd"><span class="ic">🌅</span>共通プロンプト・時間帯</div>
-    <p>すべての画像に付く品質タグ、時間帯ごとの光の演出、「おかえり」を出す不在時間、お金と出来事の数値（日給・生活費・投資・出来事の起きやすさ）。</p></div>
+    <p>すべての画像に付く品質タグ、時間帯ごとの光の演出、「おかえり」を出す不在時間、お金と出来事の数値（日給・生活費・時給・内職の単価・株のニュース・出来事の起きやすさ）、在席と働きかけの数値（放置とみなすまでの時間、働きかけの来やすさ・待ち時間）。</p></div>
   <div class="card sec" id="sec-llm"><div class="hd"><span class="ic">🤖</span>セリフ生成 (LLM)</div>
     <p>Ollama か OpenAI 互換の API で、定型のセリフを参考に LLM がセリフを書きます。失敗したら定型のセリフのままです。ナレーションと「LLM を使わない」コマンドは定型のままです。</p></div>
   <div class="card sec" id="sec-display"><div class="hd"><span class="ic">💬</span>表示</div>
     <p>会話欄の位置（下に重ねる／上に重ねる／画像の下に分ける）、背景の濃さ、文字の大きさ、コンパクト、自動で隠す。このブラウザにだけ保存されます。</p></div>
   <div class="card sec" id="sec-data"><div class="hd"><span class="ic">🗃</span>データ</div>
-    <p>パラメータの現在値を直接変える、一時シーンを解除する、出来事を起こす（テスト用）、コマンド・パラメータ・主人公の書き出しと読み込み。</p></div>
+    <p>パラメータの現在値を直接変える、一時シーンを解除する、出来事・働きかけを起こす（テスト用）、コマンド・パラメータ・主人公の書き出しと読み込み。</p></div>
 </div>
 
 <!-- ============================================================ -->
@@ -483,6 +551,10 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td><code>outfit</code></td><td>着せ替え中の服の id（おまかせなら空）。着せ替えの反応では着替え先</td></tr>
   <tr><td><code>cause</code> <code>knows</code> <code>untold</code> <code>ev_mood</code></td><td>機嫌の理由まわり：原因（player / event）、理由を聞いたか、まだ話していない出来事の数、その出来事が good / bad か</td></tr>
   <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金、誰が払うか（me / her / split）</td></tr>
+  <tr><td><code>presence</code> <code>said</code> <code>left_mode</code> <code>left_h</code></td><td>あなたの在席：here / idle / busy / out / work / sleep / left / gone、告げてから離れたか、どう離れていたか、何時間離れていたか（戻って15分まで）</td></tr>
+  <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code></td><td>あなたのスキル（0〜100）</td></tr>
+  <tr><td><code>roll</code></td><td>実行のたびに変わる 0〜99 の乱数。<code>sk_cook&lt;30, roll&lt;45</code> のように「ときどき」を書くのに使う</td></tr>
+  <tr><td><code>work_h</code> <code>task_ok</code> <code>task_ng</code> <code>pay</code></td><td>仕事から帰ったとき・内職のあとだけ：働いた時間、こなした数、ミスの数、稼ぎ</td></tr>
   <tr><td><code>game_stage</code> <code>lives</code> など</td><td>ミニゲーム中だけ使えるキー（設定 → ミニゲームに一覧）</td></tr>
 </table>
 <h3>効果</h3>
@@ -499,7 +571,8 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td><code>{fp}</code> <code>{fp_st}</code></td><td>一人称、言いよどんだ一人称（例：わ、私）</td></tr>
   <tr><td><code>{location}</code> <code>{activity_label}</code> <code>{time}</code></td><td>場所、過ごし方、時刻</td></tr>
   <tr><td><code>{ev_text}</code> <code>{bad_text}</code> <code>{away_text}</code></td><td>出来事の説明（常体の節。例：友だちとちょっとケンカした）</td></tr>
-  <tr><td><code>{amount}</code> <code>{cost}</code> <code>{profit}</code> <code>{req_text}</code></td><td>金額（数字だけ）、費用、投資の損益、お願いの内容</td></tr>
+  <tr><td><code>{amount}</code> <code>{cost}</code> <code>{profit}</code> <code>{req_text}</code></td><td>金額（数字だけ）、費用、株の損益、お願いの内容</td></tr>
+  <tr><td><code>{asset}</code> <code>{qty}</code> <code>{ok}</code> <code>{ng}</code></td><td>売買した銘柄と株数、内職でこなした数とミスの数</td></tr>
 </table>
 <p>「（」で始まるセリフはナレーションとして表示されます。</p>
 
@@ -526,9 +599,10 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td><code>data/minigames.json</code> <code>data/events.json</code></td><td>ミニゲーム、キャラの出来事</td></tr>
   <tr><td><code>data/personas/</code></td><td>編集した性格プリセット</td></tr>
   <tr><td><code>data/images/</code></td><td>生成した画像と索引</td></tr>
-  <tr><td><code>data/player.json</code></td><td>あなたの所持金・投資</td></tr>
+  <tr><td><code>data/player.json</code></td><td>あなたの所持金・株・スキル・在席状態</td></tr>
+  <tr><td><code>data/approaches.json</code></td><td>キャラからの働きかけ</td></tr>
 </table>
-<div class="note">アプリを更新すると、編集していないコマンド・ミニゲーム・出来事は、新しい既定に自動で置き換わります。手を加えたものはそのまま残ります。一度消したものは戻りません。</div>
+<div class="note">アプリを更新すると、編集していないコマンド・ミニゲーム・出来事・働きかけは、新しい既定に自動で置き換わります。手を加えたものはそのまま残ります。一度消したものは戻りません。</div>
 <p>すべて初期状態に戻すには、<code>data/</code> フォルダを削除してから起動します。</p>
 </main>
 </div>

@@ -26,6 +26,7 @@ def main():
         assert len(app.personas) >= 16
 
         char = app.char()
+        app.life.player_state()["skills"]["talk"] = 50     # スキルしだいの反応 (盛り上がる / 沈黙) を出さない
         common = None
         for pid in [""] + list(app.personas):
             char["persona_id"] = pid

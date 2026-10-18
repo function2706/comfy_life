@@ -1,0 +1,122 @@
+[
+ {
+  "id": "chat", "label": "話しかけてきた", "icon": "💬", "when": "boredom>=45", "weight": 3, "cooldown_h": 2,
+  "text": "ねえねえ、{call}。ちょっとお話ししません？", "pos": "looking at viewer, leaning forward, smile", "neg": "",
+  "accept": {"label": "いいよ", "text": "やった！ あのですね……（他愛ない話で盛り上がった）", "skill": "talk",
+   "effects": {"boredom": -12, "loneliness": -10, "mood": 4, "affection": 1}, "reason_good": "{call}がおしゃべりに付き合ってくれた"},
+  "later": {"label": "あとでね", "text": "はーい。じゃあ、あとで。", "effects": {"mood": -1}},
+  "ignore": {"text": "（返事がないので、{name}はつまらなそうに離れていった）", "busy_text": "（{name}は作業の邪魔をしないよう、そっと離れていった）",
+   "effects": {"mood": -3, "loneliness": 5, "boredom": 3}}
+ },
+ {
+  "id": "tea", "label": "お茶を淹れてくれた", "icon": "🍵", "when": "mood>=45, phase!=midnight", "weight": 2, "cooldown_h": 4,
+  "text": "お茶、淹れたんですけど……{call}も飲みます？", "pos": "holding teacup, offering, smile", "neg": "",
+  "accept": {"label": "もらう", "text": "どうぞ。……ふふ、こうして一緒に飲むの、好きです。",
+   "effects": {"mood": 4, "affection": 2, "loneliness": -6}, "pos": "drinking tea, smile, sitting", "neg": ""},
+  "later": {"label": "あとで飲む", "text": "じゃあ、ここに置いておきますね。", "effects": {}},
+  "ignore": {"text": "（{name}はお茶をそっと置いていった。すっかり冷めてしまった）", "busy_text": "（作業の邪魔をしないよう、お茶がそっと置かれていた）",
+   "effects": {"mood": -3, "loneliness": 3}}
+ },
+ {
+  "id": "lean", "label": "もたれかかってきた", "icon": "💞", "when": "affection>=60, loneliness>=40", "weight": 2, "cooldown_h": 3,
+  "text": "（{name}が、何も言わずにそっと肩にもたれかかってきた）", "pos": "leaning on viewer's shoulder, eyes closed, blush", "neg": "",
+  "accept": {"label": "そのままにする", "text": "（しばらくそのまま寄り添っていた。{name}は小さく息をついた）", "skill": "touch",
+   "effects": {"loneliness": -15, "mood": 5, "affection": 2, "heart": 6}, "reason_good": "{call}がそばで寄り添ってくれた"},
+  "later": {"label": "ちょっと待って", "text": "あ……ごめんなさい。邪魔でしたね。", "effects": {"mood": -2, "shyness": 5}},
+  "ignore": {"text": "（反応がないので、{name}は少し寂しそうに体を離した）", "busy_text": "（{name}は、作業の手を止めさせないよう静かに離れた）",
+   "effects": {"mood": -4, "loneliness": 6}}
+ },
+ {
+  "id": "bored", "label": "かまってほしそう", "icon": "🥱", "when": "boredom>=65", "weight": 2, "cooldown_h": 3,
+  "text": "暇です〜……。{call}、かまってください〜。", "pos": "lying down, bored, looking at viewer, pouting", "neg": "",
+  "accept": {"label": "かまう", "text": "わーい！ じゃあ、何して遊びます？", "skill": "talk",
+   "effects": {"boredom": -18, "mood": 5, "loneliness": -8}},
+  "later": {"label": "もうちょっと待って", "text": "むー。……ちょっとだけですよ？", "effects": {"mood": -1, "boredom": 2}},
+  "ignore": {"text": "（{name}はごろごろしながら、恨めしそうにこちらを見ている）", "busy_text": "（{name}は「忙しいもんね……」と小さくつぶやいた）",
+   "effects": {"mood": -4, "boredom": 6}}
+ },
+ {
+  "id": "lonely", "label": "そばに来たがっている", "icon": "🫂", "when": "loneliness>=65", "weight": 3, "cooldown_h": 2,
+  "text": "……{call}。そばに行っても、いいですか？", "pos": "standing, hesitant, looking at viewer, blush", "neg": "",
+  "accept": {"label": "おいで", "text": "……えへへ。ありがとうございます。", "skill": "touch",
+   "effects": {"loneliness": -20, "mood": 6, "affection": 2, "trust": 1}, "pos": "sitting next to viewer, relieved smile, blush",
+   "reason_good": "{call}がそばにいさせてくれた"},
+  "later": {"label": "ちょっと待ってね", "text": "……はい。待ってます。", "effects": {"loneliness": 3}},
+  "ignore": {"text": "（{name}はしばらく待っていたが、やがて黙って部屋の隅に座った）", "busy_text": "（{name}は作業の様子を見て、少し離れたところに座った）",
+   "effects": {"mood": -6, "loneliness": 8}}
+ },
+ {
+  "id": "show", "label": "何か見せたいみたい", "icon": "✨", "when": "mood>=60", "weight": 1, "cooldown_h": 5,
+  "text": "{call}、見てください、これ！ かわいくないですか？", "pos": "holding phone, showing screen, excited, smile", "neg": "",
+  "accept": {"label": "見せて", "text": "でしょう！ ……ふふ、{call}ならわかってくれると思いました。", "skill": "talk",
+   "effects": {"mood": 4, "affection": 1, "boredom": -5}},
+  "later": {"label": "あとで見る", "text": "えー、あとで絶対見てくださいね！", "effects": {}},
+  "ignore": {"text": "（{name}は少しがっかりした様子で、画面をしまった）", "effects": {"mood": -3}}
+ },
+ {
+  "id": "cook_for", "label": "ごはんを作ろうかと", "icon": "🍳", "when": "phase=noon|evening, satiety<60", "weight": 1, "cooldown_h": 8,
+  "text": "お腹すきません？ {fp}、何か作りましょうか。", "pos": "apron, kitchen, smile, looking at viewer", "neg": "",
+  "accept": {"label": "お願い", "text": "まかせてください！ ……できました、どうぞ！", "effects": {"mood": 5, "affection": 2, "satiety": 30},
+   "pos": "apron, serving food, dining table, smile", "reason_good": "{call}がごはんをおいしそうに食べてくれた"},
+  "later": {"label": "まだいいかな", "text": "じゃあ、お腹がすいたら言ってくださいね。", "effects": {}},
+  "ignore": {"text": "（{name}は一人分だけ作って、静かに食べた）", "effects": {"mood": -3, "loneliness": 4}}
+ },
+ {
+  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, phase!=midnight", "weight": 2, "cooldown_h": 4,
+  "text": "ねえ、一緒にゲームしません？", "pos": "holding game controller, excited, looking at viewer", "neg": "",
+  "accept": {"label": "やろう", "action": "game", "text": "やった！ 負けませんよ？", "effects": {"boredom": -15, "mood": 5}},
+  "later": {"label": "あとでね", "text": "約束ですよ？", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は一人でゲームを始めた）", "effects": {"mood": -2, "boredom": 2}}
+ },
+ {
+  "id": "walk_invite", "label": "散歩に誘ってきた", "icon": "🚶", "when": "mood>=50, phase=morning|noon|evening, outing=false", "weight": 1, "cooldown_h": 6,
+  "text": "天気いいですし、ちょっと散歩でも行きません？", "pos": "standing by window, sunlight, smile, looking at viewer", "neg": "",
+  "accept": {"label": "行こう", "action": "walk", "text": "やった、行きましょう！", "effects": {"mood": 4}},
+  "later": {"label": "また今度", "text": "そうですか……。また今度、ですね。", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は窓の外を眺めて、小さくため息をついた）", "effects": {"mood": -2, "boredom": 3}}
+ },
+ {
+  "id": "sleepy", "label": "眠そうにしている", "icon": "😪", "when": "sleepiness>=70, phase=night|midnight", "weight": 2, "cooldown_h": 6,
+  "text": "ふぁ……。なんだか、眠くなってきちゃいました……。", "pos": "yawning, rubbing eyes, pajamas, sleepy", "neg": "",
+  "accept": {"label": "寝かしつける", "action": "tuck_in", "text": "……おやすみなさい、{call}。", "effects": {"mood": 3}},
+  "later": {"label": "もう少し起きてて", "text": "もうちょっとだけ……がんばります……。", "effects": {"sleepiness": 3}},
+  "ignore": {"text": "（{name}は、いつの間にかうとうとしていた）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "coffee", "label": "差し入れをくれた", "icon": "☕", "when": "presence=busy, affection>=40", "weight": 3, "cooldown_h": 3,
+  "text": "無理しないでくださいね。……コーヒー、置いておきますね。", "pos": "holding coffee cup, gentle smile, quiet", "neg": "",
+  "accept": {"label": "ありがとう", "text": "ふふ。がんばってくださいね。", "effects": {"mood": 4, "affection": 2, "trust": 1},
+   "reason_good": "{call}の作業を応援できた"},
+  "later": {"label": "うん", "text": "（{name}はにこっと笑って、静かに戻っていった）", "effects": {}},
+  "ignore": {"busy_text": "（コーヒーは、いつの間にか冷めていた）", "text": "（コーヒーは、いつの間にか冷めていた）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "peek_work", "label": "作業をのぞきこんできた", "icon": "👀", "when": "presence=busy, boredom>=50", "weight": 2, "cooldown_h": 3,
+  "text": "……何してるんですか？ ちょっとだけ、見ててもいいですか？", "pos": "peeking, curious, leaning over shoulder", "neg": "",
+  "accept": {"label": "いいよ", "text": "（{name}は隣で、楽しそうに作業を眺めている）", "effects": {"boredom": -10, "loneliness": -10, "mood": 3}},
+  "later": {"label": "集中したいかな", "text": "あ……ごめんなさい。終わったら教えてくださいね。", "effects": {"mood": -1}},
+  "ignore": {"busy_text": "（{name}は邪魔をしないよう、そっと離れていった）", "text": "（{name}はそっと離れていった）",
+   "effects": {"loneliness": 3}}
+ },
+ {
+  "id": "sulk", "label": "まだ怒っているみたい", "icon": "💢", "when": "mood<35, cause=player", "weight": 3, "cooldown_h": 3,
+  "text": "……ねえ、{call}。さっきのこと、{fp}まだ怒ってるんですけど。", "pos": "arms crossed, pouting, looking away, annoyed", "neg": "smile",
+  "accept": {"label": "ごめんね", "action": "apologize", "text": "……もう。", "effects": {}},
+  "later": {"label": "あとで話そう", "text": "……そうやって、すぐ後回しにするんですから。", "effects": {"mood": -3}},
+  "ignore": {"text": "（{name}はぷいっとそっぽを向いた）", "effects": {"mood": -5, "affection": -1}}
+ },
+ {
+  "id": "vent", "label": "聞いてほしいことがあるみたい", "icon": "😞", "when": "mood<45, untold>=1, ev_mood=bad", "weight": 3, "cooldown_h": 3,
+  "text": "……{call}。ちょっと、聞いてほしいことがあって。", "pos": "sad, looking down, sitting", "neg": "smile",
+  "accept": {"label": "どうしたの？", "action": "ask_mood", "text": "", "effects": {}},
+  "later": {"label": "あとで聞くね", "text": "……はい。", "effects": {"mood": -2}},
+  "ignore": {"text": "（{name}は話すのをやめて、一人で膝を抱えた）", "effects": {"mood": -5, "loneliness": 6}}
+ },
+ {
+  "id": "good_news", "label": "いいことがあったみたい", "icon": "🎉", "when": "untold>=1, ev_mood=good", "weight": 3, "cooldown_h": 3,
+  "text": "{call}、聞いてください！ いいことがあったんです！", "pos": "excited, happy, leaning forward, sparkling eyes", "neg": "",
+  "accept": {"label": "なになに？", "action": "ask_mood", "text": "", "effects": {}},
+  "later": {"label": "あとで聞かせて", "text": "えー、絶対ですよ！", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は話したそうにしていたが、あきらめたようだ）", "effects": {"mood": -3}}
+ }
+]

@@ -503,3 +503,45 @@ dialog { color: var(--text); }
 .tip { opacity: .45; transition: opacity .15s; }
 .fld:hover .tip, .check:hover .tip, .tip:focus { opacity: 1; }
 a.btn { color: inherit; }
+
+/* ---------- 在席・働きかけ・お金・内職 ---------- */
+.tabs button { white-space: nowrap; font-size: 13px; }
+.approach-box { margin: 0 12px 4px; padding: 10px 12px; border-radius: 12px; background: #24283a; border: 1px solid var(--sky); display: flex; flex-direction: column; gap: 8px; font-size: 13px; animation: tin .2s ease; }
+.approach-box .row { justify-content: flex-end; }
+.tag.busy { background: #263a33; color: #bff0dc; border: 0; cursor: pointer; font: inherit; font-size: 11px; }
+.delta.skill { color: var(--sky); }
+.away-overlay { position: fixed; inset: 58px 0 0 0; z-index: 20; display: grid; place-items: center; background: rgba(12,10,16,.82); backdrop-filter: blur(6px); }
+.away-card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px 30px; text-align: center; max-width: min(420px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.away-ic { font-size: 46px; }
+.away-title { font-size: 20px; font-weight: 700; }
+.away-pay { color: var(--accent2); font-weight: 500; }
+.earn { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.earn .cmd { flex-wrap: wrap; }
+.earn .cmd small { width: 100%; font-size: 11px; padding-left: 30px; }
+.asset { background: var(--panel2); border: 1px solid var(--line); border-radius: 11px; padding: 8px 10px; margin: 6px 0; font-size: 13px; }
+.asset-head { display: flex; align-items: center; gap: 6px; }
+.asset-head .ic { font-size: 16px; }
+.chg { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.trade { gap: 6px; }
+.trade .qty { width: 70px; padding: 4px 8px; }
+.trade .btn { padding: 4px 11px; }
+.btn.small { font-size: 12px; padding: 3px 8px; }
+.news { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.task-dlg { width: min(560px, 96vw); height: auto; max-height: 92vh; }
+.task-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.task-pick { display: grid; gap: 8px; }
+.task-pick .cmd { flex-direction: column; align-items: flex-start; gap: 2px; }
+.task-timer { height: 8px; background: var(--panel3); border-radius: 99px; overflow: hidden; }
+.task-timer i { display: block; height: 100%; width: 100%; background: var(--accent); transition: width .1s linear; }
+.task-score { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.task-item { font-size: 44px; text-align: center; padding: 22px 0; border-radius: 14px; background: var(--panel2); border: 2px solid transparent; font-variant-numeric: tabular-nums; transition: border-color .1s; }
+.task-item.ok { border-color: var(--good); }
+.task-item.ng { border-color: var(--bad); }
+.task-btns { display: grid; gap: 8px; }
+.task-btns.sort { grid-template-columns: repeat(4, 1fr); }
+.task-btns.check { grid-template-columns: 1fr 1fr; }
+.task-btns .btn { justify-content: center; padding: 12px 6px; font-size: 14px; }
+.task-result { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.task-result .big { font-size: 34px; font-weight: 700; color: var(--accent2); }
+@media (max-width: 980px) { .away-overlay { inset: 0; } }
