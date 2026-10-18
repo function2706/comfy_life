@@ -1885,6 +1885,18 @@
   ],
   "enc.decline": [
    "あ、ごめんなさい。お急ぎでしたね。"
+  ],
+  "message.callback_true": [
+   "📱『さっきは電話に出られなくてごめんなさい。どうかしました？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『……ちょっと、連絡多くないですか？ 今、手が離せなくて……』"
+  ],
+  "call.too_often_true": [
+   "……また電話ですか？ ちょっと、今は……"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……ん……こんな時間に、どうしたんですか……？"
   ]
  }
 }

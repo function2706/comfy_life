@@ -1686,6 +1686,18 @@
   ],
   "enc.decline": [
    "あらあら、急いでたのね。ごめんなさいね。"
+  ],
+  "message.callback_true": [
+   "📱『さっきはお電話に出られなくてごめんなさいねぇ。どうしたの？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『あらあら、連絡がたくさん……。今はちょっと手が離せないのよぉ』"
+  ],
+  "call.too_often_true": [
+   "あら、またお電話？ 今はちょっとねぇ……。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……あらぁ……こんな時間に、どうしたの……？"
   ]
  }
 }

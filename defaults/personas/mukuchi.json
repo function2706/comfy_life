@@ -1615,6 +1615,18 @@
   ],
   "enc.decline": [
    "……ん。いってらっしゃい。"
+  ],
+  "message.callback_true": [
+   "📱『さっき、出られなかった。……何？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『……連絡、多い。今は、無理』"
+  ],
+  "call.too_often_true": [
+   "……また。……今は、ちょっと。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……ん……どうしたの……こんな時間。"
   ]
  }
 }

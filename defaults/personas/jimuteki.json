@@ -1614,6 +1614,18 @@
   ],
   "enc.decline": [
    "了解。引き止めるつもりはないわ。"
+  ],
+  "message.callback_true": [
+   "📱『先ほどの着信、対応できなかったわ。用件は？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『連絡の頻度が高いわ。今は対応できない』"
+  ],
+  "call.too_often_true": [
+   "再度の着信ね。現在、対応は困難よ。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……深夜の着信。緊急の用件かしら。"
   ]
  }
 }

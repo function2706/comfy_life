@@ -1616,6 +1616,18 @@
   ],
   "enc.decline": [
    "そうか、急ぎか。引き止めて悪かった。"
+  ],
+  "message.callback_true": [
+   "📱『さっきは出られなかった、すまない。どうした？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『少し連絡が多いな。今は手が離せない』"
+  ],
+  "call.too_often_true": [
+   "また電話か。今は少し難しい。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……こんな時間にどうした。何かあったのか。"
   ]
  }
 }

@@ -1572,6 +1572,18 @@
   ],
   "enc.decline": [
    "……急いでるのね。風に乗って、いってらっしゃい。"
+  ],
+  "message.callback_true": [
+   "📱『さっきの電話、遠くで鳴ってた。……どうしたの？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『言葉がいっぱい届いてる……。今は、少し静かにしていたいの』"
+  ],
+  "call.too_often_true": [
+   "また鳴った。……今は、ちょっとだけ待って。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……夜の声。……どうしたの、星でも見えた？"
   ]
  }
 }

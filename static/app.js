@@ -185,9 +185,10 @@ function renderWho() {
   const hide = veiled();
   const sc = v.scene;
   const where = sc.location ? `📍${sc.location}` : '';
-  $('#scene-chip').textContent = hide ? `📱 ${v.name}とは離れている` : `${where}　${sc.label || ''}`.trim();
+  const peek = hide && v.peek;     // 電話で話したので, いまどこで何をしているかだけは分かる
+  $('#scene-chip').textContent = hide && !peek ? `📱 ${v.name}とは離れている` : `${peek ? '📞 ' : ''}${where}　${sc.label || ''}`.trim();
   $('#who-name').textContent = v.name;
-  $('#who-scene').replaceChildren(...(hide ? ['離れていて、いまの様子はわからない'] : [
+  $('#who-scene').replaceChildren(...(hide && !peek ? ['離れていて、いまの様子はわからない'] : peek ? [`電話で聞いた: ${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`] : [
     `${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`,
     sc.source === 'override' ? h('span', { class: 'muted', id: 'ov-rest', style: 'margin-left:6px' }) : null,
   ]).filter(Boolean));
@@ -838,6 +839,7 @@ function handleActResult(r) {
   if (r.llm_error) toast('LLM 失敗のため定型文を使用: ' + r.llm_error, 'err');
   if (r.encounter) toast(r.encounter.text, 'ok');
   if (r.solo) toast(r.solo.text, 'ok');
+  if (r.work_note) toast(r.work_note, 'err');
   S.lastDeltas = r.entry.deltas || {};
   showEntry(r.entry, true);
   if (r.job) trackJob(r.job);
@@ -1115,6 +1117,29 @@ function renderEncounter() {
       h('button', { class: 'btn', onclick: () => answer(false) }, 'やめておく')));
 }
 
+/* ---- スマホ: 外出中・仕事中・一人の時間でも, そばにいない相手にメッセージ・電話できる.
+   メッセージの返信は相手の状況しだいで遅れる/来ない. 電話は出ないことも (あとで折り返しが来ることも) */
+function phonePanel() {
+  const cs = S.view.contacts || [];
+  if (!cs.length) return '';
+  const open = !!S.phoneOpen;
+  const send = async (cid, action) => {
+    if (S.busy) return;
+    S.busy = true;
+    try {
+      const r = await api('/api/act', { action, character: cid });
+      toast(r.entry.text.replace(/\n.*/s, ''), r.missed ? 'err' : 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  return h('div', { class: 'phone-panel' },
+    h('button', { class: 'btn small', onclick: () => { S.phoneOpen = !open; renderAway(); } }, open ? '📱 スマホをしまう' : '📱 スマホを見る'),
+    open ? h('div', { class: 'phone-list' }, cs.map((c) => h('div', { class: 'row' },
+      h('span', { style: 'flex:1' }, `${BOND_IC[c.stage] || ''} ${c.name}`),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'message') }, '📱 メッセージ'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'call') }, '📞 電話')))) : '');
+}
+
 /* ---- オフラインの間のまとめ: 開いたときに一度だけ. 読んだら普段に戻る. 届いたメッセージにはここから返事できる */
 function renderOffline() {
   const rep = S.view.offline_report;
@@ -1194,6 +1219,7 @@ function renderAway() {
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     streetCard() || '',
+    phonePanel(),
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),
     h('div', { class: 'muted' }, `${fmtDur(since)}経過`),

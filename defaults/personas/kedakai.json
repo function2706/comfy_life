@@ -1601,6 +1601,18 @@
   ],
   "enc.decline": [
    "そう。用事があるなら、行きなさい。"
+  ],
+  "message.callback_true": [
+   "📱『さっきは出られなかったわ。何の用？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『少し連絡が多すぎるのではなくて？ 今は忙しいの』"
+  ],
+  "call.too_often_true": [
+   "また？ ……少しは間を置きなさい。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……こんな時間に電話だなんて。どうしたの。"
   ]
  }
 }

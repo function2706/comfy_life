@@ -1601,6 +1601,18 @@
   ],
   "enc.decline": [
    "……あっそ。急いでるなら行けば。"
+  ],
+  "message.callback_true": [
+   "📱『さっき電話出れなかっただけだから。……何よ』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『ちょっと、連絡多すぎ！ 今忙しいんだけど！』"
+  ],
+  "call.too_often_true": [
+   "また？ ……しつこいわよ、今は無理。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……な、何時だと思ってるのよ……。……どうしたの。"
   ]
  }
 }

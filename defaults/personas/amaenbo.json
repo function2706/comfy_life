@@ -1610,6 +1610,18 @@
   ],
   "enc.decline": [
    "あ……ごめんね、急いでたんだね。"
+  ],
+  "message.callback_true": [
+   "📱『さっき電話くれた？ 出られなくてごめんね、どうしたの？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『いっぱい連絡くれるのうれしいけど……今ちょっと忙しいの、ごめんね』"
+  ],
+  "call.too_often_true": [
+   "えへへ、また電話？ ……でも今はちょっとだけ、ごめんね。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……んぅ……{call}……？ こんな時間にどうしたの……？"
   ]
  }
 }

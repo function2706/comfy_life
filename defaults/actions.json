@@ -2436,11 +2436,30 @@
     "priority": 3,
     "pos": "tired smile",
     "neg": ""
+   },
+   {
+    "text": "📱『さっきは電話に出られなくてごめんなさい。どうかしました？』",
+    "when": "callback=true",
+    "priority": 5,
+    "pos": "looking at smartphone, apologetic smile",
+    "neg": ""
+   },
+   {
+    "text": "📱『……ちょっと、連絡多くないですか？ 今、手が離せなくて……』",
+    "when": "too_often=true, apart=true",
+    "priority": 4,
+    "effects": {
+     "mood": -2,
+     "affection": -1
+    },
+    "pos": "troubled, looking at smartphone",
+    "neg": "smile"
    }
   ],
   "skill": "talk",
   "selfie": true,
-  "selfie_pos": "selfie, holding smartphone, looking at viewer, upper body, smile"
+  "selfie_pos": "selfie, holding smartphone, looking at viewer, upper body, smile",
+  "apart_when": ""
  },
  {
   "id": "call",
@@ -2473,10 +2492,34 @@
     },
     "pos": "whispering, covering mouth, surprised",
     "neg": "smile"
+   },
+   {
+    "text": "……また電話ですか？ ちょっと、今は……",
+    "when": "too_often=true",
+    "priority": 3,
+    "effects": {
+     "mood": -2,
+     "affection": -1
+    },
+    "pos": "annoyed, holding phone to ear",
+    "neg": "smile"
+   },
+   {
+    "text": "……ん……こんな時間に、どうしたんですか……？",
+    "when": "phase=midnight|dawn",
+    "priority": 2,
+    "effects": {
+     "mood": -2,
+     "stress": 3
+    },
+    "pos": "sleepy, holding phone to ear, dark room",
+    "neg": ""
    }
   ],
   "skill": "talk",
-  "apart": true
+  "apart": true,
+  "apart_when": "",
+  "phone": true
  },
  {
   "id": "ask_visit",

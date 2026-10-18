@@ -1608,6 +1608,18 @@
   ],
   "enc.decline": [
    "まぁ、お急ぎでしたのね。失礼いたしましたわ。"
+  ],
+  "message.callback_true": [
+   "📱『先ほどはお電話に出られず、申し訳ありませんわ。どうなさいましたの？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『ご連絡が少し多いですわ……。今は手が離せませんの』"
+  ],
+  "call.too_often_true": [
+   "またお電話ですの？ 今は少し……。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……ん……このようなお時間に、どうなさいましたの……？"
   ]
  }
 }

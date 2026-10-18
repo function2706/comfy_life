@@ -576,7 +576,7 @@ class App:
                 continue
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
-            out[a["id"]] = {"ok": cond.check(a.get("when", ""), ctx) and not (a.get("home_only") and ctx["outing"])
+            out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"])
                             and (not ctx["apart"] or self.bonds.allowed_apart(a, char["id"])),
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
@@ -598,14 +598,22 @@ class App:
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
-            if not cond.check(a.get("when", ""), ctx):
-                raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), a.get("when", "")))
+            if not cond.check(self._when(a, ctx), ctx):
+                raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), self._when(a, ctx)))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
+            if apart and a.get("category") == "連絡" and not opts.get("deliver"):
+                self._phoned(st, now)            # スマホで連絡した (頻度・仕事中かどうか)
             if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
                 # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
                 return self._send_later(char, st, a, now, dt, scene, ctx)
+            if apart and a.get("phone") and not opts.get("deliver"):
+                # 電話: 寝ている・手が離せない・気分しだいで出ない. あとで折り返しが来ることも
+                missed = self._call_missed(char, st, a, now, dt, scene, ctx)
+                if missed:
+                    return missed
+                st["peek_until"] = now + 600        # 電話のあいだ, 相手がいまどこで何をしているかは少しわかる
             if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
                 if self.bonds.stage(cid) == "known":
                     raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
@@ -707,7 +715,7 @@ class App:
                     self.bonds.end()
             elif a.get("category") != "system" and not opts.get("deliver"):
                 self.presence.touch(now)
-                if self.presence.rec()["mode"] == "busy":
+                if self.presence.rec()["mode"] == "busy" and not (apart and a.get("category") == "連絡"):   # スマホなら続けられる
                     self.presence.rec()["mode"] = "none"     # 作業中でも, 構いに来たら作業はおしまい
                     self.presence.rec().pop("solo", None)
                 self.presence.drop(st)
@@ -766,6 +774,46 @@ class App:
             self.save_log(cid)
         return {"entry": entry, "job": job, "llm_error": llm_error}
 
+    def _when(self, a, ctx):
+        """コマンドの条件. 離れている相手には apart_when があればそれ (例: メッセージは相手が寝ていても送れる)."""
+        if ctx.get("apart") and "apart_when" in a:
+            return a.get("apart_when") or ""
+        return a.get("when", "")
+
+    def _phoned(self, st, now):
+        """スマホで連絡した記録: 相手ごとの頻度と, 仕事中の連絡 (多いと仕事に響く)."""
+        st["contacts"] = [t for t in st.get("contacts") or [] if now - t < 86400] + [now]
+        p = self.presence.rec()
+        if p.get("mode") == "work":
+            p["work_contacts"] = p.get("work_contacts", 0) + 1
+
+    def _call_missed(self, char, st, a, now, dt, scene, ctx):
+        """離れている相手への電話に出るか. 出なければ記録を返す (折り返しはメッセージで届くことも). 出るなら None."""
+        p = st["params"]
+        callback = None
+        if scene["asleep"]:
+            callback = (random.uniform(30, 90) * 60) if random.random() < 0.5 else None   # 起きてから気づくことも
+        elif scene["busy"]:
+            callback = (random.uniform(20, 90) * 60) if random.random() < 0.7 else None
+        else:
+            pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.5 if ctx.get("too_often") else 1) \
+                * (0.7 if p.get("affection", 50) < 35 else 1)
+            if random.random() < pr:
+                return None
+            callback = (random.uniform(10, 60) * 60) if random.random() < 0.3 else None
+        cid = char["id"]
+        if callback and not st.get("msg_pending"):
+            st["msg_pending"] = {"aid": "message", "t": now, "due": now + callback, "reply": True, "count": 1, "callback": True}
+        cd = float(a.get("cooldown", 0)) * 60
+        if cd:
+            st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
+        pos, neg, parts = self.build_prompt(char, st, dt, a)
+        e = self._new_entry(cid, now, a, "（📞 %sに電話をかけたが、出なかった）" % char.get("name", ""), {}, scene, dt, pos, neg, parts)
+        e["missed"] = True
+        self.save_state(cid)
+        self.save_log(cid)
+        return {"entry": e, "job": None, "llm_error": None, "missed": True}
+
     def _send_later(self, char, st, a, now, dt, scene, ctx):
         """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す."""
         cid = char["id"]
@@ -780,7 +828,7 @@ class App:
             if p.get("affection", 50) < 40:
                 delay *= 2
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
-                * (0.7 if p.get("stress", 0) > 70 else 1)
+                * (0.7 if p.get("stress", 0) > 70 else 1) * (0.6 if ctx.get("too_often") else 1)
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1}
         cd = float(a.get("cooldown", 0)) * 60
         if cd:
@@ -792,6 +840,11 @@ class App:
         self.save_state(cid)
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "sent": True}
+
+    def _contacts_view(self):
+        """スマホの連絡先 (連絡先を知っていて, いまそばにいない人)."""
+        return [{"id": cid, "name": c.get("name", ""), "stage": self.bonds.stage(cid)} for cid, c in self.chars.items()
+                if self.bonds.stage(cid) != "known" and not self.bonds.together(cid)]
 
     def deliver_due(self, now=None):
         """時間差の返信: 期限が来て, 相手が寝ていない・手が離せないなら返信が届く (来ないと決まっていれば読むだけ).
@@ -819,12 +872,12 @@ class App:
                 self.save_state(cid)                   # 読んだが, 返事はしなかった
                 continue
             try:
-                r = self.act(pend["aid"], cid, opts={"deliver": True})
+                r = self.act(pend["aid"], cid, opts={"deliver": True, "ctx": {"callback": bool(pend.get("callback"))}})
             except (ValueError, KeyError):
                 self.save_state(cid)
                 continue
             e = r["entry"]
-            e["action_name"], e["icon"], e["reply"] = "返信", "📱", True
+            e["action_name"], e["icon"], e["reply"] = ("折り返し" if pend.get("callback") else "返信"), "📱", True
             self.save_log(cid)
             out.append({"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600})
         return out
@@ -1261,7 +1314,8 @@ class App:
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street,
                 "street_pending": self.street.view(), "street_auto": street_auto, "offline_report": self.offline.report(),
-                "pending_msg": bool(st.get("msg_pending")),
+                "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
+                "contacts": self._contacts_view(),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),
                 "approach": self.presence.pending_view(char, st),
@@ -1286,6 +1340,7 @@ class App:
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
+            wc = self.presence.rec().pop("work_contacts", 0)
             ll = self.presence.back(at)
             if not ll:
                 raise ValueError("いまは離れていません")
@@ -1297,15 +1352,21 @@ class App:
                 r["solo"] = solo
                 return r
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
+            work_note = ""
+            if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
+                pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
+                work_note = "仕事中の連絡が多く、はかどらなかった" + ("（注意された）" if wc >= 5 else "")
             mv = self.life.move(st, dp=pay) if pay else {}
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
             if quiet:
                 self.save_state(char["id"])
-                return {"text": "仕事を終えて帰った（%s円）" % format(pay, ","), "pay": pay}
+                return {"text": "仕事を終えて帰った（%s円）%s" % (format(pay, ","), "。" + work_note if work_note else ""), "pay": pay}
         r = self.act("work", char["id"], opts={"money": mv, "extra": {"amount": format(pay, ",")},
                                                "ctx": {"work_h": round(raw, 2), "paid_h": round(h, 2), "pay": pay},
                                                "skill": {"work": gain}})
+        if work_note:
+            r["work_note"] = work_note
         return r
 
     def answer_encounter(self, yes):

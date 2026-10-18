@@ -170,6 +170,8 @@ class Bonds:
                 "rivals_known": sum(1 for o in rv if o in known),
                 # 現実的な深まり方: 最近の交流日数 / ご無沙汰の日数 / 提案を受ける気持ち / 贈り物・お金の受け止め方
                 "met_14d": self.freq(st, now), "gap_d": round(self.gap_days(st, now), 2),
+                # 連絡しすぎ: 24 時間の連絡回数が, 性格 (approach) と間柄で決まる許容を超えた
+                "contacts_24h": self._contacts(st, now), "too_often": self._contacts(st, now) > self._tolerance(char, cid),
                 "ready": self.readiness(char, st, now), "gift_feel": self.gift_feel(char, st, now),
                 "money_feel": self.gift_feel(char, st, now, money=True)}
 
@@ -252,6 +254,14 @@ class Bonds:
             gd[k] = used + v
             eff[k] = v
         return eff, note
+
+    @staticmethod
+    def _contacts(st, now):
+        return sum(1 for t in st.get("contacts") or [] if now - t < 86400)
+
+    def _tolerance(self, char, cid):
+        base = 2 + 2 * float(self.app.traits(char).get("approach", 1))     # 甘えたがりほど連絡が多くても平気
+        return base + {"known": 0, "contact": 0, "visit": 2, "live": 4}.get(self.stage(cid), 0)
 
     def readiness(self, char, st, now):
         """段階の提案を受ける気持ち (目安 0〜100). 数値だけでなく, 最近の交流・ご無沙汰・性格・その日の気分で揺れる."""

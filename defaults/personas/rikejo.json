@@ -1564,6 +1564,18 @@
   ],
   "enc.decline": [
    "急いでるなら、合理的な判断ね。どうぞ。"
+  ],
+  "message.callback_true": [
+   "📱『さっきの着信、気づかなかった。用件は？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『今日の連絡回数、ちょっと多い。今は実験中だから後で』"
+  ],
+  "call.too_often_true": [
+   "また？ 今は手が離せない。後でかけ直す。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……この時間の通話は睡眠効率に響くんだけど。……どうしたの。"
   ]
  }
 }

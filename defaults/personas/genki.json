@@ -1619,6 +1619,18 @@
   ],
   "enc.decline": [
    "あ、急いでたんだ！ ごめんね、いってらっしゃい！"
+  ],
+  "message.callback_true": [
+   "📱『さっき電話くれた!? 出られなくてごめーん！ どしたの？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『連絡いっぱいだね！？ ……でも今ちょっと手が離せないかも！』"
+  ],
+  "call.too_often_true": [
+   "また電話っ？ ごめん、今ちょっとだけ無理かもっ！"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……ふぁ……こんな時間に……どしたのぉ……？"
   ]
  }
 }

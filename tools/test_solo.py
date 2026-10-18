@@ -93,6 +93,7 @@ def main():
         assert r["act"] is None and app.presence.rec()["mode"] == "out"
         r = back_after(app, 1)
         assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
+        app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入が混ざらないように
         m0 = L.player_state()["money"]
         S.start("shopping", place="shopping_street")
         r = back_after(app, 1)

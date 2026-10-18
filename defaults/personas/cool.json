@@ -1603,6 +1603,18 @@
   ],
   "enc.decline": [
    "……そう。急いでるなら、いい。"
+  ],
+  "message.callback_true": [
+   "📱『さっきは出られなかった。何？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『……連絡、多い。今は無理』"
+  ],
+  "call.too_often_true": [
+   "……また？ 今は、ちょっと。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……今、何時だと思ってるの。……どうしたの。"
   ]
  }
 }

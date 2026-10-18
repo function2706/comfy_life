@@ -1906,6 +1906,18 @@
   ],
   "enc.decline": [
    "あら、引き止めちゃってごめんなさい。いってらっしゃい。"
+  ],
+  "message.callback_true": [
+   "📱『さっきは出られなくてごめんね。何かあった？』"
+  ],
+  "message.too_often_true__apart_true": [
+   "📱『ちょっと、連絡多いわよ。何かあったなら電話しなさい』"
+  ],
+  "call.too_often_true": [
+   "また？ ……用があるならまとめて話しなさいね。"
+  ],
+  "call.phase_midnight_or_dawn": [
+   "……こんな時間に、どうしたの。眠れないの……？"
   ]
  }
 }
