@@ -22,17 +22,18 @@ KINDS = {
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
     "walk": {"label": "一人で散歩", "icon": "🚶", "mode": "out", "doing": "散歩中", "go": "go_out"},
     "shopping": {"label": "一人で買い物", "icon": "🛍", "mode": "out", "doing": "買い物中", "go": "go_out"},
+    "cafe": {"label": "カフェで過ごす", "icon": "☕", "mode": "out", "doing": "カフェで過ごし中", "go": "go_out"},
 }
+# 外出は「何をしに出るか」で選ぶ (目的のない「出かける」は置かない). 同居相手がそばにいれば「ちょっと出かけてくる」と告げてから
 # 告げる相手がいなくてもできる, あなたの予定 (そばに誰かいれば go_* として告げる)
 PLAIN = {
     "busy": {"label": "作業する", "icon": "🖥", "mode": "busy", "go": "go_busy", "text": "作業を始めた"},
-    "out": {"label": "出かける", "icon": "🚪", "mode": "out", "go": "go_out", "text": "出かけた"},
     "work": {"label": "仕事に行く", "icon": "💼", "mode": "work", "go": "go_work", "text": "仕事に出かけた"},
     "sleep": {"label": "寝る", "icon": "🌙", "mode": "sleep", "go": "go_sleep", "text": "寝ることにした"},
     "leave": {"label": "席を外す", "icon": "👋", "mode": "left", "go": "go_leave", "text": "席を外した"},
 }
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
-              "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た"}
+              "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事"}
 PRACTICE_TEXT = {"talk": "話し方の本を読んだ", "touch": "マッサージのやり方を調べた", "cook": "料理の練習をした",
@@ -179,6 +180,14 @@ class Solo:
         elif kind == "walk":
             L.tire(2 * h)
             text = "%s一人で散歩した" % _dur(h)
+        elif kind == "cafe":
+            ps = L.player_state()
+            spend = min(int(ps["money"]), int(random.randint(5, 12) * 100 * (1 + min(h, 3) * 0.3)))
+            if spend > 0:
+                ps["money"] -= spend
+                L.save_player()
+            out["money"] = -spend
+            text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
         else:   # shopping
             L.tire(2 * h)
             ps = L.player_state()

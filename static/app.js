@@ -229,7 +229,9 @@ function renderSolo(soloActs) {
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'practice'
     ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderCommands(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
-    : (OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderCommands(); },
+    : (OD_CHOICES()[k.id] && OD_CHOICES()[k.id].length === 1 ? btn(k.icon, k.label, () => soloStart(k.id, null, OD_CHOICES()[k.id][0]),
+      '出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
+    : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderCommands(); },
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
       : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで')));
   // 誰かと一緒にいるときは畳んでおく (開け閉めは覚える)

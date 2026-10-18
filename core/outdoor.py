@@ -36,7 +36,8 @@ PLACES = {
 # 一人の外出で選べる行き先
 CHOICES = {"walk": ["park", "riverside", "shopping_street", "station"],
            "shopping": ["shopping_street", "mall", "station"],
-           "out": ["park", "riverside", "shopping_street", "station", "cafe", "mall"]}
+           "cafe": ["cafe"],
+           "out": ["park", "riverside", "shopping_street", "station", "cafe", "mall"]}     # out: 以前の「出かける」(互換)
 # 誰かとのお出かけ (一時シーンの場所) → 行き先
 LOCATION_PLACE = {"公園": "park", "商店街": "shopping_street", "河川敷": "riverside", "駅前": "station", "カフェ": "cafe",
                   "ショッピングモール": "mall", "モール": "mall", "街": "town"}
