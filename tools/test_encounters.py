@@ -92,7 +92,7 @@ def main():
         assert len(app.chars) == 1 and app.encounters.pending() is None, "断れば登録しない"
         r = app.encounters.happen("work", stranger=True)
         reg = app.answer_encounter(True)["registered"]
-        assert app.chars[reg["id"]]["met"]["src"]["type"] == "world"
+        assert len(store.worlds_with(reg["id"])) >= 2, "同じ定義が, このワールドにも現れた (状態・ログはワールドごと)"
         assert len(app.encounters.candidates()) == 1, "このワールドにいる人は候補にしない"
         print("stranger from other world: OK")
 

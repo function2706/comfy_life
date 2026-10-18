@@ -41,7 +41,8 @@ def main():
         n0 = len(app.chars)
         a = app.new_character("さき", stage="absent", pos="1girl, solo, red hair")
         assert a["_stage"] == "absent" and a["id"] not in app.chars and len(app.chars) == n0
-        assert os.path.exists(store.dpath("registry", "characters", a["id"] + ".json"))
+        assert os.path.exists(store.dpath("characters", a["id"] + ".json")) and a["id"] not in store.load_cast(), "定義はあるが, 現れていない"
+        assert a["id"] in [x["id"] for x in app.others_list()], "設定の「まだ現れていない」に出る"
         assert "さき" in [x["name"] for _, x in E.candidates()], "このワールドでは知らない人の候補"
         app.world["encounters"] = {"stranger_share": 1}
         seen = set()

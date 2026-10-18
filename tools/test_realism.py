@@ -148,8 +148,9 @@ def main():
 
         # ---- 6. 偶然の出会いに偏りはない: 会う相手がいなければ何も起きない (知らない人に振り替えない)
         app.world["encounters"] = {"stranger_share": 0}
-        for c in [c for c in app.chars if c != "hina"]:
-            app.delete_character(c)
+        store.save_cast(["hina"])                    # このワールドにはひなだけ (ほかの人の定義は残る)
+        app.chars = {"hina": app.chars["hina"]}
+        app.settings["active_character"] = "hina"
         assert all(E.happen("out") is None for _ in range(20)), "知っている人がいなくても, 知らない人に会わせはしない"
         app.world["encounters"] = {"stranger_share": 1}
         E.happen("out")

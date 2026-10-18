@@ -1,7 +1,7 @@
 """出先でのばったり (外出中の偶然の出会いの中身).
 
 - 誰に会うか: 人にはそれぞれ「よく行く場所と時間帯」(顔なじみの理由) がある. 同じ場所・同じ時間帯に通えば, 同じ人にまた会いやすい.
-  仕事中に会うのは同僚だけ. 初めて見る顔 (ほかのワールドで登録済みの人, いなければ新しく作った人) もいる.
+  仕事中に会うのは同僚だけ. 初めて見る顔 (このワールドにまだ現れていない定義の人, いなければ新しく作った人) もいる.
 - 段階的に知り合う: まだ知らない → 見かけたことがある → 会釈する仲 → 立ち話する仲 → 知り合い (ここで登録するかを尋ねる).
   何度か会ううちに進むかどうかは, こちらの反応・相手の性格 (慎重さ)・偶然しだいで, 進まないこともある.
 - 相手から声をかけられたら, こちらも反応を選ぶ (応じる / 会釈だけ / 急いでいると断る). 気づかずに時間が過ぎたら,
@@ -92,8 +92,8 @@ class Street:
                 pool.append((w, "char", cid))
         ppl = self.people()
         for pid, pr in ppl.items():
-            if pr.get("cid"):
-                continue                    # 登録した人は, キャラとして上で数える
+            if pr.get("cid") or (pr.get("src") or {}).get("id") in app.chars:
+                continue                    # このワールドに現れた人は, キャラとして上で数える
             w = self._weight(pr.get("haunts") or haunts_of(pr["char"]), place, phase, work)
             if w:
                 pool.append((w, "person", pid))
@@ -115,8 +115,8 @@ class Street:
         seen = {(pr["char"].get("name"), pr["char"].get("pos")) for pr in ppl.values()}
         cands = [(wid, c) for wid, c in enc.candidates() if (c.get("name"), c.get("pos")) not in seen]
         if cands:
-            wid, c = random.choice(cands)
-            src = {"type": "world", "world": wid}
+            _, c = random.choice(cands)
+            src = {"type": "def", "id": c["id"]}       # すでにある定義の人 (このワールドでは初対面)
             c = {k: v for k, v in json.loads(json.dumps(c)).items() if k not in ("prompt_history", "met", "id")}
         else:
             c, src = enc.generate(), {"type": "new"}

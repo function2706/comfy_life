@@ -112,7 +112,7 @@ python server.py --port 9000 --no-browser
 
 ### ワールド（セーブ単位）
 
-ワールドごとに、キャラ・状態・ログ・あなたのお金／株／スキル／在席、コマンド・パラメータ・世界設定・出来事・働きかけ・ミニゲームの定義が別になる（`data/worlds/<id>/`）。ワールドAのひなとワールドBのひなは無関係。
+キャラクターの定義は全体で 1 つ（`data/characters/`。どのワールドで編集しても全ワールドに反映）。各ワールド（`data/worlds/<id>/`）には、顔ぶれ（`cast.json`）と各キャラの個体（状態・ログ・間柄・関係）、あなたのお金／株／スキル／在席、コマンド・パラメータ・世界設定・出来事・働きかけ・ミニゲームの定義がある。ワールドAのひなとワールドBのひなは、同じ定義でも過ごした日々と関係は別。削除は定義の抹消で、どこかのワールドに現れているキャラは削除できない（`delete_character`）。以前の形式（ワールドごとの `characters/`、`registry/characters/`）は起動時に統合し、同じ id で中身の違うものは別のキャラとして id を振り直して記録の参照も付け替える（`store.migrate_characters`。元のフォルダは `.migrated` として残す）。
 
 - **設定 → データ** で作成（登録済みのキャラから・間柄はくじ／今のワールドを複製）・切り替え・名前変更・削除。2 つ以上あると上のバーに切り替えが出る。
 - 全ワールド共通: `data/settings.json`（ComfyUI・LLM・表示・あなたの名前）、`data/personas/`、`data/workflow.json`、`data/images/`（画像と索引。同じプロンプトの画像はワールドをまたいで再利用）。
@@ -121,7 +121,7 @@ python server.py --port 9000 --no-browser
 
 ### あなたとの間柄（連絡先 → 家に行ける仲 → 同居）
 
-`core/bonds.py`。新しく作ったワールドでは誰とも暮らしていない。登録済みのキャラ全員（全ワールド＋既定。名前と外見プロンプトで同一視）から、くじで「連絡先」「知り合い（known: 連絡・誘い不可、偶然会うと連絡先を交換）」「まだ知らない（そのワールドには入らず、出会いの候補）」を決める（`encounters.start_contact` / `start_known`、最低一人は連絡先。worlds.json の `start_bonds`）。状態・ログ・関係は一から（最初のワールドは選んでいたキャラと同居）。間柄といまの居場所は `player.json` の `bonds` / `with`。
+`core/bonds.py`。新しく作ったワールドでは誰とも暮らしていない。キャラの定義全員（`data/characters/`）から、くじで「連絡先」「知り合い（known: 連絡・誘い不可、偶然会うと連絡先を交換）」「まだ知らない（そのワールドには入らず、出会いの候補）」を決める（`encounters.start_contact` / `start_known`、最低一人は連絡先。worlds.json の `start_bonds`）。状態・ログ・関係は一から（最初のワールドは選んでいたキャラと同居）。間柄といまの居場所は `player.json` の `bonds` / `with`。
 
 - 一緒にいない相手には「連絡」「会う」「あなたの予定」と、お出かけへの誘い（`home_only` で一時シーンが外出のもの）だけ。個別にはコマンドの `"apart": true/false`。条件キー `stage` `apart` `with_mode` `living_other` `rivals` `rivals_known`。
 - 誘いに応じてくれたら外で会う（お出かけの一時シーンが終われば別れる）。「家に遊びに行く」は `visit_hours` 時間で帰る。
@@ -157,7 +157,7 @@ python server.py --port 9000 --no-browser
 
 ### キャラを追加するとき
 
-設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。`data/registry/characters/` に登録し、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。どれでも登録キャラとして、ほかのワールドの出会い・顔ぶれの候補になる。
+設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。定義だけ作り、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。このワールドにいない定義は `boot.others`、`POST /api/character/define`（編集）・`/api/character/place {id, stage}`（このワールドに出す）・`/api/character/delete`（どこにも現れていない定義だけ）。
 
 ### オフラインモード
 
@@ -341,6 +341,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
+tools/test_definitions.py  キャラの定義（全体）と個体（ワールドごと）・移行・削除の可否のテスト
 tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト
 tools/test_realism.py  現実的な深まり方 (揺らぎ・繰り返し・ご無沙汰・提案・贈り物・出会いの偏りなし) のテスト
 core/games.py      ミニゲームの進行 (全種類)

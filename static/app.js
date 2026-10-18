@@ -1944,12 +1944,8 @@ SEC.char = () => {
     }, h('div', { class: 'row' },
       h('select', { onchange: async (ev) => { await api('/api/character/select', { id: ev.target.value }); S.current = null; await reloadAll('char'); } },
         S.boot.characters.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))),
-      h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'),
-      h('button', { class: 'btn danger', onclick: async () => {
-        if (!confirm(`「${c.name}」を削除しますか？（ログと画像は残ります）`)) return;
-        try { await api('/api/character/delete', { id: c.id }); S.current = null; await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
-      } }, '削除'))),
-    h('p', { class: 'lead' }, 'このワールドのキャラクターの設定です。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
+      h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'))),
+    h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
       fld('一人称（固定）', inp(c, 'first_person', { ph: `空欄＝プリセット（${(curPersona(c) || {}).first_person || '私'}）` }),
@@ -1976,6 +1972,7 @@ SEC.char = () => {
           fld('関係', inp(r, 'kind', { ph: '友人・姉妹・同僚など' })),
           fld('好感度', inp(r, 'affinity', { type: 'number' })));
       })) : h('p', { class: 'hint' }, 'このワールドにはほかのキャラがいません（＋新規で増やせます）。'),
+    othersSection(),
     h('div', { class: 'sect' }, `プロンプト履歴（${(c.prompt_history || []).length}）`),
     hist,
   ];
@@ -2001,13 +1998,61 @@ function newCharacterDialog() {
         if (!v.name.trim()) { toast('名前を入れてください', 'err'); return; }
         try {
           const r = await api('/api/character/new', v);
-          close();
           const st = r.character._stage;
-          toast(st === 'absent' ? `${r.character.name}を登録しました（このワールドでは、偶然の出会いを待ちます）`
-            : `${r.character.name}を追加しました（${st === 'known' ? '知り合い' : '連絡先を知っている'}）`, 'ok');
+          const label = { absent: 'このワールドには現れない（偶然の出会いを待つ）', known: '👤 知り合い', contact: '📱 連絡先を知っている' }[st];
           S.current = null; await reloadAll('char');
+          dlg.replaceChildren(h('div', { class: 'modal-body', style: 'padding:16px;max-width:560px' },
+            h('h3', {}, `${r.character.name}を${st === 'absent' ? '登録しました' : '追加しました'}`),
+            h('p', {}, `${v.stage === 'random' ? '🎲 くじの結果: ' : '間柄: '}${label}`),
+            st === 'absent' ? h('p', { class: 'hint' }, 'このワールドのキャラ一覧には出ません。出先で偶然会えば、段階的に知り合えます（会えないことも）。この画面の下の「このワールドにはまだ現れていないキャラ」で、確認・編集・このワールドに出すことができます。') : '',
+            h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
         } catch (e) { toast(e.message, 'err'); }
       } }, '追加'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
+// まだこのワールドに現れていない登録キャラ: 確認・編集・このワールドに出す・削除
+// このワールドにはまだ現れていないキャラの定義: 確認・編集・このワールドに出す・削除 (どこにも現れていない定義だけ)
+function othersSection() {
+  const list = S.boot.others || [];
+  const pname2 = (id) => ((S.boot.personas || []).find((p) => p.id === id) || {}).name || '性格なし';
+  return h('div', {},
+    h('div', { class: 'sect' }, `このワールドにはまだ現れていないキャラ（${list.length}）`),
+    h('p', { class: 'hint' }, '追加するときに「現れない」を選んだ人、くじで現れなかった人、ほかのワールドで作った人です。このワールドでは出先で偶然会えば段階的に知り合えます。ここから知り合い・連絡先としてこのワールドに出すこともできます。'),
+    list.length ? list.map((c) => h('div', { class: 'row reg-row' },
+      h('div', { style: 'flex:1;min-width:12em' }, h('b', {}, c.name), h('span', { class: 'muted small' }, `　${pname2(c.persona_id)}`),
+        h('div', { class: 'muted small' }, c._worlds && c._worlds.length ? `「${c._worlds.join('」「')}」に現れている` : 'どのワールドにもまだ現れていない'),
+        h('div', { class: 'muted small', style: 'word-break:break-all' }, c.pos || '')),
+      h('button', { class: 'btn small', onclick: () => editRegistryDialog(c) }, '編集'),
+      h('button', { class: 'btn small', title: 'このワールドに知り合い（連絡先は知らない）として出す', onclick: () => placeOther(c, 'known') }, '👤 知り合いとして出す'),
+      h('button', { class: 'btn small', title: 'このワールドに連絡先を知っている人として出す', onclick: () => placeOther(c, 'contact') }, '📱 連絡先として出す'),
+      h('button', { class: 'btn small danger', disabled: !!(c._worlds && c._worlds.length),
+        title: c._worlds && c._worlds.length ? 'どこかのワールドに現れている（知り合っている）ので削除できません。編集はできます' : '定義を消す（全ワールドに波及）',
+        onclick: async () => {
+          if (!confirm(`「${c.name}」の定義を消しますか？（どのワールドの出会いの候補からも外れます）`)) return;
+          try { await api('/api/character/delete', { id: c.id }); await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
+        } }, '削除'))) : h('p', { class: 'muted small' }, 'いません。'));
+}
+async function placeOther(c, stage) {
+  try { await api('/api/character/place', { id: c.id, stage }); toast(`${c.name}をこのワールドに出しました`, 'ok'); await reloadAll('char'); }
+  catch (e) { toast(e.message, 'err'); }
+}
+function editRegistryDialog(c0) {
+  const v = { id: c0.id, name: c0.name || '', pos: c0.pos || '', persona_id: c0.persona_id || '' };
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(600px,94vw);height:auto;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { class: 'modal-body', style: 'padding:16px;max-width:560px' },
+    h('h3', {}, `${c0.name}を編集`),
+    fld('名前', inp(v, 'name')),
+    fld('性格プリセット', inp(v, 'persona_id', { type: 'select', options: [['', 'なし（共通のセリフ）'], ...(S.boot.personas || []).map((p) => [p.id, p.name])] })),
+    fld('外見プロンプト', inp(v, 'pos', { type: 'textarea', rows: 3 })),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' },
+      h('button', { class: 'btn', onclick: close }, 'やめる'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        try { await api('/api/character/define', { data: Object.assign({}, v, { persona: '' }) }); close(); await reloadAll('char'); toast('保存しました（全ワールドに反映）', 'ok'); }
+        catch (e) { toast(e.message, 'err'); }
+      } }, '保存'))));
   document.body.append(dlg);
   dlg.showModal();
 }
@@ -2664,7 +2709,7 @@ SEC.data = () => {
     h('div', { class: 'row', style: 'margin-top:8px' },
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/actions', { actions: j }); await reloadAll(); toast('コマンドを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'コマンドを読込'),
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/params', { params: j }); await reloadAll(); toast('パラメータを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'パラメータを読込'),
-      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); await api('/api/character/select', { id: j.id }); S.current = null; await reloadAll(); toast('キャラクターを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'キャラクターを読込')),
+      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); if (!S.boot.characters.some((x) => x.id === j.id)) await api('/api/character/place', { id: j.id, stage: 'contact' }); await api('/api/character/select', { id: j.id }); S.current = null; await reloadAll(); toast('キャラクターを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'キャラクターを読込')),
   ];
 };
 

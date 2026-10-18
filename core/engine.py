@@ -1477,7 +1477,8 @@ class App:
             return {"pos": pos, "neg": neg, "parts": parts}
 
     def boot_view(self):
-        return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations, "actions": self.actions, "world": self.world,
+        return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
+                "others": self.others_list(), "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,
@@ -1537,15 +1538,16 @@ class App:
         with self.lock:
             if not c.get("id"):
                 raise ValueError("id がありません")
-            old = self.chars.get(c["id"])
+            old = self.chars.get(c["id"]) or store.all_characters().get(c["id"])
             hist = list((old or {}).get("prompt_history") or [])
             if old and not hist:
                 hist.insert(0, {"t": time.time() - 1, "pos": old.get("pos", ""), "neg": old.get("neg", "")})
             if not old or not hist or hist[0].get("pos") != c.get("pos") or hist[0].get("neg") != c.get("neg"):
                 hist.insert(0, {"t": time.time(), "pos": c.get("pos", ""), "neg": c.get("neg", "")})
             c["prompt_history"] = hist[:200]
-            self.chars[c["id"]] = c
-            store.save_character(c)
+            if c["id"] in self.chars or c["id"] in store.load_cast():     # このワールドに現れている人だけ手元に
+                self.chars[c["id"]] = c
+            store.save_character(c)              # 定義は全体 (全ワールドに反映)
             return c
 
     NEW_STAGES = ("contact", "known", "absent", "random")
@@ -1571,31 +1573,60 @@ class App:
                 r = random.random()
                 pc, pk = float(ec["start_contact"]), float(ec["start_known"])
                 stage = "contact" if r < pc else "known" if r < pc + pk else "absent"
+            self.save_character(c)                 # 定義は全体に (ほかのワールドでも出会い・顔ぶれの候補)
             if stage == "absent":
-                store.save(store.dpath("registry", "characters", cid + ".json"), c)
                 return dict(c, _stage="absent")
-            self.save_character(c)
-            self.bonds.set_stage(cid, stage)
+            self.place_character(cid, stage)
             self.select_character(cid)
             return dict(c, _stage=stage)
 
-    def delete_character(self, cid):
+    # ---- キャラの定義は全体で 1 つ. ワールドには, そのうち現れている人 (顔ぶれ) の個体 (状態・ログ・間柄・関係) がある
+    def others_list(self):
+        """このワールドにはまだ現れていない定義 (追加で「現れない」・くじで現れなかった人・ほかのワールドで作った人)."""
+        here = set(self.chars)
+        out = []
+        for cid, c in store.all_characters().items():
+            if cid not in here:
+                out.append(dict(c, _worlds=[w["name"] for w in store.load_worlds().get("worlds") or []
+                                            if cid in store.load_cast(w["id"])]))
+        return out
+
+    def place_character(self, cid, stage):
+        """定義を, このワールドに出す (知り合い / 連絡先). 同居はいきなりは選べない."""
+        if stage not in ("known", "contact"):
+            raise ValueError("間柄の指定が違います: %s" % stage)
         with self.lock:
-            if len(self.chars) <= 1:
-                raise ValueError("最後のキャラクターは削除できません")
-            self.chars.pop(cid, None)
+            c = store.all_characters().get(cid)
+            if not c:
+                raise KeyError("キャラの定義が見つかりません: %s" % cid)
+            store.save_cast(store.load_cast() + [cid])
+            self.chars[cid] = c
+            self.bonds.set_stage(cid, stage)
+            return dict(c, _stage=stage)
+
+    def save_definition(self, c):
+        """このワールドにいない定義を編集する (名前・性格・外見など. 全ワールドに反映)."""
+        old = store.all_characters().get(c.get("id"))
+        if not old:
+            raise KeyError("キャラの定義が見つかりません: %s" % c.get("id"))
+        old.update({k: v for k, v in c.items() if not k.startswith("_")})
+        p2 = self.personas.get(old.get("persona_id") or "") or {}
+        if "persona_id" in c and p2 and not c.get("persona"):
+            old["persona"] = p2.get("persona", "")
+        store.save_character(old)
+        return old
+
+    def delete_character(self, cid):
+        """定義の抹消 (全ワールドに波及). どこかのワールドに現れている (知り合い・同居など) キャラは消せない. 変更はできる."""
+        with self.lock:
+            ws = store.worlds_with(cid)
+            if ws:
+                names = [w["name"] for w in store.load_worlds()["worlds"] if w["id"] in ws]
+                raise ValueError("「%s」に現れているので削除できません（定義の変更はできます）" % "」「".join(names))
+            if cid not in store.all_characters():
+                raise KeyError("キャラの定義が見つかりません: %s" % cid)
             store.delete_character(cid)
-            self.relations.pop(cid, None)
-            for r in self.relations.values():
-                r.pop(cid, None)
-            ps = self.bonds.rec()
-            ps["bonds"].pop(cid, None)
-            if (ps.get("with") or {}).get("cid") == cid:
-                ps["with"] = None
-            self.bonds.save()
-            store.save(store.wpath("relations.json"), self.relations)
-            if self.settings.get("active_character") == cid:
-                self.select_character(next(iter(self.chars)))
+            return {"ok": True}
 
     # ------------------------------------------------------------------ worlds
     def worlds_view(self):
@@ -1613,9 +1644,9 @@ class App:
             if copy_from:
                 store.init_world(wid, copy_from)
             else:
-                # 登録済みのキャラ (どのワールドで作ったかを問わない) から, くじで連絡先を知っている人・知り合いを決める
-                chars, start = self.encounters.start_cast()
-                store.init_world(wid, chars=chars)
+                # キャラの定義 (どのワールドで作ったかを問わない) から, くじで連絡先を知っている人・知り合いを決める
+                cast, start = self.encounters.start_cast()
+                store.init_world(wid, cast=cast)
             if copy_from:
                 rel = store.load(store.dpath("worlds", copy_from, "relations.json"))
                 if rel:

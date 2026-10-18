@@ -228,8 +228,11 @@ def main():
         e = app.act("go_work")["entry"]
         assert e["text"].startswith("（ひなと別れて") and B.mode("hina") is None, e["text"]
         assert app.come_back()["entry"]["text"].startswith("（"), "離れている相手は出迎えない"
-        app.delete_character(mio["id"])
-        assert mio["id"] not in B.rec()["bonds"]
+        try:
+            app.delete_character(mio["id"])                 # 知り合っている人の定義は消せない
+            raise AssertionError("消せてしまう")
+        except ValueError:
+            pass
         print("move out / delete: OK")
         print("ALL OK")
     finally:

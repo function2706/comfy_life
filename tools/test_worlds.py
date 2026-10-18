@@ -38,9 +38,10 @@ def main():
         put(w(tmp, "settings.json"), {"player_name": "ユウ", "active_character": "hina", "seen_actions": ["talk"]})
         app = engine.App()
         app.save_settings({"auto_generate": False})
-        assert not os.path.exists(w(tmp, "characters")) and not os.path.exists(w(tmp, "player.json"))
+        assert not os.path.exists(w(tmp, "player.json"))
         w1 = store.WORLD
-        assert os.path.exists(w(tmp, "worlds", w1, "characters", "hina.json"))
+        assert os.path.exists(w(tmp, "characters", "hina.json")), "キャラの定義は全体に"
+        assert "hina" in store.load_cast(w1), "最初のワールドに現れている"
         assert app.state("hina")["params"]["mood"] == 12.0, "状態が引き継がれる"
         assert app.log("hina")[0]["text"] == "古いログ"
         assert app.life.player_state()["money"] == 12345, "お金が引き継がれる"
@@ -89,8 +90,11 @@ def main():
         assert b["id"] in app.chars and app.relation("hina", b["id"])["kind"] == "幼なじみ"
         assert app.log("hina") == [] and app.life.player_state()["money"] != 12345
         app.switch_world(w1)
-        app.delete_character(b["id"])
-        assert b["id"] not in app.relations.get("hina", {}), "削除したキャラの関係も消える"
+        try:
+            app.delete_character(b["id"])
+            raise AssertionError("現れているキャラの定義を消せてしまう")
+        except ValueError as e:
+            assert "削除できません" in str(e)
         print("relations: OK")
 
         # ---- 4. 生成中にワールドを切り替えても, 画像は元のワールドのログに入る

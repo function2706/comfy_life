@@ -2,9 +2,9 @@
 
 - このワールドに登録済みのキャラには「偶然会う」: そのキャラのログに残り, 少しうれしい.
   誰かと一緒にいたなら, その二人は互いを知る (紹介した).
-- 登録していない人と知り合うこともある. 候補は「ほかのワールドで登録済みのキャラ」, いなければ新しく作る.
+- 登録していない人と知り合うこともある. 候補は「このワールドにまだ現れていないキャラの定義」, いなければ新しく作る.
   知り合ったら, 登録する (連絡先を交換する) かどうかをあなたに尋ねる. ランダムなキャラが登録されるのはここだけ.
-  登録した人は, ほかのワールドでは「ほかのワールドで登録済みのキャラ」として出会いの候補になる.
+  定義は全体に 1 つなので, ほかのワールドでも (そこに現れていなければ) 出会いの候補になる.
 """
 import copy
 import glob
@@ -128,64 +128,42 @@ class Encounters:
 
     # ------------------------------------------------------------------ 登録していない人と知り合う
     def registered(self, skip_world=None, include_defaults=False):
-        """登録済みのキャラ全員 (どのワールドで作ったか・手動かくじかを問わない). 名前と外見が同じなら同じ人とみなす.
-        [(ワールドid, キャラ定義)]. include_defaults なら既定のキャラも含める (ワールドid は None)."""
-        files = sorted(glob.glob(store.dpath("worlds", "*", "characters", "*.json")))
-        # どのワールドにもまだ現れていない登録キャラ (設定で追加して「現れない」を選んだ人). ワールド id は "registry"
-        files += sorted(glob.glob(store.dpath("registry", "characters", "*.json")))
-        if include_defaults:
-            files += sorted(glob.glob(os.path.join(store.DEFAULTS, "characters", "*.json")))
-        out, seen = [], set()
-        for f in files:
-            wid = os.path.basename(os.path.dirname(os.path.dirname(f)))
-            wid = None if os.path.normcase(os.path.dirname(f)) == os.path.normcase(os.path.join(store.DEFAULTS, "characters")) else wid
-            if skip_world and wid == skip_world:
-                continue
-            c = store.load(f)
-            if not c or not c.get("id"):
-                continue
-            k = (c.get("name"), c.get("pos"))
-            if k in seen:
-                continue
-            seen.add(k)
-            out.append((wid, c))
-        return out
+        """キャラの定義全員 [(None, 定義)] (どのワールドで作ったか・手動かくじかを問わない)."""
+        store.ensure_default_characters() if include_defaults else None
+        return [(None, c) for c in store.all_characters().values()]
 
     def start_cast(self):
-        """新しいワールドに最初からいる人. 登録済みの全員について, くじで「連絡先を知っている」「知り合い」「まだ知らない」.
-        まだ知らない人は, そのワールドでは偶然の出会いで知り合える. 誰もいなくならないよう, 最低一人は連絡先を知っている.
-        (キャラ定義のリスト, {id: 間柄}) を返す. 状態・ログ・関係は新しいワールドで一からになる."""
+        """新しいワールドの顔ぶれ. 定義の全員について, くじで「連絡先を知っている」「知り合い」「まだ知らない」.
+        まだ知らない人は, そのワールドでは偶然の出会いで知り合える. 最低一人は連絡先を知っている.
+        (顔ぶれの id のリスト, {id: 間柄}) を返す. 状態・ログ・関係は新しいワールドで一から."""
         c = self.cfg()
         pc, pk = float(c["start_contact"]), float(c["start_known"])
-        pool = self.registered(include_defaults=True)
-        chars, start, ids = [], {}, set()
-        for _, d in pool:
+        store.ensure_default_characters()
+        pool = list(store.all_characters())
+        cast, start = [], {}
+        for cid in pool:
             r = random.random()
             stage = "contact" if r < pc else "known" if r < pc + pk else None
             if stage:
-                chars.append(self._fresh(d, ids))
-                start[chars[-1]["id"]] = stage
+                cast.append(cid)
+                start[cid] = stage
         if not any(s == "contact" for s in start.values()):
-            if chars:
-                start[random.choice(chars)["id"]] = "contact"
+            if cast:
+                start[random.choice(cast)] = "contact"
             else:
-                d = random.choice(pool)[1] if pool else self.generate()
-                chars.append(self._fresh(d, ids))
-                start[chars[-1]["id"]] = "contact"
-        return chars, start
-
-    @staticmethod
-    def _fresh(d, ids):
-        c = {k: v for k, v in json.loads(json.dumps(d)).items() if k not in ("prompt_history", "met")}
-        if not c.get("id") or c["id"] in ids:
-            c["id"] = "c" + uuid.uuid4().hex[:8]
-        ids.add(c["id"])
-        return c
+                if not pool:
+                    g = self.generate()
+                    g["id"] = "c" + uuid.uuid4().hex[:8]
+                    store.save_character(g)
+                    pool = [g["id"]]
+                cid = random.choice(pool)
+                cast.append(cid)
+                start[cid] = "contact"
+        return cast, start
 
     def candidates(self):
-        """ほかのワールドで登録済みで, このワールドにはいないキャラ (名前と外見が同じなら同じ人とみなす)."""
-        here = {(c.get("name"), c.get("pos")) for c in self.app.chars.values()}
-        return [(wid, c) for wid, c in self.registered(skip_world=store.WORLD) if (c.get("name"), c.get("pos")) not in here]
+        """このワールドにはまだ現れていない定義 [(None, 定義)]."""
+        return [(None, c) for cid, c in store.all_characters().items() if cid not in self.app.chars]
 
     def generate(self):
         """新しい人を作る (名前・外見・性格をくじで)."""
@@ -206,8 +184,8 @@ class Encounters:
     def meet_stranger(self, kind, with_cid, where, now):
         cands = self.candidates()
         if cands:
-            wid, c = random.choice(cands)
-            src = {"type": "world", "world": wid}
+            _, c = random.choice(cands)
+            src = {"type": "def", "id": c["id"]}          # すでにある定義の人 (このワールドでは初対面)
             c = {k: v for k, v in c.items() if k != "prompt_history"}
         else:
             c, src = self.generate(), {"type": "new"}
@@ -233,10 +211,15 @@ class Encounters:
             app.life.save_player()
             if not yes:
                 return {"registered": None}
-            c = json.loads(json.dumps(enc["char"]))
-            c["id"] = "c" + uuid.uuid4().hex[:8]
-            c["met"] = {"t": enc["t"], "where": enc["where"], "src": enc.get("src")}
-            app.save_character(c)
+            src = enc.get("src") or {}
+            if src.get("type") == "def" and src.get("id") in store.all_characters():
+                c = app.place_character(src["id"], "contact")      # すでにある定義: このワールドに現れる
+            else:
+                c = json.loads(json.dumps(enc["char"]))           # 新しく作った人: 定義を作って現れる
+                c["id"] = "c" + uuid.uuid4().hex[:8]
+                c["met"] = {"t": enc["t"], "where": enc["where"], "src": src}
+                app.save_character(c)
+                app.place_character(c["id"], "contact")
             if enc.get("pid"):           # 出先で段階的に知り合った人: 以後はキャラとして会う
                 ppl = app.street.people()
                 if enc["pid"] in ppl:
@@ -258,5 +241,5 @@ class Encounters:
             return None
         c = p["char"]
         return {"name": c.get("name", ""), "where": p["where"], "persona": p.get("persona_name", ""),
-                "from_world": (p.get("src") or {}).get("type") == "world", "t": p["t"],
+                "from_world": (p.get("src") or {}).get("type") in ("world", "def"), "t": p["t"],
                 "with": self.app.chars.get(p.get("with") or "", {}).get("name")}

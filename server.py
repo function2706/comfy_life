@@ -124,9 +124,12 @@ def route(method, path, q, body):
         if path == "/api/character/new":
             return {"character": a.new_character(b.get("name"), b.get("copy_from"), b.get("stage") or "contact",
                                                  b.get("pos"), b.get("persona_id"))}
+        if path == "/api/character/define":
+            return {"character": a.save_definition(b["data"])}
+        if path == "/api/character/place":
+            return {"character": a.place_character(b["id"], b.get("stage") or "contact")}
         if path == "/api/character/delete":
-            a.delete_character(b["id"])
-            return {"ok": True}
+            return a.delete_character(b["id"])
         if path == "/api/character/select":
             a.select_character(b["id"])
             return {"ok": True}
