@@ -49,21 +49,44 @@ def main():
             assert "一緒にいません" in str(e)
         assert app.visit() is None, "離れている相手は「おかえり」しない"
 
-        # メッセージ: 画像は出さない. テンションしだいで自撮り
-        r = app.act("message")
-        assert r["job"] is None
+        # メッセージ: 送るだけ. 返信は相手の状況しだいで, しばらくしてから (画像なし. テンションしだいで自撮り)
+        def reply(will=True):
+            st["msg_pending"]["due"], st["msg_pending"]["reply"] = time.time() - 1, will
+            return app.deliver_due()
+
+        e = app.act("message")["entry"]
+        assert e["text"].startswith("（📱") and e.get("sent") and not e["deltas"] and st["msg_pending"], e
+        st["cooldowns"] = {}
+        app.act("message")
+        assert st["msg_pending"]["count"] == 2, "返信前に送り重ねても, 返信は 1 回"
+        st["msg_pending"]["due"] = time.time() + 3600
+        assert app.deliver_due() == [], "まだ返ってこない"
         lo = B.selfie_chance({"mood": 30, "affection": 40, "stress": 70})
         hi = B.selfie_chance({"mood": 95, "affection": 90, "heart": 60})
         assert lo < 0.05 < hi <= 0.35, (lo, hi)
         B.selfie_chance = lambda ctx: 1.0
-        st["cooldowns"] = {}
-        r = app.act("message")
-        e = r["entry"]
-        assert e.get("selfie") and "selfie" in e["pos"] and "自撮り" in e["text"], e
+        out = reply()
+        assert len(out) == 1 and out[0]["name"] == "ひな", out
+        e = app.log("hina")[-1]
+        assert e.get("reply") and e.get("selfie") and "selfie" in e["pos"] and "自撮り" in e["text"], e
+        assert "msg_pending" not in st and st["last_touch"] > time.time() - 60, "返信が来た = 交流した"
         B.selfie_chance = lambda ctx: 0.0
         st["cooldowns"] = {}
-        e = app.act("message")["entry"]
-        assert not e.get("selfie") and e["text"].startswith("📱"), e
+        app.act("message")
+        assert reply(will=False) == [] and "msg_pending" not in st, "返信が来ないこともある"
+        st["cooldowns"] = {}
+        app.act("message")
+        st["override"] = {"activity": "bath", "label": "入浴中", "location": "浴室", "until": time.time() + 3600, "busy": True}
+        assert reply() == [] and st["msg_pending"]["due"] > time.time(), "入浴中は出てから"
+        free()
+        st["msg_pending"]["due"] = time.time() - 1
+        e = app.state_view()["replies"]
+        assert e and e[0]["text"].startswith("📱"), e
+        st["cooldowns"] = {}
+        app.act("message")
+        st["msg_pending"]["t"] -= 25 * 3600
+        st["msg_pending"]["due"] = time.time() - 1
+        assert app.deliver_due() == [] and "msg_pending" not in st, "一日たっても来なければ, もう来ない"
         print("apart / message / selfie: OK")
 
         # 離れているときのあなたの予定: 見送りはなく, あなたの行動だけ

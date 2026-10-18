@@ -93,6 +93,7 @@ async function refresh() {
     return;
   }
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
+  for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   renderWho();
   renderAway();
   renderApproach();
@@ -138,7 +139,10 @@ function tickClock() {
 }
 
 /* ---------------------------------------------------------------- who / scene */
+// 離れている相手 (同居して家にいる / 会っている 以外) の様子は, 既定では見えない (設定 → 表示 で見られる)
+const veiled = () => !!(S.view && S.view.bond && !S.view.bond.mode && !S.ui.showApart);
 function moodFace(p) {
+  if (veiled()) return '❔';
   if (S.view.scene.asleep) return '😴';
   if (S.view.scene.away) return '🚶';
   if ((p.health ?? 100) < 50) return '🤒';
@@ -165,14 +169,22 @@ function renderWho() {
   }
   sel.value = v.character;
   $('#phase-chip').textContent = v.phase.label || '—';
+  // 誰と暮らしているか・いまそばに誰がいるか (いなければ, そうはっきり書く)
+  const nm = (id) => (S.boot.characters.find((x) => x.id === id) || {}).name || '';
+  const liv = v.bond && v.bond.living;
+  const near = Object.entries(v.bonds || {}).filter(([, b]) => b.mode).map(([id]) => nm(id));
+  const hc = $('#home-chip');
+  hc.textContent = `🏠 ${liv ? nm(liv) + 'と同居' : '一人暮らし'}・${near.length ? 'そばに' + near.join('、') : 'いまは一人'}`;
+  hc.title = `${liv ? nm(liv) + 'と暮らしている' : '誰とも暮らしていない（一人暮らし）'}。${near.length ? 'いまそばにいるのは ' + near.join('、') : 'いまそばには誰もいない'}`;
+  const hide = veiled();
   const sc = v.scene;
   const where = sc.location ? `📍${sc.location}` : '';
-  $('#scene-chip').textContent = `${where}　${sc.label || ''}`.trim();
+  $('#scene-chip').textContent = hide ? `📱 ${v.name}とは離れている` : `${where}　${sc.label || ''}`.trim();
   $('#who-name').textContent = v.name;
-  $('#who-scene').replaceChildren(...[
+  $('#who-scene').replaceChildren(...(hide ? ['離れていて、いまの様子はわからない'] : [
     `${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`,
     sc.source === 'override' ? h('span', { class: 'muted', id: 'ov-rest', style: 'margin-left:6px' }) : null,
-  ].filter(Boolean));
+  ]).filter(Boolean));
   const face = $('#who-face');
   const lastImg = [...v.log].reverse().find((e) => e.image);
   if (lastImg) { face.style.backgroundImage = `url("${imgUrl(lastImg.image)}")`; face.textContent = ''; face.title = moodFace(v.params); }
@@ -181,18 +193,20 @@ function renderWho() {
     h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
     v.bond ? h('span', { class: 'tag bond' + (v.bond.mode ? '' : ' apart'), title: 'あなたとの間柄・いまどこで会っているか' },
       `${BOND_IC[v.bond.stage] || ''}${v.bond.stage_label}・${v.bond.label}`) : '',
-    v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
+    v.pending_msg ? h('span', { class: 'tag', title: '送ったメッセージへの返信は、相手の状況しだい（来ないことも）' }, '📱 返信待ち') : '',
+    !hide && v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
     v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '終えて戻る', onclick: comeBack },
       v.presence.solo ? `${v.presence.solo.icon} ${v.presence.solo.label} → 終わる` : '🖥 作業中 → 終わる') : '',
-    v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
+    !hide && v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
       v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
-    ...v.tags.map((t) => h('span', { class: 'tag' }, t.label)),
+    ...(hide ? [] : v.tags.map((t) => h('span', { class: 'tag' }, t.label))),
   );
 }
 
 /* ---------------------------------------------------------------- commands */
 // 「何を、誰と（あるいは一人で）するか」: 上に「一人で」、下に「〇〇と」（相手はここで選ぶ）
 const isSoloAction = (a) => a.category === 'あなたの予定' || a.id === 'side_job';
+const isPlainGo = (a) => a.category === 'あなたの予定' && /^go_/.test(a.id);   // 一人で欄では, 告げる相手の有無で出し分ける
 function cmdButton(a) {
   const st = S.view.available[a.id];
   const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
@@ -223,7 +237,11 @@ function renderSolo(soloActs) {
     h('div', { class: 'cmds' }, ...kinds,
       h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
         h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
-      ...soloActs.map(cmdButton)),
+      // 作業する・出かける・仕事・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
+      ...(so.plain || []).map((p) => h('button', { class: 'cmd', disabled: !free || !p.ok || S.busy,
+        title: so.near ? `${so.near.name}に告げてから` : '告げる相手はいない（一人で）', onclick: () => soloStart(p.id) },
+        h('span', { class: 'ic' }, p.icon), h('span', {}, p.label))),
+      ...soloActs.filter((a) => !isPlainGo(a)).map(cmdButton)),
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
 }
@@ -277,7 +295,7 @@ function renderCommands() {
   const out = [renderSolo(soloActs)];
   const b = S.view.bond || {};
   out.push(h('div', { class: 'with-head' }, '👥 ', $('#char-select'), h('span', {}, ' と'),
-    h('span', { class: 'muted small', style: 'margin-left:8px' }, b.label || '')));
+    h('span', { class: 'muted small', style: 'margin-left:8px' }, (b.label || '') + (S.view.pending_msg ? '・📱返信待ち' : ''))));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
@@ -830,7 +848,7 @@ function setImage(rel) {
 
 /* ---- 会話欄の表示設定 (ブラウザごとに保存) */
 const UI_KEY = 'kurashi.ui';
-const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact' };
+const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact', showApart: false };
 S.ui = (() => {
   try { return Object.assign({}, UI_DEFAULT, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return Object.assign({}, UI_DEFAULT); }
 })();
@@ -1366,16 +1384,18 @@ function renderStatus() {
       h('span', { class: 'pval' }, d ? `${d > 0 ? '+' : ''}${d}` : Math.round(val)));
   });
   const sc = v.scene;
+  const hide = veiled();
   const flags = [sc.asleep && '睡眠中', sc.away && '外出中', sc.busy && '手が離せない'].filter(Boolean).join('・');
   const L = v.life || {};
-  const reasons = (L.reasons || []).map((r) => h('div', { class: 'reason ' + r.mood },
+  // 離れている相手の機嫌の理由は, 本人から聞いたもの (told) だけ
+  const reasons = (L.reasons || []).filter((r) => !hide || r.told).map((r) => h('div', { class: 'reason ' + r.mood },
     h('span', {}, r.mood === 'good' ? '😊' : '😣'),
     h('span', {}, r.tell || '？（まだ聞いていない）'),
     h('span', { class: 'muted small' }, fmtTime(r.t))));
   $('#tab-status').replaceChildren(
     h('div', { class: 'scene-box' },
       h('div', {}, h('b', {}, '時間帯 '), v.phase.label),
-      h('div', {}, h('b', {}, 'いま '), `${sc.label}（${sc.location || '—'}）`, flags ? `　${flags}` : ''),
+      h('div', {}, h('b', {}, 'いま '), hide ? '離れていて、様子はわからない' : `${sc.label}（${sc.location || '—'}）`, !hide && flags ? `　${flags}` : ''),
       h('div', {}, h('b', {}, '最後のふれあい '), v.absent < 1 ? `${Math.round(v.absent * 60)}分前` : `${v.absent.toFixed(1)}時間前`),
       h('div', {}, h('b', {}, 'あなた '), (v.presence || {}).label || '—')),
     h('div', { class: 'pgroup' }, h('h4', {}, 'いまの気分の理由'),
@@ -1399,7 +1419,8 @@ function renderStatus() {
         if (S.peek) S.peekTimer = setTimeout(() => { S.peek = false; renderStatus(); }, 60000);
         renderStatus();
       } }, S.peek ? '戻す' : '数値を見る（1分）')) : '',
-    ...(mode === 'hidden' ? [] : [
+    hide ? h('p', { class: 'muted small' }, `${v.name}とは離れているので、からだやこころの様子はわかりません（会うか、本人から聞けば分かることも）。設定 → 表示 で「離れている相手の様子も見る」にすると見えます。`) : '',
+    ...(mode === 'hidden' || hide ? [] : [
       ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}の${label}`), rows(S.boot.params.filter((p) => p.group === g)))),
       others.length ? h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}のその他`), rows(others)) : '']),
   );
@@ -2082,6 +2103,9 @@ SEC.display = () => {
     h('p', { class: 'hint' }, '「見た目でわかることだけ」は、眠そう・お腹すいてそう のような様子だけを出します（数値は出さず、少しずれることもあります。好感度や信頼など見えないものは「？」）。どちらの場合も、ステータスタブの「数値を見る」で1分だけ正確な数値を見られます。'),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.deltas !== false, onchange: (ev) => set('deltas', ev.target.checked) }),
       'パラメータの変化（機嫌 +3 など）を会話欄とコマンドの説明に出す'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.showApart, onchange: (ev) => set('showApart', ev.target.checked) }),
+      '離れている相手の様子も見る（いまの場面・ステータス・表情・機嫌の理由）'),
+    h('p', { class: 'hint' }, '既定では、一緒に暮らしていない・会っていない相手の様子は見えません（本人から聞いた機嫌の理由だけ）。'),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },
       h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),

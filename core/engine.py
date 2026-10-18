@@ -588,7 +588,8 @@ class App:
             dt = datetime.fromtimestamp(now)
             if a.get("category") != "system":       # 画面から操作した = そばにいる
                 pr = self.presence.rec()
-                pr["beat"] = pr["input"] = now
+                if not opts.get("deliver"):        # 時間差で届いた返信は, あなたの操作ではない
+                    pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
             if not cond.check(a.get("when", ""), ctx):
@@ -596,6 +597,9 @@ class App:
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
+            if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
+                # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
+                return self._send_later(char, st, a, now, dt, scene, ctx)
             if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
                 if self.bonds.stage(cid) == "known":
                     raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
@@ -699,7 +703,7 @@ class App:
                 self.presence.declare(a["presence_set"], now)
                 if parting:
                     self.bonds.end()
-            elif a.get("category") != "system":
+            elif a.get("category") != "system" and not opts.get("deliver"):
                 self.presence.touch(now)
                 if self.presence.rec()["mode"] == "busy":
                     self.presence.rec()["mode"] = "none"     # 作業中でも, 構いに来たら作業はおしまい
@@ -761,6 +765,69 @@ class App:
         out = {"entry": entry, "job": job, "llm_error": llm_error}
         if outing_h:
             out["encounter"] = self.encounters.roll("outing", outing_h, cid, scene["location"] or None, now)
+        return out
+
+    def _send_later(self, char, st, a, now, dt, scene, ctx):
+        """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す."""
+        cid = char["id"]
+        p = st["params"]
+        pend = st.get("msg_pending")
+        if pend:
+            pend["count"] = pend.get("count", 1) + 1
+        else:
+            delay = random.uniform(3, 40) * 60
+            if p.get("mood", 50) < 35:
+                delay *= 2
+            if p.get("affection", 50) < 40:
+                delay *= 2
+            pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
+                * (0.7 if p.get("stress", 0) > 70 else 1)
+            st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1}
+        cd = float(a.get("cooldown", 0)) * 60
+        if cd:
+            st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
+        text = "（📱 %sにメッセージを送った）" % char.get("name", "")
+        pos, neg, parts = self.build_prompt(char, st, dt, a)
+        e = self._new_entry(cid, now, a, text, {}, scene, dt, pos, neg, parts)
+        e["sent"] = True
+        self.save_state(cid)
+        self.save_log(cid)
+        return {"entry": e, "job": None, "llm_error": None, "sent": True}
+
+    def deliver_due(self, now=None):
+        """時間差の返信: 期限が来て, 相手が寝ていない・手が離せないなら返信が届く (来ないと決まっていれば読むだけ).
+        届いた返信 [{cid, name, text}] を返す."""
+        now = now or time.time()
+        out = []
+        for cid in list(self.chars):
+            st = self.state(cid)
+            pend = st.get("msg_pending")
+            if not pend or now < pend.get("due", 0):
+                continue
+            if now - pend["t"] > 24 * 3600:          # 一日たっても返ってこなければ, もう来ない
+                st.pop("msg_pending", None)
+                self.save_state(cid)
+                continue
+            char = self.chars[cid]
+            self.tick(cid, now)
+            scene = self.scene_at(char, st, datetime.fromtimestamp(now))
+            if scene["asleep"] or scene["busy"]:       # 寝ている・入浴中・仕事中など: 落ち着いてから
+                pend["due"] = now + random.uniform(15, 40) * 60
+                self.save_state(cid)
+                continue
+            st.pop("msg_pending", None)
+            if not pend.get("reply"):
+                self.save_state(cid)                   # 読んだが, 返事はしなかった
+                continue
+            try:
+                r = self.act(pend["aid"], cid, opts={"deliver": True})
+            except (ValueError, KeyError):
+                self.save_state(cid)
+                continue
+            e = r["entry"]
+            e["action_name"], e["icon"], e["reply"] = "返信", "📱", True
+            self.save_log(cid)
+            out.append({"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600})
         return out
 
     def _act_money(self, char, st, a, r, plan, req, extra):
@@ -1158,6 +1225,7 @@ class App:
 
     # ------------------------------------------------------------------ views
     def state_view(self, cid=None, beat=False, idle=None):
+        replies = self.deliver_due()
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
@@ -1188,7 +1256,8 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
-                "solo": self.solo.view(),
+                "solo": self.solo.view(), "replies": replies,
+                "pending_msg": bool(st.get("msg_pending")),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),
                 "approach": self.presence.pending_view(char, st),

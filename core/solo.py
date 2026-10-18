@@ -6,13 +6,15 @@
 - 日記:              その場で書く. その日のログ (全キャラ + 一人の時間) から. LLM が有効なら LLM, 無ければ定型
 
 一緒にいる相手がいれば, 既存の「ちょっと作業するね」「ちょっと出かけてくる」として声をかけ, 相手が反応する.
-離れているなら, あなたの行動だけが記録される. 一人の時間の記録と日記は data/worlds/<id>/mylog.json / diary.json.
+離れているなら, あなたの行動だけが記録される.
+作業する・出かける・仕事に行く・寝る・席を外す (PLAIN) も同じ: そばに誰かいれば「〜してくるね」と告げ,
+誰もいなければ告げる相手なしで, あなたの予定としてそうする. 一人の時間の記録と日記は data/worlds/<id>/mylog.json / diary.json.
 """
 import random
 import time
 from datetime import date, datetime
 
-from . import llm, store
+from . import cond, llm, store
 
 KINDS = {
     "rest": {"label": "休む", "icon": "🛋", "mode": "busy", "doing": "休憩中", "go": "go_busy"},
@@ -20,6 +22,14 @@ KINDS = {
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
     "walk": {"label": "一人で散歩", "icon": "🚶", "mode": "out", "doing": "散歩中", "go": "go_out"},
     "shopping": {"label": "一人で買い物", "icon": "🛍", "mode": "out", "doing": "買い物中", "go": "go_out"},
+}
+# 告げる相手がいなくてもできる, あなたの予定 (そばに誰かいれば go_* として告げる)
+PLAIN = {
+    "busy": {"label": "作業する", "icon": "🖥", "mode": "busy", "go": "go_busy", "text": "作業を始めた"},
+    "out": {"label": "出かける", "icon": "🚪", "mode": "out", "go": "go_out", "text": "出かけた"},
+    "work": {"label": "仕事に行く", "icon": "💼", "mode": "work", "go": "go_work", "text": "仕事に出かけた"},
+    "sleep": {"label": "寝る", "icon": "🌙", "mode": "sleep", "go": "go_sleep", "text": "寝ることにした"},
+    "leave": {"label": "席を外す", "icon": "👋", "mode": "left", "go": "go_leave", "text": "席を外した"},
 }
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た"}
@@ -50,8 +60,31 @@ class Solo:
         return p.get("solo") if p.get("mode") in ("busy", "out") else None
 
     # ------------------------------------------------------------------ 始める
+    def near(self):
+        """いまそばにいる人 (同居して家にいる / 会っている). 選んでいるキャラを優先. いなければ None."""
+        app = self.app
+        cur = app.settings.get("active_character")
+        cids = ([cur] if cur in app.chars else []) + [c for c in app.chars if c != cur]
+        return next((c for c in cids if app.bonds.together(c)), None)
+
+    def _plain_ok(self, go, cid):
+        """告げる相手がいなくても, その予定の条件 (時刻・あなたの体力・在席) を満たすか."""
+        app = self.app
+        try:
+            a = app.action(go)
+        except KeyError:
+            return False
+        cid = cid or app.settings.get("active_character")
+        char, st = app.char(cid), app.state(cid)
+        ctx = app.context(char, st, datetime.now())
+        if not app.bonds.together(cid):
+            ctx["outing"] = False     # 相手の外出は関係ない (あなたの予定)
+        return cond.check(a.get("when", ""), ctx)
+
     def start(self, kind, skill=None):
         app = self.app
+        if kind in PLAIN:
+            return self.start_plain(kind)
         k = KINDS.get(kind)
         if not k:
             raise ValueError("一人でできることではありません: %s" % kind)
@@ -62,8 +95,8 @@ class Solo:
             raise ValueError("いまは始められません（%s）" % app.presence.view(time.time())["label"])
         now = time.time()
         res = None
-        cid = app.settings.get("active_character")
-        if cid in app.chars and app.bonds.together(cid):
+        cid = self.near()
+        if cid:
             # 一緒にいる相手には声をかけていく (既存の「ちょっと作業するね」「ちょっと出かけてくる」と同じ)
             try:
                 res = app.act(k["go"], cid)
@@ -76,6 +109,20 @@ class Solo:
         app.presence.save()
         self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", "")), now)
         return {"started": kind, "label": k["doing"], "act": res}
+
+    def start_plain(self, kind):
+        """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
+        app = self.app
+        k = PLAIN[kind]
+        cid = self.near()
+        if cid:
+            return {"started": kind, "label": k["label"], "act": app.act(k["go"], cid)}
+        if not self._plain_ok(k["go"], None):
+            raise ValueError("いまは「%s」できません（%s）" % (k["label"], app.action(k["go"]).get("when", "")))
+        now = time.time()
+        app.presence.declare(k["mode"], now)
+        self.note(kind, k["text"], now)
+        return {"started": kind, "label": k["label"], "act": None}
 
     # ------------------------------------------------------------------ 戻ったとき (come_back から)
     def finish(self, ll):
@@ -186,7 +233,17 @@ class Solo:
 
     def view(self):
         cur = self.current()
+        near = self.near()
+        plain = []
+        for kid, k in PLAIN.items():
+            try:
+                go = self.app.action(k["go"])
+            except KeyError:
+                continue
+            plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"],
+                          "ok": self._plain_ok(k["go"], near)})
         return {"current": dict(cur, **{k: KINDS[cur["kind"]][k] for k in ("label", "icon", "doing")}) if cur else None,
+                "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],
                 "skills": SKILL_LABEL, "diary_today": any(d["day"] == date.today().isoformat() for d in self.diary_list())}
 

@@ -76,6 +76,14 @@ def main():
         assert app.presence.rec()["mode"] == "none" and not app.presence.rec().get("solo")
         print("practice / chores: OK", noticed, "/ 12")
 
+        # そばに同居相手がいる: 告げる形 (既存の go_* と同じ)
+        v = S.view()
+        assert v["near"]["cid"] == "hina" and v["plain"][0]["label"] == "ちょっと作業するね", v["plain"]
+        r = S.start("busy")
+        assert r["act"]["entry"]["action"] == "go_busy"
+        app.come_back()
+        print("plain (near): OK")
+
         # ---- 3. 誰とも暮らしていない: 一人で散歩・買い物. 出会いは偶然 (補正なし)
         app.create_world("ひとり")
         S, L = app.solo, app.life
@@ -93,6 +101,17 @@ def main():
         S.start("walk")
         assert back_after(app, 3)["encounter"] is None, "起きやすさ 0 なら会わない"
         print("walk / shopping: OK")
+
+        # 告げる相手がいない: 「ちょっと作業するね」ではなく, 一人で「作業する」「出かける」
+        v = S.view()
+        assert v["near"] is None and [x["label"] for x in v["plain"]][:2] == ["作業する", "出かける"], v["plain"]
+        r = S.start("busy")
+        assert r["act"] is None and app.presence.rec()["mode"] == "busy"
+        app.come_back()
+        app.world["encounters"] = {"rate_out": 0}
+        assert S.start("out")["act"] is None and app.presence.rec()["mode"] == "out"
+        app.come_back()
+        print("plain (alone): OK")
 
         # ---- 4. 日記: その日の出来事から (LLM が無ければ定型)
         d = S.write_diary()
