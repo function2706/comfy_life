@@ -569,3 +569,5 @@ a.btn { color: inherit; }
 .gal-item.group { box-shadow: 4px 4px 0 -1px var(--panel2), 4px 4px 0 0 var(--line); }
 .prow.look { grid-template-columns: 90px 1fr; }
 .peek { margin: 0 0 6px; }
+.solo-now { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: #2c3a2e; color: #c8f0cf; }
+.solo-now .btn { margin-left: auto; }

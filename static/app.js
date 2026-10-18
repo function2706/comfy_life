@@ -201,8 +201,6 @@ function renderWho() {
       `${BOND_IC[v.bond.stage] || ''}${v.bond.stage_label}・${v.bond.label}`) : '',
     v.pending_msg ? h('span', { class: 'tag', title: '送ったメッセージへの返信は、相手の状況しだい（来ないことも）' }, '📱 返信待ち') : '',
     !hide && v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
-    v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '終えて戻る', onclick: comeBack },
-      v.presence.solo ? `${v.presence.solo.icon} ${v.presence.solo.label} → 終わる` : '🖥 作業中 → 終わる') : '',
     !hide && v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
       v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
     ...(hide ? [] : v.tags.map((t) => h('span', { class: 'tag' }, t.label))),
@@ -238,10 +236,16 @@ function renderSolo(soloActs) {
   const head = h('div', { class: 'with-head', style: 'cursor:pointer', title: '開く／畳む',
     onclick: () => { S.soloOpen = !open; renderCommands(); } }, `${open ? '▾' : '▸'} 🧍 一人で`,
     so.current ? h('span', { class: 'muted small', style: 'margin-left:8px' }, `${so.current.icon} ${so.current.doing}`) : null);
-  if (!open) return h('div', { class: 'cat solo' }, head);
+  // 家での一人の時間・作業の最中は, ここに「終わる」を出す (畳んでいても見えるように見出しのすぐ下)
+  const pres = v.presence || {};
+  const busyNow = pres.mode === 'busy' ? h('div', { class: 'solo-now' },
+    h('span', {}, pres.solo ? `${pres.solo.icon} ${pres.solo.label}…` : '🖥 作業中…'),
+    h('span', { class: 'muted small' }, '終えると、過ごした時間で結果が出ます'),
+    h('button', { class: 'btn primary small', disabled: S.busy, onclick: comeBack }, pres.solo ? `${pres.solo.label.replace(/中$/, '')}を終える` : '作業を終える')) : null;
+  if (!open) return h('div', { class: 'cat solo' }, head, busyNow);
   return h('div', { class: 'cat solo' },
     head,
-    so.current ? h('p', { class: 'muted small' }, `${so.current.icon} ${so.current.doing}…（「終わる」「ただいま」で戻ると結果が出ます）`) : null,
+    busyNow,
     h('div', { class: 'cmds' }, ...kinds,
       h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
         h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
