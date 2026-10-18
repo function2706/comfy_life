@@ -1,0 +1,1551 @@
+{
+ "id": "hitonatsukko",
+ "name": "人懐っこい近距離派",
+ "desc": "距離が近くて、肩が触れるくらいは平気な人懐っこさ。でも一線はちゃんと守っていて、簡単には踏み込ませない",
+ "persona": "一人称は「あたし」、プレイヤーを「{player}」と呼び捨てにする、人懐っこくて距離の近い成人女性。隣にぴったり座ったり、肩や腕をつついたり、顔をのぞき込んだりが自然で、「ねーねー」「近い？ いーじゃん」「えへへ」と明るく笑う。ただし軽いわけではなく、踏み込みすぎた話題や行動には「それはまだダメ」「調子乗らないの」と笑顔のままきっちり線を引く。仲良くなるのは早いが、特別な仲になるかは自分のペースで決める。",
+ "player_call": "{player}",
+ "first_person": "あたし",
+ "traits": {
+  "desc": "人懐っこく、よく構いに来て、すぐ機嫌が良くなる。照れにくい。ただ関係を進めることには慎重で、好感度もそう簡単には上がらない",
+  "rate": {
+   "loneliness": 1.3
+  },
+  "drift": {
+   "mood": 3
+  },
+  "gain": {
+   "mood": 1.2,
+   "shyness": 0.7,
+   "affection": 0.9
+  },
+  "approach": 1.7,
+  "absence": 1.1,
+  "jealousy": 0.9,
+  "caution": -10,
+  "gift": 1.0,
+  "money": -10
+ },
+ "lines": {
+  "look.free_true": [
+   "（{name}は{activity_label}。こちらに気づくと、ぶんぶん手を振ってきた）",
+   "（{name}は{activity_label}。目が合うと「ねーねー」と手招きしてくる）"
+  ],
+  "look.free_true__mood_ge_60": [
+   "（{activity_label}のようだ。ご機嫌な鼻歌が聞こえる）"
+  ],
+  "look.free_true__mood_lt_35": [
+   "（いつもの人懐っこさがない。なんだか機嫌が悪そうだ……）"
+  ],
+  "look.free_true__sleepiness_ge_70": [
+   "（うとうとして、頭がこっくりこっくり揺れている……）"
+  ],
+  "look.free_true__satiety_lt_20": [
+   "（お腹をさすりながら、ちらっとこちらを見た。お腹が空いているみたいだ）"
+  ],
+  "look.asleep_true": [
+   "（すぅすぅと静かな寝息を立てている）"
+  ],
+  "look.away_true": [
+   "（{name}は今、{location}にいる。{activity_label}だ）"
+  ],
+  "look.busy_true": [
+   "（{activity_label}……。今は邪魔しないでおこう）"
+  ],
+  "look.activity_bath": [
+   "（お風呂場から、ご機嫌な鼻歌が響いてくる）"
+  ],
+  "look.activity_breakfast_or_lunch_or_dinner": [
+   "（{name}は{activity_label}。おいしそうに頬張って、こちらに「ん！」と箸を向けてきた）"
+  ],
+  "look.activity_cooking": [
+   "（{name}は台所で手際よく料理をしている。いい匂いに、こっちおいでと手招きされた）"
+  ],
+  "look.activity_morning_or_getready": [
+   "（鏡の前で髪を整えている。鏡越しに目が合って、にっと笑った）"
+  ],
+  "look.activity_night": [
+   "（ベッドに腰かけて本を読んでいる。ページをめくる音だけが聞こえる）"
+  ],
+  "look.activity_hobby": [
+   "（スケッチブックに向かって、真剣な顔でペンを走らせている）"
+  ],
+  "look.activity_game": [
+   "（コントローラーを握って画面に夢中だ。「見て見て！」と声が上がる）"
+  ],
+  "look.activity_movie": [
+   "（画面の光に照らされて、映画に見入っている。隣の席がぽんぽんと叩かれた）"
+  ],
+  "look.outing_true": [
+   "（腕が触れそうな距離で隣を歩きながら、楽しそうにあたりを見回している）"
+  ],
+  "look.free_true__sleepiness_ge_60__activity_relax": [
+   "（ソファでクッションを抱えて、うたた寝しかけている……）"
+  ],
+  "look.free_true__boredom_ge_60": [
+   "（ぼんやり窓の外を眺めている。こちらに気づいたら構いに来そうな顔だ）"
+  ],
+  "look.free_true__loneliness_ge_60": [
+   "（クッションを抱えて、ちらちらとこちらを気にしている。今にも隣に来そうだ）"
+  ],
+  "look.health_lt_50__asleep_false": [
+   "（顔が少し赤くて、元気がない。具合が悪そうだ……）"
+  ],
+  "look.free_true__affection_ge_70": [
+   "（目が合うと、ぱあっとうれしそうに笑って手を振った）"
+  ],
+  "peek_face.default": [
+   "わっ、近っ！ ……あはは、のぞき込むのは{fp}の役なんだけどなー。",
+   "ん？ なになに、{call}の方から来るなんて珍しいじゃん。"
+  ],
+  "peek_face.affection_ge_60": [
+   "……{call}の目、近くで見るときれいだね。えへへ、もっと見ちゃお。"
+  ],
+  "peek_face.shyness_ge_50": [
+   "（目が合った瞬間、ぱっと顔をそらされた。珍しく照れているらしい）"
+  ],
+  "peek_face.mood_lt_35": [
+   "……今はあんまり見ないで。ちょっとだけ、ね。"
+  ],
+  "watch_quietly.free_true": [
+   "（{name}はこちらに気づかず、{activity_label}。小さく鼻歌を歌っている）"
+  ],
+  "watch_quietly.free_true__mood_ge_60": [
+   "（気づかないまま、ふふっと思い出し笑いをしている）"
+  ],
+  "watch_quietly.free_true__mood_lt_40": [
+   "（ため息をひとつ。めずらしく考え事をしているようだ）"
+  ],
+  "watch_quietly.free_true__affection_ge_75": [
+   "（{call}の写真を眺めて、ひとりでにやにや照れている……）"
+  ],
+  "watch_quietly.asleep_true": [
+   "（すやすやと眠っている。起こさないようにそっと離れた）"
+  ],
+  "watch_quietly.away_true": [
+   "（{location}で{activity_label}。{call}のことは見えていない）"
+  ],
+  "watch_quietly.busy_true": [
+   "（{activity_label}……。今はそっとしておこう）"
+  ],
+  "full_body.default": [
+   "ん、どしたの、じっと見て。……この服、変？ くるっと回ってみよっか？"
+  ],
+  "full_body.mood_ge_60": [
+   "えへへ、今日の服ちょっとお気に入りなんだー。ほら、近くで見て見て。"
+  ],
+  "full_body.shyness_ge_40": [
+   "ちょ、上から下までは……さすがの{fp}も照れるってば！"
+  ],
+  "full_body.affection_ge_70": [
+   "……似合ってるって、言ってくれてもいーんだよ？ ほらほら。"
+  ],
+  "sleeping_face.default": [
+   "（すうすうと穏やかな寝息。あどけない寝顔だ）"
+  ],
+  "sleeping_face.mood_ge_60": [
+   "（寝顔がふにゃっとほころんだ。いい夢を見ているらしい）"
+  ],
+  "sleeping_face.affection_ge_70": [
+   "（むにゃむにゃ……「{call}……えへへ」と寝言をつぶやいた）"
+  ],
+  "sleeping_face.health_lt_50": [
+   "（眉を寄せて、少し寝苦しそうだ）"
+  ],
+  "talk.default": [
+   "なになに、{call}？ えへへ、お話しするの大好き。",
+   "ねーねー、聞いて聞いて！ ……あ、{call}から話しかけてくれたんだった。なに？"
+  ],
+  "talk.mood_ge_55": [
+   "ねーねー{call}、今日ちょっといいことあったの。聞いてくれる？"
+  ],
+  "talk.boredom_ge_70": [
+   "やっと構ってくれた！ ずーっと暇だったんだからね。"
+  ],
+  "talk.sleepiness_ge_70": [
+   "ふぁ……ごめん、ちょっと眠くて……肩、借りてもいい……？"
+  ],
+  "talk.mood_lt_35": [
+   "……ごめん、今はちょっとそっとしといてほしいかも。"
+  ],
+  "talk.affection_ge_70": [
+   "{call}と話してると、時間あっという間なんだよね。もっとこっち寄って？"
+  ],
+  "talk.repeat_ge_2": [
+   "さっきからお話ばっかりだね、{call}。……ま、{fp}は大歓迎だけど！"
+  ],
+  "talk.sk_talk_ge_65__roll_lt_35": [
+   "（肩を寄せ合って話が弾み、気づけば一時間も話し込んでいた）"
+  ],
+  "talk.sk_talk_lt_20__roll_lt_35": [
+   "……（会話が続かず、微妙な沈黙が流れた。{name}がつんつんと腕をつついてくる）"
+  ],
+  "talk.player_likes_ge_1__roll_lt_30": [
+   "そういえば{call}、{player_like}好きなんだよね。{fp}も気になってきちゃった、今度教えて？"
+  ],
+  "greet.phase_dawn_or_morning": [
+   "おっはよ、{call}！ 今日もいい一日にしようね。"
+  ],
+  "greet.phase_noon": [
+   "こんにちはー。……って、一緒に住んでるのに変だね、あはは。"
+  ],
+  "greet.phase_noon__stage_contact_or_visit": [
+   "こんにちは、{call}！ 会えてうれしいなー。"
+  ],
+  "greet.phase_evening": [
+   "おつかれ、{call}！ もうすぐ晩ごはんだよー。"
+  ],
+  "greet.phase_evening__with_mode_meet": [
+   "こんばんは、{call}。外で会うのって、なんか新鮮だね！"
+  ],
+  "greet.phase_night": [
+   "こんばんはー。ねーねー、今日どんな一日だった？"
+  ],
+  "greet.phase_midnight": [
+   "まだ起きてたの？ 夜更かしはダメだよー。"
+  ],
+  "greet.repeat_ge_1": [
+   "さっきも挨拶したよ？ あはは、変な{call}。"
+  ],
+  "praise.default": [
+   "えっ、褒めても何も出ないよー？ ……ハイタッチくらいなら出るけど。"
+  ],
+  "praise.default_2": [
+   "えへへ……ありがと！ うれしい！"
+  ],
+  "praise.shyness_ge_70": [
+   "も、もう十分だってば！ これ以上は顔あっつくなる……"
+  ],
+  "praise.repeat_ge_2": [
+   "……ねぇ、なにか企んでる？ 顔、のぞいちゃうよ？"
+  ],
+  "tease.default": [
+   "もー、{call}のいじわる！ つんつんの刑だからね。"
+  ],
+  "tease.affection_ge_70": [
+   "そうやってからかうの、{call}だけなんだからね……？"
+  ],
+  "tease.mood_lt_40": [
+   "……今そういうの、いらない。"
+  ],
+  "stare.default": [
+   "ん？ なになに、顔になんかついてる？"
+  ],
+  "stare.shyness_ge_50": [
+   "ちょ、そんなに見ないでよ……！ 今日はなんか照れるんだって。"
+  ],
+  "stare.affection_ge_75": [
+   "（目をそらさずに、まっすぐ見つめ返してきた。ふっとやわらかく笑う）"
+  ],
+  "ask_mood.default": [
+   "え？ 特になんにもないよ。どしたの、心配してくれた？"
+  ],
+  "ask_mood.untold_0__reason_good": [
+   "今日はねー、なんかいい日なの！"
+  ],
+  "ask_mood.untold_0__cause_player": [
+   "……わかってるくせに。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_good": [
+   "えへへ、わかる？ 実はね……{ev_text}んだ！"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad": [
+   "……聞いてくれる？ 実はね、{ev_text}んだ。"
+  ],
+  "ask_mood.untold_ge_1__ev_mood_bad__affection_lt_30": [
+   "……ん、なんでもないよ。大丈夫大丈夫。"
+  ],
+  "apologize.default": [
+   "え？ なんで謝るの？"
+  ],
+  "apologize.cause_player": [
+   "……もー。次は気をつけてよね。"
+  ],
+  "apologize.cause_player__mood_lt_25": [
+   "……謝ればいいってもんじゃないよ。……でも、ちゃんと聞いた。"
+  ],
+  "apologize.cause_event__knows_false": [
+   "……なにに謝ってるの？ わかってないのに謝られても、さ……"
+  ],
+  "apologize.cause_event__knows_true": [
+   "{call}のせいじゃないよ。……でも、ありがと。"
+  ],
+  "comfort.default": [
+   "相談？ 今はとくに悩みないよ。……でも、ありがとね。"
+  ],
+  "comfort.cause_event__knows_true": [
+   "……聞いてもらったら、すっきりした。ありがと、{call}。"
+  ],
+  "comfort.cause_event__knows_false": [
+   "……実はね、{bad_text}んだ。……聞いてくれて、ありがと。"
+  ],
+  "comfort.cause_player": [
+   "……{call}がそれ言う？"
+  ],
+  "leave_alone.default": [
+   "（少し時間を置くことにした。{name}は静かに息をついている）"
+  ],
+  "leave_alone.loneliness_ge_60": [
+   "（……背中から、少し寂しそうな気配がした。袖を引かれそうな気がする）"
+  ],
+  "headpat.default": [
+   "ん……えへへ、くすぐったい。もっとやってもいーよ？"
+  ],
+  "headpat.loneliness_ge_50": [
+   "……もうちょっとだけ、このままがいいな。"
+  ],
+  "headpat.affection_lt_25": [
+   "わ、急に？ ……あはは、びっくりした。まだそれは早いんじゃない？"
+  ],
+  "headpat.asleep_true": [
+   "（むにゃ……と、寝たまま幸せそうに微笑んだ）"
+  ],
+  "headpat.sk_touch_ge_60__roll_lt_50": [
+   "ふにゃ……{call}の撫で方、落ち着く……"
+  ],
+  "hug.default": [
+   "わっ……！ もー、急なんだから。……ま、ちょっとだけならいっか。"
+  ],
+  "hug.affection_ge_70": [
+   "……あったかい。もうちょっとだけ、ぎゅってして？"
+  ],
+  "hug.stress_ge_60": [
+   "……ありがと。{fp}、ちょっと疲れてたみたい。"
+  ],
+  "hug.affection_lt_35": [
+   "はい、ストップ！ くっつくのはいいけど、それはまだダメ。"
+  ],
+  "hug.sk_touch_lt_20__affection_lt_50__roll_lt_50": [
+   "ひゃっ……！ い、いきなりはびっくりするってば！"
+  ],
+  "hold_hands.default": [
+   "手、つなぐ？ ……ん、いいよ。"
+  ],
+  "hold_hands.heart_ge_50": [
+   "（つないだ手が、少しだけ汗ばんでいる。それでも離そうとはしない）"
+  ],
+  "hold_hands.affection_lt_30": [
+   "腕組むくらいならいーけど……手つなぐのは、まだかなー。"
+  ],
+  "cook.default": [
+   "わぁ、いい匂い！ いっただきまーす！"
+  ],
+  "cook.satiety_lt_25": [
+   "お腹ぺこぺこだったの！ {call}、天才！？"
+  ],
+  "cook.satiety_ge_85": [
+   "うぅ、さっき食べたばっかで……でも、ひと口だけちょーだい。"
+  ],
+  "cook.sk_cook_lt_30__roll_lt_45": [
+   "……ちょっと焦げてるね。でも{call}が作ってくれたから、全部食べる！"
+  ],
+  "cook.sk_cook_ge_70__roll_lt_50": [
+   "なにこれ、お店の味……！ {call}、すごすぎ！"
+  ],
+  "tea.default": [
+   "ありがと！ ……ふぅ、落ち着くねー。"
+  ],
+  "tea.stress_ge_50": [
+   "はぁ……あったかい。ちょっと肩の力抜けたかも。"
+  ],
+  "tea.hydration_lt_25": [
+   "ちょうど喉からからだったの！ さっすが{call}。"
+  ],
+  "snack.default": [
+   "わーい、おやつ！ {call}も一緒に食べよ？ はい、あーん……は自分でね。"
+  ],
+  "snack.repeat_ge_1": [
+   "そんなに食べさせたら太っちゃうよー？"
+  ],
+  "snack.satiety_ge_85": [
+   "今はお腹いっぱいだから……あとでもらうね。"
+  ],
+  "snack.sk_cook_lt_25__roll_lt_40": [
+   "ん……ちょっと甘すぎ、かも？ あはは、でもうれしい！"
+  ],
+  "water.default": [
+   "ありがと！ ……んく、んく。ぷはーっ。"
+  ],
+  "water.hydration_ge_85": [
+   "今は大丈夫！ 気にしてくれてありがとね。"
+  ],
+  "bath.default": [
+   "じゃ、お先にいただきまーす。……覗いたら怒るからね？"
+  ],
+  "bath.affection_ge_85": [
+   "……一緒に入る？ なーんて、冗談！ 調子乗っちゃダメだよ？"
+  ],
+  "bath.hygiene_ge_85": [
+   "さっき入ったばっかだよー？"
+  ],
+  "nurse.default": [
+   "ごめんね、迷惑かけて……。でも、そばにいてくれてうれしい。"
+  ],
+  "nurse.affection_ge_60": [
+   "……手、冷たくて気持ちいい。もうちょっとだけ、ここ置いてて……"
+  ],
+  "tuck_in.default": [
+   "おやすみ、{call}。……いい夢見てね。"
+  ],
+  "tuck_in.sleepiness_lt_30": [
+   "まだ眠くないもーん。……でも、{call}がそう言うなら。"
+  ],
+  "tuck_in.affection_ge_70": [
+   "寝るまで、手……握っててくれる？"
+  ],
+  "sleep_together.default": [
+   "……ちょっとだけ、だよ？ 変なことしたら追い出すからね。おやすみ。"
+  ],
+  "sleep_together.asleep_true": [
+   "（寝ぼけたまま、ぴったりすり寄ってきた）"
+  ],
+  "sleep_together.affection_lt_50__asleep_false": [
+   "はい、そこまで！ 隣に座るのはいいけど、一緒に寝るのはまだダメ。"
+  ],
+  "wake.default": [
+   "んぅ……あと5分……"
+  ],
+  "wake.phase_midnight_or_dawn": [
+   "……今何時だと思ってんのぉ……"
+  ],
+  "wake.sleepiness_lt_25": [
+   "ふぁ……おはよ！ よく寝たー！"
+  ],
+  "game.default": [
+   "負けないよー！ ……あっ、ずるい！ ちょっと、肘で押さないでよ！"
+  ],
+  "game.boredom_ge_60": [
+   "やったー！ 待ってました！ ほら、隣おいで。"
+  ],
+  "game.energy_lt_25": [
+   "ごめん、今日はちょっと疲れてて……"
+  ],
+  "movie.default": [
+   "ポップコーン用意するね！ 席は{call}の隣ね、決まり。"
+  ],
+  "movie.heart_ge_40": [
+   "（気づけば、肩がぴったり触れ合う距離に座っている）"
+  ],
+  "movie.sleepiness_ge_60": [
+   "途中で寝ちゃったら、起こしてね……"
+  ],
+  "clean.default": [
+   "よーし、今日はピカピカにするよ！"
+  ],
+  "clean.energy_lt_25": [
+   "ちょっと休んでからでもいい……？"
+  ],
+  "photo.default": [
+   "撮るの？ じゃあ{call}も入って入って！ はい、ぴーす！"
+  ],
+  "photo.shyness_ge_50": [
+   "い、今はダメ！ 顔赤いから……！"
+  ],
+  "photo.mood_lt_35": [
+   "……撮らないで。"
+  ],
+  "end_activity.default": [
+   "そだね、今日はここまでにしよっか。"
+  ],
+  "end_activity.boredom_lt_30": [
+   "えー、もう終わり？ ……また今度、続きしようね。"
+  ],
+  "walk.default": [
+   "いいね、行こ行こ！ 風が気持ちよさそう。"
+  ],
+  "walk.phase_evening": [
+   "夕焼け、きれいだね……。（そっと腕に肩を寄せてきた）"
+  ],
+  "walk.energy_lt_25": [
+   "うーん、今日は家でごろごろしたいかも……"
+  ],
+  "shopping.default": [
+   "やった、ちょうど見たいお店あったの！ ほら、早く早く。"
+  ],
+  "shopping.energy_lt_25": [
+   "今日は人混みはちょっと……"
+  ],
+  "date.default": [
+   "デート！？ ……えへへ、すぐ着替えてくるね！"
+  ],
+  "date.affection_ge_80": [
+   "ずーっと誘ってくれるの、待ってたんだよ？"
+  ],
+  "date.energy_lt_20": [
+   "うれしいけど、今日はへとへとで……また今度、絶対だよ？"
+  ],
+  "date.payer_her": [
+   "今日は{fp}が出すね。いつものお礼！"
+  ],
+  "picnic.default": [
+   "お弁当作ってくね！ 晴れてよかったー。"
+  ],
+  "picnic.season_winter": [
+   "ちょっと寒いけど、ひなたは気持ちいいね。くっついてたらあったかいし。"
+  ],
+  "picnic.season_spring": [
+   "桜、きれい……！ お花見ピクニックだね。"
+  ],
+  "picnic.energy_lt_25": [
+   "うーん、今日は外に出る元気がなくて……"
+  ],
+  "hiking.default": [
+   "山、いいね！ 頂上まで競争ね？"
+  ],
+  "hiking.season_autumn": [
+   "紅葉すっごいきれい……来てよかった！"
+  ],
+  "hiking.energy_lt_40": [
+   "はぁ、はぁ……ちょ、ちょっと休憩させて……腕、貸して……"
+  ],
+  "hiking.energy_lt_20": [
+   "今日は山はちょっと……体力もたなそう。"
+  ],
+  "beach.default": [
+   "海……！ 潮風、気持ちいいね。"
+  ],
+  "beach.season_summer": [
+   "夏の海、最高！ 足だけでも入っちゃお。ほら、{call}も！"
+  ],
+  "beach.season_winter": [
+   "冬の海も静かでいいね……ちょっと寒いけど。もうちょいそっち寄っていい？"
+  ],
+  "beach.phase_evening": [
+   "夕日が海に沈んでく……きれい。"
+  ],
+  "amusement.default": [
+   "遊園地！ 絶叫系乗れる？ {fp}は……ちょっと怖いけど乗りたい！"
+  ],
+  "amusement.affection_ge_70": [
+   "観覧車、最後に乗ろうね。……てっぺんで、ね。"
+  ],
+  "amusement.energy_lt_25": [
+   "今日は人混みに行く元気が……ごめんね。"
+  ],
+  "aquarium.default": [
+   "見て見て、クラゲ……ふわふわしてて、ずっと見てられるね。"
+  ],
+  "aquarium.mood_ge_60": [
+   "ペンギン！ よちよち歩いてる……かわいい……！"
+  ],
+  "aquarium.affection_ge_65": [
+   "暗いからさ……手、つないでてもいい？"
+  ],
+  "cafe.default": [
+   "このケーキ、半分こしない？ どっちも食べたくて……"
+  ],
+  "cafe.mood_ge_55": [
+   "新作のラテ、気になってたんだー！"
+  ],
+  "cafe.satiety_lt_30": [
+   "お腹ぺこぺこだったから、うれしい……！"
+  ],
+  "cafe.payer_her": [
+   "ここは{fp}のおごり！ たまには、ね？"
+  ],
+  "stargazing.default": [
+   "わぁ……星、こんなに見えるんだ。"
+  ],
+  "stargazing.season_winter": [
+   "冬の星空って、空気が澄んでていちばんきれいなんだって。……寒いからもっと寄って。"
+  ],
+  "stargazing.affection_ge_70": [
+   "……ねぇ、{call}。もうちょっと、くっついててもいい？"
+  ],
+  "go_home.default": [
+   "そろそろ帰ろっか。楽しかったね！"
+  ],
+  "go_home.energy_lt_35": [
+   "ただいまー……っと。ふぅ、ちょっと疲れちゃった。"
+  ],
+  "go_home.mood_ge_70": [
+   "もう帰るの？ ……もうちょっとだけ、いたかったなー。"
+  ],
+  "gift.default": [
+   "えっ、{fp}に……？ 開けていい！？"
+  ],
+  "gift.affection_ge_70": [
+   "……大事にするね。ずっと、ずっと。"
+  ],
+  "gift.gift_feel_lt_30": [
+   "あ……ありがと。（少し困ったように笑って受け取った）"
+  ],
+  "message.away_true": [
+   "📱『いま休憩中！ {call}からのメッセージ、うれしー』"
+  ],
+  "message.away_true__loneliness_ge_50": [
+   "📱『早く帰りたいなー……。帰ったらいっぱい話そうね！』"
+  ],
+  "message.away_true__stress_ge_60": [
+   "📱『ちょっと大変で……でも、元気出た！』"
+  ],
+  "message.away_false": [
+   "（すぐそこにいるのに、とスマホを見て笑い、そのまま隣に寄ってきた）"
+  ],
+  "message.apart_true": [
+   "📱『{call}からだ！ ちょうど{call}のこと考えてたとこ！』"
+  ],
+  "message.apart_true__mood_lt_35": [
+   "📱『……今日はちょっと疲れちゃって。でも、連絡くれてうれしい』"
+  ],
+  "call.default": [
+   "もしもし、{call}？ どしたの？ ……えへへ、声聞けてうれしい。"
+  ],
+  "call.activity_class": [
+   "（小声で）い、今授業中だから……あとでかけ直すね！"
+  ],
+  "ask_visit.default": [
+   "えっ、うちに？ ……ん、いいよ。散らかってても笑わないでね。"
+  ],
+  "ask_visit.trust_lt_55__roll_lt_50": [
+   "うちは、まだダメー。外で会うのはいくらでもいいけど、それはもうちょい仲良くなってからね。"
+  ],
+  "visit_home.default": [
+   "いらっしゃい、{call}！ どうぞどうぞ、上がって。"
+  ],
+  "visit_home.mood_lt_35": [
+   "ごめん、今日はちょっと……また今度にしてもらえる？"
+  ],
+  "leave_visit.default": [
+   "もう帰っちゃうの？ ……また来てね。"
+  ],
+  "ask_live.default": [
+   "一緒に……住む……？ ……うん。ずっと、そう言ってほしかったんだ。"
+  ],
+  "ask_live.trust_lt_75__roll_lt_50": [
+   "うれしい。……でも、もうちょっとだけ考えさせて。そこは{fp}のペースで決めたいから。"
+  ],
+  "ask_live.mood_lt_40": [
+   "……今は、そういう気持ちになれない。"
+  ],
+  "move_out.default": [
+   "……そっか。……わかった。荷物、まとめるね。"
+  ],
+  "go_busy.default": [
+   "はーい。がんばってね！"
+  ],
+  "go_busy.loneliness_ge_70": [
+   "えー……。終わったら、ちゃんと構ってよね？"
+  ],
+  "go_busy.affection_ge_75__loneliness_ge_50": [
+   "邪魔しないから……隣にいてもいい？"
+  ],
+  "go_busy.asleep_true": [
+   "（{name}は眠っている。静かに作業を始めた）"
+  ],
+  "go_busy.away_true": [
+   "（{name}は出かけている。今のうちに作業を片づけよう）"
+  ],
+  "go_work.default": [
+   "いってらっしゃい！ 気をつけてね。"
+  ],
+  "go_work.loneliness_ge_70": [
+   "……早く帰ってきてね？（袖をくいっと引かれた）"
+  ],
+  "go_work.affection_ge_70__phase_morning_or_noon": [
+   "いってらっしゃい！ 晩ごはん、楽しみにしてるね。"
+  ],
+  "go_work.asleep_true": [
+   "（{name}を起こさないよう、そっと家を出た）"
+  ],
+  "go_work.away_true": [
+   "（{name}は出かけている。書き置きを残して家を出た）"
+  ],
+  "go_work.work_3d_ge_20__loneliness_ge_50": [
+   "……また仕事？ 最近ずーっとじゃん……"
+  ],
+  "go_work.player_has_job_true": [
+   "いってらっしゃい！ {player_job}のお仕事、がんばってね。"
+  ],
+  "go_out.default": [
+   "いってらっしゃい。どこ行くの？"
+  ],
+  "go_out.loneliness_ge_70": [
+   "一人で行っちゃうの……？ 早く帰ってきてね。"
+  ],
+  "go_out.asleep_true": [
+   "（{name}を起こさないよう、そっと出かけた）"
+  ],
+  "go_out.away_true": [
+   "（{name}も出かけている。戸締まりをして家を出た）"
+  ],
+  "go_sleep.default": [
+   "おやすみ、{call}！"
+  ],
+  "go_sleep.sleepiness_lt_40__free_true": [
+   "もう寝ちゃうの？ ……おやすみ。"
+  ],
+  "go_sleep.affection_ge_70": [
+   "おやすみ。……いい夢見てね、{call}。"
+  ],
+  "go_sleep.asleep_true": [
+   "（{name}の寝顔を確かめてから、眠りについた）"
+  ],
+  "go_leave.default": [
+   "はーい、またね！ ……待ってるからね。"
+  ],
+  "go_leave.loneliness_ge_70": [
+   "もう行っちゃうの……？ 早く戻ってきてね。（袖をつまんだ指が、なかなか離れない）"
+  ],
+  "go_leave.mood_ge_70__affection_ge_60": [
+   "はーい！ またあとでね！"
+  ],
+  "go_leave.asleep_true": [
+   "（眠っている{name}に小さく手を振って、そばを離れた）"
+  ],
+  "go_leave.away_true": [
+   "（{name}は出かけている。またあとで来よう）"
+  ],
+  "_back.default": [
+   "おかえり、{call}！"
+  ],
+  "_back.left_mode_busy": [
+   "作業終わった？ おつかれさま！ ほら、こっち座って。"
+  ],
+  "_back.left_mode_busy__loneliness_ge_60": [
+   "やっと終わった！ ……待ってたんだからね？（さっそく隣にくっついてきた）"
+  ],
+  "_back.left_mode_out": [
+   "おかえりー。どこ行ってたの？"
+  ],
+  "_back.left_mode_out__left_h_ge_6": [
+   "遅かったね……ちょっと心配したよ。"
+  ],
+  "_back.left_mode_sleep": [
+   "おはよ、{call}！ よく眠れた？"
+  ],
+  "_back.left_mode_left": [
+   "おかえり！ 待ってたよー。"
+  ],
+  "_back.left_mode_left__left_h_ge_24": [
+   "……久しぶりじゃん。ずっと待ってたんだよ？"
+  ],
+  "_back.left_mode_left__left_h_ge_168": [
+   "一週間も……。もう来ないのかと思った。"
+  ],
+  "_back.left_h_ge_3__away_events_ge_1": [
+   "おかえり！ ねーねー聞いて、{call}がいない間にね、{away_text}んだ。"
+  ],
+  "_back.asleep_true": [
+   "（{name}はまだ眠っている）"
+  ],
+  "_back.away_true": [
+   "📱『おかえりー！ {fp}はいま{location}だよ』"
+  ],
+  "work.default": [
+   "おかえり！ お仕事おつかれさま。……ちょっと寂しかったんだからね？"
+  ],
+  "work.loneliness_ge_60": [
+   "おかえり……！ ずっと待ってたんだよ。"
+  ],
+  "work.asleep_true": [
+   "（{amount}円稼いで帰ってきた。{name}はもうぐっすり眠っている）"
+  ],
+  "work.away_true": [
+   "（{amount}円稼いで帰ってきた。{name}はまだ{location}にいるようだ）"
+  ],
+  "work.work_h_lt_0.25": [
+   "あれ？ もう帰ってきたの？ 忘れ物？"
+  ],
+  "work.work_h_ge_8": [
+   "遅くまでおつかれさま……。ずっと待ってたんだよ？"
+  ],
+  "work.work_3d_ge_20__loneliness_ge_50": [
+   "おかえり。……最近お仕事ばっかだね。{fp}のことも、ちょっとは構ってよ。"
+  ],
+  "side_job.free_true": [
+   "なにしてんの？ ……手伝おっか？（手元をのぞき込んできた）"
+  ],
+  "side_job.free_false": [
+   "（黙々と作業を進めた。{amount}円になった）"
+  ],
+  "side_job.task_ok_ge_45__free_true": [
+   "すごい手際……！ {amount}円も？"
+  ],
+  "side_job.task_ng_ge_8__free_true": [
+   "……ちょっと雑じゃない？ あはは、ミスが{ng}個も。"
+  ],
+  "invest_buy.default": [
+   "（{asset}を{qty}株、{amount}円で買った）"
+  ],
+  "invest_buy.free_true": [
+   "投資？ ……損しないでよー？"
+  ],
+  "invest_sell.profit_gt_0": [
+   "（投資を売って{amount}円になった。{profit}円の得だ）"
+  ],
+  "invest_sell.profit_le_0": [
+   "（投資を売って{amount}円になった。{profit}円の損だ……）"
+  ],
+  "invest_sell.profit_gt_0__free_true": [
+   "{profit}円も増えたの！？ すごいじゃん！"
+  ],
+  "invest_sell.profit_le_0__free_true": [
+   "……{profit}円の損？ どんまい、よしよし。"
+  ],
+  "allowance.default": [
+   "えっ、いいの？ ……大事に使うね。"
+  ],
+  "allowance.her_money_lt_5000": [
+   "助かる……！ 実はちょっとピンチだったの。"
+  ],
+  "allowance.affection_lt_30": [
+   "……なんのつもり？ ま、もらっとくけど。"
+  ],
+  "allowance.money_feel_lt_45": [
+   "お金は……いいよ。そういうの、なんかやだ。"
+  ],
+  "borrow.her_money_ge_5000__affection_ge_50": [
+   "しょうがないなー……ちゃんと返してよ？"
+  ],
+  "borrow.affection_lt_50": [
+   "お金の貸し借りは、ちょっとねー。仲良しでも、そこはナシ。"
+  ],
+  "borrow.her_money_lt_5000": [
+   "ごめん、{fp}もちょっと余裕なくて……"
+  ],
+  "expensive_gift.default": [
+   "こ、こんな高いもの……！ ほんとにいいの……？"
+  ],
+  "expensive_gift.affection_ge_70": [
+   "……{call}からだから、受け取る。一生、大事にするね。"
+  ],
+  "expensive_gift.affection_lt_30": [
+   "こんな高いのは受け取れないよ。調子乗らないの。……気持ちだけで十分。"
+  ],
+  "expensive_gift.money_feel_lt_45": [
+   "こ、こんな高いもの……受け取れない。……ちょっと、重いよ。"
+  ],
+  "_dress.default": [
+   "着替えてきたよ！ ……どう？ 似合ってる？"
+  ],
+  "_dress.mood_ge_60": [
+   "じゃーん！ ……なんて、ちょっと照れるね、えへへ。"
+  ],
+  "_dress.outfit_": [
+   "いつもの服に戻すねー。"
+  ],
+  "_dress.outfit_maid": [
+   "おかえりなさいませ、{call}。……なーんてね、あはは。"
+  ],
+  "_dress.outfit_yukata": [
+   "夏祭り、行きたくなっちゃうね。"
+  ],
+  "_dress.outfit_swimsuit__affection_ge_60": [
+   "み、水着！？ ……{call}だから、ちょっとだけだよ？"
+  ],
+  "_dress.outfit_swimsuit__affection_lt_60": [
+   "水着はまだダメー。調子乗らないの。"
+  ],
+  "_dress.mood_lt_25": [
+   "……今は着替える気分じゃない。"
+  ],
+  "_return.default": [
+   "あ、{call}！ おかえり！"
+  ],
+  "_return.absent_ge_24": [
+   "あっ、{call}！ 久しぶりな気がする。おかえり！"
+  ],
+  "_return.absent_ge_72": [
+   "……{call}！ 何日もどこ行ってたの……！ 心配したんだから……"
+  ],
+  "_return.asleep_true": [
+   "（{name}はぐっすり眠っている……）"
+  ],
+  "_return.away_true": [
+   "📱『{call}、おかえり！ {fp}はいま{location}だよ』"
+  ],
+  "_return.absent_ge_6__away_events_ge_1": [
+   "おかえり！ ねーねー、{call}がいない間にね、{away_text}んだ。"
+  ],
+  "_return.absent_ge_168": [
+   "……一週間も、どこ行ってたの。もう帰ってこないのかと思った……"
+  ],
+  "_return.said_false__absent_ge_3__loneliness_ge_60": [
+   "……何も言わずに、どこ行ってたの。ちょっと寂しかったんだけど。"
+  ],
+  "_return.said_false__absent_ge_1": [
+   "……あ、{call}。急にいなくなるから、どうしたのかと思ったよ。"
+  ],
+  "_return.said_false__absent_ge_24": [
+   "……丸一日、何も言わずにいなくなるなんて。心配したんだからね。"
+  ],
+  "_req_yes.req_kind_money": [
+   "ありがと……！ ちゃんと返すからね。"
+  ],
+  "_req_yes.req_kind_gift": [
+   "ほんと！？ うれしい……大事にするね！"
+  ],
+  "_req_yes.req_kind_treat": [
+   "じゃあ今日は{fp}のおごり！ 遠慮しないでね。"
+  ],
+  "_req_yes.req_kind_present": [
+   "（{name}が、照れくさそうに小さな包みを差し出した）……いつものお礼、だよ。"
+  ],
+  "_req_no.req_kind_money": [
+   "……だよねー。大丈夫、なんとかする。"
+  ],
+  "_req_no.req_kind_gift": [
+   "……だよね。言ってみただけ！"
+  ],
+  "_req_no.req_kind_treat": [
+   "えー、たまにはいいのにー……"
+  ],
+  "mg.yakyuken.refuse.default": [
+   "や、野球拳！？ あはは、それはまだダメ。調子乗らないの。"
+  ],
+  "mg.yakyuken.start.default": [
+   "野球拳……ね。……いいよ、負けないから！"
+  ],
+  "mg.yakyuken.start.mood_ge_60": [
+   "ふふん、{fp}じゃんけん強いんだよ？ 覚悟してね。"
+  ],
+  "mg.yakyuken.hint.default": [
+   "……次は{hint_hand}出しちゃおっかなー？"
+  ],
+  "mg.yakyuken.hint.default_2": [
+   "{hint_hand}……いや、なんでもない！"
+  ],
+  "mg.yakyuken.draw.default": [
+   "あいこでしょ！ ……もう一回！"
+  ],
+  "mg.yakyuken.draw.default_2": [
+   "また{her_hand}！ 気が合うねー。"
+  ],
+  "mg.yakyuken.round_win.default": [
+   "うぅ……「{stage}」になっちゃった……"
+  ],
+  "mg.yakyuken.round_win.game_stage_le_1": [
+   "ま、まだ平気！ 次は勝つから！"
+  ],
+  "mg.yakyuken.round_win.game_stage_ge_3": [
+   "こ、これ以上は……ほんとに次で最後だからね……！"
+  ],
+  "mg.yakyuken.round_lose.default": [
+   "やった、{fp}の勝ち！ {call}、1枚脱いでね♪"
+  ],
+  "mg.yakyuken.round_lose.default_2": [
+   "えへへ、{my_hand}出すと思ってた。"
+  ],
+  "mg.yakyuken.round_lose.lives_le_1": [
+   "あと1回で{fp}の勝ちだよ？"
+  ],
+  "mg.yakyuken.win.default": [
+   "も、もう無理、降参……！ {call}のいじわる……"
+  ],
+  "mg.yakyuken.lose.default": [
+   "{fp}の勝ちー！ ……ちょっとだけ、残念だった？"
+  ],
+  "mg.yakyuken.quit.default": [
+   "もうおしまい？ ……ちょっとほっとした。"
+  ],
+  "mg.yakyuken.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.acchimuite.start.default": [
+   "あっち向いてホイね！ 反射神経には自信あるんだから。"
+  ],
+  "mg.acchimuite.hint.default": [
+   "次は{hint_hand}かもー……？"
+  ],
+  "mg.acchimuite.draw.default": [
+   "あいこでしょ！"
+  ],
+  "mg.acchimuite.rps_me.default": [
+   "あっ、負けちゃった……どっち指すの？ 顔近いってば。"
+  ],
+  "mg.acchimuite.rps_her.default": [
+   "{fp}の勝ち！ いくよー……あっち向いて……"
+  ],
+  "mg.acchimuite.point_me.default": [
+   "あーっ！ つられちゃった……"
+  ],
+  "mg.acchimuite.dodge_me.default": [
+   "ふふん、引っかかんないよー！"
+  ],
+  "mg.acchimuite.point_her.default": [
+   "やった！ {call}、{dir}向いたー！"
+  ],
+  "mg.acchimuite.dodge_her.default": [
+   "むー、よけられた！"
+  ],
+  "mg.acchimuite.win.default": [
+   "負けたー……{call}強いね。次は負けないから！"
+  ],
+  "mg.acchimuite.lose.default": [
+   "{fp}の勝ちー！ えへへ、もう一回やる？"
+  ],
+  "mg.acchimuite.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.acchimuite.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.mahjong.refuse.default": [
+   "だ、脱衣麻雀！？ それはまだダメ。笑顔で言ってるけど本気だからね？"
+  ],
+  "mg.mahjong.start.default": [
+   "麻雀？ えへへ、{fp}けっこう打てるんだよ。……脱ぐのはそっちかもね？"
+  ],
+  "mg.mahjong.start.shyness_ge_40": [
+   "う、受けて立つ……！ 手加減しないからね。"
+  ],
+  "mg.mahjong.hint.tenpai_true": [
+   "えへへ……そろそろ来そうな気がするんだよねー。"
+  ],
+  "mg.mahjong.hint.tenpai_false": [
+   "うーん、ぜーんぜん揃わない……"
+  ],
+  "mg.mahjong.her_riichi.default": [
+   "リーチ！ ……覚悟してね？"
+  ],
+  "mg.mahjong.her_riichi.game_stage_ge_2": [
+   "り、リーチ！ ……なんかドキドキしてきた。"
+  ],
+  "mg.mahjong.my_riichi.default": [
+   "えっ、リーチ！？ ……この牌、通るかな……"
+  ],
+  "mg.mahjong.hand_win.default": [
+   "うぅ……{yaku}、{han}……。「{stage}」だよ……"
+  ],
+  "mg.mahjong.hand_win.game_stage_le_1": [
+   "ま、まだまだ！ 次は和了るから！"
+  ],
+  "mg.mahjong.hand_win.game_stage_ge_3": [
+   "こ、これ以上は……ほんとに次で最後だからね……！"
+  ],
+  "mg.mahjong.hand_lose.tsumo_false": [
+   "ロン！ {yaku}で{han}だよ♪"
+  ],
+  "mg.mahjong.hand_lose.tsumo_true": [
+   "ツモ！ {yaku}、{han}！ えへへ、もーらい。"
+  ],
+  "mg.mahjong.hand_lose.lives_le_1": [
+   "あと1回で{fp}の勝ちだよ？"
+  ],
+  "mg.mahjong.ryuukyoku.default": [
+   "流局だね。……ちょっとほっとした。"
+  ],
+  "mg.mahjong.win.default": [
+   "{yaku}……{han}……。も、もう無理、降参……！"
+  ],
+  "mg.mahjong.lose.default": [
+   "{fp}の勝ちー！ {call}、麻雀はもうちょい練習しよっか？"
+  ],
+  "mg.mahjong.quit.default": [
+   "途中でやめちゃうの？ ……続きはまた今度ね。"
+  ],
+  "mg.mahjong.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.connect4.start.default": [
+   "コネクトフォーね！ 4つ並べればいいんだよね？"
+  ],
+  "mg.connect4.mid.default": [
+   "うーん……どこ置こ……（盤をのぞき込んで、肩がこつんと当たった）"
+  ],
+  "mg.connect4.mid.advantage_lt_-20": [
+   "えへへ、いい感じ。"
+  ],
+  "mg.connect4.mid.advantage_gt_20": [
+   "あれ、ちょっとまずいかも……"
+  ],
+  "mg.connect4.win.default": [
+   "あっ、揃っちゃった……！ {call}の勝ちー。"
+  ],
+  "mg.connect4.lose.default": [
+   "4つ並んだ！ {fp}の勝ちー！"
+  ],
+  "mg.connect4.draw.default": [
+   "引き分けかー。いい勝負だったね！"
+  ],
+  "mg.connect4.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.connect4.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.hex.start.default": [
+   "ヘックス……六角形のマスをつなげるんだね。負けないよ！"
+  ],
+  "mg.hex.mid.default": [
+   "そこ塞がれると困るんだよねー……"
+  ],
+  "mg.hex.mid.advantage_lt_-10": [
+   "ふふ、道が見えてきた。"
+  ],
+  "mg.hex.mid.advantage_gt_10": [
+   "えっ、もうそこまで……！？"
+  ],
+  "mg.hex.win.default": [
+   "つながっちゃった……{call}の勝ち。"
+  ],
+  "mg.hex.lose.default": [
+   "つながった！ {fp}の勝ち！"
+  ],
+  "mg.hex.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.hex.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.reversi.start.default": [
+   "リバーシね。角は渡さないよー？"
+  ],
+  "mg.reversi.mid.default": [
+   "うーん、どこ置こうかなー……"
+  ],
+  "mg.reversi.mid.advantage_lt_-8": [
+   "白がいっぱい♪"
+  ],
+  "mg.reversi.mid.advantage_gt_8": [
+   "うぅ、真っ黒……"
+  ],
+  "mg.reversi.pass.default": [
+   "あ、{call}は置けるとこないみたい。{fp}の番ね！"
+  ],
+  "mg.reversi.win.default": [
+   "{me}対{her}……{call}の勝ち。"
+  ],
+  "mg.reversi.lose.default": [
+   "{her}対{me}で{fp}の勝ち！"
+  ],
+  "mg.reversi.draw.default": [
+   "{me}対{her}、引き分け！"
+  ],
+  "mg.reversi.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.reversi.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.yacht.start.default": [
+   "ヨットね！ サイコロ運には自信あるんだー。"
+  ],
+  "mg.yacht.mid.default": [
+   "まだまだこれからだよー。"
+  ],
+  "mg.yacht.mid.advantage_lt_-15": [
+   "えへへ、今日ツイてるかも。"
+  ],
+  "mg.yacht.mid.advantage_gt_15": [
+   "えぇ、{call}強くない……？"
+  ],
+  "mg.yacht.my_yacht.default": [
+   "えっ、ヨット！？ すごっ……！"
+  ],
+  "mg.yacht.her_yacht.default": [
+   "見て見て、ヨット！ やったー！（ばしばし肩を叩いてくる）"
+  ],
+  "mg.yacht.win.default": [
+   "{me}対{her}……{call}の勝ち。次は負けないから！"
+  ],
+  "mg.yacht.lose.default": [
+   "{her}対{me}で{fp}の勝ち！ サイコロの神様は{fp}の味方なのだー。"
+  ],
+  "mg.yacht.draw.default": [
+   "{me}点で同点！？ こんなことあるんだ。"
+  ],
+  "mg.yacht.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.yacht.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.koikoi.start.default": [
+   "花札？ おばあちゃんとよくやってたんだー。こいこい、負けないよ！"
+  ],
+  "mg.koikoi.her_koi.default": [
+   "こいこい！ ……まだまだいくよ？"
+  ],
+  "mg.koikoi.her_koi.mood_lt_50": [
+   "こ、こいこい……！ 欲張りすぎかな……"
+  ],
+  "mg.koikoi.my_koi.default": [
+   "えっ、こいこいするの！？ 強気じゃん……"
+  ],
+  "mg.koikoi.round_win.default": [
+   "うぅ、{yaku}……{points}文も取られちゃった。"
+  ],
+  "mg.koikoi.round_lose.default": [
+   "あがり！ {yaku}で{points}文♪"
+  ],
+  "mg.koikoi.round_draw.default": [
+   "流れちゃったね。次いこ！"
+  ],
+  "mg.koikoi.win.default": [
+   "{me}文対{her}文……{call}の勝ち。花札強いんだね。"
+  ],
+  "mg.koikoi.lose.default": [
+   "{her}文対{me}文で{fp}の勝ち！ おばあちゃん直伝だよ。"
+  ],
+  "mg.koikoi.draw.default": [
+   "同点！？ じゃあ、また今度決着つけよ。"
+  ],
+  "mg.koikoi.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.koikoi.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.poker.refuse.default": [
+   "脱衣ポーカー！？ あはは、それはまだダメ。調子乗らないの。"
+  ],
+  "mg.poker.start.default": [
+   "ポーカーフェイスなら得意だよ？ ……たぶん。"
+  ],
+  "mg.poker.her_strong.default": [
+   "えへへ……（にこにこしている）"
+  ],
+  "mg.poker.her_strong.default_2": [
+   "今回は自信あるよー？"
+  ],
+  "mg.poker.her_weak.default": [
+   "……（カードを見て一瞬固まった）"
+  ],
+  "mg.poker.her_weak.default_2": [
+   "う、うーん……"
+  ],
+  "mg.poker.her_fold.default": [
+   "う……降りる。今回はやめとく……"
+  ],
+  "mg.poker.round_win.default": [
+   "{her_hand}に{my_hand}……うぅ、「{stage}」だよ……"
+  ],
+  "mg.poker.round_win.game_stage_ge_3": [
+   "こ、これ以上は……次で最後だからね……！"
+  ],
+  "mg.poker.round_lose.default": [
+   "{her_hand}！ {fp}の勝ちね♪"
+  ],
+  "mg.poker.round_lose.lives_le_1": [
+   "あと1回で{fp}の勝ちだよ？"
+  ],
+  "mg.poker.round_draw.default": [
+   "引き分け！？ ……ドキドキしたー。"
+  ],
+  "mg.poker.win.default": [
+   "も、もう無理、降参……！"
+  ],
+  "mg.poker.lose.default": [
+   "{fp}の勝ちー！ ポーカーフェイス、効いてた？"
+  ],
+  "mg.poker.quit.default": [
+   "やめちゃうの？ ……ちょっとほっとした。"
+  ],
+  "mg.poker.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.blackjack.start.default": [
+   "今日は{fp}がディーラーね。いらっしゃいませー♪"
+  ],
+  "mg.blackjack.round_win.default": [
+   "{why}……{call}の勝ち。"
+  ],
+  "mg.blackjack.round_lose.default": [
+   "{why}！ ディーラーの勝ち♪"
+  ],
+  "mg.blackjack.round_draw.default": [
+   "{why}だね。"
+  ],
+  "mg.blackjack.win.default": [
+   "{me}勝{her}敗……{call}、カジノでも稼げそうじゃん。"
+  ],
+  "mg.blackjack.lose.default": [
+   "{her}勝で{fp}の勝ち！ 胴元は強いのだ。"
+  ],
+  "mg.blackjack.quit.default": [
+   "またのお越しをお待ちしてまーす♪"
+  ],
+  "mg.blackjack.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.concentration.start.default": [
+   "神経衰弱ね。記憶力勝負なら負けないよ！"
+  ],
+  "mg.concentration.my_pair.default": [
+   "あっ、覚えてたんだ……"
+  ],
+  "mg.concentration.her_combo.default": [
+   "えへへ、ちゃーんと覚えてたよ♪"
+  ],
+  "mg.concentration.win.default": [
+   "{me}組対{her}組……{call}の勝ち。記憶力すごいね。"
+  ],
+  "mg.concentration.lose.default": [
+   "{her}組対{me}組で{fp}の勝ち！"
+  ],
+  "mg.concentration.draw.default": [
+   "{me}組ずつで引き分け！"
+  ],
+  "mg.concentration.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.concentration.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "mg.oldmaid.start.default": [
+   "ババ抜きね！ 顔に出ないように気をつけなきゃ……"
+  ],
+  "mg.oldmaid.peek_joker.default": [
+   "……（ぱあっと笑顔になった）"
+  ],
+  "mg.oldmaid.peek_joker.default_2": [
+   "それ、引くの？ ……えへへ。"
+  ],
+  "mg.oldmaid.peek_safe.default": [
+   "……（ちょっと眉が下がった）"
+  ],
+  "mg.oldmaid.peek_safe.default_2": [
+   "あっ、そ、それは……"
+  ],
+  "mg.oldmaid.my_joker.default": [
+   "あはっ、引いたね？"
+  ],
+  "mg.oldmaid.her_joker.default": [
+   "……（平静を装っているが、口元がむずむずしている）"
+  ],
+  "mg.oldmaid.win.default": [
+   "うぅ……最後にジョーカー残っちゃった。"
+  ],
+  "mg.oldmaid.lose.default": [
+   "やった、あがり！ ジョーカーは{call}のものね♪"
+  ],
+  "mg.oldmaid.quit.default": [
+   "また遊ぼうね！"
+  ],
+  "mg.oldmaid.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ね。"
+  ],
+  "ap.chat.call": [
+   "ねーねー、{call}。ちょっとお話ししよ？（すとんと隣に座ってきた）"
+  ],
+  "ap.chat.accept": [
+   "やった！ あのね……（肩を寄せて、他愛ない話で盛り上がった）"
+  ],
+  "ap.chat.later": [
+   "はーい。じゃ、あとでね。"
+  ],
+  "ap.chat.ignore": [
+   "（返事がないので、{name}はつまらなそうに離れていった）"
+  ],
+  "ap.chat.busy": [
+   "（{name}は作業の邪魔をしないよう、そっと離れていった）"
+  ],
+  "ap.tea.call": [
+   "お茶淹れたんだけど……{call}も飲む？"
+  ],
+  "ap.tea.accept": [
+   "はい、どーぞ。……えへへ、こうして並んで飲むの、好き。"
+  ],
+  "ap.tea.later": [
+   "じゃ、ここ置いとくね。"
+  ],
+  "ap.tea.ignore": [
+   "（{name}はお茶をそっと置いていった。すっかり冷めてしまった）"
+  ],
+  "ap.tea.busy": [
+   "（作業の邪魔をしないよう、お茶がそっと置かれていた）"
+  ],
+  "ap.lean.call": [
+   "（{name}が、何も言わずにこてんと肩にもたれかかってきた）"
+  ],
+  "ap.lean.accept": [
+   "（しばらくそのまま寄り添っていた。{name}は「えへへ」と小さく笑った）"
+  ],
+  "ap.lean.later": [
+   "あ……ごめん、邪魔だった？ あはは。"
+  ],
+  "ap.lean.ignore": [
+   "（反応がないので、{name}は少し寂しそうに体を離した）"
+  ],
+  "ap.lean.busy": [
+   "（{name}は、作業の手を止めさせないよう静かに離れた）"
+  ],
+  "ap.bored.call": [
+   "ひまー……。{call}、かまってー。（腕をつんつんつついてくる）"
+  ],
+  "ap.bored.accept": [
+   "わーい！ じゃあ、なにして遊ぶ？"
+  ],
+  "ap.bored.later": [
+   "むー。……ちょっとだけだよ？"
+  ],
+  "ap.bored.ignore": [
+   "（{name}はごろごろしながら、恨めしそうにこちらを見ている）"
+  ],
+  "ap.bored.busy": [
+   "（{name}は「忙しいもんね……」と小さくつぶやいた）"
+  ],
+  "ap.lonely.call": [
+   "ねー、{call}。そっち行っていい？ ……もう半分来てるけど。"
+  ],
+  "ap.lonely.accept": [
+   "……えへへ。ありがと。（ぴったり隣に収まった）"
+  ],
+  "ap.lonely.later": [
+   "……ん。待ってる。"
+  ],
+  "ap.lonely.ignore": [
+   "（{name}はしばらく待っていたが、やがて黙って部屋の隅に座った）"
+  ],
+  "ap.lonely.busy": [
+   "（{name}は作業の様子を見て、少し離れたところに座った）"
+  ],
+  "ap.show.call": [
+   "{call}、見て見て、これ！ かわいくない？（画面をぐいっと顔の前に出してくる）"
+  ],
+  "ap.show.accept": [
+   "でしょ！ ……えへへ、{call}ならわかってくれると思った。"
+  ],
+  "ap.show.later": [
+   "えー、あとで絶対見てよね！"
+  ],
+  "ap.show.ignore": [
+   "（{name}は少しがっかりした様子で、画面をしまった）"
+  ],
+  "ap.cook_for.call": [
+   "お腹すかない？ {fp}、なんか作ろっか。"
+  ],
+  "ap.cook_for.accept": [
+   "まっかせて！ ……できた、どーぞ！"
+  ],
+  "ap.cook_for.later": [
+   "じゃ、お腹すいたら言ってね。"
+  ],
+  "ap.cook_for.ignore": [
+   "（{name}は一人分だけ作って、静かに食べた）"
+  ],
+  "ap.play.call": [
+   "ねーねー、一緒にゲームしよ？"
+  ],
+  "ap.play.accept": [
+   "やった！ 負けないよ？"
+  ],
+  "ap.play.later": [
+   "約束だからね？"
+  ],
+  "ap.play.ignore": [
+   "（{name}は一人でゲームを始めた）"
+  ],
+  "ap.walk_invite.call": [
+   "天気いいしさ、ちょっと散歩行かない？（袖をくいくい引いてくる）"
+  ],
+  "ap.walk_invite.accept": [
+   "やった、行こ行こ！"
+  ],
+  "ap.walk_invite.later": [
+   "そっかー……。また今度、だね。"
+  ],
+  "ap.walk_invite.ignore": [
+   "（{name}は窓の外を眺めて、小さくため息をついた）"
+  ],
+  "ap.sleepy.call": [
+   "ふぁ……。なんか、眠くなってきちゃった……。"
+  ],
+  "ap.sleepy.accept": [
+   "……おやすみ、{call}。"
+  ],
+  "ap.sleepy.later": [
+   "もうちょっとだけ……がんばる……。"
+  ],
+  "ap.sleepy.ignore": [
+   "（{name}は、いつの間にかうとうとしていた）"
+  ],
+  "ap.coffee.call": [
+   "無理しないでね。……コーヒー、置いとくよ。（ぽんと肩を叩いていった）"
+  ],
+  "ap.coffee.accept": [
+   "えへへ。がんばってね！"
+  ],
+  "ap.coffee.later": [
+   "（{name}はにこっと笑って、静かに戻っていった）"
+  ],
+  "ap.coffee.ignore": [
+   "（コーヒーは、いつの間にか冷めていた）"
+  ],
+  "ap.coffee.busy": [
+   "（コーヒーは、いつの間にか冷めていた）"
+  ],
+  "ap.peek_work.call": [
+   "……なにしてんの？ ちょっとだけ、見ててもいい？（肩越しに顔をのぞかせてくる）"
+  ],
+  "ap.peek_work.accept": [
+   "（{name}は隣にくっついて、楽しそうに作業を眺めている）"
+  ],
+  "ap.peek_work.later": [
+   "あ……ごめんごめん。終わったら教えてね。"
+  ],
+  "ap.peek_work.ignore": [
+   "（{name}はそっと離れていった）"
+  ],
+  "ap.peek_work.busy": [
+   "（{name}は邪魔をしないよう、そっと離れていった）"
+  ],
+  "ap.sulk.call": [
+   "……ねぇ、{call}。さっきのこと、{fp}まだ怒ってるんだけど。"
+  ],
+  "ap.sulk.accept": [
+   "……もー。"
+  ],
+  "ap.sulk.later": [
+   "……そうやって、すぐ後回しにするんだから。"
+  ],
+  "ap.sulk.ignore": [
+   "（{name}はぷいっとそっぽを向いた。今日は隣に来ない）"
+  ],
+  "ap.vent.call": [
+   "……{call}。ちょっと、聞いてほしいことがあって。"
+  ],
+  "ap.vent.later": [
+   "……ん。"
+  ],
+  "ap.vent.ignore": [
+   "（{name}は話すのをやめて、一人で膝を抱えた）"
+  ],
+  "ap.good_news.call": [
+   "{call}、聞いて聞いて！ いいことあったの！"
+  ],
+  "ap.good_news.later": [
+   "えー、絶対だよ！"
+  ],
+  "ap.good_news.ignore": [
+   "（{name}は話したそうにしていたが、あきらめたようだ）"
+  ],
+  "ap.msg_chat.call": [
+   "📱『{call}、いまなにしてる？ ちょっと話したくて』"
+  ],
+  "ap.msg_chat.accept": [
+   "📱『返事きた！ ……えへへ、やっぱ{call}と話すの楽しい』"
+  ],
+  "ap.msg_chat.later": [
+   "📱『はーい。手が空いたら返事ちょーだい』"
+  ],
+  "ap.msg_chat.ignore": [
+   "（{name}からのメッセージは、返事がないまま止まった）"
+  ],
+  "ap.msg_miss.call": [
+   "📱『……{call}、ちょっとだけ会いたいなって。なんでもない！』"
+  ],
+  "ap.msg_miss.accept": [
+   "📱『……うん。返事もらえただけで、ちょっと元気出た』"
+  ],
+  "ap.msg_miss.later": [
+   "📱『……ん。待ってるね』"
+  ],
+  "ap.msg_miss.ignore": [
+   "（返事がないまま、{name}のメッセージは画面の奥に流れていった）"
+  ],
+  "ap.msg_today.call": [
+   "📱『聞いて{call}、今日こんなことあったの！』"
+  ],
+  "ap.msg_today.accept": [
+   "📱『でしょー！ {call}に話したかったんだ』"
+  ],
+  "ap.msg_today.later": [
+   "📱『あとでちゃんと読んでよね！』"
+  ],
+  "ap.msg_today.ignore": [
+   "（{name}からの長いメッセージが、読まれないまま残っている）"
+  ]
+ }
+}

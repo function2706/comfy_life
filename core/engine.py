@@ -32,8 +32,8 @@ DAY_JA = "月火水木金土日"
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
-PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "cool", "mukuchi", "jimuteki", "otokomae",
-                 "genki", "tenshin", "uchiki", "boyish", "amaenbo"]
+PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
+                 "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
 
 
 def hm(s):

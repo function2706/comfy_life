@@ -80,7 +80,7 @@ def main():
                                          "talk.affection_ge_70": ["テスト用のセリフ！"]})
         app.save_persona(p)
         char["persona_id"] = "genki"
-        assert app.act("talk")["entry"]["text"] == "テスト用のセリフ！"
+        assert app.act("talk")["entry"]["text"].startswith("テスト用のセリフ！")   # 繰り返しのうんざり (ナレーション) が付くことがある
         assert app.personas["genki"]["_custom"]
         app.reset_persona("genki")
         assert not app.personas["genki"]["_custom"]
