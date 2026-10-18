@@ -53,6 +53,8 @@ def route(method, path, q, body):
             return a.prompt_preview(cid)
         if path == "/api/workflow":
             return {"workflow": store.load(store.dpath("workflow.json"))}
+        if path == "/api/diary":
+            return {"diary": a.solo.diary_list(), "mylog": a.solo.mylog()[-100:]}
         if path == "/api/worlds":
             return a.worlds_view()
         if path == "/api/persona":
@@ -83,6 +85,10 @@ def route(method, path, q, body):
             return a.come_back(cid)
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid)
+        if path == "/api/solo/start":
+            return a.solo.start(b["kind"], b.get("skill"))
+        if path == "/api/diary/write":
+            return {"diary": a.solo.write_diary()}
         if path == "/api/encounter/force":
             return {"encounter": a.encounters.happen("out", stranger=b.get("stranger"))}
         if path == "/api/encounter":

@@ -11,9 +11,10 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
 
-# 時間帯を昼に固定する (お出かけのコマンドは時間帯で出たり出なかったりするので, 実行する時刻に左右されないように)
-engine.App.phase_at = lambda self, dt: {"id": "noon", "label": "昼", "pos": "", "neg": ""}
+fix_noon(engine)     # 時刻を昼に固定 (流す時刻に左右されないように)
+
 
 
 def main():

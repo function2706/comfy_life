@@ -20,6 +20,7 @@ from datetime import datetime
 
 from . import bonds as bonds_mod
 from . import encounters as encounters_mod
+from . import solo as solo_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -106,6 +107,7 @@ class App:
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
         self.encounters = encounters_mod.Encounters(self)
+        self.solo = solo_mod.Solo(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -701,6 +703,7 @@ class App:
                 self.presence.touch(now)
                 if self.presence.rec()["mode"] == "busy":
                     self.presence.rec()["mode"] = "none"     # 作業中でも, 構いに来たら作業はおしまい
+                    self.presence.rec().pop("solo", None)
                 self.presence.drop(st)
             if cd:
                 st["cooldowns"][aid] = hist + [now]
@@ -1185,6 +1188,7 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
+                "solo": self.solo.view(),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),
                 "approach": self.presence.pending_view(char, st),
@@ -1211,8 +1215,10 @@ class App:
             if not ll:
                 raise ValueError("いまは離れていません")
             if ll["mode"] != "work":
+                solo = self.solo.finish(ll)          # 一人の時間 (休む・家事・研鑽・散歩・買い物) の結果
                 r = self.act("_back", char["id"])
-                if ll["mode"] == "out":     # 一人で出かけていた: 偶然の出会い
+                r["solo"] = solo
+                if ll["mode"] == "out":     # 一人で出かけていた: 偶然の出会い (補正はしない)
                     r["encounter"] = self.encounters.roll("out", ll["h"])
                 return r
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)

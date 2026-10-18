@@ -178,6 +178,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <a href="#world">ワールド・キャラ同士の関係</a>
   <a href="#bond">あなたとの間柄（連絡・訪問・同居）</a>
   <a href="#real">現実的であること（仲の深まり方）</a>
+  <a href="#solo">一人の時間（何を、誰と）</a>
   <a href="#data">データの保存先</a>
 </nav>
 
@@ -200,7 +201,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <h2 id="screen"><span class="ic">🖥</span>画面の見方</h2>
 <div class="screen" aria-hidden="true">
   <div class="sc-top"><span class="lg">くらし</span><span class="an">13:56 <span class="pill">昼</span><span class="mk">1</span></span><span style="flex:1"></span>
-    <span class="an"><span class="pill">ひな ▾</span> 📖 🖼 ⚙<span class="mk">2</span></span></div>
+    <span class="an">🌐 📖 🖼 ⚙<span class="mk">2</span></span></div>
   <div class="sc-body">
     <div class="sc-stage">
       <svg class="sc-girl" viewBox="0 0 120 230"><circle cx="60" cy="45" r="30" fill="#b9a2f0"/><path d="M20 230 Q22 110 60 95 Q98 110 100 230Z" fill="#b9a2f0"/></svg>
@@ -219,7 +220,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 </div>
 <div class="legend">
   <div><span class="n">1</span><span><b>時計と時間帯</b>：リアルの時刻です。朝・昼・夜などの時間帯で、画像の光や反応が変わります。</span></div>
-  <div><span class="n">2</span><span><b>キャラ切替・📖説明書・🖼ギャラリー・⚙設定</b></span></div>
+  <div><span class="n">2</span><span><b>🌐ワールド切替・📖説明書・🖼ギャラリー・⚙設定</b>（誰とするかは、コマンド欄の「〇〇と」で選びます）</span></div>
   <div><span class="n">3</span><span><b>いまの場面</b>：場所と過ごし方です。生活スケジュールで決まります。</span></div>
   <div><span class="n">4</span><span><b>生成ジョブ</b>：押すと、生成の進み具合とエラーが見られます。</span></div>
   <div><span class="n">5</span><span><b>画像の操作</b>：💬会話欄を隠す、🎲同じプロンプトの別の画像、⟳新しく生成、📷今の様子を撮る、🧩プロンプトを見る・編集。</span></div>
@@ -688,6 +689,19 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
 </ul>
 <p>起きやすさは世界設定の <code>encounters</code>（<code>rate_work</code> <code>rate_out</code> <code>rate_outing</code> 1時間あたり、<code>stranger_share</code> 知らない人の割合、<code>max_chance</code> 1回の上限、<code>pending_hours</code> 返事を待つ時間）で変えられます。<b>設定 → データ</b> の「偶然の出会いを起こす」で試せます。</p>
 <p>出会いは偶然です。まだ知らない人に会いやすくする補正や、誰かに必ず会わせる仕組みはありません。会う相手がいなかったり、返事待ちの人がいたりすれば、何も起きずに終わります。</p>
+
+<!-- ============================================================ -->
+<h2 id="solo"><span class="ic">🧍</span>一人の時間（何を、誰と）</h2>
+<p>コマンド欄は「何を、誰と（あるいは一人で）するか」で分かれています。上が <b>🧍 一人で</b>、下が <b>👥 〇〇と</b> です。「〇〇と」の名前の欄で相手を選びます（一緒にいる人 → 同居 → 家に行ける仲 → 連絡先 → 知り合い の順）。誰かと一緒にいるときは「一人で」は畳まれています（見出しを押すと開きます）。</p>
+<table>
+  <tr><th style="width:24%">一人で</th><th>どうなるか</th></tr>
+  <tr><td>🛋 休む</td><td>家で休みます。あなたの体力が、ふだんより早く戻ります（寝るほどではない）。</td></tr>
+  <tr><td>🧹 家事をする</td><td>体力を少し使います。同居相手がいれば、気づいて機嫌が少し上がることがあります（気づくかは偶然）。</td></tr>
+  <tr><td>📚 研鑽する</td><td>会話・スキンシップ・料理・仕事から一つ選んで練習します。スキルが伸びますが、はかどり具合はその日しだいです（15分未満は伸びません）。</td></tr>
+  <tr><td>🚶 一人で散歩 / 🛍 一人で買い物</td><td>出かけます。戻ったときに、出かけていた時間に応じて偶然の出会いが起こることがあります（起こらないことも）。買い物はお金を使います。</td></tr>
+  <tr><td>📓 日記</td><td>その日のログ（各キャラとのやりとりと、一人の時間）から日記をつけます。LLM が有効なら LLM が書き、無ければ出来事を定型でまとめます。同じ日は書き直しです。読み返しもここから。</td></tr>
+</table>
+<p>休む・家事・研鑽・散歩・買い物は「始めて、戻るまで」です。家にいるものは「作業中」、出かけるものは「外出中」と同じ扱いで、キャラ名の下の札の「→ 終わる」や「ただいま」で戻ると、過ごした時間で結果が決まります。一緒にいる相手がいれば、「ちょっと作業するね」「ちょっと出かけてくる」と同じように声をかけ、相手が反応します（離れているあいだの働きかけ・反応も同じ）。誰とも一緒にいなければ、あなたの行動だけが記録されます。途中で相手を構うと、一人の時間はおしまいになります。仕事・寝る・内職なども「一人で」にあります。</p>
 
 <!-- ============================================================ -->
 <h2 id="real"><span class="ic">⚖</span>現実的であること（仲の深まり方）</h2>

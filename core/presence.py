@@ -94,6 +94,7 @@ class Presence:
         p = self.rec()
         p["mode"], p["since"] = mode, now
         p["input"] = now
+        p.pop("solo", None)          # 一人の時間の中身は, solo.start がこのあと入れる
         self.save()
 
     def back(self, now=None):
@@ -103,7 +104,7 @@ class Presence:
         if p["mode"] == "none":
             return None
         ll = {"t": p.get("since", now), "said": True, "mode": p["mode"], "back": now,
-              "h": round((now - p.get("since", now)) / 3600, 2)}
+              "h": round((now - p.get("since", now)) / 3600, 2), "solo": p.pop("solo", None)}
         p["last_left"] = ll
         p["mode"] = "none"
         p["input"] = p["beat"] = now
@@ -118,6 +119,12 @@ class Presence:
         p = self.rec()
         m = self.at(now)
         out = {"mode": p["mode"], "state": m, "label": MODE_LABEL.get(m, m), "since": p.get("since")}
+        sl = p.get("solo") if p["mode"] in ("busy", "out") else None
+        if sl:      # 一人の時間 (休む・家事・研鑽・散歩・買い物)
+            from .solo import KINDS
+            k = KINDS.get(sl["kind"]) or {}
+            out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": k.get("doing", ""), "icon": k.get("icon", "")}
+            out["label"] = k.get("doing", out["label"])
         if p["mode"] == "work":
             pay, h, raw = self.app.life.work_pay(p.get("since", now), now)
             out["work"] = {"hours": round(h, 2), "raw": round(raw, 2), "pay": pay}

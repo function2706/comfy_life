@@ -118,6 +118,9 @@ class Life:
             mode = self.app.presence.at(t)
             if mode != "work":
                 rec = float(e.get("stamina_recover_sleep" if mode == "sleep" else "stamina_recover", 12 if mode == "sleep" else 5))
+                sl = self.app.presence.rec().get("solo") or {}
+                if mode == "busy" and sl.get("kind") == "rest":      # 一人で休んでいる: 寝るほどではないが早く戻る
+                    rec = float(e.get("stamina_recover_rest", 9))
                 ps["stamina"] = min(100.0, float(ps.get("stamina", 100)) + rec * step / 3600.0)
             if datetime.fromtimestamp(t - step).date() != datetime.fromtimestamp(t).date():
                 ps["money"] += int(e.get("player_daily_income", 1000))

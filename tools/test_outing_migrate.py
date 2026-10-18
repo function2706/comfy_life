@@ -14,6 +14,9 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)     # 時刻を昼に固定 (流す時刻に左右されないように)
 
 
 def main():

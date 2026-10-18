@@ -155,11 +155,15 @@ function moodFace(p) {
 const BOND_IC = { known: '👤', contact: '📱', visit: '🔑', live: '🏠' };
 function renderWho() {
   const v = S.view;
-  for (const o of $('#char-select').options) {   // キャラ切替に, あなたとの間柄を添える
-    const b = (v.bonds || {})[o.value];
+  const sel = $('#char-select');
+  const rank = (b) => (b && b.mode ? 0 : 1) * 10 + ({ live: 0, visit: 1, contact: 2, known: 3 }[b && b.stage] ?? 4);
+  for (const o of [...sel.options].sort((x, y) => rank((v.bonds || {})[x.value]) - rank((v.bonds || {})[y.value]))) {
+    const b = (v.bonds || {})[o.value];   // キャラ切替に, あなたとの間柄を添える (一緒にいる人から順に)
     const c = S.boot.characters.find((x) => x.id === o.value);
     if (b && c) o.textContent = `${BOND_IC[b.stage] || ''} ${c.name}${b.mode && b.mode !== 'home' ? '（一緒）' : ''}`;
+    sel.append(o);
   }
+  sel.value = v.character;
   $('#phase-chip').textContent = v.phase.label || '—';
   const sc = v.scene;
   const where = sc.location ? `📍${sc.location}` : '';
@@ -178,7 +182,8 @@ function renderWho() {
     v.bond ? h('span', { class: 'tag bond' + (v.bond.mode ? '' : ' apart'), title: 'あなたとの間柄・いまどこで会っているか' },
       `${BOND_IC[v.bond.stage] || ''}${v.bond.stage_label}・${v.bond.label}`) : '',
     v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
-    v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '作業を終えて戻る', onclick: comeBack }, '🖥 作業中 → 終わる') : '',
+    v.presence && v.presence.mode === 'busy' ? h('button', { class: 'tag busy', title: '終えて戻る', onclick: comeBack },
+      v.presence.solo ? `${v.presence.solo.icon} ${v.presence.solo.label} → 終わる` : '🖥 作業中 → 終わる') : '',
     v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
       v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
     ...v.tags.map((t) => h('span', { class: 'tag' }, t.label)),
@@ -186,32 +191,99 @@ function renderWho() {
 }
 
 /* ---------------------------------------------------------------- commands */
+// 「何を、誰と（あるいは一人で）するか」: 上に「一人で」、下に「〇〇と」（相手はここで選ぶ）
+const isSoloAction = (a) => a.category === 'あなたの予定' || a.id === 'side_job';
+function cmdButton(a) {
+  const st = S.view.available[a.id];
+  const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
+    '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
+    st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
+    h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
+    st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
+}
+
+function renderSolo(soloActs) {
+  const v = S.view, so = v.solo || {};
+  const free = (v.presence || {}).mode === 'none';
+  const btn = (icon, label, onclick, tip) => h('button', { class: 'cmd', disabled: !free || S.busy, title: tip || '', onclick },
+    h('span', { class: 'ic' }, icon), h('span', {}, label));
+  const kinds = (so.kinds || []).map((k) => k.id === 'practice'
+    ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderCommands(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
+    : btn(k.icon, k.label, () => soloStart(k.id), k.mode === 'out' ? '出かけて、戻るまで（偶然の出会いが起こることも）' : '家で、戻るまで'));
+  // 誰かと一緒にいるときは畳んでおく (開け閉めは覚える)
+  const open = S.soloOpen ?? !(v.bond && v.bond.mode);
+  const head = h('div', { class: 'with-head', style: 'cursor:pointer', title: '開く／畳む',
+    onclick: () => { S.soloOpen = !open; renderCommands(); } }, `${open ? '▾' : '▸'} 🧍 一人で`,
+    so.current ? h('span', { class: 'muted small', style: 'margin-left:8px' }, `${so.current.icon} ${so.current.doing}`) : null);
+  if (!open) return h('div', { class: 'cat solo' }, head);
+  return h('div', { class: 'cat solo' },
+    head,
+    so.current ? h('p', { class: 'muted small' }, `${so.current.icon} ${so.current.doing}…（「終わる」「ただいま」で戻ると結果が出ます）`) : null,
+    h('div', { class: 'cmds' }, ...kinds,
+      h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
+        h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
+      ...soloActs.map(cmdButton)),
+    S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
+      Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
+}
+
+async function soloStart(kind, skill) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/solo/start', { kind, skill });
+    if (r.act) handleActResult(r.act); else toast(`${r.label}…`, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
+async function openDiary() {
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(640px,94vw);height:auto;max-height:86vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  const draw = async () => {
+    const r = await api('/api/diary');
+    dlg.replaceChildren(h('div', { style: 'padding:16px' },
+      h('h3', {}, '📓 日記'),
+      h('div', { class: 'row', style: 'justify-content:flex-end' },
+        h('button', { class: 'btn primary', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try { await api('/api/diary/write', {}); await draw(); } catch (e) { toast(e.message, 'err'); ev.target.disabled = false; }
+        } }, (S.view.solo || {}).diary_today ? '今日の日記を書き直す' : '今日の日記をつける'),
+        h('button', { class: 'btn', onclick: close }, '閉じる')),
+      r.diary.length ? [...r.diary].reverse().map((d) => h('div', { class: 'diary-day' },
+        h('div', { class: 'muted small' }, `${d.day}${d.src === 'llm' ? '（LLM）' : ''}`),
+        h('div', { style: 'white-space:pre-wrap' }, d.text))) : h('p', { class: 'muted' }, 'まだ日記はありません。')));
+  };
+  document.body.append(dlg);
+  dlg.showModal();
+  await draw();
+  refresh();
+}
+
 function renderCommands() {
   const box = $('#tab-commands');
   const av = S.view.available;
   const cats = new Map();
+  const soloActs = [];
   let hidden = 0;
   for (const a of S.boot.actions) {
     if (a.category === 'system' || !av[a.id]) continue;
     if (!av[a.id].ok && !S.showHidden) { hidden++; continue; }
+    if (isSoloAction(a)) { soloActs.push(a); continue; }
     if (!cats.has(a.category)) cats.set(a.category, []);
     cats.get(a.category).push(a);
   }
-  const out = [];
+  const out = [renderSolo(soloActs)];
+  const b = S.view.bond || {};
+  out.push(h('div', { class: 'with-head' }, '👥 ', $('#char-select'), h('span', {}, ' と'),
+    h('span', { class: 'muted small', style: 'margin-left:8px' }, b.label || '')));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
-      h('div', { class: 'cmds' }, list.map((a) => {
-        const st = av[a.id];
-        const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
-          '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
-          st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-        return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
-          h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
-          st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
-      }))));
+      h('div', { class: 'cmds' }, list.map(cmdButton))));
   }
-  if (!out.length) out.push(h('p', { class: 'muted' }, '今できることはなさそうだ…'));
+  if (!cats.size) out.push(h('p', { class: 'muted' }, b.stage === 'known' ? '連絡先を知らないので、いまはできることがない。偶然会えたら……' : '今できることはなさそうだ…'));
   out.push(h('button', { class: 'cmds-hidden-toggle', onclick: () => { S.showHidden = !S.showHidden; renderCommands(); } },
     S.showHidden ? '▲ 今できないコマンドを隠す' : `▼ 今できないコマンドも表示 (${hidden})`));
   box.replaceChildren(...out);
@@ -731,6 +803,7 @@ async function doAct(aid, outfit) {
 function handleActResult(r) {
   if (r.llm_error) toast('LLM 失敗のため定型文を使用: ' + r.llm_error, 'err');
   if (r.encounter) toast(r.encounter.text, 'ok');
+  if (r.solo) toast(r.solo.text, 'ok');
   S.lastDeltas = r.entry.deltas || {};
   showEntry(r.entry, true);
   if (r.job) trackJob(r.job);
@@ -1025,12 +1098,13 @@ function renderAway() {
   box.hidden = false;
   box.replaceChildren(h('div', { class: 'away-card' },
     h('div', { class: 'away-ic' }, a[0]),
-    h('div', { class: 'away-title' }, a[1]),
+    h('div', { class: 'away-title' }, p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
     h('div', { class: 'muted' }, `${fmtDur(since)}経過`),
     p.work ? h('div', { class: 'away-pay' }, p.work.raw < 0.25 ? 'まだ働き始めたばかり（15分未満は稼ぎなし）'
       : `ここで帰ると ${yen(p.work.pay)}（給料の出る ${p.work.hours.toFixed(1)}時間分）`) : '',
     p.work ? h('div', { class: 'muted small' }, '給料が出るのは 6〜23時、1日合計9時間まで。働いた時間ぶん体力が減ります') : '',
-    h('p', { class: 'muted small' }, `${name}のそばを離れています。このまま画面を閉じてもかまいません。`,
+    h('p', { class: 'muted small' }, S.view.bond && S.view.bond.mode ? `${name}のそばを離れています。このまま画面を閉じてもかまいません。`
+      : '一人で過ごしています。このまま画面を閉じてもかまいません。',
       h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' :
         '開き直すか「' + a[2] + '」で戻ります。'),
     h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));

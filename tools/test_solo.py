@@ -1,0 +1,111 @@
+"""一人の時間 (休む・家事・研鑽・散歩・買い物・日記) の確認 (一時データ, 画像生成なし).
+
+    python tools/test_solo.py
+"""
+import os
+import random
+import shutil
+import sys
+import tempfile
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)     # 時刻を昼に固定 (流す時刻に左右されないように)
+
+
+
+def back_after(app, hours):
+    """一人の時間を hours 時間過ごしたことにして戻る."""
+    p = app.presence.rec()
+    p["since"] -= hours * 3600
+    app.life.player_state()["last_tick"] = time.time() - hours * 3600
+    app.life.tick_world()
+    return app.come_back()
+
+
+def main():
+    random.seed(9)
+    tmp = tempfile.mkdtemp(prefix="kurashi_test_")
+    store.DATA = tmp
+    try:
+        app = engine.App()
+        app.save_settings({"auto_generate": False})
+        S, L = app.solo, app.life
+        st = app.state("hina")
+        st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": 9e12}
+        app.set_params({"mood": 60, "sleepiness": 0})
+
+        # ---- 1. 同居していても「ちょっと一人になる」: 既存の「ちょっと作業するね」と同じく声をかける
+        L.player_state()["stamina"] = 30
+        r = S.start("rest")
+        assert r["act"] and r["act"]["entry"]["action"] == "go_busy", r
+        assert app.presence.rec()["mode"] == "busy" and app.state_view()["presence"]["solo"]["kind"] == "rest"
+        try:
+            S.start("walk")
+            raise AssertionError("一人の時間の最中に, 別のことを始められてしまう")
+        except ValueError:
+            pass
+        r = back_after(app, 2)
+        assert r["solo"]["kind"] == "rest" and "休んだ" in r["solo"]["text"]
+        assert L.player_state()["stamina"] >= 30 + 2 * 9 - 1, L.player_state()["stamina"]
+        assert app.presence.rec()["mode"] == "none" and not app.presence.rec().get("solo")
+        print("rest: OK", round(L.player_state()["stamina"], 1))
+
+        # ---- 2. 研鑽: スキルが伸びる (はかどり具合は揺らぐ). 家事: 同居相手が気づくかは偶然
+        old = L.skill("cook")
+        S.start("practice", "cook")
+        r = back_after(app, 2)
+        assert r["solo"]["skill"]["cook"] > 0 and L.skill("cook") > old
+        try:
+            S.start("practice")
+            raise AssertionError("何を練習するか決めずに始められる")
+        except ValueError:
+            pass
+        noticed = 0
+        for _ in range(12):
+            S.start("chores")
+            noticed += "気づいて" in back_after(app, 1)["solo"]["text"]
+        assert 0 < noticed < 12, noticed
+        # 一人の時間の最中に相手を構うと, 一人の時間はおしまい (結果は出ない)
+        S.start("rest")
+        st["cooldowns"] = {}
+        app.act("talk")
+        assert app.presence.rec()["mode"] == "none" and not app.presence.rec().get("solo")
+        print("practice / chores: OK", noticed, "/ 12")
+
+        # ---- 3. 誰とも暮らしていない: 一人で散歩・買い物. 出会いは偶然 (補正なし)
+        app.create_world("ひとり")
+        S, L = app.solo, app.life
+        cid = app.settings["active_character"]
+        assert not app.bonds.together(cid)
+        r = S.start("walk")
+        assert r["act"] is None and app.presence.rec()["mode"] == "out"
+        r = back_after(app, 1)
+        assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" in r
+        m0 = L.player_state()["money"]
+        S.start("shopping")
+        r = back_after(app, 1)
+        assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0, r["solo"]
+        app.world["encounters"] = {"rate_out": 0}
+        S.start("walk")
+        assert back_after(app, 3)["encounter"] is None, "起きやすさ 0 なら会わない"
+        print("walk / shopping: OK")
+
+        # ---- 4. 日記: その日の出来事から (LLM が無ければ定型)
+        d = S.write_diary()
+        assert d["src"] == "template" and d["text"].startswith("今日は一人で過ごした") and "散歩" in d["text"], d["text"]
+        d2 = S.write_diary()
+        assert len(S.diary_list()) == 1 and d2["day"] == d["day"], "同じ日は書き直し"
+        assert app.state_view()["solo"]["diary_today"]
+        assert any(e["kind"] == "diary" for e in S.mylog())
+        print("diary: OK\n" + d["text"])
+        print("ALL OK")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()
