@@ -73,8 +73,37 @@ def main():
         app.select_character(kid)
         av = app.state_view(kid)["available"]
         assert not av["message"]["ok"] and not av["call"]["ok"] and not av["cafe"]["ok"], "知り合いには連絡も誘いもできない"
-        r = app.encounters.bump(kid, "out", None, "街", time.time())
-        assert r["exchanged"] and app.bonds.stage(kid) == "contact" and "連絡先を交換" in r["text"]
+        # 偶然会っても, 連絡先を交換するとは限らない. 話のうまさ・相手の機嫌で変わる
+        B, L, kst = app.bonds, app.life, app.state(kid)
+        app.set_params({"mood": 20, "affection": 30}, kid)
+        L.player_state()["skills"]["talk"] = 5.0
+        low = B.exchange_chance(app.char(kid), kst)
+        app.set_params({"mood": 90, "affection": 60}, kid)
+        L.player_state()["skills"]["talk"] = 90.0
+        high = B.exchange_chance(app.char(kid), kst)
+        assert 0.05 <= low < 0.2 and 0.7 < high <= 0.85, (low, high)
+        app.set_params({"mood": 50}, kid)
+        L.player_state()["skills"]["talk"] = 10.0
+        assert B.exchange_chance(app.char(kid), kst) < B.exchange_chance(app.char(kid), dict(kst, params=dict(kst["params"], mood=80)))
+        random.seed(3)
+
+        def tries(mood, aff, talk, n=40):
+            hit, txt = 0, ""
+            for _ in range(n):
+                app.bonds.set_stage(kid, "known")
+                app.set_params({"mood": mood, "affection": aff}, kid)
+                L.player_state()["skills"]["talk"] = talk
+                r = app.encounters.bump(kid, "out", None, "街", time.time())
+                hit += r["exchanged"]
+                txt = r["text"] if r["exchanged"] else txt
+            return hit, txt
+        lo, _ = tries(20, 30, 5.0)
+        hi, txt = tries(90, 60, 90.0)
+        assert 0 < lo < hi and hi > 20, (lo, hi)
+        assert app.bonds.stage(kid) in ("known", "contact") and "連絡先を交換" in txt
+        if app.bonds.stage(kid) == "known":
+            app.bonds.set_stage(kid, "contact")
+
         assert app.state_view(kid)["available"]["message"]["ok"]
         print("new world cast: OK")
 

@@ -20,6 +20,7 @@
 - しばらく交流がないと, 好感度・信頼は少しずつ冷め, 家に行ける仲も「連絡先」に戻る
 - 段階の提案 (家に行っていい？/ 一緒に住む？) は, 数値・最近の交流・性格・その日の気分で決まり, 断られうる
 - 贈り物・お金は, 性格と仲の深さ・頻度しだいで, 喜ばれないことも, 重いと思われることもある
+- 知り合いと偶然会っても, 連絡先を交換するとは限らない (あなたの話のうまさ・相手の機嫌と好感度・性格しだい)
 """
 import datetime as _dt
 import math
@@ -268,6 +269,14 @@ class Bonds:
         p = st["params"]
         return round(50 + (p.get("affection", 40) - 60) + 0.8 * (p.get("trust", 40) - 50) + 4 * (self.freq(st, now) - 4)
                      - 5 * max(0.0, self.gap_days(st, now) - 3) + self.trait(char, "caution") + random.uniform(-20, 20), 1)
+
+    def exchange_chance(self, char, st):
+        """知り合いと偶然会って話したとき, 連絡先を交換する確率 (0.05〜0.85).
+        あなたの会話スキル・相手の機嫌と好感度・性格 (慎重さ) しだい. 何度会っても必ず交換する, とはしない."""
+        p = st["params"]
+        score = 0.6 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 40) - 40) \
+            + 0.4 * (self.app.life.skill("talk") - 30) + 1.5 * self.trait(char, "caution")
+        return round(max(0.05, min(0.85, 0.4 + score / 100.0)), 3)
 
     def gift_feel(self, char, st, now, money=False):
         """贈り物・お金を素直に喜べるか (目安 0〜100). 仲の浅さ・最近の贈り物の多さ・機嫌・性格しだい."""

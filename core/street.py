@@ -269,9 +269,9 @@ class Street:
                 deltas = app.apply_effects(st, app.trait_effects(char, eff))
             if talk:
                 app.bonds.touch(st, now)
-                caution = float(app.traits(char).get("caution", 0))
-                if app.bonds.stage(cid) == "known" and random.random() < max(0.2, 0.5 + caution / 40.0):
-                    app.bonds.set_stage(cid, "contact", now)       # 知り合いとは, 話の流れで連絡先を交換することも
+                # 知り合いとは, 話の流れで連絡先を交換することも (あなたの話のうまさ・相手の機嫌と好感度・性格しだい)
+                if app.bonds.stage(cid) == "known" and random.random() < app.bonds.exchange_chance(char, st):
+                    app.bonds.set_stage(cid, "contact", now)
                     exchanged = True
                 w = pend.get("with")
                 if w in app.chars:

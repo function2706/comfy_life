@@ -99,8 +99,9 @@ class Encounters:
             deltas = app.apply_effects(st, app.trait_effects(char, eff))
             wname = app.chars[with_cid].get("name", "") if with_cid else ""
             text = "（%sで、偶然%sに会った%s）" % (where, char.get("name", ""), "。%sと一緒だったので紹介した" % wname if with_cid else "")
-            exchanged = app.bonds.stage(cid) == "known"
-            if exchanged:          # 知り合いだった人とは, ここで連絡先を交換する
+            # 知り合いだった人とは, 話の流れで連絡先を交換することも (あなたの話のうまさ・相手の機嫌しだい)
+            exchanged = app.bonds.stage(cid) == "known" and random.random() < app.bonds.exchange_chance(char, st)
+            if exchanged:
                 app.bonds.set_stage(cid, "contact", now)
                 text = text[:-1] + "。連絡先を交換した）"
             introduced = False

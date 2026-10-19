@@ -121,7 +121,7 @@ python server.py --port 9000 --no-browser
 
 ### あなたとの間柄（連絡先 → 家に行ける仲 → 同居）
 
-`core/bonds.py`。新しく作ったワールドでは誰とも暮らしていない。キャラの定義全員（`data/characters/`）から、くじで「連絡先」「知り合い（known: 連絡・誘い不可、偶然会うと連絡先を交換）」「まだ知らない（そのワールドには入らず、出会いの候補）」を決める（`encounters.start_contact` / `start_known`、最低一人は連絡先。worlds.json の `start_bonds`）。状態・ログ・関係は一から（最初のワールドは選んでいたキャラと同居）。間柄といまの居場所は `player.json` の `bonds` / `with`。
+`core/bonds.py`。新しく作ったワールドでは誰とも暮らしていない。キャラの定義全員（`data/characters/`）から、くじで「連絡先」「知り合い（known: 連絡・誘い不可、偶然会って話すと連絡先を交換することがある。確率は `bonds.exchange_chance`: あなたの会話スキル・相手の機嫌と好感度・性格の caution で 5〜85%）」「まだ知らない（そのワールドには入らず、出会いの候補）」を決める（`encounters.start_contact` / `start_known`、最低一人は連絡先。worlds.json の `start_bonds`）。状態・ログ・関係は一から（最初のワールドは選んでいたキャラと同居）。間柄といまの居場所は `player.json` の `bonds` / `with`。
 
 - 一緒にいない相手には「連絡」「会う」「あなたの予定」と、お出かけへの誘い（`home_only` で一時シーンが外出のもの）だけ。個別にはコマンドの `"apart": true/false`。条件キー `stage` `apart` `with_mode` `living_other` `rivals` `rivals_known`。
 - 誘いに応じてくれたら外で会う（お出かけの一時シーンが終われば別れる）。「家に遊びに行く」は `visit_hours` 時間で帰る。
