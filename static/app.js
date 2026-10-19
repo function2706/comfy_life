@@ -2109,8 +2109,10 @@ SEC.char = () => {
       await reloadAll('char');
     }, h('div', { class: 'row' },
       h('select', { onchange: (ev) => editDefinition(ev.target.value) },
-        h('optgroup', { label: 'このワールドにいる' }, (S.boot.defs || []).filter((x) => x.here).map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))),
-        h('optgroup', { label: 'このワールドにはいない（定義だけ）' }, (S.boot.defs || []).filter((x) => !x.here).map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name)))),
+        [['このワールドにいる', true], ['このワールドにはいない（定義だけ）', false]].map(([label, here]) => {
+          const xs = allDefs().filter((x) => x.here === here);
+          return xs.length ? h('optgroup', { label }, xs.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))) : '';
+        })),
       h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'))),
     h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
@@ -2182,10 +2184,16 @@ function newCharacterDialog() {
 
 // まだこのワールドに現れていない登録キャラ: 確認・編集・このワールドに出す・削除
 // このワールドにはまだ現れていないキャラの定義: 確認・編集・このワールドに出す・削除 (どこにも現れていない定義だけ)
+// 全員の定義. サーバーが古く defs が無いときは, このワールドの人とそれ以外から組み立てる
+function allDefs() {
+  if (S.boot.defs) return S.boot.defs;
+  return [...(S.boot.characters || []).map((x) => ({ ...x, here: true, worlds: [], origin: '' })),
+    ...(S.boot.others || []).map((x) => ({ ...x, here: false, worlds: x._worlds || [], origin: '' }))];
+}
 // キャラクターの定義 (全ワールド共通. どのワールドから見ても同じ一覧): このワールドにいるか・どこに現れているか・どこから来たか
 const STAGE_JA = { known: '知り合い', contact: '連絡先', visit: '家に行ける仲', live: '同居' };
 function othersSection() {
-  const list = S.boot.defs || [];
+  const list = allDefs();
   const pname2 = (id) => ((S.boot.personas || []).find((p) => p.id === id) || {}).name || '性格なし';
   return h('div', {},
     h('div', { class: 'sect' }, `キャラクターの定義（全ワールド共通・${list.length}人）`),
