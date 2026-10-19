@@ -89,6 +89,10 @@ def route(method, path, q, body):
             return a.solo.start(b["kind"], b.get("skill"), b.get("place"))
         if path == "/api/diary/write":
             return {"diary": a.solo.write_diary()}
+        if path == "/api/items/list":
+            return a.items.set_list(b["id"], int(b.get("qty", 0)))
+        if path == "/api/gift":
+            return a.give_item(b["item"], cid)
         if path == "/api/offline/ack":
             return a.offline.ack()
         if path == "/api/street":
