@@ -55,6 +55,10 @@ def route(method, path, q, body):
             return {"workflow": store.load(store.dpath("workflow.json"))}
         if path == "/api/diary":
             return {"diary": a.solo.diary_list(), "mylog": a.solo.mylog()[-100:]}
+        if path == "/api/chats":
+            return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
+        if path == "/api/chat":
+            return a.chat.thread(_q(q, "id", ""))
         if path == "/api/worlds":
             return a.worlds_view()
         if path == "/api/persona":
@@ -93,6 +97,10 @@ def route(method, path, q, body):
             return a.items.set_list(b["id"], int(b.get("qty", 0)))
         if path == "/api/gift":
             return a.give_item(b["item"], cid)
+        if path == "/api/chat/send":
+            return a.chat.send(b["id"], b["kind"])
+        if path == "/api/chat/seen":
+            return a.chat.mark_seen(b["id"])
         if path == "/api/offline/ack":
             return a.offline.ack()
         if path == "/api/street":

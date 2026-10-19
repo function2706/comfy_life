@@ -256,6 +256,7 @@ class Offline:
             if not e:
                 continue
             e["t"] = sent
+            app.chat.retime_last(cid, sent)            # 届いた時刻に
             st["approach"]["until"] = t1 + 30 * 60          # 開いてから少しのあいだは, 返事ができる
             late = (t1 - sent) / 3600.0
             k = float(app.traits(char).get("absence", 1)) * max(0.2, 1.3 - st["params"].get("trust", 40) / 100.0)

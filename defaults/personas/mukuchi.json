@@ -1633,6 +1633,60 @@
   ],
   "gift.disliked_true": [
    "……ありがと。（{item}は、あまり好きではなさそうだ）"
+  ],
+  "chat.greet_morning": [
+   "📱『……おはよう』"
+  ],
+  "chat.greet_night": [
+   "📱『……おやすみ』"
+  ],
+  "chat.thanks": [
+   "📱『……うん』"
+  ],
+  "chat.apology": [
+   "📱『……いいよ』"
+  ],
+  "chat.apology_confused": [
+   "📱『……？ なに？』"
+  ],
+  "chat.smalltalk": [
+   "📱『……ふふ』"
+  ],
+  "chat.ask_how": [
+   "📱『……最近。{news}』"
+  ],
+  "chat.consult": [
+   "📱『……聞く』"
+  ],
+  "chat.tease": [
+   "📱『……もう』"
+  ],
+  "chat.tease_hurt": [
+   "📱『……やだ』"
+  ],
+  "chat.flirt": [
+   "📱『……会いたい』"
+  ],
+  "chat.flirt_cold": [
+   "📱『……？ どうしたの』"
+  ],
+  "chat.invite_yes": [
+   "📱『……うん。会う』"
+  ],
+  "chat.invite_no": [
+   "📱『……しばらく、むり』"
+  ],
+  "chat.photo": [
+   "📱『……いい』"
+  ],
+  "chat.stamp": [
+   "📱『（小さく手を振るスタンプが返ってきた）』"
+  ],
+  "chat.late_night": [
+   "📱『……ねむい。……おやすみ』"
+  ],
+  "chat.too_often": [
+   "📱『……多い』"
   ]
  }
 }

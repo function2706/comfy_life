@@ -159,6 +159,15 @@ python server.py --port 9000 --no-browser
 
 設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。定義だけ作り、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。このワールドにいない定義は `boot.others`、`POST /api/character/define`（編集）・`/api/character/place {id, stage}`（このワールドに出す）・`/api/character/delete`（どこにも現れていない定義だけ）。
 
+### メッセージ（トーク）
+
+`core/chat.py`。相手ごとのトーク（`W/chats/<cid>.json`: `seen_t` と `items[{t, who: me/her/sys, kind, text, read_t}]`）。
+
+- 送る種類 `KINDS`（おはよう・おやすみ・ありがとう・ごめんね・雑談・最近どう？・相談・からかう・甘える・会おうよ・写真・スタンプ）。`POST /api/chat/send {id, kind}` → `act("message", opts.msg_kind)` → `_send_later`（トークに要約、`msg_pending.kind`）。
+- 返信は `deliver_due` → `_chat_reply` → `chat.reply`（種類 × 状況: 連絡しすぎ・夜中・理由の有無・仲の深さ・機嫌）。既読（`read_t`）、来ないとき既読だけ。「会おう」に応じると `date_promise`（半日、お出かけの誘いが断られない）。セリフは性格プリセットの `chat.<場面>`（18 場面 × 23 性格、`chat.LINES` が共通）。
+- 電話（出た・出なかった・折り返し）、相手からの働きかけ（`"apart": true`、オフライン中も）、それへの返事もトークに並ぶ。
+- API: `GET /api/chats`（一覧・未読）、`GET /api/chat?id=`（トーク）、`POST /api/chat/seen {id}`、`state_view.chat_unread`。
+
 ### 持ち物と買い物
 
 `core/items.py`。品物のカタログ（`CATALOG`: 値段・売っている行き先・種類・好みの印・プレゼント可否）、持ち物（`player.json` の `items`）と買うものリスト（`shop_list`）はワールドごと。
@@ -351,6 +360,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
+tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会う約束・電話や相手からのメッセージ）のテスト
 tools/test_routine.py  あなたの行動パターン（曜日ごとの流れ・予定どおりにいかないこと・時系列のまとめ・以前の設定の読み替え）のテスト
 tools/test_items.py  持ち物・買うものリスト・家での行動・プレゼントのテスト
 tools/test_definitions.py  キャラの定義（全体）と個体（ワールドごと）・移行・削除の可否のテスト

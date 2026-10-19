@@ -25,6 +25,7 @@ from . import outdoor as outdoor_mod
 from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
+from . import chat as chat_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -116,6 +117,7 @@ class App:
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
+        self.chat = chat_mod.Chat(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -592,6 +594,7 @@ class App:
             cid = char["id"]
             self.tick(cid)
             st, a = self.state(cid), self.action(aid)
+            called = False
             uses = items_mod.USES.get(aid)          # 家での行動が使う持ち物 (料理=食材 など)
             gift_item = opts.get("gift_item")       # 持ち物からのプレゼント
             if uses or gift_item:
@@ -614,12 +617,13 @@ class App:
                 self._phoned(st, now)            # スマホで連絡した (頻度・仕事中かどうか)
             if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
                 # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
-                return self._send_later(char, st, a, now, dt, scene, ctx)
+                return self._send_later(char, st, a, now, dt, scene, ctx, opts.get("msg_kind"))
             if apart and a.get("phone") and not opts.get("deliver"):
                 # 電話: 寝ている・手が離せない・気分しだいで出ない. あとで折り返しが来ることも
                 missed = self._call_missed(char, st, a, now, dt, scene, ctx)
                 if missed:
                     return missed
+                called = True
                 st["peek_until"] = now + 600        # 電話のあいだ, 相手がいまどこで何をしているかは少しわかる
             if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
                 if self.bonds.stage(cid) == "known":
@@ -658,7 +662,8 @@ class App:
                 raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
             r = self.pick_reaction(a, ctx)
             invite = apart and (a.get("override") or {}).get("outing")
-            if invite and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
+            promised = st.get("date_promise", 0) > now          # メッセージで「会おう」に応じてくれていた
+            if invite and not promised and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
                 r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
             mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
             # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
@@ -717,6 +722,7 @@ class App:
                 self.bonds.apply(a, cid, now)
                 if invite:
                     self.bonds.start(cid, "meet", now)      # 誘いに乗ってくれた: 外で会う
+                    st.pop("date_promise", None)
             self.bonds.sync(cid, st, now)                   # 「家に帰る」で別れる など
             money = self._act_money(char, st, a, r, plan, req, extra)
             for k, v in (opts.get("money") or {}).items():
@@ -789,6 +795,9 @@ class App:
             if self.settings.get("auto_generate") and gen_ok:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
+        if called:          # 電話で話した: トークにも並べる
+            self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
+            self.chat.add(cid, "her", text, kind="call", t=now + 0.001)
         return {"entry": entry, "job": job, "llm_error": llm_error}
 
     def give_item(self, iid, cid=None):
@@ -838,18 +847,23 @@ class App:
             st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
         pos, neg, parts = self.build_prompt(char, st, dt, a)
         e = self._new_entry(cid, now, a, "（📞 %sに電話をかけたが、出なかった）" % char.get("name", ""), {}, scene, dt, pos, neg, parts)
+        self.chat.add(cid, "sys", "📞 電話をかけたが、出なかった", kind="call", t=now)
         e["missed"] = True
         self.save_state(cid)
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "missed": True}
 
-    def _send_later(self, char, st, a, now, dt, scene, ctx):
-        """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す."""
+    def _send_later(self, char, st, a, now, dt, scene, ctx, kind=None):
+        """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す.
+        kind: メッセージの種類 (chat.KINDS. 無ければ, ただの「メッセージを送る」)."""
         cid = char["id"]
         p = st["params"]
         pend = st.get("msg_pending")
+        self.chat.add(cid, "me", chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）", kind=kind, t=now)
         if pend:
             pend["count"] = pend.get("count", 1) + 1
+            if kind:
+                pend["kind"] = kind                    # 返信は, いちばん新しいメッセージに対して
         else:
             delay = random.uniform(3, 40) * 60
             if p.get("mood", 50) < 35:
@@ -858,17 +872,50 @@ class App:
                 delay *= 2
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
                 * (0.7 if p.get("stress", 0) > 70 else 1) * (0.6 if ctx.get("too_often") else 1)
-            st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1}
+            st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1,
+                                 "kind": kind}
         cd = float(a.get("cooldown", 0)) * 60
         if cd:
             st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
-        text = "（📱 %sにメッセージを送った）" % char.get("name", "")
+        text = "（📱 %sに%s）" % (char.get("name", ""), "「%s」と送った" % chat_mod.KINDS[kind][0] if kind else "メッセージを送った")
         pos, neg, parts = self.build_prompt(char, st, dt, a)
         e = self._new_entry(cid, now, a, text, {}, scene, dt, pos, neg, parts)
         e["sent"] = True
         self.save_state(cid)
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "sent": True}
+
+    def _chat_reply(self, char, st, pend, now):
+        """メッセージの種類と状況で返信を決めて届ける (効果・既読・トーク・ログ)."""
+        cid = char["id"]
+        dt = datetime.fromtimestamp(now)
+        kind = pend["kind"]
+        with self.lock:
+            ctx = self.context(char, st, dt)
+            key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
+            eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
+            self.bonds.touch(st, now)
+            st["last_interaction"] = now
+            deltas = self.apply_effects(st, self.trait_effects(char, eff))
+            text = self.chat.line(char, key, extra)
+            selfie = key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused") and \
+                random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0)
+            self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
+            if key == "invite_yes":
+                self.chat.add(cid, "sys", "📅 会う約束をした（半日のうちにお出かけに誘えば、会えます）", kind="promise", t=now + 0.001)
+            scene = self.scene_at(char, st, dt)
+            act = {"id": "_chat", "name": "返信", "icon": "📱",
+                   "pos": "selfie, holding smartphone, looking at viewer, upper body, smile" if selfie else "", "neg": ""}
+            pos, neg, parts = self.build_prompt(char, st, dt, act)
+            e = self._new_entry(cid, now, act, text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), deltas, scene, dt, pos, neg, parts)
+            e["reply"] = True
+            if selfie:
+                e["selfie"] = True
+                if self.settings.get("auto_generate"):
+                    e["job"] = self._present_image(cid, e)
+            self.save_state(cid)
+            self.save_log(cid)
+        return {"cid": cid, "name": char.get("name", ""), "text": text, "late": now - pend["t"] > 3600}
 
     def _contacts_view(self):
         """スマホの連絡先 (連絡先を知っていて, いまそばにいない人)."""
@@ -897,8 +944,12 @@ class App:
                 self.save_state(cid)
                 continue
             st.pop("msg_pending", None)
+            self.chat.mark_read_by_her(cid, now)       # 既読
             if not pend.get("reply"):
-                self.save_state(cid)                   # 読んだが, 返事はしなかった
+                self.save_state(cid)                   # 読んだが, 返事はしなかった (既読だけ)
+                continue
+            if pend.get("kind"):
+                out.append(self._chat_reply(char, st, pend, now))
                 continue
             try:
                 r = self.act(pend["aid"], cid, opts={"deliver": True, "ctx": {"callback": bool(pend.get("callback"))}})
@@ -908,6 +959,7 @@ class App:
             e = r["entry"]
             e["action_name"], e["icon"], e["reply"] = ("折り返し" if pend.get("callback") else "返信"), "📱", True
             self.save_log(cid)
+            self.chat.add(cid, "her", e["text"], kind="callback" if pend.get("callback") else "reply", t=now)
             out.append({"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600})
         return out
 
@@ -1348,6 +1400,7 @@ class App:
                 "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
                 "street_pending": self.street.view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
+                "chat_unread": self.chat.unread_total(),
                 "contacts": self._contacts_view(),
                 "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
                 "presence": self.presence.view(now),

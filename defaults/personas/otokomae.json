@@ -1634,6 +1634,60 @@
   ],
   "gift.disliked_true": [
    "ああ、ありがとう。（{item}は、あまり好みではないようだ）"
+  ],
+  "chat.greet_morning": [
+   "📱『おはよう、{call}。今日も頼むぞ』"
+  ],
+  "chat.greet_night": [
+   "📱『おやすみ。しっかり休め』"
+  ],
+  "chat.thanks": [
+   "📱『礼には及ばない』"
+  ],
+  "chat.apology": [
+   "📱『……わかった。もう気にするな』"
+  ],
+  "chat.apology_confused": [
+   "📱『何の話だ？ 謝られる覚えがない』"
+  ],
+  "chat.smalltalk": [
+   "📱『ははっ、面白いやつだな』"
+  ],
+  "chat.ask_how": [
+   "📱『近況か？ {news}』"
+  ],
+  "chat.consult": [
+   "📱『話してくれて助かる。一緒に考えよう』"
+  ],
+  "chat.tease": [
+   "📱『からかうな』"
+  ],
+  "chat.tease_hurt": [
+   "📱『……それは、少し堪えるな』"
+  ],
+  "chat.flirt": [
+   "📱『……{fp}も、会いたいと思っていた』"
+  ],
+  "chat.flirt_cold": [
+   "📱『どうした、急に』"
+  ],
+  "chat.invite_yes": [
+   "📱『いいぞ。会おう』"
+  ],
+  "chat.invite_no": [
+   "📱『すまない、しばらくは無理だ』"
+  ],
+  "chat.photo": [
+   "📱『いい写真だな』"
+  ],
+  "chat.stamp": [
+   "📱『（敬礼のスタンプが返ってきた）』"
+  ],
+  "chat.late_night": [
+   "📱『こんな時間にどうした。もう寝るぞ』"
+  ],
+  "chat.too_often": [
+   "📱『少し連絡が多いな』"
   ]
  }
 }

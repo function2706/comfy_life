@@ -206,6 +206,8 @@ class Presence:
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
         e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True) and not a.get("apart"))
+        if a.get("apart"):              # 離れている相手からのメッセージ: トークにも
+            self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now)
         st["approach"]["entry"] = e["id"]
         return e
 
@@ -285,6 +287,11 @@ class Presence:
                                      now, told=True, delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         e = self._entry(char, st, now, a, ans, out.get("text") or "", deltas, out if (out.get("pos") or out.get("neg")) else None,
                         gen=bool(out.get("pos") or out.get("neg")) and not a.get("apart"))
+        if a.get("apart") and ans in ("accept", "later"):      # メッセージへの返事: トークにも
+            self.app.chat.add(char["id"], "me", "（返信した）" if ans == "accept" else "（あとで返すと送った）", kind="approach", t=now)
+            self.app.chat.mark_read_by_her(char["id"], now)
+            if out.get("text"):
+                self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
         self.app.save_state(char["id"])
         return e, None
 

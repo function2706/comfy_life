@@ -58,6 +58,9 @@ def all_keys(actions, minigames, approaches=()):
             if t:     # セリフが無い場面 (応じたらコマンドに切り替わるだけ, など) は差し替えない
                 out["ap.%s.%s" % (a["id"], sc)] = {"scene": "働きかけ「%s」/ %s" % (a.get("label", a["id"]), label),
                                                     "when": a.get("when", ""), "text": t}
+    from .chat import LINES as CHAT_LINES, SCENE_LABEL as CHAT_SCENES     # メッセージアプリの返信 (種類 x 状況)
+    for k, t in CHAT_LINES.items():
+        out[k] = {"scene": "メッセージの返信 / %s" % CHAT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
     from .street import LINES as ENC_LINES     # 出先でのばったり (声をかけられる・立ち話・断られる)
     for k, t in ENC_LINES.items():
         out[k] = {"scene": "出先でのばったり / %s" % {"enc.call.first": "知らない人が声をかけてくる", "enc.call.again": "顔なじみが声をかけてくる",

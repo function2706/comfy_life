@@ -103,6 +103,10 @@ async function refresh() {
   renderEncounter();
   renderStreet();
   renderOffline();
+  const cb = $('#chat-badge');
+  cb.hidden = !S.view.chat_unread;
+  cb.textContent = S.view.chat_unread > 99 ? '99+' : String(S.view.chat_unread || '');
+  if (S.chatDlg && S.chatDlg.open) drawChat();
   renderCommands();
   renderDress();
   renderGames();
@@ -218,7 +222,7 @@ function cmdButton(a) {
   const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
     '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
     st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : a.id === 'message' && S.view.bond && !S.view.bond.mode ? openChat(S.view.character) : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
@@ -1139,7 +1143,7 @@ function phonePanel() {
     h('button', { class: 'btn small', onclick: () => { S.phoneOpen = !open; renderAway(); } }, open ? '📱 スマホをしまう' : '📱 スマホを見る'),
     open ? h('div', { class: 'phone-list' }, cs.map((c) => h('div', { class: 'row' },
       h('span', { style: 'flex:1' }, `${BOND_IC[c.stage] || ''} ${c.name}`),
-      h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'message') }, '📱 メッセージ'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => openChat(c.id) }, '📱 メッセージ'),
       h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'call') }, '📞 電話')))) : '');
 }
 
@@ -1185,6 +1189,92 @@ function giftPicker(aid) {
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
   document.body.append(dlg);
   dlg.showModal();
+}
+
+/* ---- メッセージアプリ: トーク一覧 → トーク画面. 自分は右 (要約), 相手は左 (本文). 送受信の時刻・日付の区切り・既読・返信待ち */
+function openChat(cid) {
+  if (!S.chatDlg) {
+    S.chatDlg = h('dialog', { class: 'modal chat-dlg' });
+    S.chatDlg.addEventListener('close', () => { S.chatCid = null; });
+    document.body.append(S.chatDlg);
+  }
+  S.chatCid = cid || null;
+  if (!S.chatDlg.open) S.chatDlg.showModal();
+  drawChat();
+}
+const chatText = (t) => String(t || '').replace(/^📱『/, '').replace(/』(\n|$)/, '$1');
+const hhmm = (t) => new Date(t * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+const dayLabel = (t) => new Date(t * 1000).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
+function avatar(face, name, cls) {
+  const a = h('div', { class: 'chat-ava ' + (cls || '') });
+  if (face) a.style.backgroundImage = `url("${imgUrl(face)}")`; else a.textContent = (name || '?').slice(0, 1);
+  return a;
+}
+async function drawChat() {
+  const dlg = S.chatDlg;
+  let list, th = null;
+  try {
+    list = (await api('/api/chats')).chats;
+    if (S.chatCid) {
+      th = await api('/api/chat?id=' + encodeURIComponent(S.chatCid));
+      if (th.items.some((x) => x.who === 'her' && x.t > th.seen_t)) { await api('/api/chat/seen', { id: S.chatCid }); list = (await api('/api/chats')).chats; }
+    }
+  } catch (e) { toast(e.message, 'err'); return; }
+  const total = list.reduce((n, c) => n + (c.unread || 0), 0);        // 読んだら, すぐ未読の数に反映
+  $('#chat-badge').hidden = !total;
+  $('#chat-badge').textContent = String(total || '');
+  const keepScroll = dlg.querySelector('.chat-body');
+  const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
+  const listEl = h('div', { class: 'chat-list' },
+    h('div', { class: 'chat-head' }, h('b', {}, '💬 メッセージ'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
+    list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; drawChat(); } },
+      avatar(c.face, c.name),
+      h('div', { class: 'chat-row-main' },
+        h('div', { class: 'chat-row-top' }, h('b', {}, c.name), h('span', { class: 'muted small' }, c.last ? hhmm(c.last.t) : '')),
+        h('div', { class: 'chat-row-last muted small' }, c.waiting ? '返信待ち…' : c.last ? chatText(c.last.text).split('\n')[0] : 'まだやりとりはありません')),
+      c.unread ? h('span', { class: 'chat-unread' }, String(c.unread)) : ''))
+      : h('p', { class: 'muted small', style: 'padding:12px' }, '連絡先を知っている人がいません。'));
+  let threadEl = h('div', { class: 'chat-thread empty' }, h('p', { class: 'muted' }, '左のトークを選んでください'));
+  if (th) {
+    let lastDay = '';
+    const body = [];
+    const lastMine = [...th.items].reverse().find((x) => x.who === 'me');
+    for (const it of th.items) {
+      const d = dayLabel(it.t);
+      if (d !== lastDay) { body.push(h('div', { class: 'chat-day' }, d)); lastDay = d; }
+      if (it.who === 'sys') { body.push(h('div', { class: 'chat-sys' }, `${it.text}　${hhmm(it.t)}`)); continue; }
+      const mine = it.who === 'me';
+      body.push(h('div', { class: 'chat-msg ' + (mine ? 'me' : 'her') },
+        mine ? '' : avatar(th.face, th.name, 'small'),
+        h('div', { class: 'chat-bubble' + (mine ? ' summary' : '') }, chatText(it.text)),
+        h('div', { class: 'chat-meta' }, mine && it.read_t ? h('div', {}, '既読') : '', h('div', {}, hhmm(it.t)))));
+    }
+    if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
+    const can = !th.together;
+    threadEl = h('div', { class: 'chat-thread' },
+      h('div', { class: 'chat-head' },
+        h('button', { class: 'btn ghost small chat-back', onclick: () => { S.chatCid = null; drawChat(); } }, '‹'),
+        avatar(th.face, th.name, 'small'), h('b', {}, th.name),
+        h('span', { class: 'muted small', style: 'margin-left:8px' }, th.together ? 'そばにいる' : th.promise ? `📅 会う約束（${hhmm(th.promise)}まで）` : ''),
+        h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
+      h('div', { class: 'chat-body' }, body.length ? body : h('p', { class: 'muted small', style: 'text-align:center' }, 'まだやりとりはありません')),
+      h('div', { class: 'chat-send' },
+        can ? th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`))
+          : h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。')));
+    void lastMine;
+  }
+  dlg.classList.toggle('thread-open', !!th);
+  dlg.replaceChildren(h('div', { class: 'chat-wrap' }, listEl, threadEl));
+  const nb = dlg.querySelector('.chat-body');
+  if (nb && (atBottom || S.chatJump)) nb.scrollTop = nb.scrollHeight;
+  S.chatJump = false;
+}
+async function sendChat(cid, kind) {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/chat/send', { id: cid, kind }); S.chatJump = true; } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
 }
 
 /* ---- オフラインの間のまとめ: 開いたときに一度だけ. 読んだら普段に戻る. 届いたメッセージにはここから返事できる */
@@ -2859,6 +2949,7 @@ function bind() {
   });
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
+  $('#btn-chat').addEventListener('click', () => openChat());
   $('#btn-manual').addEventListener('click', () => openManual());
   const seen = () => { S.lastInput = Date.now(); };
   for (const t of ['keydown', 'pointerdown', 'wheel', 'touchstart']) document.addEventListener(t, seen, { passive: true, capture: true });
