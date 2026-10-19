@@ -121,8 +121,15 @@ async function refresh() {
 
 function showGreeting() {
   const n = S.boot.character.name;
-  setDialogue(S.view.bond && !S.view.bond.mode
-    ? `（${n}とは連絡先を知っている仲。メッセージを送ったり、お出かけに誘ったりしてみよう）`
+  const b = S.view.bond;
+  // 離れている相手は, 間柄 (段階) に合わせて言う
+  const apart = {
+    known: `（${n}とは顔見知り。連絡先は知らないので、出先で偶然会えたら話せるかもしれない）`,
+    contact: `（${n}とは連絡先を知っている仲。メッセージを送ったり、お出かけに誘ったりしてみよう）`,
+    visit: `（${n}とは家を行き来する仲。メッセージを送ったり、家に遊びに行ったりしてみよう）`,
+  };
+  setDialogue(b && !b.mode
+    ? apart[b.stage] || apart.contact
     : `（${n}との暮らしが始まった。右のコマンドから話しかけてみよう）`, false);
 }
 
