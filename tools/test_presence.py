@@ -58,6 +58,7 @@ def main():
 
         # 仕事: 働いた時間ぶん稼ぐ. すぐ戻ると稼ぎなし
         app.world["economy"]["work_hours"] = [0, 24]            # テストは時刻に左右されないように
+        L.player_state()["work_log"] = {}       # 上の「4 時間閉じていた」の行動パターン (平日なら勤務) で今日の上限を使っていることがある
         app.action("go_work")["when"] = "presence=here|idle|busy"
         m0 = L.player_state()["money"]
         app.act("go_work")
