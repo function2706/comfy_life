@@ -2082,7 +2082,8 @@ SEC.player = () => {
 SEC.char = () => {
   const c = SE.char, st = SE.settings;
   // 同じワールドのほかのキャラとの関係 (c から見た向き). 再描画しても編集中の値を保つ
-  const others = S.boot.characters.filter((x) => x.id !== c.id);
+  const hereNow = S.boot.characters.some((x) => x.id === c.id);     // 定義だけ (このワールドにいない人) を編集中なら, 関係は扱わない
+  const others = hereNow ? S.boot.characters.filter((x) => x.id !== c.id) : [];
   if (!SE.rels || SE.rels.cid !== c.id || SE.rels.boot !== S.boot) {
     const mine = (S.boot.relations || {})[c.id] || {};
     SE.rels = { cid: c.id, boot: S.boot, map: Object.fromEntries(others.map((o) => [o.id, {
@@ -2104,11 +2105,12 @@ SEC.char = () => {
   return [
     saveBar('キャラクター', async () => {
       await api('/api/character/save', { data: c });
-      if (others.length) await api('/api/relations', { id: c.id, relations: rels });
+      if (others.length && S.boot.characters.some((x) => x.id === c.id)) await api('/api/relations', { id: c.id, relations: rels });
       await reloadAll('char');
     }, h('div', { class: 'row' },
-      h('select', { onchange: async (ev) => { await api('/api/character/select', { id: ev.target.value }); S.current = null; await reloadAll('char'); } },
-        S.boot.characters.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))),
+      h('select', { onchange: (ev) => editDefinition(ev.target.value) },
+        h('optgroup', { label: 'このワールドにいる' }, (S.boot.defs || []).filter((x) => x.here).map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))),
+        h('optgroup', { label: 'このワールドにはいない（定義だけ）' }, (S.boot.defs || []).filter((x) => !x.here).map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name)))),
       h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'))),
     h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
@@ -2137,7 +2139,7 @@ SEC.char = () => {
             h('span', {}, h('input', { type: 'checkbox', checked: r.knows, onchange: (ev) => { r.knows = ev.target.checked; } }), ' 知っている')),
           fld('関係', inp(r, 'kind', { ph: '友人・姉妹・同僚など' })),
           fld('好感度', inp(r, 'affinity', { type: 'number' })));
-      })) : h('p', { class: 'hint' }, 'このワールドにはほかのキャラがいません（＋新規で増やせます）。'),
+      })) : h('p', { class: 'hint' }, hereNow ? 'このワールドにはほかのキャラがいません（＋新規で増やせます）。' : 'このキャラはこのワールドにはいないので、関係はこのワールドに出てから設定できます。'),
     othersSection(),
     h('div', { class: 'sect' }, `プロンプト履歴（${(c.prompt_history || []).length}）`),
     hist,
@@ -2170,7 +2172,7 @@ function newCharacterDialog() {
           dlg.replaceChildren(h('div', { class: 'modal-body', style: 'padding:16px;max-width:560px' },
             h('h3', {}, `${r.character.name}を${st === 'absent' ? '登録しました' : '追加しました'}`),
             h('p', {}, `${v.stage === 'random' ? '🎲 くじの結果: ' : '間柄: '}${label}`),
-            st === 'absent' ? h('p', { class: 'hint' }, 'このワールドのキャラ一覧には出ません。出先で偶然会えば、段階的に知り合えます（会えないことも）。この画面の下の「このワールドにはまだ現れていないキャラ」で、確認・編集・このワールドに出すことができます。') : '',
+            st === 'absent' ? h('p', { class: 'hint' }, 'このワールドのキャラ一覧には出ません。出先で偶然会えば、段階的に知り合えます（会えないことも）。この画面の下の「キャラクターの定義（全ワールド共通）」で、確認・編集・このワールドに出すことができます。') : '',
             h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
         } catch (e) { toast(e.message, 'err'); }
       } }, '追加'))));
@@ -2180,25 +2182,37 @@ function newCharacterDialog() {
 
 // まだこのワールドに現れていない登録キャラ: 確認・編集・このワールドに出す・削除
 // このワールドにはまだ現れていないキャラの定義: 確認・編集・このワールドに出す・削除 (どこにも現れていない定義だけ)
+// キャラクターの定義 (全ワールド共通. どのワールドから見ても同じ一覧): このワールドにいるか・どこに現れているか・どこから来たか
+const STAGE_JA = { known: '知り合い', contact: '連絡先', visit: '家に行ける仲', live: '同居' };
 function othersSection() {
-  const list = S.boot.others || [];
+  const list = S.boot.defs || [];
   const pname2 = (id) => ((S.boot.personas || []).find((p) => p.id === id) || {}).name || '性格なし';
   return h('div', {},
-    h('div', { class: 'sect' }, `このワールドにはまだ現れていないキャラ（${list.length}）`),
-    h('p', { class: 'hint' }, '追加するときに「現れない」を選んだ人、くじで現れなかった人、ほかのワールドで作った人です。このワールドでは出先で偶然会えば段階的に知り合えます。ここから知り合い・連絡先としてこのワールドに出すこともできます。'),
-    list.length ? list.map((c) => h('div', { class: 'row reg-row' },
-      h('div', { style: 'flex:1;min-width:12em' }, h('b', {}, c.name), h('span', { class: 'muted small' }, `　${pname2(c.persona_id)}`),
-        h('div', { class: 'muted small' }, c._worlds && c._worlds.length ? `「${c._worlds.join('」「')}」に現れている` : 'どのワールドにもまだ現れていない'),
-        h('div', { class: 'muted small', style: 'word-break:break-all' }, c.pos || '')),
-      h('button', { class: 'btn small', onclick: () => editRegistryDialog(c) }, '編集'),
-      h('button', { class: 'btn small', title: 'このワールドに知り合い（連絡先は知らない）として出す', onclick: () => placeOther(c, 'known') }, '👤 知り合いとして出す'),
-      h('button', { class: 'btn small', title: 'このワールドに連絡先を知っている人として出す', onclick: () => placeOther(c, 'contact') }, '📱 連絡先として出す'),
-      h('button', { class: 'btn small danger', disabled: !!(c._worlds && c._worlds.length),
-        title: c._worlds && c._worlds.length ? 'どこかのワールドに現れている（知り合っている）ので削除できません。編集はできます' : '定義を消す（全ワールドに波及）',
+    h('div', { class: 'sect' }, `キャラクターの定義（全ワールド共通・${list.length}人）`),
+    h('p', { class: 'hint' }, 'どのワールドから見ても同じ一覧です。「どこから来たか」で、いつ・どこで作った（出会って登録した）人かが分かります。このワールドにいない人は、出先で偶然会えば段階的に知り合えるほか、ここから知り合い・連絡先として出すこともできます。削除は、どのワールドにも現れていない定義だけです。'),
+    list.map((c) => h('div', { class: 'row reg-row' + (c.id === (SE.char || {}).id ? ' on' : '') },
+      h('div', { style: 'flex:1;min-width:12em' },
+        h('b', {}, c.name), h('span', { class: 'muted small' }, `　${pname2(c.persona_id)}`),
+        h('div', { class: 'small' }, c.here ? `このワールド: ${STAGE_JA[c.stage] || ''}` : 'このワールドにはいない',
+          h('span', { class: 'muted' }, c.worlds.length ? `　（現れているワールド: ${c.worlds.join('、')}）` : '　（どのワールドにもまだ現れていない）')),
+        h('div', { class: 'muted small' }, `どこから来たか: ${c.origin}`)),
+      h('button', { class: 'btn small', onclick: () => editDefinition(c.id) }, '編集'),
+      c.here ? '' : h('button', { class: 'btn small', title: 'このワールドに知り合い（連絡先は知らない）として出す', onclick: () => placeOther(c, 'known') }, '👤 知り合いとして出す'),
+      c.here ? '' : h('button', { class: 'btn small', title: 'このワールドに連絡先を知っている人として出す', onclick: () => placeOther(c, 'contact') }, '📱 連絡先として出す'),
+      h('button', { class: 'btn small danger', disabled: c.worlds.length > 0,
+        title: c.worlds.length ? 'どこかのワールドに現れている（知り合っている）ので削除できません。編集はできます' : '定義を消す（全ワールドに波及）',
         onclick: async () => {
           if (!confirm(`「${c.name}」の定義を消しますか？（どのワールドの出会いの候補からも外れます）`)) return;
           try { await api('/api/character/delete', { id: c.id }); await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
-        } }, '削除'))) : h('p', { class: 'muted small' }, 'いません。'));
+        } }, '削除'))));
+}
+// 定義を編集する (このワールドにいない人も). いる人ならそのキャラを選ぶ
+async function editDefinition(id) {
+  if (S.boot.characters.some((x) => x.id === id)) {
+    await api('/api/character/select', { id }); S.current = null; await reloadAll('char'); return;
+  }
+  try { SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); showSection('char'); }
+  catch (e) { toast(e.message, 'err'); }
 }
 async function placeOther(c, stage) {
   try { await api('/api/character/place', { id: c.id, stage }); toast(`${c.name}をこのワールドに出しました`, 'ok'); await reloadAll('char'); }

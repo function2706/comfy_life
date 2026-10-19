@@ -1560,7 +1560,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
                 "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
@@ -1650,7 +1650,7 @@ class App:
                  "persona_id": p.get("id", ""), "persona": p.get("persona", ""),
                  "pos": (pos or "").strip() or "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
                  "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
-                 "prompt_history": []}
+                 "prompt_history": [], "origin": {"type": "manual", "t": time.time(), "world": store.WORLD}}
             if stage == "random":
                 ec = self.encounters.cfg()
                 r = random.random()
@@ -1664,6 +1664,36 @@ class App:
             return dict(c, _stage=stage)
 
     # ---- キャラの定義は全体で 1 つ. ワールドには, そのうち現れている人 (顔ぶれ) の個体 (状態・ログ・間柄・関係) がある
+    def defs_list(self):
+        """キャラクターの定義全員 (全ワールド共通. どのワールドから見ても同じ). このワールドにいるか・どこに現れているか・どこから来たか."""
+        worlds = store.load_worlds().get("worlds") or []
+        wname = {w["id"]: w["name"] for w in worlds}
+        casts = {w["id"]: store.load_cast(w["id"]) for w in worlds}
+        defaults = set(store.default_character_ids()) if hasattr(store, "default_character_ids") else {"hina"}
+        out = []
+        for cid, c in store.all_characters().items():
+            out.append({"id": cid, "name": c.get("name", ""), "persona_id": c.get("persona_id", ""), "pos": c.get("pos", ""),
+                        "here": cid in self.chars, "stage": self.bonds.stage(cid) if cid in self.chars else None,
+                        "worlds": [wname[w] for w, ids in casts.items() if cid in ids], "origin": self._origin(c, cid, wname, defaults)})
+        out.sort(key=lambda x: (not x["here"], x["name"]))
+        return out
+
+    @staticmethod
+    def _origin(c, cid, wname, defaults):
+        """その定義がどこから来たか (なぞのキャラの出どころを確かめられるように)."""
+        fmt = lambda t: datetime.fromtimestamp(t).strftime("%Y/%m/%d %H:%M") if t else "日時不明"  # noqa: E731
+        met = c.get("met")
+        if met:
+            w = wname.get(met.get("world") or "", "")
+            return "出会って登録（%s・%s%s）" % (fmt(met.get("t")), met.get("where") or "", "・" + w if w else "")
+        org = c.get("origin") or {}
+        if org.get("type") == "manual":
+            w = wname.get(org.get("world") or "", "")
+            return "設定で追加（%s%s）" % (fmt(org.get("t")), "・" + w if w else "")
+        if cid in defaults:
+            return "既定のキャラ"
+        return "以前のデータから（いつ・どこで作ったかの記録なし）"
+
     def others_list(self):
         """このワールドにはまだ現れていない定義 (追加で「現れない」・くじで現れなかった人・ほかのワールドで作った人)."""
         here = set(self.chars)

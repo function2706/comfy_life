@@ -157,7 +157,7 @@ python server.py --port 9000 --no-browser
 
 ### キャラを追加するとき
 
-設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。定義だけ作り、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。このワールドにいない定義は `boot.others`、`POST /api/character/define`（編集）・`/api/character/place {id, stage}`（このワールドに出す）・`/api/character/delete`（どこにも現れていない定義だけ）。
+設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。定義だけ作り、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。定義の一覧は `boot.defs`（全ワールド共通。`here`・現れているワールド・出どころ `origin`: 既定／設定で追加（`origin`）／出会って登録（`met`、ワールドも）／以前のデータ）、定義の取得は `GET /api/character?id=`、`POST /api/character/define`（編集）・`/api/character/place {id, stage}`（このワールドに出す）・`/api/character/delete`（どこにも現れていない定義だけ）。
 
 ### メッセージ（トーク）
 

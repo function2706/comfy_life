@@ -93,6 +93,32 @@ def main():
         app.switch_world(w3)
         assert "cx" not in app.chars, "ほかのワールドの顔ぶれは変わらない"
         print("others / delete / place: OK")
+
+        # ---- 4. 定義の一覧は, どのワールドから見ても同じ (いるかどうか・どこから来たかが分かる)
+        app.switch_world("w1")
+        d1 = {x["id"]: x for x in app.defs_list()}
+        app.switch_world(w3)
+        d3 = {x["id"]: x for x in app.defs_list()}
+        assert set(d1) == set(d3) == set(store.all_characters()), "ワールドを切り替えても, 定義の一覧は変わらない"
+        assert d1["cx"]["here"] and not d3["cx"]["here"] and d1["cx"]["worlds"] == d3["cx"]["worlds"]
+        assert d1["hina"]["origin"] == "既定のキャラ" and "以前のデータ" in d1["cx"]["origin"]
+        m = app.new_character("みく", stage="absent")
+        assert "設定で追加" in {x["id"]: x for x in app.defs_list()}[m["id"]]["origin"]
+        # このワールドにいない定義も編集できる (このワールドには現れない)
+        c = dict(store.all_characters()[m["id"]], name="みく2")
+        app.save_character(c)
+        assert store.all_characters()[m["id"]]["name"] == "みく2" and m["id"] not in app.chars
+        # 出会って登録した人は, いつ・どこで・どのワールドかが残る
+        app.world["encounters"] = {"stranger_share": 1}
+        for x in list(store.all_characters()):
+            if x not in app.chars:
+                store.save_cast(store.load_cast() + [x])         # 候補を空にして, 新しい人と出会う
+        app.reload()
+        app.encounters.happen("out", stranger=True)
+        reg = app.answer_encounter(True)["registered"]
+        o = {x["id"]: x for x in app.defs_list()}[reg["id"]]["origin"]
+        assert o.startswith("出会って登録") and "C" in o, o
+        print("defs list / origin: OK", o)
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

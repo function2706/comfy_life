@@ -55,6 +55,11 @@ def route(method, path, q, body):
             return {"workflow": store.load(store.dpath("workflow.json"))}
         if path == "/api/diary":
             return {"diary": a.solo.diary_list(), "mylog": a.solo.mylog()[-100:]}
+        if path == "/api/character":
+            c = store.all_characters().get(_q(q, "id", ""))
+            if not c:
+                raise LookupError("キャラの定義が見つかりません")
+            return {"character": c}
         if path == "/api/chats":
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
         if path == "/api/chat":

@@ -132,6 +132,10 @@ def init_world(wid, copy_from=None, cast=None):
             save(os.path.join(wdir, "cast.json"), ensure_default_characters())
 
 
+def default_character_ids():
+    return [os.path.splitext(os.path.basename(f))[0] for f in sorted(glob.glob(os.path.join(DEFAULTS, "characters", "*.json")))]
+
+
 def ensure_default_characters():
     """既定のキャラの定義を全体の定義に入れる (まだ無ければ). その id のリストを返す."""
     ids = []

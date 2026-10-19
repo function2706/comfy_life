@@ -217,7 +217,7 @@ class Encounters:
             else:
                 c = json.loads(json.dumps(enc["char"]))           # 新しく作った人: 定義を作って現れる
                 c["id"] = "c" + uuid.uuid4().hex[:8]
-                c["met"] = {"t": enc["t"], "where": enc["where"], "src": src}
+                c["met"] = {"t": enc["t"], "where": enc["where"], "src": src, "world": store.WORLD}
                 app.save_character(c)
                 app.place_character(c["id"], "contact")
             if enc.get("pid"):           # 出先で段階的に知り合った人: 以後はキャラとして会う
