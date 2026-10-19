@@ -132,7 +132,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 /* commands */
 .cat { margin-bottom: 14px; }
 .chip.weather { background: #262d38; color: #cfe0f5; }
-.offline-days .row { gap: 6px; margin: 4px 0; }
+.offline-days .row, .routine-row { gap: 6px; margin: 4px 0; }
+.routine-row input[type=time] { width: 7.5em; color-scheme: dark; }
+.routine-row select { width: auto; }
 .offline-days input[type=time] { width: 7.5em; color-scheme: dark; }
 .phone-panel { margin: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .phone-list { display: flex; flex-direction: column; gap: 4px; min-width: 300px; text-align: left; }

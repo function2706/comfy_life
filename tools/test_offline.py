@@ -31,13 +31,13 @@ def main():
         O, L = app.offline, app.life
         mon8, mon20 = ts("2026-10-12 08:00"), ts("2026-10-12 20:00")       # 月曜
 
-        # ---- 1. 予定: 既定は平日 9〜18 時. 曜日ごとに変えられる
+        # ---- 1. 予定: 既定は平日 9〜18 時が仕事. 以前の勤務時間の設定も読み替える
         seg = O.segments(mon8, mon20)
         assert seg == [(ts("2026-10-12 09:00"), ts("2026-10-12 18:00"))], seg
         assert O.segments(ts("2026-10-17 08:00"), ts("2026-10-17 20:00")) == [], "土曜は休み"
         app.save_settings({"offline": {"work": {"sat": {"on": True, "from": "10:00", "to": "15:00"}}}})
         assert O.segments(ts("2026-10-17 08:00"), ts("2026-10-17 20:00")) == [(ts("2026-10-17 10:00"), ts("2026-10-17 15:00"))]
-        assert O.cfg()["work"]["mon"]["on"], "ほかの曜日は既定のまま"
+        assert O.segments(mon8, mon20), "以前の設定 (勤務時間) は行動パターンの「仕事」に読み替える. ほかの曜日は既定のまま"
         app.save_settings({"offline": {"work": {"sat": {"on": False}}}})
         assert O.simulate(mon8, mon8 + 600) is None, "短い離席は対象外"
 

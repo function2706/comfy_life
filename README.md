@@ -168,14 +168,15 @@ python server.py --port 9000 --no-browser
 - プレゼント: `POST /api/gift {item, character}`（`engine.give_item`）。値段 1 万円以上は `expensive_gift`（「重い」と断られたら手元に残る）、それ以外は `gift`。条件キー `liked` / `disliked`（キャラクターの定義の `likes` / `dislikes`、無ければ `items.PERSONA_LIKES`）。反応キー `gift.liked_true` / `gift.disliked_true`（23 性格分）。
 - API: `POST /api/items/list {id, qty}`、`state_view.items`、`boot.catalog`。
 
-### オフラインモード
+### オフラインモード（あなたの行動パターン）
 
-`core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline`（全体共通: `enabled`、曜日ごとの `work.{mon..sun}.{on,from,to}`。既定は平日 9〜18 時）どおりに過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。
+`core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline.days`（全体共通。曜日ごとの `[{at, do, place?, skill?}]`、各行動は次の行動の時刻まで）に沿って過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。以前の `offline.work`（曜日ごとの勤務時間）は `from_work` で流れに読み替える。
 
-- 勤務時間: `work_pay`・体力・仕事スキル。体力が低いと早退しやすく、うまくいかない（給料 6〜8.5 割・叱られる）は体力と仕事スキルしだい、残業もある。職場の出会いは `street.happen` → 無難な対応で自動決着。
-- それ以外: 家で静かに（体力回復。23〜7時は睡眠の速さ）。
+- `do`: sleep / rest / home / work / shopping / walk / cafe / chores / practice（`DO_LABEL`）。仕事は `_work`（早退・叱られる・残業、同僚との出会いは無難な対応）、買い物・散歩・カフェ・家事・研鑽は `solo.result`（一人の時間と同じ結果）、出先の出会いは `_outing_meets`（無難な対応）。
+- 予定どおりにいかない（`_skip`）: 雨・雪で散歩をやめる、疲れて家事・研鑽を飛ばす、疲れきって出かけない。
+- 体力: 寝る（`stamina_recover_sleep`）・休む（`stamina_recover_rest`）・家で（`stamina_recover`）で戻り、仕事・外出・家事で減る。
 - 離れているキャラ（連絡先以上）から、働きかけ（`"apart": true`）がメッセージとして届くことがある。返事の遅れで機嫌が下がる量は `absence` × (1.3 − 信頼/100)。開いてから 30 分は返事ができる。
-- 結果は `player.json` の `offline_report` に入れ、`state_view` の `offline_report` で一度だけ表示、`POST /api/offline/ack` で既読。
+- 結果は `player.json` の `offline_report`（`timeline` に時系列、`works`・`bought`・`meets`・`messages`）。`state_view.offline_report` で一度だけ表示、`POST /api/offline/ack` で既読。画面を開いたまま放置している間は、いまは流れに沿わない。
 
 ### 外出と偶然の出会い
 
@@ -350,6 +351,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
+tools/test_routine.py  あなたの行動パターン（曜日ごとの流れ・予定どおりにいかないこと・時系列のまとめ・以前の設定の読み替え）のテスト
 tools/test_items.py  持ち物・買うものリスト・家での行動・プレゼントのテスト
 tools/test_definitions.py  キャラの定義（全体）と個体（ワールドごと）・移行・削除の可否のテスト
 tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト

@@ -151,9 +151,11 @@ class Solo:
         sl = ll.get("solo")
         if not sl:
             return None
+        return self.result(sl["kind"], max(0.0, float(ll.get("h", 0))), ll.get("back", time.time()), sl.get("skill"), ll.get("place"))
+
+    def result(self, kind, h, now, skill=None, place=None):
+        """一人の時間を h 時間過ごした結果 (画面を開いての一人の時間と, オフラインの行動パターンの両方で使う)."""
         app, L = self.app, self.app.life
-        kind, h = sl["kind"], max(0.0, float(ll.get("h", 0)))
-        now = ll.get("back", time.time())
         jit = random.uniform(0.6, 1.2)          # 同じ時間でも, はかどる日とそうでない日がある
         out = {"kind": kind, "hours": round(h, 2)}
         if kind == "rest":
@@ -172,7 +174,7 @@ class Solo:
                 app.save_state(live)
                 text += "。%sが気づいてくれたようだ" % char.get("name", "")
         elif kind == "practice":
-            sk = sl.get("skill") or "talk"
+            sk = skill or "talk"
             L.tire(3 * h)
             from .items import PRACTICE_BOOK
             book = app.items.count(PRACTICE_BOOK[sk]) > 0           # その分野の本・教材があると伸びやすい (減らない)
@@ -198,7 +200,7 @@ class Solo:
         else:   # shopping
             L.tire(2 * h)
             # 買うものリストの品が, この店にあれば買う (品切れ・値段の上下・お金しだい. 衝動買いも少し)
-            bought, missed = app.items.shop(ll.get("place") or "shopping_street", h)
+            bought, missed = app.items.shop(place or "shopping_street", h)
             out["money"] = -sum(b["price"] for b in bought)
             out["bought"] = bought
             text = "%s一人で買い物をした。%s" % (_dur(h), app.items.describe(bought, missed) or "買うものリストの品は見つからず、何も買わなかった")

@@ -1507,7 +1507,8 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES, "actions": self.actions, "world": self.world,
+                "others": self.others_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,

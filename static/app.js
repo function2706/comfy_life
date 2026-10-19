@@ -1199,10 +1199,10 @@ function renderOffline() {
   dlg.append(h('div', { style: 'padding:16px' },
     h('h3', {}, '🌙 画面を閉じていたあいだ'),
     h('p', { class: 'muted small' }, `${t(rep.from)} 〜 ${t(rep.to)}`),
-    h('div', { class: 'pgroup' }, h('h4', {}, '仕事'),
-      rep.works.length ? rep.works.map((w) => h('div', { class: 'small' },
-        `${t(w.start)}〜${hm(w.end)}（${w.hours.toFixed(1)}時間）${yen(w.pay)}`, w.notes.length ? h('span', { class: 'muted' }, '・' + w.notes.join('・')) : ''))
-        : h('div', { class: 'muted small' }, '仕事はなし。家で静かに過ごした')),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'どう過ごしたか'),
+      (rep.timeline || []).length ? rep.timeline.map((x) => h('div', { class: 'small' + (x.skipped ? ' muted' : '') },
+        `${t(x.t)}〜${hm(x.end)}　${x.label}：${x.text}`, (x.meets || []).length ? h('div', { class: 'muted' }, '　' + x.meets.join(' / ')) : ''))
+        : h('div', { class: 'muted small' }, '家で静かに過ごした')),
     h('div', { class: 'small' }, `お金 ${rep.pay >= 0 ? '+' : ''}${yen(rep.pay)}・体力 ${Math.round(rep.stamina[0])} → ${Math.round(rep.stamina[1])}`),
     rep.meets.length ? h('div', { class: 'pgroup' }, h('h4', {}, '出会い'), rep.meets.map((m) => h('div', { class: 'small' }, m))) : '',
     h('div', { class: 'pgroup' }, h('h4', {}, '届いたメッセージ'),
@@ -1927,17 +1927,47 @@ function pickJson() {
 }
 
 /* ---- あなた (プレイヤー) */
+// 行動パターン: 曜日を選んで, その日の流れ (時刻・行動・行き先・研鑽の分野) を編集. ほかの曜日へコピーもできる
+function routineEditor(days) {
+  const L = (S.boot.routine || {}).labels || {};
+  const ch = ((S.view || {}).outdoor || {}).choices || {};
+  const pl = ((S.view || {}).outdoor || {}).places || {};
+  const skills = ((S.view || {}).solo || {}).skills || {};
+  const cur = S.routineDay || 'mon';
+  const list = days[cur] = days[cur] || [];
+  const redraw = () => showSection('player');
+  const sel = (b, key, opts, after) => h('select', { onchange: (ev) => { b[key] = ev.target.value; if (after) after(); redraw(); } },
+    opts.map(([v, l]) => h('option', { value: v, selected: b[key] === v }, l)));
+  const copyTo = (keys) => { keys.forEach((k) => { if (k !== cur) days[k] = clone(list); }); toast('コピーしました（保存で確定）', 'ok'); };
+  return h('div', { class: 'routine' },
+    h('div', { class: 'row', style: 'gap:4px;flex-wrap:wrap' }, DAYS.map(([d, label]) => h('button', { class: 'btn small' + (d === cur ? ' primary' : ''),
+      onclick: () => { S.routineDay = d; redraw(); } }, label))),
+    list.sort((a, b) => a.at.localeCompare(b.at)).map((b, i) => h('div', { class: 'row routine-row' },
+      inp(b, 'at', { type: 'time' }),
+      sel(b, 'do', Object.entries(L), () => {
+        if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
+        if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
+      }),
+      ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}`])) : '',
+      b.do === 'practice' ? sel(b, 'skill', Object.entries(skills)) : '',
+      h('button', { class: 'btn small danger', onclick: () => { list.splice(i, 1); redraw(); } }, '×'))),
+    h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
+      h('button', { class: 'btn small', onclick: () => { list.push({ at: '12:00', do: 'rest' }); redraw(); } }, '＋行動を足す'),
+      h('button', { class: 'btn small', onclick: () => copyTo(['mon', 'tue', 'wed', 'thu', 'fri']) }, '平日（月〜金）にコピー'),
+      h('button', { class: 'btn small', onclick: () => copyTo(['sat', 'sun']) }, '休日（土日）にコピー'),
+      h('button', { class: 'btn small', onclick: () => copyTo(DAYS.map(([d]) => d)) }, '全曜日にコピー')));
+}
+
 const DAYS = [['mon', '月'], ['tue', '火'], ['wed', '水'], ['thu', '木'], ['fri', '金'], ['sat', '土'], ['sun', '日']];
 SEC.player = () => {
   const p = SE.settings.player = SE.settings.player || {};
   // オフライン時の過ごし方 (画面を閉じている間): 曜日ごとの勤務時間. それ以外は家で静かに過ごす
   const off = SE.settings.offline = SE.settings.offline || {};
   if (off.enabled === undefined) off.enabled = true;
-  off.work = off.work || {};
-  DAYS.forEach(([d], i) => { off.work[d] = Object.assign({ on: i < 5, from: '09:00', to: '18:00' }, off.work[d] || {}); });
+  if (!off.days) off.days = clone((S.boot.routine || {}).days || {});   // 以前の勤務時間の設定は, 読み替えた流れから始める
   if (!p.name) p.name = SE.settings.player_name || '';
   return [
-    saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p, offline: off } }); await reloadAll('player'); }),
+    saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p, offline: { enabled: off.enabled, days: off.days } } }); await reloadAll('player'); }),
     h('p', { class: 'lead' }, 'あなた自身の情報です（全ワールド共通）。キャラクターはこれを踏まえて反応します：セリフの {player} {player_job} {player_like} などに入り、反応の条件（player_gender・player_age・player_has_job・player_likes）で使え、LLM でセリフを作るときにも伝わります。呼ばれ方はキャラクターごと（性格プリセット）です。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(p, 'name', { ph: 'ユウ' })),
@@ -1951,12 +1981,10 @@ SEC.player = () => {
     h('div', { class: 'sect' }, '画像'),
     fld('あなたの外見（Positive）', inp(p, 'looks', { type: 'textarea', rows: 2, ph: '1boy, short black hair, hoodie' }),
       '「あなたも写る」コマンド（抱きしめる・手をつなぐ・お出かけ など）の画像に加えます。空欄なら加えません'),
-    h('div', { class: 'sect' }, 'オフライン時の過ごし方（画面を閉じているあいだ）'),
-    h('label', { class: 'check' }, inp(off, 'enabled', { type: 'checkbox' }), ' 画面を閉じているあいだも、下の予定どおりに過ごす（オフラインモード）'),
-    h('p', { class: 'hint' }, '勤務時間には仕事に出て（給料・体力・仕事スキル。体力しだいで、うまくいかない・早退・残業も）、それ以外は家で静かに過ごします（誰にも会いません）。離れているキャラからメッセージが届くこともあります。30分未満の離席は対象外です。結果は、次に開いたときにまとめて見られます。'),
-    h('div', { class: 'offline-days' }, DAYS.map(([d, label]) => h('div', { class: 'row' },
-      h('label', { class: 'check', style: 'min-width:4.5em' }, inp(off.work[d], 'on', { type: 'checkbox' }), ` ${label}曜`),
-      inp(off.work[d], 'from', { type: 'time' }), h('span', {}, '〜'), inp(off.work[d], 'to', { type: 'time' })))),
+    h('div', { class: 'sect' }, 'あなたの行動パターン（画面を閉じているあいだ）'),
+    h('label', { class: 'check' }, inp(off, 'enabled', { type: 'checkbox' }), ' 画面を閉じているあいだも、下の流れのとおりに過ごす（オフラインモード）'),
+    h('p', { class: 'hint' }, '曜日ごとの1日の流れです。各行動はその時刻から次の行動の時刻まで続きます。仕事（給料・体力・仕事スキル。うまくいかない・早退・残業も）、買い物（買うものリストの品を買う）、散歩・カフェ（出先での出会いは、気づけないので無難な対応）、家事・研鑽（洗剤・本があるとはかどる）、休む・家で静かに・寝る（体力が戻る）。雨で散歩をやめる、疲れて家事を飛ばす、など予定どおりにいかないこともあります。離れているキャラからメッセージが届くことも。30分未満の離席は対象外。結果は次に開いたとき、時系列でまとめて見られます。'),
+    routineEditor(off.days),
   ];
 };
 
