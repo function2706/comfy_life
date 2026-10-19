@@ -160,9 +160,10 @@ class Solo:
             text = "%s休んだ。少し体が軽くなった" % _dur(h)       # 回復は時間経過 (life.tick_world) で済んでいる
         elif kind == "chores":
             L.tire(4 * h)
-            text = "%s家事をした。部屋がすっきりした" % _dur(h)
+            soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
+            text = "%s家事をした。%s" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった")
             live = app.bonds.living()
-            if live and h >= 0.25 and random.random() < 0.6:     # 同居相手が気づくかどうかは偶然
+            if live and h >= 0.25 and random.random() < (0.6 if soap else 0.3):     # 同居相手が気づくかどうかは偶然
                 st = app.state(live)
                 char = app.char(live)
                 d = app.apply_effects(st, {"mood": round(min(4.0, 1.5 * h) * jit, 1), "stress": -round(min(5.0, 2 * h), 1)})
@@ -173,10 +174,12 @@ class Solo:
         elif kind == "practice":
             sk = sl.get("skill") or "talk"
             L.tire(3 * h)
-            gain = L.train(sk, min(3.0, 1.2 * h) * jit) if h >= 0.25 else 0
+            from .items import PRACTICE_BOOK
+            book = app.items.count(PRACTICE_BOOK[sk]) > 0           # その分野の本・教材があると伸びやすい (減らない)
+            gain = L.train(sk, min(3.0, 1.2 * h) * jit * (1.5 if book else 1.0)) if h >= 0.25 else 0
             out["skill"] = {sk: gain}
-            text = "%s%s。%sが%s" % (_dur(h), PRACTICE_TEXT[sk], SKILL_LABEL[sk], "少し伸びた" if gain >= 0.3 else
-                                     "伸びた気はあまりしない")
+            text = "%s%s%s。%sが%s" % (_dur(h), "本を見ながら" if book else "", PRACTICE_TEXT[sk], SKILL_LABEL[sk],
+                                       "少し伸びた" if gain >= 0.3 else "伸びた気はあまりしない")
         elif kind == "walk":
             L.tire(2 * h)
             text = "%s一人で散歩した" % _dur(h)
@@ -186,17 +189,19 @@ class Solo:
             if spend > 0:
                 ps["money"] -= spend
                 L.save_player()
-            out["money"] = -spend
+            bought, missed = app.items.shop("cafe", h)       # 買うものリストの品がカフェにあれば
+            out["money"] = -spend - sum(b["price"] for b in bought)
+            out["bought"] = bought
             text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
+            if bought or missed:
+                text += "。" + app.items.describe(bought, missed)
         else:   # shopping
             L.tire(2 * h)
-            ps = L.player_state()
-            spend = min(int(ps["money"]), int(random.randint(5, 40) * 100 * (0.5 + min(h, 3))))
-            if spend > 0:
-                ps["money"] -= spend
-                L.save_player()
-            out["money"] = -spend
-            text = "%s一人で買い物をした（%s円）" % (_dur(h), format(spend, ","))
+            # 買うものリストの品が, この店にあれば買う (品切れ・値段の上下・お金しだい. 衝動買いも少し)
+            bought, missed = app.items.shop(ll.get("place") or "shopping_street", h)
+            out["money"] = -sum(b["price"] for b in bought)
+            out["bought"] = bought
+            text = "%s一人で買い物をした。%s" % (_dur(h), app.items.describe(bought, missed) or "買うものリストの品は見つからず、何も買わなかった")
         out["text"] = "（%s）" % text
         self.note(kind, text, now, hours=round(h, 2))
         return out

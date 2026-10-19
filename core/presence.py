@@ -107,7 +107,7 @@ class Presence:
         if p["mode"] == "none":
             return None
         ll = {"t": p.get("since", now), "said": True, "mode": p["mode"], "back": now,
-              "h": round((now - p.get("since", now)) / 3600, 2), "solo": p.pop("solo", None)}
+              "h": round((now - p.get("since", now)) / 3600, 2), "solo": p.pop("solo", None), "place": p.get("place")}
         p["last_left"] = ll
         p["mode"] = "none"
         p["input"] = p["beat"] = now

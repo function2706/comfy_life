@@ -1117,7 +1117,8 @@
      "satiety": 40,
      "mood": 2,
      "affection": 2
-    }
+    },
+    "taken": true
    },
    {
     "text": "なにこれ、お店の味……！ {call}、すごすぎます！",
@@ -1226,7 +1227,8 @@
     "priority": 1,
     "effects": {
      "mood": -2
-    }
+    },
+    "taken": true
    }
   ],
   "cost": 300,
@@ -2376,6 +2378,31 @@
      "mood": 1
     },
     "pos": "awkward smile, holding gift box",
+    "neg": ""
+   },
+   {
+    "text": "わぁ、{item}……！ {fp}、これ大好きなんです。",
+    "when": "liked=true, gift_feel>=30",
+    "key": "liked_true",
+    "priority": 2,
+    "effects": {
+     "affection": 2,
+     "mood": 5
+    },
+    "pos": "happy, sparkling eyes, holding gift",
+    "neg": ""
+   },
+   {
+    "text": "あ……ありがとうございます。（{item}は、あまり得意じゃないみたいだ）",
+    "when": "disliked=true",
+    "key": "disliked_true",
+    "priority": 3,
+    "override": true,
+    "taken": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "awkward smile, holding gift",
     "neg": ""
    }
   ],

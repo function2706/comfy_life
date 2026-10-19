@@ -1626,6 +1626,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……深夜の着信。緊急の用件かしら。"
+  ],
+  "gift.liked_true": [
+   "{item}。私の好みを正確に把握しているわね。……うれしい。"
+  ],
+  "gift.disliked_true": [
+   "受領したわ。（{item}は、用途がないと思っているようだ）"
   ]
  }
 }

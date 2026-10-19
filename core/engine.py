@@ -24,6 +24,7 @@ from . import solo as solo_mod
 from . import outdoor as outdoor_mod
 from . import street as street_mod
 from . import offline as offline_mod
+from . import items as items_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -114,6 +115,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
+        self.items = items_mod.Items(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -590,6 +592,10 @@ class App:
             cid = char["id"]
             self.tick(cid)
             st, a = self.state(cid), self.action(aid)
+            uses = items_mod.USES.get(aid)          # 家での行動が使う持ち物 (料理=食材 など)
+            gift_item = opts.get("gift_item")       # 持ち物からのプレゼント
+            if uses or gift_item:
+                a = dict(a, cost=0)                 # 品物はもう買ってある (その場では払わない)
             now = time.time()
             dt = datetime.fromtimestamp(now)
             if a.get("category") != "system":       # 画面から操作した = そばにいる
@@ -598,8 +604,9 @@ class App:
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
-            if not cond.check(self._when(a, ctx), ctx):
-                raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), self._when(a, ctx)))
+            when = "asleep=false, away=false" if gift_item else self._when(a, ctx)     # 持ち物を渡すなら, 所持金の条件はいらない
+            if not cond.check(when, ctx):
+                raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
@@ -680,6 +687,14 @@ class App:
             for k, v in (opts.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
             real_note = None
+            item_note = None
+            if uses and (not r.get("override") or r.get("taken")) and not narrate:     # 焦がしても食材は使う
+                if not self.items.use_kind(uses):    # 持ち物が無い: ありあわせで, 効き目が落ちる
+                    f = 0.7 if uses == "detergent" else 0.5
+                    eff = {k: (v * f if v > 0 else v) for k, v in eff.items()}
+                    item_note = items_mod.MISSING.get(aid)
+            if gift_item and (not r.get("override") or r.get("taken")):
+                self.items.add(gift_item, -1)        # 受け取ってもらえた (はっきり断られたら手元に残る)
             social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
@@ -759,6 +774,8 @@ class App:
             text += "\n（📷 自撮りが添えられていた）"
         if real_note:
             text += "\n" + self.format_text(real_note, char, scene, dt)
+        if item_note:
+            text += "\n" + self.format_text(item_note, char, scene, dt)
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src
@@ -773,6 +790,18 @@ class App:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
         return {"entry": entry, "job": job, "llm_error": llm_error}
+
+    def give_item(self, iid, cid=None):
+        """持ち物からプレゼントする. 好き・苦手と値段で反応が変わる (高価なものは「重い」と断られることも)."""
+        it = items_mod.CATALOG.get(iid)
+        if not it or not it["giftable"]:
+            raise ValueError("プレゼントにできない品物です")
+        if self.items.count(iid) <= 0:
+            raise ValueError("%sを持っていません" % it["name"])
+        char = self.char(cid)
+        aid = "expensive_gift" if it["price"] >= 10000 else "gift"
+        feel = self.items.feel(char, iid)
+        return self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
 
     def _when(self, a, ctx):
         """コマンドの条件. 離れている相手には apart_when があればそれ (例: メッセージは相手が寝ていても送れる)."""
@@ -1316,7 +1345,7 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
-                "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street,
+                "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
                 "street_pending": self.street.view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "contacts": self._contacts_view(),
@@ -1478,7 +1507,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "actions": self.actions, "world": self.world,
+                "others": self.others_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,

@@ -1573,6 +1573,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……んー……こんな時間にどしたの……？ さみしくなっちゃった……？"
+  ],
+  "gift.liked_true": [
+   "わーい、{item}！ 大好きなやつ！ ありがと！"
+  ],
+  "gift.disliked_true": [
+   "あ、ありがと！（{item}は、あんまりみたいだ）"
   ]
  }
 }

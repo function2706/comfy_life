@@ -1615,6 +1615,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……今、何時だと思ってるの。……どうしたの。"
+  ],
+  "gift.liked_true": [
+   "……{item}。好きなの、覚えてたんだ。……ありがとう。"
+  ],
+  "gift.disliked_true": [
+   "……ありがとう。（{item}には、あまり興味がなさそうだ）"
   ]
  }
 }

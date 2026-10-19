@@ -108,6 +108,7 @@ async function refresh() {
   renderGames();
   renderStatus();
   renderMoney();
+  renderItems();
   renderLog();
   if (!S.current && S.view.log.length) showEntry(S.view.log[S.view.log.length - 1], false);
   if (!S.view.log.length && !S.current) showGreeting();
@@ -217,7 +218,7 @@ function cmdButton(a) {
   const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
     '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
     st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
@@ -1142,6 +1143,50 @@ function phonePanel() {
       h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'call') }, '📞 電話')))) : '');
 }
 
+/* ---- 持ち物: 持っている品物・買うものリスト・品物の一覧 (どの店で売っているか) */
+const PLACE_LABEL = (id) => ((S.view.outdoor || {}).places || {})[id] ? `${S.view.outdoor.places[id].icon}${S.view.outdoor.places[id].label}` : id;
+function renderItems() {
+  const box = $('#tab-items');
+  const iv = S.view.items || { items: [], shop_list: [] };
+  const cat = (S.boot.catalog || {}).items || [];
+  const want = Object.fromEntries(iv.shop_list.map((x) => [x.id, x.want]));
+  const setWant = async (id, qty) => { try { await api('/api/items/list', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
+  const canGive = !!(S.view.bond && S.view.bond.mode && (S.view.available.gift || {}).ok);   // いま目の前にいて, 受け取れる状態か
+  box.replaceChildren(
+    h('div', { class: 'pgroup' }, h('h4', {}, '🎒 持ち物'),
+      iv.items.length ? iv.items.map((it) => h('div', { class: 'row item-row' },
+        h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}`),
+        it.giftable && canGive ? h('button', { class: 'btn small', disabled: S.busy, title: `${S.view.name}に渡す`,
+          onclick: () => giveItem(it.id, S.view.character) }, `🎁 ${S.view.name}に渡す`) : ''))
+        : h('p', { class: 'muted small' }, 'なにも持っていない。買うものリストに入れておくと、買い物のときに買ってくる。'),
+      h('p', { class: 'hint' }, '料理は食材、お茶はお茶っ葉・コーヒー豆、おやつはお菓子を使います（無ければありあわせで効き目が落ちる）。家事は洗剤があるとはかどり、研鑽はその分野の本があると伸びやすくなります（本は減りません）。')),
+    h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
+      h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。リストにない物をつい買うこともあります。'),
+      cat.map((it) => h('div', { class: 'row item-row' },
+        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後・${it.places.map(PLACE_LABEL).join(' ')}`)),
+        h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => setWant(it.id, (want[it.id] || 0) - 1) }, '−'),
+        h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
+        h('button', { class: 'btn small', onclick: () => setWant(it.id, (want[it.id] || 0) + 1) }, '＋')))));
+}
+async function giveItem(item, cid) {
+  if (S.busy) return;
+  S.busy = true;
+  try { handleActResult(await api('/api/gift', { item, character: cid })); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+function giftPicker(aid) {
+  const gifts = ((S.view.items || {}).items || []).filter((x) => x.giftable && (aid === 'expensive_gift' ? x.price >= 10000 : x.price < 10000));
+  if (!gifts.length) { toast('持ち物に渡せるものがない（持ち物タブの「買うものリスト」に入れておくと、買い物のときに買ってくる）', 'err'); return; }
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { style: 'padding:16px' }, h('h3', {}, `${S.view.name}に渡すもの`),
+    gifts.map((it) => h('div', { class: 'row item-row' }, h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}`),
+      h('button', { class: 'btn small primary', onclick: () => { close(); giveItem(it.id, S.view.character); } }, '渡す'))),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 /* ---- オフラインの間のまとめ: 開いたときに一度だけ. 読んだら普段に戻る. 届いたメッセージにはここから返事できる */
 function renderOffline() {
   const rep = S.view.offline_report;
@@ -1954,6 +1999,7 @@ SEC.char = () => {
         '空欄なら性格プリセットに従う'),
       fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),
         '{player} = あなたの名前。空欄なら性格プリセットに従う')),
+    likesEditor(c),
     h('div', { class: 'sect' }, '外見プロンプト'),
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
@@ -2057,6 +2103,23 @@ function editRegistryDialog(c0) {
       } }, '保存'))));
   document.body.append(dlg);
   dlg.showModal();
+}
+
+// 好き・苦手 (プレゼントの反応に効く). 触らなければ性格プリセットの既定に従う
+function likesEditor(c) {
+  const tags = (S.boot.catalog || {}).tags || {};
+  const def = (S.boot.persona_likes || {})[c.persona_id] || [[], []];
+  const cur = (k, i) => (c[k] !== undefined && c[k] !== null ? c[k] : def[i]);
+  const row = (k, i, label) => h('div', { class: 'fld' }, h('span', { class: 'fl' }, label),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px 10px' }, Object.entries(tags).map(([t, l]) => h('label', { class: 'check' },
+      h('input', { type: 'checkbox', checked: cur(k, i).includes(t), onchange: (ev) => {
+        const v = new Set(cur(k, i)); if (ev.target.checked) v.add(t); else v.delete(t); c[k] = [...v];
+      } }), l))));
+  return h('div', {},
+    h('div', { class: 'sect' }, '好き・苦手（プレゼントの反応）'),
+    row('likes', 0, '好きなもの'), row('dislikes', 1, '苦手なもの'),
+    h('div', { class: 'row' }, h('span', { class: 'hint' }, c.likes == null && c.dislikes == null ? '性格プリセットの既定に従っています' : '自分で決めた好み'),
+      h('button', { class: 'btn small', onclick: () => { c.likes = null; c.dislikes = null; showSection('char'); } }, '性格プリセットの既定に戻す')));
 }
 
 const curPersona = (c) => (S.boot.personas || []).find((p) => p.id === c.persona_id);
@@ -2752,7 +2815,7 @@ function worldManager() {
 function bind() {
   $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
     $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    for (const t of ['commands', 'dress', 'games', 'money', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
+    for (const t of ['commands', 'dress', 'games', 'money', 'items', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
   }));
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }

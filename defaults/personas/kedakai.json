@@ -1613,6 +1613,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……こんな時間に電話だなんて。どうしたの。"
+  ],
+  "gift.liked_true": [
+   "……{item}。悪くない趣味ね。ありがたく受け取るわ。"
+  ],
+  "gift.disliked_true": [
+   "……そう。いただいておくわ。（{item}は、好みではないらしい）"
   ]
  }
 }

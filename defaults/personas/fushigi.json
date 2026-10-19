@@ -1584,6 +1584,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……夜の声。……どうしたの、星でも見えた？"
+  ],
+  "gift.liked_true": [
+   "{item}。……胸のあたりが、ふわっとする。好き。"
+  ],
+  "gift.disliked_true": [
+   "……ありがとう。（{item}は、なんだか遠い国のものに見えたらしい）"
   ]
  }
 }

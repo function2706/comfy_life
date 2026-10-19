@@ -159,6 +159,15 @@ python server.py --port 9000 --no-browser
 
 設定の「＋新規」（`POST /api/character/new {name, pos, persona_id, stage}`）で、このワールドでの間柄を選ぶ。`stage`: `contact`（連絡先）/ `known`（知り合い）/ `absent`（現れない。定義だけ作り、このワールドでは偶然の出会いの候補）/ `random`（新しいワールドと同じくじ）。同居はいきなりは選べない。このワールドにいない定義は `boot.others`、`POST /api/character/define`（編集）・`/api/character/place {id, stage}`（このワールドに出す）・`/api/character/delete`（どこにも現れていない定義だけ）。
 
+### 持ち物と買い物
+
+`core/items.py`。品物のカタログ（`CATALOG`: 値段・売っている行き先・種類・好みの印・プレゼント可否）、持ち物（`player.json` の `items`）と買うものリスト（`shop_list`）はワールドごと。
+
+- 買い物（`solo.finish` の shopping / cafe、オフラインの流れの買い物）で `items.shop(行き先)`: リストの品がその店にあれば買う（品切れ 12%・値段 ±15%・お金が足りなければ買えない・安い物の衝動買い）。
+- 家での行動: `USES`（料理=食材・お茶=お茶・おやつ=お菓子・掃除=洗剤）。無ければ効き目が落ちる（`MISSING` のひとこと）。焦がす反応（`"taken": true`）でも食材は使う。家事は洗剤、研鑽は `PRACTICE_BOOK` の本で伸びやすい（本は減らない）。
+- プレゼント: `POST /api/gift {item, character}`（`engine.give_item`）。値段 1 万円以上は `expensive_gift`（「重い」と断られたら手元に残る）、それ以外は `gift`。条件キー `liked` / `disliked`（キャラクターの定義の `likes` / `dislikes`、無ければ `items.PERSONA_LIKES`）。反応キー `gift.liked_true` / `gift.disliked_true`（23 性格分）。
+- API: `POST /api/items/list {id, qty}`、`state_view.items`、`boot.catalog`。
+
 ### オフラインモード
 
 `core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline`（全体共通: `enabled`、曜日ごとの `work.{mon..sun}.{on,from,to}`。既定は平日 9〜18 時）どおりに過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。
@@ -341,6 +350,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・散歩・買い物・日記）のテスト
+tools/test_items.py  持ち物・買うものリスト・家での行動・プレゼントのテスト
 tools/test_definitions.py  キャラの定義（全体）と個体（ワールドごと）・移行・削除の可否のテスト
 tools/test_add_character.py  既存ワールドにキャラを追加したときの「現れるか・間柄」のテスト
 tools/test_realism.py  現実的な深まり方 (揺らぎ・繰り返し・ご無沙汰・提案・贈り物・出会いの偏りなし) のテスト

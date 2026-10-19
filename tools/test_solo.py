@@ -94,10 +94,11 @@ def main():
         r = back_after(app, 1)
         assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
         app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入が混ざらないように
+        app.items.set_list("cookies", 3)                     # 買い物は, 買うものリストの品を買う
         m0 = L.player_state()["money"]
         S.start("shopping", place="shopping_street")
         r = back_after(app, 1)
-        assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0, r["solo"]
+        assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0 and r["solo"]["bought"], r["solo"]
         try:
             S.start("walk")
             raise AssertionError("行き先を選ばずに散歩に出られる")

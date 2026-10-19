@@ -1628,6 +1628,12 @@
   ],
   "call.phase_midnight_or_dawn": [
    "……こんな時間にどうした。何かあったのか。"
+  ],
+  "gift.liked_true": [
+   "{item}か。……ありがとう、好きなんだ。"
+  ],
+  "gift.disliked_true": [
+   "ああ、ありがとう。（{item}は、あまり好みではないようだ）"
   ]
  }
 }
