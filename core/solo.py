@@ -97,6 +97,9 @@ class Solo:
             return None
         if place not in self.app.places.out_choices():
             raise ValueError("行き先を選んでください")
+        o = places_mod.open_state(place, datetime.now())
+        if not o["open"]:
+            raise ValueError("%sは閉まっています（%s）" % (self.app.places.label(place), o["note"]))
         return place
 
     def start(self, kind, skill=None, place=None):

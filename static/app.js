@@ -96,6 +96,7 @@ async function refresh() {
   if (S.view.gap) toast(S.view.gap.text, 'ok');
   if (S.view.street_auto) toast(S.view.street_auto.text.split('\n')[0], 'ok');
   for (const m of S.view.appoint_events || []) toast(`📅 ${m}`, 'ok');
+  if (S.view.closed) toast(S.view.closed.text, 'ok');
   for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   renderWho();
   renderAway();
@@ -239,7 +240,7 @@ function cmdButton(a) {
     onclick: () => (a.id === 'side_job' ? openTask() : a.id === 'message' && S.view.bond && !S.view.bond.mode ? openChat(S.view.character) : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
-    pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.label) : null,
+    pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
 
@@ -280,8 +281,10 @@ function renderSolo(soloActs) {
       ...soloActs.filter((a) => !isPlainGo(a)).map(cmdButton)),
     S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
       h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（行き先しだいで、することが決まります。人の多さは時間帯と天気しだい）'),
-      ...placeGroups(OD_CHOICES()[S.placeFor], (pl) => { const P = (S.view.outdoor.places || {})[pl] || {}; return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); },
-        placeTip(pl)); })) : null,
+      ...placeGroups(OD_CHOICES()[S.placeFor], (pl) => { const P = (S.view.outdoor.places || {})[pl] || {};
+        if (P.open === false) return h('button', { class: 'cmd', disabled: true, title: `${P.label}は閉まっています（${P.hours}）` },
+          h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
+        return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }, placeTip(pl)); })) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
 }
@@ -298,7 +301,7 @@ function placeGroups(ids, mk) {
 function placeTip(id) {
   const od = (S.view || {}).outdoor || {};
   const p = (od.places || {})[id] || {};
-  return (p.does || []).map((d) => (od.does || {})[d] || d).join('・') || '';
+  return [(p.does || []).map((d) => (od.does || {})[d] || d).join('・'), p.hours && p.hours !== '24時間' ? `営業 ${p.hours}` : ''].filter(Boolean).join('\n');
 }
 // 行き先を選べるお出かけ (散歩・買い物・デートなど): 表の行き先から選んで誘う
 function pickPlace(a) {
@@ -309,7 +312,8 @@ function pickPlace(a) {
     h('div', { class: 'row' }, h('b', {}, `${a.icon || ''} ${a.name}: 行き先`), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
     h('div', { class: 'cmds', style: 'margin-top:8px' }, ...placeGroups(a.places, (id) => {
       const p = (od.places || {})[id] || {};
-      return h('button', { class: 'cmd', onclick: () => { close(); doAct(a.id, undefined, id); } }, h('span', { class: 'ic' }, p.icon || '📍'), h('span', {}, p.label || id));
+      return h('button', { class: 'cmd', disabled: p.open === false, title: placeTip(id), onclick: () => { close(); doAct(a.id, undefined, id); } },
+        h('span', { class: 'ic' }, p.icon || '📍'), h('span', {}, p.label || id), p.open === false ? h('small', { class: 'muted' }, p.note) : null);
     }))));
   document.body.append(dlg);
   dlg.showModal();
@@ -1376,7 +1380,7 @@ function appointForm(th) {
   const G = ((S.view || {}).outdoor || {}).groups || {};
   return h('div', { class: 'appoint-form', style: 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center' },
     sel('day', days), sel('time', times.map((t) => [t, t])),
-    sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}）`])),
+    sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
     sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
     h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, '誘う'),
     h('span', { class: 'muted small' }, '返事は時間差で届きます。その時間に予定があれば断られます'));
@@ -2217,7 +2221,7 @@ function routineEditor(days) {
         if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
         if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
       }),
-      ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}`])) : '',
+      ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       b.do === 'practice' ? sel(b, 'skill', Object.entries(skills)) : '',
       h('button', { class: 'btn small danger', onclick: () => { list.splice(i, 1); redraw(); } }, '×'))),
     h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },

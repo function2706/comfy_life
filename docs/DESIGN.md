@@ -96,6 +96,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 - 誰かとのお出かけはコマンドの `override.place`（選べるものは `places`）。`override.location` は表示用に行き先の名前。
 - 行動パターンの外出は `do: out` + `place`。買うものリストの品は, 売っている店でだけ買える（`items.CATALOG.places`）。
 - 以前の表し方（一人の時間の `walk` / `shopping` / `cafe`, お出かけの日本語の場所, 行動パターンの `do`）は読み替える（`solo.LEGACY`・`places.from_location`・`offline.normalize`）。設定の行動パターンは起動時に書き換える（`store.migrate_routine`. 移行前に自動バックアップ）。
+- 営業時間（`places.HOURS`）: お店・遊び場には開く・閉まる時刻と定休日・季節がある（公園・河川敷・駅前・街・コンビニ・丘・家はいつでも. 夜は人がいないだけ）。閉まっている行き先は選べず, いる行き先が閉まれば出される（`outdoor.closing`）。約束は会う時刻に開いていること, 行動パターンの外出は閉まっていれば行かない。相手の家は営業時間ではなく在宅・時間帯で決まる。
 - 天気はリアルの日付から決まる。
 
 ### 偶然の出会い・顔なじみ・段階的な知り合い

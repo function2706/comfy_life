@@ -102,6 +102,7 @@ class Appoint:
             dos = self.dos_at(cid, pid)
             if dos:
                 out.append({"place": pid, "label": p["label"], "icon": p["icon"], "group": p["group"],
+                            "hours": places_mod.hours_label(pid),
                             "dos": [{"id": a["id"], "name": a.get("name", a["id"]), "icon": a.get("icon", "")} for a in dos]})
         return out
 
@@ -124,6 +125,9 @@ class Appoint:
         a = app.action(do)
         if not phase_ok(app, a, datetime.fromtimestamp(t)):
             raise ValueError("「%s」はその時間帯にはできません（%s）" % (a.get("name", do), a.get("when", "")))
+        o = places_mod.open_state(place, datetime.fromtimestamp(t))
+        if not o["open"]:
+            raise ValueError("その時間、%sは閉まっています（%s・%s）" % (app.places.label(place), o["note"], o["hours"]))
         for x in self.open_with(cid):
             if abs(x["t"] - t) < 3 * 3600:
                 raise ValueError("その時間の近くに、もう約束（か返事待ち）があります")
@@ -242,7 +246,8 @@ class Appoint:
             sc = app.scheduled_scene(char, day)
             if sc["away"] or sc["busy"] or sc["asleep"]:
                 continue
-            opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(cid, pid) if phase_ok(app, a, day)]
+            opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(cid, pid)
+                    if phase_ok(app, a, day) and places_mod.open_state(pid, day)["open"]]
             if not opts:
                 continue
             pid, a = random.choice(opts)

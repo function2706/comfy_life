@@ -4,6 +4,9 @@
   does: walk (ぶらぶら歩く) / shop (買い物. 品ぞろえは items.CATALOG の places) / tea (お茶) / see (見て回る・遊ぶ) / work (仕事)
 - 家 (HOME_ME = あなたの家, "home:<id>" = 知っている相手の家): 表に加わるのは, あなたの家と, 家に行ける仲 (visit) の相手の家.
   家では偶然の出会いは起きない. 外出の行き先として相手の家を選ぶと, 訪ねてみる (在宅か・迎えてくれるかは状況・関係・性格しだい).
+- 営業時間 (HOURS): 開く・閉まる時刻と, 定休日・季節. 載っていない行き先 (公園・河川敷・駅前・街・コンビニ・丘・家) は
+  いつでも行ける (夜の公園のように人がほとんどいないだけ. 人の多さは crowd のまま). 閉まっている行き先には行けず,
+  閉まる時刻になれば出される (open_state).
 - 以前の行き先の表し方 (お出かけの一時シーンの日本語の場所・一人の時間の散歩/買い物/カフェ・行動パターンの do) は,
   ここで読み替える (LOCATION_PLACE / LEGACY_DO).
 """
@@ -51,6 +54,75 @@ PLACES = {
     "hill": _p("星空の見える丘", "🌌", "fun", True, "hill", ["walk"]),
     "office": _p("職場", "💼", "work", False, "office", ["work"]),
 }
+# 営業時間: open / close ("HH:MM". close は当日中), closed_days (定休日. 0=月 ... 6=日), months (行ける月. 無ければ通年)
+HOURS = {
+    "shopping_street": {"open": "10:00", "close": "20:00"},
+    "cafe": {"open": "08:00", "close": "21:00", "closed_days": [0]},
+    "supermarket": {"open": "09:00", "close": "22:00"},
+    "drugstore": {"open": "09:00", "close": "22:00"},
+    "bookstore": {"open": "10:00", "close": "21:00"},
+    "electronics": {"open": "10:00", "close": "21:00"},
+    "mall": {"open": "10:00", "close": "21:00"},
+    "aquarium": {"open": "09:30", "close": "17:30"},
+    "amusement": {"open": "09:00", "close": "21:00"},
+    "beach": {"open": "06:00", "close": "19:00", "months": [4, 5, 6, 7, 8, 9, 10]},
+    "mountain": {"open": "06:00", "close": "16:00", "months": [3, 4, 5, 6, 7, 8, 9, 10, 11]},
+    "office": {"open": "06:00", "close": "23:00"},
+}
+DAY_JA = "月火水木金土日"
+
+
+def _hm(s):
+    h, m = s.split(":")
+    return int(h) * 60 + int(m)
+
+
+def hours_label(pid):
+    h = HOURS.get(pid)
+    if not h:
+        return "24時間"
+    s = "%s〜%s" % (h["open"].lstrip("0") or "0", h["close"].lstrip("0") or "0")
+    if h.get("closed_days"):
+        s += "・%s曜休み" % "".join(DAY_JA[d] for d in h["closed_days"])
+    if h.get("months"):
+        s += "・%d〜%d月" % (h["months"][0], h["months"][-1])
+    return s
+
+
+def open_state(pid, dt):
+    """その時刻に行き先が開いているか. {open, until (閉まる時刻 or None), note (閉まっていれば「10:00から」など), hours}."""
+    h = HOURS.get(pid)
+    out = {"open": True, "until": None, "note": "", "hours": hours_label(pid)}
+    if not h or is_home(pid):
+        return out
+    from datetime import timedelta
+    if h.get("months") and dt.month not in h["months"]:
+        out.update(open=False, note="季節外（%d〜%d月）" % (h["months"][0], h["months"][-1]))
+        return out
+    if dt.weekday() in (h.get("closed_days") or []):
+        out.update(open=False, note="定休日（%s曜）" % DAY_JA[dt.weekday()])
+        return out
+    mins = dt.hour * 60 + dt.minute
+    o, c = _hm(h["open"]), _hm(h["close"])
+    if o <= mins < c:
+        day0 = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        out["until"] = (day0 + timedelta(minutes=c)).timestamp()
+        return out
+    if mins < o:
+        note = "%sから" % h["open"]
+    else:
+        nxt = dt + timedelta(days=1)
+        ok_next = nxt.weekday() not in (h.get("closed_days") or []) and (not h.get("months") or nxt.month in h["months"])
+        note = "閉店（明日%sから）" % h["open"] if ok_next else "閉店"
+    out.update(open=False, note=note)
+    return out
+
+
+def open_at(pid, t):
+    from datetime import datetime
+    return open_state(pid, datetime.fromtimestamp(t))["open"]
+
+
 GROUP_LABEL = {"near": "近所", "shop": "お店", "fun": "遊びに", "home": "家", "work": "仕事"}
 DO_LABEL = {"walk": "ぶらぶら歩く", "shop": "買い物", "tea": "お茶", "see": "見て回る", "visit": "訪ねる", "work": "仕事"}
 HOME_ME = "home:me"
@@ -158,7 +230,14 @@ class Places:
         """一人の外出の行き先 (公共の行き先 + 訪ねられる相手の家)."""
         return OUT_PLACES + [k for k in self.homes() if k != HOME_ME]
 
-    def view(self):
-        return {"places": {k: {"label": v["label"], "icon": v["icon"], "group": v["group"], "does": v["does"],
-                               "outdoor": v["outdoor"]} for k, v in self.table().items()},
+    def view(self, now=None):
+        import time
+        from datetime import datetime
+        dt = datetime.fromtimestamp(now or time.time())
+        out = {}
+        for k, v in self.table().items():
+            o = open_state(k, dt)
+            out[k] = {"label": v["label"], "icon": v["icon"], "group": v["group"], "does": v["does"], "outdoor": v["outdoor"],
+                      "open": o["open"], "note": o["note"], "hours": o["hours"], "until": o["until"]}
+        return {"places": out,
                 "groups": GROUP_LABEL, "does": DO_LABEL}

@@ -22,7 +22,7 @@ import random
 import time
 from datetime import datetime, timedelta
 
-from .places import LEGACY_DO, OUT_PLACES, solo_kind
+from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
@@ -169,9 +169,14 @@ class Offline:
                     ent.update(text=skip, skipped=True)
                 else:
                     ps["stamina"] = stamina
+                    if do == "out":                 # 閉まる時刻までしかいられない
+                        until = open_state(b.get("place") or "", datetime.fromtimestamp(s))["until"]
+                        if until and until < e:
+                            h = (until - s) / 3600.0
+                            ent["text_extra"] = "閉まる時間になったので帰った"
                     res = app.solo.result(do, h, e, b.get("skill"), b.get("place"))
                     stamina = float(ps.get("stamina", stamina))
-                    ent["text"] = res["text"].strip("（）")
+                    ent["text"] = res["text"].strip("（）") + ("。" + ent.pop("text_extra") if ent.get("text_extra") else "")
                     if res.get("bought"):
                         ent["bought"] = res["bought"]
                     if do == "out":
@@ -199,6 +204,10 @@ class Offline:
         if do == "out" and solo_kind(b.get("place")) == "walk" and w["id"] in ("rain", "snow") and place.get("outdoor", True) \
                 and random.random() < 0.7:
             return "%sなので%sに出かけるのはやめて、家で過ごした" % (w["label"], place.get("label", ""))
+        if do == "out":
+            o = open_state(b.get("place") or "", datetime.fromtimestamp(s))
+            if not o["open"]:
+                return "%sは閉まっていた（%s）ので、家で過ごした" % (place.get("label", ""), o["note"])
         if do == "out" and stamina < 15 and random.random() < 0.6:
             return "疲れきっていて、%sには出かけなかった" % place.get("label", "")
         if do in ("chores", "practice") and stamina < 25 and random.random() < 0.6:

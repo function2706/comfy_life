@@ -598,8 +598,12 @@ class App:
                 continue
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
-            out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"])
+            ovp = a.get("override") or {}
+            shut = bool(ovp.get("outing")) and not any(places_mod.open_state(p, dt)["open"]      # 行き先がどこも閉まっている
+                                                       for p in (a.get("places") or [ovp.get("place") or places_mod.from_location(ovp.get("location"))]))
+            out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"]) and not shut
                             and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"]))),
+                            "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
@@ -631,6 +635,13 @@ class App:
                 raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
             if not cond.check(when, ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
+            ovp = (a.get("override") or {})
+            if ovp.get("outing"):           # お出かけの行き先が閉まっていたら行けない (約束でも, 着いた時刻で)
+                pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ovp.get("place")
+                pl = pl if pl in places_mod.PLACES else places_mod.from_location(ovp.get("location"))
+                o = places_mod.open_state(pl, dt)
+                if not o["open"]:
+                    raise ValueError("%sは閉まっています（%s）" % (places_mod.PLACES[pl]["label"], o["note"]))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
@@ -1527,6 +1538,7 @@ class App:
             self.tick(cid)                  # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
+            closed = self.outdoor.closing() if beat else None       # いる行き先が閉まったら出される
             street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
             st = self.state(cid)
@@ -1563,7 +1575,7 @@ class App:
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
-                "appoints": self.appoint.view(), "appoint_events": appoint_events,
+                "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),

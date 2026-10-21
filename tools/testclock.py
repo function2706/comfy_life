@@ -1,5 +1,5 @@
-"""テスト用: 時刻を日曜の昼 (12:00) に固定する. 予定 (寝ている時間・平日の外出など)・時間帯・曜日・時刻の条件が,
-テストを流す日時に左右されないように.
+"""テスト用: 時刻を日曜の昼 (12:00) に固定する. 予定 (寝ている時間・平日の外出など)・時間帯・曜日・時刻の条件・
+行き先の営業時間が, テストを流す日時に左右されないように (本物の営業時間は places.open_state_real).
 
     from testclock import fix_noon; fix_noon(engine)
 """
@@ -21,4 +21,8 @@ def fix_noon(engine):
         c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
         return c
     App.context = context
+    from core import offline, places
+    real = places.open_state
+    places.open_state_real = real
+    places.open_state = offline.open_state = lambda pid, dt: real(pid, NOON)
     App._noon_fixed = True

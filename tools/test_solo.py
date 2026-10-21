@@ -94,7 +94,8 @@ def main():
         r = back_after(app, 1)
         assert "公園" in r["solo"]["text"] and r["solo"]["kind"] == "walk" and r["entry"]["text"].startswith("（") \
             and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
-        app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入が混ざらないように
+        app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入・生活費・家賃が混ざらないように
+        app.world["economy"]["living_cost_per_day"] = app.world["economy"]["home_cost_per_month"] = 0
         app.items.set_list("cookies", 3)                     # 買い物は, 買うものリストの品を買う
         m0 = L.player_state()["money"]
         S.start("out", place="shopping_street")

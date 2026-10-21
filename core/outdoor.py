@@ -93,7 +93,7 @@ class Outdoor:
         now = now or time.time()
         dt = datetime.fromtimestamp(now)
         cur = self.current(now)
-        pv = self.app.places.view()
+        pv = self.app.places.view(now)
         ch = dict(CHOICES, out=self.app.places.out_choices())
         out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
                "choices": ch, "routine_choices": list(places_mod.OUT_PLACES), "current": None}
@@ -118,6 +118,42 @@ class Outdoor:
         if not h or random.random() >= 1 - math.exp(-self.rate(cur, datetime.fromtimestamp(now)) * h):
             return None
         return app.encounters.happen_at(cur, now)
+
+    def closing(self, now=None):
+        """いる行き先が閉まったら出される. 一人の外出なら, それまでの結果を出して街へ (外出は続く).
+        誰かとのお出かけなら, そこで切り上げて帰る. 何か起きたらテキストを返す."""
+        app = self.app
+        now = now or time.time()
+        cur = self.current(now)
+        if not cur or cur["kind"] == "work":
+            return None
+        pl = cur["place"]
+        o = places_mod.open_state(pl, datetime.fromtimestamp(now))
+        if o["open"]:
+            return None
+        name = PLACES.get(pl, {}).get("label", pl)
+        if cur["kind"] == "out":
+            ll = app.presence.back(now)
+            res = app.solo.finish(ll) if ll else None
+            app.presence.declare("out", now)
+            p = app.presence.rec()
+            p["solo"] = {"kind": "out", "skill": None, "t": now}
+            p["place"] = "town"
+            app.presence.save()
+            text = "（%sが閉まる時間になったので、出て街を歩くことにした）" % name
+            self.note(text.strip("（）"), now)
+            app.solo.note("out", text.strip("（）"), now)
+            return {"text": text, "solo": res}
+        cid = cur["with"]
+        char, st = app.char(cid), app.state(cid)
+        with app.lock:
+            st["override"] = None
+            text = "（%sが閉まる時間になったので、%sとはそこで切り上げて帰った）" % (name, char.get("name", ""))
+            app.note_entry(char, st, now, "_closing", "閉店", "🔒", text)
+            app.bonds.sync(cid, st, now)
+            app.save_state(cid)
+        self.note(text.strip("（）"), now)
+        return {"text": text}
 
     def note(self, text, now=None):
         p = self.app.presence.rec()
