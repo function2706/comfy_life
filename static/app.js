@@ -192,8 +192,11 @@ function renderWho() {
   const liv = v.bond && v.bond.living;
   const near = Object.entries(v.bonds || {}).filter(([, b]) => b.mode).map(([id]) => nm(id));
   const hc = $('#home-chip');
-  hc.textContent = `🏠 ${liv ? nm(liv) + 'と同居' : '一人暮らし'}・${near.length ? 'そばに' + near.join('、') : 'いまは一人'}`;
-  hc.title = `${liv ? nm(liv) + 'と暮らしている' : '誰とも暮らしていない（一人暮らし）'}。${near.length ? 'いまそばにいるのは ' + near.join('、') : 'いまそばには誰もいない'}`;
+  const hm = v.home || {};
+  hc.textContent = `🏠 ${liv ? nm(liv) + 'と同居' : '一人暮らし'}・${near.length ? 'そばに' + near.join('、') : 'いまは一人'}${hm.label ? '・' + hm.label : ''}`;
+  hc.title = `${liv ? nm(liv) + 'と暮らしている' : '誰とも暮らしていない（一人暮らし）'}。${near.length ? 'いまそばにいるのは ' + near.join('、') : 'いまそばには誰もいない'}。家は「${hm.label || '—'}」（クリックで家の様子）`;
+  hc.dataset.level = String(hm.level ?? '');
+  if (S.homeDlg && S.homeDlg.open) drawHome();
   const hide = veiled();
   const sc = v.scene;
   const where = sc.location ? `📍${sc.location}` : '';
@@ -285,6 +288,41 @@ async function soloStart(kind, skill, place) {
     if (r.act) handleActResult(r.act); else toast(`${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
+}
+
+// 自宅の様子: 散らかり・洗い物・洗濯物・ゴミ. 招く前に確かめて片付けられるように
+function openHome() {
+  if (!S.homeDlg) {
+    S.homeDlg = h('dialog', { class: 'modal home-dlg' });
+    document.body.append(S.homeDlg);
+  }
+  drawHome();
+  if (!S.homeDlg.open) S.homeDlg.showModal();
+}
+function drawHome() {
+  const v = S.view || {};
+  const hm = v.home || { parts: [] };
+  const free = (v.presence || {}).mode === 'none';
+  const soap = ((v.items || {}).items || []).find((x) => x.id === 'detergent');
+  const bar = (val) => h('div', { class: 'home-bar' }, h('div', { class: 'home-fill lv' + Math.min(4, Math.floor(val / 20)), style: `width:${Math.max(2, Math.min(100, val))}%` }));
+  const guest = Object.entries(v.bonds || {}).find(([, b]) => b.mode === 'guest');
+  S.homeDlg.replaceChildren(h('div', { style: 'padding:16px' },
+    h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, '🏠 家の様子'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small', onclick: () => S.homeDlg.close() }, '✕')),
+    h('div', { class: 'home-sum lv' + (hm.level ?? 0) }, hm.label || '—',
+      h('span', { class: 'muted small' }, `　散らかり具合 ${Math.round(hm.score || 0)} / 100（0 がいちばんきれい）`)),
+    bar(hm.score || 0),
+    h('div', { class: 'home-parts' }, hm.parts.map((p) => h('div', { class: 'home-part' },
+      h('div', { class: 'row' }, h('b', {}, p.label), h('div', { class: 'spacer' }), h('span', { class: 'small' }, p.word)),
+      bar(p.value)))),
+    hm.hint ? h('p', { class: 'small', style: 'margin:8px 0 0' }, `⚠ ${hm.hint}`) : '',
+    h('p', { class: 'hint' }, '暮らしているうちに少しずつ散らかり（料理のあとは洗い物、来客のあとは少し散らかる）、家事や「一緒に掃除」で片付きます。洗剤があるとはかどります。',
+      h('br'), '家に招いた相手は、来たときの家の様子を見ます。片付いていれば好印象を持ってもらえることもありますが、気づかないことも。散らかっていると、気にするか、気にしないか、片付けを手伝い出すかは性格しだいです。同居している相手も、日々の家の様子に気づきます。'),
+    guest ? h('p', { class: 'small' }, `いま${(S.boot.characters.find((x) => x.id === guest[0]) || {}).name || ''}が家に来ています。`) : '',
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', disabled: !free || S.busy, title: free ? '家事をする（一人の時間）' : 'いまは始められません',
+        onclick: () => { S.homeDlg.close(); soloStart('chores'); } }, '🧹 家事をする'),
+      h('span', { class: 'muted small' }, soap ? `洗剤 ${soap.count} 個` : '洗剤なし（買い物で買えます）'))));
 }
 
 async function openDiary() {
@@ -2349,7 +2387,7 @@ SEC.personas = () => {
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
         fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
           parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
-          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）',
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）/ neat きれい好き（-10〜10。家の散らかりを気にする・片付いていると好印象を持ちやすい）/ carer 世話焼き（0〜1。散らかっていると片付けを手伝い出す）',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、キャラクターの設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),
@@ -3001,6 +3039,7 @@ function bind() {
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
   $('#btn-chat').addEventListener('click', () => openChat());
+  $('#home-chip').addEventListener('click', () => openHome());
   $('#btn-manual').addEventListener('click', () => openManual());
   const seen = () => { S.lastInput = Date.now(); };
   for (const t of ['keydown', 'pointerdown', 'wheel', 'touchstart']) document.addEventListener(t, seen, { passive: true, capture: true });

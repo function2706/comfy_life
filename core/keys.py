@@ -61,6 +61,9 @@ def all_keys(actions, minigames, approaches=()):
     from .chat import LINES as CHAT_LINES, SCENE_LABEL as CHAT_SCENES     # メッセージアプリの返信 (種類 x 状況)
     for k, t in CHAT_LINES.items():
         out[k] = {"scene": "メッセージの返信 / %s" % CHAT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
+    from .home import LINES as HOME_LINES, SCENE_LABEL as HOME_SCENES     # 家の様子への反応 (招いた相手・同居相手)
+    for k, t in HOME_LINES.items():
+        out[k] = {"scene": "家の様子 / %s" % HOME_SCENES[k], "when": "", "text": t}
     from .street import LINES as ENC_LINES     # 出先でのばったり (声をかけられる・立ち話・断られる)
     for k, t in ENC_LINES.items():
         out[k] = {"scene": "出先でのばったり / %s" % {"enc.call.first": "知らない人が声をかけてくる", "enc.call.again": "顔なじみが声をかけてくる",

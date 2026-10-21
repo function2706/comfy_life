@@ -106,12 +106,14 @@ def main():
             pass
         print("walk / shopping: OK")
 
-        # 告げる相手がいない: 「ちょっと作業するね」ではなく, 一人で「作業する」「出かける」
+        # 告げる相手がいない: 一人で「仕事に行く」など. 一人暮らしに「作業する」は無い (同居相手に作業中と伝えるためのもの)
         v = S.view()
-        assert v["near"] is None and [x["label"] for x in v["plain"]][:2] == ["作業する", "仕事に行く"] and not any(x["id"] == "out" for x in v["plain"]), v["plain"]
-        r = S.start("busy")
-        assert r["act"] is None and app.presence.rec()["mode"] == "busy"
-        app.come_back()
+        assert v["near"] is None and [x["label"] for x in v["plain"]][:1] == ["仕事に行く"] and not any(x["id"] in ("out", "busy") for x in v["plain"]), v["plain"]
+        try:
+            S.start("busy")
+            raise AssertionError("一人暮らしで「作業する」ができてしまう")
+        except ValueError:
+            pass
         app.world["encounters"] = {"rate_out": 0}
         assert S.start("cafe", place="cafe")["act"] is None and app.presence.rec()["mode"] == "out"
         try:

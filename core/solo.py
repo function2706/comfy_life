@@ -127,6 +127,8 @@ class Solo:
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
         app = self.app
         k = PLAIN[kind]
+        if kind == "busy" and not app.bonds.living():
+            raise ValueError("一人暮らしでは「作業する」はありません（同居している相手に、作業中と伝えるためのものです）")
         place = self._place(kind, place)
         cid = self.near()
         if cid:
@@ -163,16 +165,9 @@ class Solo:
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
-            text = "%s家事をした。%s" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった")
-            live = app.bonds.living()
-            if live and h >= 0.25 and random.random() < (0.6 if soap else 0.3):     # 同居相手が気づくかどうかは偶然
-                st = app.state(live)
-                char = app.char(live)
-                d = app.apply_effects(st, {"mood": round(min(4.0, 1.5 * h) * jit, 1), "stress": -round(min(5.0, 2 * h), 1)})
-                L.add_reason(st, "player", "good", "%sが家事をしてくれた" % app.pronouns(char)[2], now, told=True,
-                             delta=d.get("mood", 0), action="_chores")
-                app.save_state(live)
-                text += "。%sが気づいてくれたようだ" % char.get("name", "")
+            how = app.home.chores(h, soap, jit)                 # 家が片付く (たまっているものほど)
+            text = "%s家事をした。%s（%s）" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった", how)
+            text += app.home.notice_chores(h, soap, now, jit)      # 同居相手が気づくかどうかは偶然
         elif kind == "practice":
             sk = skill or "talk"
             L.tire(3 * h)
@@ -272,6 +267,8 @@ class Solo:
         near = self.near()
         plain = []
         for kid, k in PLAIN.items():
+            if kid == "busy" and not self.app.bonds.living():
+                continue              # 一人暮らしでは「作業する」はいらない (同居相手に遠慮してもらうためのもの)
             try:
                 go = self.app.action(k["go"])
             except KeyError:

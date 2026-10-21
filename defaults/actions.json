@@ -1136,7 +1136,11 @@
   "payer": "me",
   "reason_good": "{call}がご飯を作ってくれた",
   "home_only": true,
-  "skill": "cook"
+  "skill": "cook",
+  "home_dirty": {
+   "dishes": 8,
+   "trash": 2
+  }
  },
  {
   "id": "tea",
@@ -1656,7 +1660,8 @@
     "neg": "broom"
    }
   ],
-  "home_only": true
+  "home_only": true,
+  "home_clean": 40
  },
  {
   "id": "photo",
@@ -2644,6 +2649,65 @@
     "neg": ""
    }
   ]
+ },
+ {
+  "id": "invite_home",
+  "name": "うちに来ない？",
+  "icon": "🏠",
+  "category": "会う",
+  "when": "stage=visit, apart=true, free=true, asleep=false, phase!=midnight",
+  "cooldown": 60,
+  "apart": true,
+  "bond": "guest_start",
+  "effects": {
+   "loneliness": -15,
+   "mood": 5,
+   "heart": 5
+  },
+  "reactions": [
+   {
+    "text": "おじゃまします。……ここが{call}の家なんですね。",
+    "when": "",
+    "pos": "smile, standing in entrance, looking around, shy",
+    "neg": ""
+   },
+   {
+    "text": "ごめんなさい、今日はちょっと……また今度にしてもらえますか？",
+    "when": "mood<35",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "apologetic, holding smartphone",
+    "neg": "smile",
+    "key": "decline"
+   }
+  ],
+  "reason_good": "{call}の家に招いてもらった",
+  "pos": "indoors, apartment, living room",
+  "neg": ""
+ },
+ {
+  "id": "see_off",
+  "name": "そろそろ送っていくね",
+  "icon": "👋",
+  "category": "会う",
+  "when": "with_mode=guest",
+  "cooldown": 0,
+  "bond": "visit_end",
+  "effects": {
+   "loneliness": 3
+  },
+  "reactions": [
+   {
+    "text": "そろそろ帰りますね。今日は呼んでくれて、ありがとうございました。",
+    "when": "",
+    "pos": "smile, waving, entrance",
+    "neg": ""
+   }
+  ],
+  "end_override": true
  },
  {
   "id": "ask_live",

@@ -10,6 +10,7 @@
 - None:                      自分の家 (同居している相手がいればその人と一緒)
 - {"cid", "mode": "meet"}:   外で会っている (お出かけの一時シーンが終われば別れる)
 - {"cid", "mode": "visit"}:  相手の家に遊びに来ている (until まで)
+- {"cid", "mode": "guest"}:  相手をあなたの家に招いている (until まで. 来たときの家の様子に反応する: core/home.py)
 
 一緒にいない相手には, 体に触れる・家の中のことなどはできず, 連絡・誘う・あなたの予定だけ (apart).
 本命は各キャラが自分の視点で持つ: あなたと仲が深いキャラは, あなたがほかの人とも深い仲だと知ると嫉妬する.
@@ -95,7 +96,7 @@ class Bonds:
         return w
 
     def mode(self, cid):
-        """cid と一緒にいる形: home (同居して家にいる) / meet / visit / None (離れている)."""
+        """cid と一緒にいる形: home (同居して家にいる) / meet / visit / guest (招いている) / None (離れている)."""
         w = self.with_rec()
         if w:
             return w["mode"] if w["cid"] == cid else None
@@ -108,12 +109,20 @@ class Bonds:
     def start(self, cid, mode, now=None):
         now = now or time.time()
         w = {"cid": cid, "mode": mode, "t": now}
-        if mode == "visit":
+        if mode in ("visit", "guest"):
             w["until"] = now + float(self.cfg()["visit_hours"]) * 3600
         self.rec()["with"] = w
         self.save()
 
     def end(self):
+        w = self.rec().get("with") or {}
+        if w.get("mode") == "guest":
+            self.app.home.guest_left()          # 来客のあとは少し散らかる
+            if w.get("cid") in self.app.chars:  # 帰った: 「あなたの家に遊びに来ている」を終える
+                st = self.app.state(w["cid"])
+                if (st.get("override") or {}).get("activity") == "guest":
+                    st["override"] = None
+                    self.app.save_state(w["cid"])
         if self.rec().get("with"):
             self.rec()["with"] = None
             self.save()
@@ -127,7 +136,7 @@ class Bonds:
         if w["mode"] == "meet" and not (ov and ov.get("until", 0) > now and ov.get("outing")):
             self.end()
             return True
-        if w["mode"] == "visit" and now >= w.get("until", 0):
+        if w["mode"] in ("visit", "guest") and now >= w.get("until", 0):
             self.end()
             return True
         return False
@@ -145,6 +154,8 @@ class Bonds:
             self.end()
         elif b == "visit_start":
             self.start(cid, "visit", now)
+        elif b == "guest_start":
+            self.start(cid, "guest", now)
         elif b == "visit_end":
             self.end()
 
@@ -188,11 +199,11 @@ class Bonds:
         m = self.mode(cid)
         w = self.with_rec()
         label = {"home": "一緒に暮らしている", "meet": "外で会っている", "visit": "%sの家に来ている" % self.app.chars[cid].get("name", ""),
-                 None: "離れている"}[m]
+                 "guest": "あなたの家に来ている", None: "離れている"}[m]
         if m is None and w:
             label += "（%sと一緒）" % self.app.chars[w["cid"]].get("name", "")
         return {"stage": self.stage(cid), "stage_label": STAGE_LABEL[self.stage(cid)], "mode": m, "label": label,
-                "living": self.living(), "until": (w or {}).get("until") if m == "visit" else None}
+                "living": self.living(), "until": (w or {}).get("until") if m in ("visit", "guest") else None}
 
     def list_view(self):
         return {cid: {"stage": self.stage(cid), "mode": self.mode(cid)} for cid in self.app.chars}

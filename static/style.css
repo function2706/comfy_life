@@ -623,3 +623,21 @@ a.btn { color: inherit; }
 .brand { white-space: nowrap; flex: none; }
 .topbar .chip.home, .topbar .chip.weather { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
 @media (max-width: 1280px) { .topbar .lbl { display: none; } }
+
+/* 家の様子 */
+.chip.home { cursor: pointer; }
+.chip.home[data-level="3"], .chip.home[data-level="4"] { background: #3a2a22; color: #f1c9a8; }
+.modal.home-dlg { width: min(560px, 94vw); height: auto; max-height: 88vh; overflow: auto; }
+.home-sum { font-size: 18px; font-weight: bold; margin: 12px 0 6px; }
+.home-sum.lv0, .home-sum.lv1 { color: #9fdcaa; }
+.home-sum.lv2 { color: var(--accent2); }
+.home-sum.lv3, .home-sum.lv4 { color: #f19a7a; }
+.home-bar { height: 8px; background: var(--panel3); border-radius: 6px; overflow: hidden; margin: 4px 0 10px; }
+.home-fill { height: 100%; border-radius: 6px; }
+.home-fill.lv0 { background: #7fcf8c; }
+.home-fill.lv1 { background: #b7d77a; }
+.home-fill.lv2 { background: var(--accent2); }
+.home-fill.lv3 { background: #ec9a6b; }
+.home-fill.lv4 { background: #e2675a; }
+.home-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
+@media (max-width: 520px) { .home-parts { grid-template-columns: 1fr; } }

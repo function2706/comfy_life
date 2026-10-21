@@ -22,7 +22,9 @@
   "jealousy": 1.2,
   "caution": -8,
   "gift": 0.6,
-  "money": -20
+  "money": -20,
+  "neat": 8,
+  "carer": 0.05
  },
  "lines": {
   "look.free_true": [

@@ -26,6 +26,7 @@ from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
 from . import chat as chat_mod
+from . import home as home_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -119,6 +120,7 @@ class App:
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
         self.chat = chat_mod.Chat(self)
+        self.home = home_mod.Home(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -392,6 +394,7 @@ class App:
             t = now - MAX_CATCHUP_SEC
         changed = False
         self.life.tick_world(now)
+        self.home.tick(now)                    # 家は暮らしているうちに少しずつ散らかる
         while t + STEP_SEC <= now:
             self._step(char, st, datetime.fromtimestamp(t + STEP_SEC / 2), STEP_SEC / 3600.0)
             self.life.step(char, st, t, t + STEP_SEC, STEP_SEC / 3600.0)   # お金の出入り・キャラ側の出来事
@@ -678,7 +681,7 @@ class App:
                 r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
             mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
             # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
-            parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit")                 and a.get("presence_set") in ("work", "out", "left", "sleep")
+            parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit", "guest")                 and a.get("presence_set") in ("work", "out", "left", "sleep")
             narrate = (apart and mine) or parting
             if narrate:     # 離れている相手は見送りも出迎えもしない. あなたの行動だけを書く
                 what = a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid)
@@ -729,8 +732,25 @@ class App:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
+            home_note = None
+            at_home = self.bonds.mode(cid) in ("home", "guest")
+            if at_home and a.get("home_dirty") and (not r.get("override") or r.get("taken")):
+                self.home.add(**a["home_dirty"])          # 料理をすれば洗い物が出る (焦がしても)
             if not r.get("override"):
                 self.bonds.apply(a, cid, now)
+                heff = {}
+                if a.get("bond") == "guest_start":         # 家に招いた: 来た相手が家の様子に反応する (性格しだい)
+                    home_note, heff = self.home.on_guest(char, st, now)
+                    st["override"] = {"activity": "guest", "label": "あなたの家に遊びに来ている", "location": "あなたの家",
+                                      "until": (self.bonds.with_rec() or {}).get("until", now + 3 * 3600), "from_action": aid,
+                                      "pos": "indoors, apartment, living room", "neg": ""}
+                elif social and not narrate and self.bonds.mode(cid) == "home":
+                    home_note, heff = self.home.live_check(char, st, now)     # 同居相手は日々の家の様子に反応する
+                if at_home and a.get("home_clean"):
+                    self.home.clean(float(a["home_clean"]) * random.uniform(0.7, 1.2))
+                if heff:
+                    for k, v in self.apply_effects(st, self.trait_effects(char, heff)).items():
+                        deltas[k] = round(deltas.get(k, 0) + v, 2)
                 if invite:
                     self.bonds.start(cid, "meet", now)      # 誘いに乗ってくれた: 外で会う
                     st.pop("date_promise", None)
@@ -793,6 +813,8 @@ class App:
             text += "\n" + self.format_text(real_note, char, scene, dt)
         if item_note:
             text += "\n" + self.format_text(item_note, char, scene, dt)
+        if home_note:
+            text += "\n" + self.format_text(home_note, char, scene, dt)
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src
@@ -1458,7 +1480,7 @@ class App:
                 "dress": self._dress_view(char, st, scene, ctx),
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
-                "solo": self.solo.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
+                "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
                 "street_pending": self.street.view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),
