@@ -181,7 +181,7 @@ class Solo:
             gain = L.train(sk, min(3.0, 1.2 * h) * jit * (1.5 if book else 1.0)) if h >= 0.25 else 0
             out["skill"] = {sk: gain}
             text = "%s%s%s。%sが%s" % (_dur(h), "本を見ながら" if book else "", PRACTICE_TEXT[sk], SKILL_LABEL[sk],
-                                       "少し伸びた" if gain >= 0.3 else "伸びた気はあまりしない")
+                                       "少し伸びた" if gain >= 0.1 else "伸びた気はあまりしない")
         elif kind == "walk":
             L.tire(2 * h)
             text = "%s一人で散歩した" % _dur(h)

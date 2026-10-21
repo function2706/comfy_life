@@ -62,6 +62,7 @@ def main():
         reset_day()
         st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": 9e12}
         app.set_params({"mood": 70, "sleepiness": 0, "energy": 80})
+        app.life.player_state()["skills"]["talk"] = 60     # 会話が下手で沈黙する反応 (うんざり以前) にならないように
         texts = []
         for _ in range(10):
             st["cooldowns"] = {}

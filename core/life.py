@@ -20,6 +20,8 @@ from . import cond, store
 
 WHO = {"p": "あなた", "a": "キャラ"}
 SKILLS = ("talk", "touch", "cook", "work")     # あなたのスキル: 会話・スキンシップ・料理・仕事
+SKILL_RATE = 0.4         # 経験のうち身につく割合
+SKILL_DAY_SOFT = 2.0     # その日に伸びた量がこれだけあると, 次の経験は半分しか身につかない
 
 
 def _amount(v):
@@ -66,10 +68,27 @@ class Life:
         return 0.6 + self.skill(k) / 100.0 * 0.8
 
     def train(self, k, gain):
-        """スキルを伸ばす (上がるほど伸びにくい). 伸びた量を返す."""
-        sk = self.player_state()["skills"]
+        """スキルを伸ばす. gain は経験の量 (1 回の会話で 1.2, 仕事 1 時間で 0.5 など). 伸びた量を返す.
+        数か月かけて少しずつ上達する: 経験の SKILL_RATE 倍しか身につかず, 上がるほど伸びにくく ((1 - 値/100)^1.5),
+        同じ日にたくさんやるほど身につきにくい (その日に伸びた量で割る). 得意・不得意 (ワールドごとに一度決まる aptitude) と,
+        その日の調子 (伸びない日もある) で揺れる."""
+        ps = self.player_state()
+        sk = ps["skills"]
         old = float(sk.get(k, 10.0))
-        new = min(100.0, old + float(gain) * (1.0 - old / 110.0))
+        apt = ps.setdefault("aptitude", {})
+        if k not in apt:
+            apt[k] = round(random.uniform(0.7, 1.3), 2)
+        day = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d")
+        sd = ps.get("skill_day") or {}
+        if sd.get("d") != day:
+            sd = {"d": day, "f": {}, "got": {}}
+            ps["skill_day"] = sd
+        if k not in sd["f"]:
+            sd["f"][k] = round(0.1 if random.random() < 0.15 else random.uniform(0.5, 1.3), 2)     # 伸びない日もある
+        got = float(sd["got"].get(k, 0.0))
+        g = float(gain) * SKILL_RATE * apt[k] * sd["f"][k] * max(0.0, 1.0 - old / 100.0) ** 1.5 / (1.0 + got / SKILL_DAY_SOFT)
+        new = min(100.0, old + g)
+        sd["got"][k] = round(got + new - old, 3)
         sk[k] = round(new, 2)
         self.save_player()
         return round(new - old, 2)
