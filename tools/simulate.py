@@ -198,7 +198,8 @@ def snapshot(app, day):
     ps = app.life.player_state()
     row = {"day": day.isoformat(), "money": int(ps["money"]), "stamina": round(float(ps.get("stamina", 0)), 1),
            "invest": app.life.portfolio_value(), "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
-           "items": sum(ps.get("items", {}).values()), "chars": {}}
+           "items": sum(ps.get("items", {}).values()), "debt": int(ps.get("debt", 0)),
+           "loans": sum((ps.get("loans") or {}).values()), "chars": {}}
     for cid, c in app.chars.items():
         app.tick(cid)
         p = app.state(cid)["params"]
@@ -364,6 +365,8 @@ def report(S, app, args):
     money = [x["money"] for x in d]
     w("\n[お金] %s → %s 円 (最小 %s, 最大 %s) / 株 %s 円" % (
         f(money[0]), f(money[-1]), f(min(money)), f(max(money)), f(last["invest"])))
+    w("  借金 %s 円 / 知り合いに借りている %s 円 / お金のできごと: %s" % (f(last["debt"]), f(last["loans"]),
+      " / ".join(x["text"] for x in (app.life.player_state().get("money_notes") or [])[-3:]) or "なし"))
     w("  週ごとの増減: " + ", ".join(f(money[min(i + 7, len(money) - 1)] - money[i]) for i in range(0, len(money) - 1, 7)))
     st = [x["stamina"] for x in d]
     w("[体力] 23:59 時点 平均 %.0f / 最小 %.0f / 20 未満の日 %d" % (sum(st) / len(st), min(st), sum(1 for x in st if x < 20)))
@@ -407,8 +410,8 @@ def biases(S, args):
     d = S.days
     out = []
     money = [x["money"] for x in d]
-    if min(money) <= 0:
-        out.append("お金が尽きた (最小 %s 円)" % f(min(money)))
+    if min(money) <= 0 or d[-1]["debt"] or d[-1]["loans"]:
+        out.append("お金が尽きた (最小 %s 円, 借金 %s 円, 借りている %s 円)" % (f(min(money)), f(d[-1]["debt"]), f(d[-1]["loans"])))
     elif money[-1] > money[0] * 3 and money[-1] - money[0] > 100000:
         out.append("お金が増えすぎ (%s → %s 円, 使い道が追いつかない)" % (f(money[0]), f(money[-1])))
     weeks = [money[min(i + 7, len(money) - 1)] - money[i] for i in range(0, len(money) - 1, 7)]

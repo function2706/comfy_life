@@ -1,6 +1,11 @@
 """キャラの暮らし: お金 (所持金・生活費・投資) と, キャラ側の出来事 (機嫌の理由・おねだり・留守中のこと).
 
 - あなたのお金と投資は data/player.json (キャラ共通), キャラのお金は各キャラの state["money"].
+- 暮らしのお金は家ごと: あなたが払うのは, あなたの家の分だけ. 毎日の生活費 (living_cost_per_day は二人暮らしの額.
+  一人なら半分) と, 月はじめの基本コスト (家賃・光熱費・通信費. home_cost_per_month). 一緒に暮らしている相手とは
+  その人の living_policy (折半 / あなた / 相手) で分ける. 一緒に暮らしていない人は, 自分の生活費を自分で払う (her_living_cost_per_day).
+- 払えなければ, 連絡先を知っている人に借りる (頼む相手・断られるか・印象がどう変わるかは間柄・仲・性格・懐具合しだい).
+  借りられなければ借金になる (player.json の debt. 利息・取り立てはまだない). 借りたお金は loans に残る.
 - 出来事は data/events.json. 時間の経過でときどき起き, 機嫌などを動かし, 「理由」として記録される.
 - 機嫌の理由は state["reasons"] に良い方・悪い方とも記録する: キャラ側の出来事 (event) か, あなたの行動 (player) か,
   あなたがその理由を知っているか (told). 謝る・相談にのる・何かあった？ の反応はこれで変わる.
@@ -123,8 +128,13 @@ class Life:
                 if mode == "busy" and sl.get("kind") == "rest":      # 一人で休んでいる: 寝るほどではないが早く戻る
                     rec = float(e.get("stamina_recover_rest", 9))
                 ps["stamina"] = min(100.0, float(ps.get("stamina", 100)) + rec * step / 3600.0)
-            if datetime.fromtimestamp(t - step).date() != datetime.fromtimestamp(t).date():
+            d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
+            if d0 != d1:
                 ps["money"] += int(e.get("player_daily_income", 1000))
+                live = self.app.bonds.living()
+                self.pay_home(int(e.get("living_cost_per_day", 3000)) // (1 if live else 2), t, "生活費")
+                if d0.month != d1.month:
+                    self.pay_home(int(e.get("home_cost_per_month", 60000)), t, "%d月の家賃・光熱費・通信費" % d1.month)
         ps["last_tick"] = t
         if changed:
             self.save_player()
@@ -308,33 +318,113 @@ class Life:
 
     # ================================================================== キャラの毎日
     def step(self, char, st, t0, t1, h):
-        """5 分ごと: 日付が変わったら収入と生活費, ときどき出来事."""
+        """5 分ごと: 日付が変わったら収入と (一緒に暮らしていなければ) 自分の生活費, ときどき出来事.
+        一緒に暮らしている相手の生活費は, あなたの家の分として tick_world (pay_home) で分ける."""
         e = self.econ()
         hm = self.her_money(st)
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
             hm["a"] += int(e.get("her_daily_income", 2500))
-            self._living_cost(char, st, int(e.get("living_cost_per_day", 3000)))
+            if self.app.bonds.living() != char["id"]:
+                own = int(e.get("her_living_cost_per_day", 1500))
+                if hm["a"] < own:
+                    self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
+                hm["a"] -= min(own, max(hm["a"], 0))
         dt = datetime.fromtimestamp(t1)
-        ctx = self.app.context(char, st, dt)
+        ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
         if ctx["asleep"]:
             return
         if random.random() < float(e.get("event_rate_per_hour", 0.08)) * h:
             self.happen(char, st, t1, ctx)
 
-    def _living_cost(self, char, st, cost):
-        pol = char.get("living_policy") or "split"
-        ps, hm = self.player_state(), self.her_money(st)
-        share_p = {"me": cost, "her": 0}.get(pol, cost // 2)
-        share_a = cost - share_p
-        pay_p, pay_a = min(share_p, max(ps["money"], 0)), min(share_a, max(hm["a"], 0))
-        short = (share_p - pay_p) + (share_a - pay_a)   # 払えない分はもう一方が肩代わり
-        extra_p = min(short, max(ps["money"] - pay_p, 0)) if share_a - pay_a else 0
-        extra_a = min(short - extra_p, max(hm["a"] - pay_a, 0))
-        ps["money"] -= pay_p + extra_p
-        hm["a"] -= pay_a + extra_a
+    # ---------------------------------------------------------- あなたの家の暮らしのお金
+    def pay_home(self, cost, t, what):
+        """あなたの家の分 (生活費・家賃など) を払う. 一緒に暮らしている相手とは, その人の方針で分ける.
+        相手が払えない分はあなたが肩代わりし, あなたも払えなければ借りるか借金. あなたが払った額を返す."""
+        app = self.app
+        live = app.bonds.living()
+        mine = cost
+        if live:
+            char, st = app.chars[live], app.state(live)
+            pol = char.get("living_policy") or "split"
+            share_a = cost - {"me": cost, "her": 0}.get(pol, cost // 2)
+            hm = self.her_money(st)
+            pay_a = min(share_a, max(hm["a"], 0))
+            hm["a"] -= pay_a
+            mine = cost - pay_a
+            app.save_state(live)
+        self.pay(mine, t, what)
+        return mine
+
+    def pay(self, amount, t, what):
+        """あなたが払う. 足りなければ, 連絡先の人に借りる (borrow). それでも足りなければ借金 (debt)."""
+        ps = self.player_state()
+        amount = int(amount)
+        if amount <= 0:
+            return
+        have = max(int(ps["money"]), 0)
+        if have >= amount:
+            ps["money"] -= amount
+            self.save_player()
+            return
+        ps["money"] -= have
+        short = amount - have
+        got = self.borrow(short, t, what)
+        ps["money"] -= got                      # 借りた分は, そのまま支払いに
+        short -= got
+        if short > 0:
+            ps["debt"] = int(ps.get("debt", 0)) + short
+            self.money_note(t, "%sが払えず、%s円の借金をした（借金 %s円）" % (what, format(short, ","), format(ps["debt"], ",")))
         self.save_player()
-        if short - extra_p - extra_a > 0:      # 二人とも払えない
-            self.app.apply_effects(st, {"stress": 15, "mood": -8})
+
+    def money_note(self, t, text):
+        ps = self.player_state()
+        ps.setdefault("money_notes", []).append({"t": t, "text": text})
+        del ps["money_notes"][:-10]
+        self.app.solo.note("money", text, t)
+
+    def lend_chance(self, char, st, amount, t):
+        """お金を貸してくれる確率 (0〜0.9). 間柄・好感度・信頼・性格 (慎重さ)・最近も貸したか・相手の懐具合しだい."""
+        hm = self.her_money(st)["a"]
+        if hm < amount + 3000:
+            return 0.0
+        p = st["params"]
+        recent = sum(1 for x in st.get("lent") or [] if t - x["t"] < 30 * 86400)
+        f = 0.2 + (p.get("affection", 40) - 50) / 100.0 + (p.get("trust", 40) - 50) / 120.0 \
+            + {"contact": 0.0, "visit": 0.15, "live": 0.25}.get(self.app.bonds.stage(char["id"]), -1) - 0.15 * recent \
+            - float(self.app.traits(char).get("caution", 0)) / 50.0 - (0.2 if hm < amount * 2 else 0.0)
+        return max(0.03, min(0.9, f))
+
+    def borrow(self, amount, t, what):
+        """足りない分を, 連絡先を知っている人に頼む (仲の深い順に二人まで). 借りられた額を返す.
+        貸してくれても信頼は少し下がり (何度も頼むほど), 断られると少し気まずい. 機嫌の理由にも残る (あなたは知っている)."""
+        app = self.app
+        rank = {"live": 3, "visit": 2, "contact": 1}
+        cands = [cid for cid in app.chars if app.bonds.stage(cid) in rank]
+        cands.sort(key=lambda c: (-rank[app.bonds.stage(c)],
+                                  -(app.state(c)["params"].get("affection", 0) + app.state(c)["params"].get("trust", 0))))
+        for cid in cands[:2]:
+            char, st = app.chars[cid], app.state(cid)
+            call = app.pronouns(char)[2]
+            recent = sum(1 for x in st.get("lent") or [] if t - x["t"] < 30 * 86400)
+            if random.random() < self.lend_chance(char, st, amount, t):
+                self.her_money(st)["a"] -= amount
+                self.player_state()["money"] += amount
+                st.setdefault("lent", []).append({"t": t, "amount": amount, "what": what})
+                del st["lent"][:-20]
+                loans = self.player_state().setdefault("loans", {})
+                loans[cid] = int(loans.get(cid, 0)) + amount
+                d = app.apply_effects(st, app.trait_effects(char, {"trust": -(1.5 + 1.5 * recent), "mood": -1 - recent}))
+                self.add_reason(st, "player", "bad", "%sに%sのお金を貸した" % (call, what), t, told=True,
+                                delta=d.get("mood", 0), action="_borrow")
+                app.save_state(cid)
+                self.money_note(t, "%sが足りず、%sに%s円借りた" % (what, char.get("name", ""), format(amount, ",")))
+                return amount
+            d = app.apply_effects(st, app.trait_effects(char, {"mood": -1, "affection": -0.5}))
+            self.add_reason(st, "player", "bad", "%sにお金を貸してと頼まれて、断った" % call, t, told=True,
+                            delta=d.get("mood", 0), action="_borrow")
+            app.save_state(cid)
+            self.money_note(t, "%sが足りず、%sに借りようとしたが断られた" % (what, char.get("name", "")))
+        return 0
 
     # ---------------------------------------------------------- 出来事
     def happen(self, char, st, t, ctx, force=None):
@@ -467,6 +557,11 @@ class Life:
         req = dict(st["request"], text=fmt(st["request"].get("text")), label=fmt(st["request"].get("label"))) \
             if st.get("request") else None
         return {
+                "debt": int(ps.get("debt", 0)),
+                "loans": [{"id": k, "name": (self.app.chars.get(k) or {}).get("name", k), "amount": v}
+                          for k, v in (ps.get("loans") or {}).items() if v],
+                "money_notes": (ps.get("money_notes") or [])[-5:],
+                "living": self.app.bonds.living() == char["id"],
                 "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
                              "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],"my_money": ps["money"], "her_money": self.her_money(st)["a"],
                 "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},

@@ -35,6 +35,7 @@ STEP_SEC = 300
 MAX_CATCHUP_SEC = 14 * 24 * 3600
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_JA = "月火水木金土日"
+FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_floor より下がらないパラメータ
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
@@ -316,7 +317,9 @@ class App:
                 return p
         return {"id": "day", "label": "", "pos": "", "neg": ""}
 
-    def context(self, char, st, dt, scene=None):
+    def context(self, char, st, dt, scene=None, view=True):
+        """条件式の値. view=True ならあなたから見た値 (離れている相手は away=True = そばにいない).
+        view=False なら本人の状態のまま (本人のパラメータの動き・出来事に使う. 離れていても自分の予定どおりに過ごしている)."""
         scene = scene or self.scene_at(char, st, dt)
         ctx = {k: round(v, 3) for k, v in st["params"].items()}
         ctx.update({
@@ -336,7 +339,7 @@ class App:
         ctx.update(self.life.mood_ctx(st, dt.timestamp()))     # cause / knows / reason / untold / request / away_events
         ctx.update(self.presence.ctx(dt.timestamp()))          # presence / said / left_mode / left_h
         ctx.update(self.bonds.ctx(char["id"], st))             # stage / apart / with_mode / living_other / rivals
-        if ctx["apart"]:
+        if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
@@ -350,8 +353,9 @@ class App:
         scene = self.scene_at(char, st, dt)
         if scene["asleep"] and st.get("dress") and char.get("dress_reset_on_sleep", True):
             st["dress"] = None   # 寝たら翌日はスケジュール通りの服に戻る
-        ctx = self.context(char, st, dt, scene)
+        ctx = self.context(char, st, dt, scene, view=False)     # 本人の過ごし方で動く (あなたから見えるかとは別)
         vals = st["params"]
+        floor = float(self.bonds.cfg()["cool_floor"])
         pres = self.presence.effects(dt.timestamp()) \
             if char["id"] == self.settings.get("active_character") and not scene["away"] and self.bonds.together(char["id"]) else {}
         tr = self.traits(char)
@@ -373,6 +377,11 @@ class App:
                 target = float(dr.get("target", v)) + float(t_drift.get(pid, 0)) + sum(
                     float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
                 d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
+            if d < 0 and pid in FLOORED:
+                # 時間だけで冷める分 (寂しさが続く など) は, ご無沙汰で冷めるのと同じ下限に近づくほど鈍り, そこで止まる.
+                # 下がりきるのは, はっきりした出来事 (嫉妬・ひどいことをされた など) があったときだけ
+                room = v - floor
+                d = 0.0 if room <= 0 else max(-room, d * min(1.0, room / 15.0))
             vals[pid] = self._clamp(p, v + d)
 
     def tick(self, cid, now=None):
@@ -861,6 +870,8 @@ class App:
         cid = char["id"]
         p = st["params"]
         pend = st.get("msg_pending")
+        if st.get("approach"):
+            self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
         self.chat.add(cid, "me", chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）", kind=kind, t=now)
         if pend:
             pend["count"] = pend.get("count", 1) + 1
@@ -1379,6 +1390,15 @@ class App:
             now = time.time()
             if beat and cid == self.settings.get("active_character") and self.presence.live(char, st, now):
                 self.save_state(cid)
+            if beat:
+                # 離れている連絡先の人も, それぞれ自分の予定どおりに過ごしていて, ときどきメッセージを送ってくる (選んでいる相手に限らない)
+                for oid in list(self.chars):
+                    if oid == cid or self.bonds.together(oid) or self.bonds.stage(oid) == "known":
+                        continue
+                    self.tick(oid, now)
+                    ost = self.state(oid)
+                    if self.presence.live(self.chars[oid], ost, now):
+                        self.save_state(oid)
             dt = datetime.fromtimestamp(now)
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)

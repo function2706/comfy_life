@@ -16,8 +16,8 @@ def fix_noon(engine):
     App.phase_at = lambda self, dt: {"id": "noon", "label": "昼", "pos": "", "neg": ""}
     App.scheduled_scene = lambda self, char, dt: sched(self, char, NOON)
 
-    def context(self, char, st, dt, scene=None):
-        c = ctx(self, char, st, dt, scene)
+    def context(self, char, st, dt, scene=None, **kw):
+        c = ctx(self, char, st, dt, scene, **kw)
         c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
         return c
     App.context = context
