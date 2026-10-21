@@ -5,7 +5,8 @@
 - 送るメッセージの種類 (KINDS). 返信は既存の時間差の仕組み (msg_pending) に乗る: 相手が寝ている・手が離せないなら落ち着いてから,
   機嫌や仲しだいで遅れる・来ない (既読だけ付く). 返信の中身は種類 × 状況 (性格・間柄・機嫌・機嫌の理由・時間帯・頻度) で変わる.
   現実的に: 浅い仲で甘えると引かれる, からかいは逆効果のことも, 理由を知らずに謝ると戸惑われる, 夜中は迷惑, 送りすぎると冷たくなる.
-  「会おう」に応じてくれたら, 会う約束 (date_promise) ができ, そのあいだのお出かけの誘いは断られない.
+  「会おう」に応じてくれたら, 会おうという話になる (date_promise. 半日のうちに約束を持ちかけると受けてもらいやすい).
+  日時と行き先を決めて会うのは約束 (core/appoint.py). 約束の誘いの返事も, この時間差で届く.
 - 電話 (出た・出なかった)・折り返し・相手からのメッセージ (働きかけ・オフライン中に届いたもの) も同じトークに並べる.
 """
 import random
@@ -51,6 +52,13 @@ LINES = {
     "chat.repaid": "📱『あ、確かに受け取りました。わざわざありがとうございます』",
     "chat.money_worry": "📱『……あの、{call}。お金のこと、大丈夫ですか？ 無理してないか、ちょっと心配で』",
     "chat.money_distrust": "📱『……{call}、お金のこと、ちゃんと考えてますか？ ……ちょっと気になってて』",
+    "chat.appoint_yes": "📱『{when}、{place}ですね。楽しみにしてます！』",
+    "chat.appoint_no": "📱『ごめんなさい、その日はちょっと……』",
+    "chat.appoint_busy": "📱『その時間は予定があって……ごめんなさい』",
+    "chat.appoint_invite": "📱『{call}、{when}、{place}に行きませんか？』",
+    "chat.appoint_cancel": "📱『ごめんなさい、ちょっと体調を崩しちゃって……今日の約束、また今度にしてもらえますか』",
+    "chat.appoint_sorry": "📱『今日は本当にごめんなさい……行けなくて』",
+    "chat.appoint_missed": "📱『……今日、どうしたんですか？ ずっと待ってたんですけど』",
 }
 SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "thanks": "お礼", "apology": "謝罪 (理由を知っている)",
                "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "雑談", "ask_how": "近況 ({news} に出来事)",
@@ -58,7 +66,11 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
                "stamp": "スタンプ", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
                "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
-               "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)"}
+               "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)",
+               "appoint_yes": "約束の誘い (応じた. {when} {place})", "appoint_no": "約束の誘い (断った)",
+               "appoint_busy": "約束の誘い (その時間は予定がある)", "appoint_invite": "相手から約束に誘う ({when} {place})",
+               "appoint_cancel": "約束の当日, 体調を崩してキャンセル", "appoint_sorry": "約束をすっぽかしたあとで謝る",
+               "appoint_missed": "あなたが約束をすっぽかした"}
 
 
 class Chat:
@@ -209,6 +221,8 @@ class Chat:
         return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": d["items"][-200:],
                 "seen_t": d["seen_t"], "waiting": bool(st.get("msg_pending")), "together": app.bonds.together(cid),
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
+                "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
+                "appoint_choices": app.appoint.choices(cid) if app.bonds.stage(cid) in ("contact", "visit") else [],
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()]}
 
     def unread_total(self):

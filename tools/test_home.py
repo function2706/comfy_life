@@ -84,7 +84,7 @@ def main():
             B.end()
             app.set_params({"mood": 70, "affection": 60, "trust": 55, "sleepiness": 0}, g)
             H.last_key = None
-            e = app.act("invite_home", g)["entry"]
+            e = app.act("invite_home", g, opts={"appointment": "test"})["entry"]
             e["home_key"] = H.last_key
             assert B.mode(g) == "guest" and app.state_view(g)["bond"]["label"] == "あなたの家に来ている", app.state_view(g)["bond"]
             return e

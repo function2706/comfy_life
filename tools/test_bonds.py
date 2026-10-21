@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
-fix_noon(engine)     # 時刻を昼に固定 (流す時刻に左右されないように)
+fix_noon(engine)
+APPT = {"appointment": "test"}      # 約束して会えたことにする (約束の流れは test_appoint.py)     # 時刻を昼に固定 (流す時刻に左右されないように)
 
 
 
@@ -40,7 +41,7 @@ def main():
         app.set_params({"affection": 40, "trust": 40, "mood": 60, "sleepiness": 0, "energy": 80, "health": 90})
         av = app.state_view()["available"]
         assert not av["talk"]["ok"] and not av["hug"]["ok"] and not av["cook"]["ok"], "離れていると話しかけ・ふれあいはできない"
-        assert av["message"]["ok"] and av["call"]["ok"] and av["cafe"]["ok"], "連絡と, お出かけに誘うことはできる"
+        assert av["message"]["ok"] and av["call"]["ok"] and not av["cafe"]["ok"], "連絡はできる. お出かけは約束してから"
         assert not av["visit_home"]["ok"] and not av["ask_visit"]["ok"]
         try:
             app.act("talk")
@@ -122,13 +123,15 @@ def main():
         assert r["entry"]["text"].startswith("📱") and r["entry"]["deltas"].get("loneliness", 0) < 0 and not r["job"], r
         print("apart approach: %d -> %d / 200, OK" % (len(few), len(many)))
 
-        # ---- 3. お出かけに誘う = 外で会う. 帰れば別れる
-        app.set_params({"affection": 20})
-        e = app.act("cafe")["entry"]
-        assert B.mode("hina") is None and "ちょっと" in e["text"], "好感度が低いと断られる"
+        # ---- 3. お出かけ = 外で会う (同居していない相手とは, 約束してから). 帰れば別れる
+        try:
+            app.act("cafe")
+            raise AssertionError("約束なしに, 離れている相手とお出かけできる")
+        except ValueError as e:
+            assert "約束" in str(e)
         app.set_params({"affection": 50})
         st["cooldowns"] = {}
-        app.act("cafe")
+        app.act("cafe", opts=APPT)
         assert B.mode("hina") == "meet" and app.state_view()["available"]["talk"]["ok"], "外で会っている間は話せる"
         app.act("go_home")
         assert B.mode("hina") is None, "家に帰ると別れる"
@@ -139,12 +142,12 @@ def main():
         app.set_params({"affection": 60, "trust": 60})
         app.act("ask_visit")
         assert B.stage("hina") == "visit"
-        app.act("visit_home")
+        app.act("visit_home", opts=APPT)
         assert B.mode("hina") == "visit" and app.state_view()["available"]["cook"]["ok"], "相手の家では家のこともできる"
         app.act("leave_visit")
         assert B.mode("hina") is None
         st["cooldowns"] = {}
-        app.act("visit_home")
+        app.act("visit_home", opts=APPT)
         B.rec()["with"]["until"] = time.time() - 1
         app.tick("hina")
         assert B.mode("hina") is None, "遊びに来ていた時間が過ぎたら帰る"
@@ -152,7 +155,7 @@ def main():
 
         # ---- 5. 一緒に住まない？ (一人だけ)
         st["cooldowns"] = {}
-        app.act("visit_home")
+        app.act("visit_home", opts=APPT)
         app.set_params({"affection": 85, "trust": 85, "mood": 70})
         app.act("ask_live")
         assert B.stage("hina") == "live" and B.mode("hina") == "home" and B.living() == "hina"
@@ -163,7 +166,7 @@ def main():
         sm["override"] = {"activity": "relax", "label": "くつろぎ", "location": "みおの部屋", "until": 9e12}
         app.set_params({"affection": 90, "trust": 90}, mio["id"])
         app.select_character(mio["id"])
-        app.act("visit_home", mio["id"])
+        app.act("visit_home", mio["id"], opts=APPT)
         assert B.mode(mio["id"]) == "visit" and B.mode("hina") is None, "みおの家にいる間, ひなとは離れている"
         assert not app.state_view(mio["id"])["available"]["ask_live"]["ok"], "同居は一人だけ"
         try:
@@ -223,7 +226,7 @@ def main():
         free()
         app.set_params({"mood": 70})
         st["cooldowns"] = {}
-        app.act("visit_home")
+        app.act("visit_home", opts=APPT)
         assert B.mode("hina") == "visit" and app.visit() is None, "遊びに来ている間は「おかえり」しない"
         e = app.act("go_work")["entry"]
         assert e["text"].startswith("（ひなと別れて") and B.mode("hina") is None, e["text"]

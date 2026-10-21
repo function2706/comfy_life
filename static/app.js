@@ -95,6 +95,7 @@ async function refresh() {
   for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
   if (S.view.gap) toast(S.view.gap.text, 'ok');
   if (S.view.street_auto) toast(S.view.street_auto.text.split('\n')[0], 'ok');
+  for (const m of S.view.appoint_events || []) toast(`📅 ${m}`, 'ok');
   for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   renderWho();
   renderAway();
@@ -1330,6 +1331,12 @@ async function drawChat() {
         h('div', { class: 'chat-meta' }, mine && it.read_t ? h('div', {}, '既読') : '', h('div', {}, hhmm(it.t)))));
     }
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
+    for (const x of th.appoints || []) {
+      body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when} ${x.place_label}「${x.do_label}」（${x.status_label}）`,
+        x.status === 'offered' ? h('span', {}, '　',
+          h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く'), ' ',
+          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る')) : ''));
+    }
     const can = !th.together;
     threadEl = h('div', { class: 'chat-thread' },
       h('div', { class: 'chat-head' },
@@ -1339,7 +1346,9 @@ async function drawChat() {
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
       h('div', { class: 'chat-body' }, body.length ? body : h('p', { class: 'muted small', style: 'text-align:center' }, 'まだやりとりはありません')),
       h('div', { class: 'chat-send' },
-        can ? th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`))
+        can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`)),
+          (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
+          S.apForm ? appointForm(th) : '']
           : h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。')));
     void lastMine;
   }
@@ -1350,6 +1359,43 @@ async function drawChat() {
   S.chatJump = false;
   clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
   if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(); }, 8000);
+}
+// 約束の誘い: 日時・行き先・何をするか
+function appointForm(th) {
+  const f = S.apForm;
+  const ch = th.appoint_choices || [];
+  f.place = ch.some((c) => c.place === f.place) ? f.place : (ch[0] || {}).place;
+  const cur = ch.find((c) => c.place === f.place) || { dos: [] };
+  f.do = cur.dos.some((d) => d.id === f.do) ? f.do : (cur.dos[0] || {}).id;
+  f.day = f.day ?? 1;
+  f.time = f.time || '13:00';
+  const days = Array.from({ length: 14 }, (_, i) => { const d = new Date(Date.now() + i * 86400000); return [i, i === 0 ? '今日' : i === 1 ? '明日' : `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`]; });
+  const times = []; for (let m = 7 * 60; m <= 22 * 60; m += 30) times.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  const sel = (key, opts) => h('select', { onchange: (ev) => { f[key] = key === 'day' ? +ev.target.value : ev.target.value; drawChat(); } },
+    opts.map(([v, l]) => h('option', { value: v, selected: String(f[key]) === String(v) }, l)));
+  const G = ((S.view || {}).outdoor || {}).groups || {};
+  return h('div', { class: 'appoint-form', style: 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center' },
+    sel('day', days), sel('time', times.map((t) => [t, t])),
+    sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}）`])),
+    sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
+    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, '誘う'),
+    h('span', { class: 'muted small' }, '返事は時間差で届きます。その時間に予定があれば断られます'));
+}
+async function proposeAppoint(cid) {
+  const f = S.apForm;
+  const d = new Date(Date.now() + f.day * 86400000);
+  const [hh, mm] = f.time.split(':').map(Number);
+  d.setHours(hh, mm, 0, 0);
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/appoint', { id: cid, t: d.getTime() / 1000, place: f.place, do: f.do }); S.apForm = null; S.chatJump = true; } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
+async function answerAppoint(id, yes) {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/appoint/answer', { id, yes }); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
 }
 async function sendChat(cid, kind) {
   if (S.busy) return;
@@ -1403,7 +1449,7 @@ function streetCard() {
 function renderStreet() {
   const box = $('#street-box');
   const away = !$('#away-overlay').hidden;
-  const card = away ? null : streetCard();
+  const card = away ? null : (streetCard() || appointCard());
   box.hidden = !card;
   if (card) box.replaceChildren(card);
   const sp = S.view.street_pending;
@@ -1430,6 +1476,21 @@ function chime() {
       o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.4);
     });
   } catch (e) { /* 音が出せない環境でも, 画面の知らせはある */ }
+}
+// 約束の時刻が近い: 会いに行く (相手が遅れていれば待つ)
+function appointCard() {
+  const due = (S.view.appoints || []).filter((x) => x.due || x.status === 'waiting');
+  if (!due.length) return null;
+  return h('div', { class: 'street-card calling' }, due.map((x) => h('div', {},
+    h('div', {}, x.status === 'waiting' ? `📍 ${x.place_label}で待っている（${x.name}はまだ来ていない）`
+      : `📅 ${x.when} ${x.place_label}で${x.name}と「${x.do_label}」の約束`),
+    x.status === 'waiting' ? '' : h('div', { class: 'row' }, h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, '会いに行く')))));
+}
+async function goAppoint(id) {
+  if (S.busy) return;
+  S.busy = true;
+  try { const r = await api('/api/appoint/go', { id }); if (r.text) toast(r.text, 'ok'); else handleActResult(r); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
 }
 // 立ち話のあと: そのまま一緒に過ごすか (相手から誘われた / こちらから誘える)
 function joinCard() {
@@ -1477,6 +1538,7 @@ function renderAway() {
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     streetCard() || '',
     joinCard() || '',
+    appointCard() || '',
     phonePanel(),
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),
@@ -2439,7 +2501,7 @@ SEC.personas = () => {
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
         fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
           parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
-          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）/ neat きれい好き（-10〜10。家の散らかりを気にする・片付いていると好印象を持ちやすい）/ carer 世話焼き（0〜1。散らかっていると片付けを手伝い出す）',
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）/ neat きれい好き（-10〜10。家の散らかりを気にする・片付いていると好印象を持ちやすい）/ carer 世話焼き（0〜1。散らかっていると片付けを手伝い出す） / punctual 時間を守る（0〜1。低いほど約束に遅れたり来なかったりする）',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、キャラクターの設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),

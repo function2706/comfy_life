@@ -88,18 +88,31 @@ def main():
         app.phase_at = night
         print("kinds x situations: OK")
 
-        # ---- 3. 会おう → 会う約束. そのあいだのお出かけの誘いは, 好感度が低めでも断られない
+        # ---- 3. 会おう → 会おうという話になる. そのあいだに約束を持ちかけると, 受けてもらいやすい
         for _ in range(10):
             if "会いましょう" in (send("invite", affection=50, mood=70) or ""):
                 break
-        assert st.get("date_promise", 0) > time.time() and any(x["who"] == "sys" and "約束" in x["text"] for x in C.thread(cid)["items"])
+        assert st.get("date_promise", 0) > time.time() and any(x["who"] == "sys" and "会おう" in x["text"] for x in C.thread(cid)["items"])
         assert C.thread(cid)["promise"]
-        app.set_params({"affection": 20}, cid)
-        st["cooldowns"] = {}
-        app.act("cafe")
-        assert B.mode(cid) == "meet" and "date_promise" not in st, "約束していたので, 会えた"
-        app.act("go_home")
-        print("invite -> promise: OK")
+        st["override"] = None
+        sched = app.scheduled_scene
+        app.scheduled_scene = lambda c, d: dict(sched(c, d), away=False, busy=False, asleep=False)
+        ok = 0
+        for i in range(8):
+            st.pop("msg_pending", None)
+            st["contacts"] = []
+            st["date_promise"] = time.time() + 3600
+            app.set_params({"affection": 45, "mood": 60}, cid)
+            x = app.appoint.propose(cid, time.time() + (i + 1) * 4 * 3600, "cafe", "cafe")
+            st["msg_pending"]["due"] = time.time() - 1
+            app.deliver_due()
+            if app.appoint.get(x["id"])["status"] == "set":
+                ok += 1
+                assert "date_promise" not in st
+        app.scheduled_scene = sched
+        assert ok >= 4, ok
+        st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "部屋", "until": time.time() + 9e6}
+        print("invite -> promise: OK", ok)
 
         # ---- 4. 電話・相手からのメッセージも同じトークに
         st["override"] = {"activity": "sleep", "label": "睡眠中", "location": "部屋", "until": time.time() + 9e6, "asleep": True}

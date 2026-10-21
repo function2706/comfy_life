@@ -77,7 +77,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 
 キャラの状態 (`state/<cid>.json`) の主な項目: `params`・`override`（一時的な過ごし方）・`dress`・`cooldowns`・`last_interaction`・`money.a`・`events`・`reasons`（機嫌の理由）・`request`（おねだり）・`approach` / `ap_last`（働きかけ）・`gain_day` / `touch_days` / `last_touch` / `gifts`（現実的な深まり方）・`contacts`（連絡の回数）・`msg_pending`（返信の予定. 一つだけ）・`date_promise`（会う約束）・`peek_until`（電話中だけ様子が見える）・`jealous`・`lent`（あなたに貸したお金）。
 
-あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）。
+あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`appoints`（約束）・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）。
 
 ## 4. 主要な概念
 
@@ -100,6 +100,9 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 
 ### 偶然の出会い・顔なじみ・段階的な知り合い
 外出中, 心拍のたびに `outdoor.live` が起きやすさ（行動 × 行き先の人の多さ × 天気. 補正なし）で判定し, 中身は `street.happen`。人ごとに「よく行く場所と時間帯」（`haunts_of`, 名前と外見から決まる）があり, 同じ場所・時間帯に通えば同じ人にまた会いやすい。未登録の人は `people.json` で「まだ知らない → 見かけた → 会釈 → 立ち話 → 知り合い」と進み（こちらの反応 × 相手の caution × 偶然）, 知り合いになると登録（連絡先の交換）を尋ねる。仕事中は同僚だけ。返事をしないまま時間が過ぎると, 無難に会釈して流したことになる。
+
+### 約束（アポ）
+同居していない相手とは, 約束してから会う（`core/appoint.py`。約束なしのお出かけ・訪問・招待はできない）。こちらから日時 × 行き先 × 何をするかで誘い（返事は時間差. その時間の相手の予定・仲・機嫌・慎重さしだい）, 相手からも誘われる（仲・寂しさ・性格しだい, 補正なし）。当日の相手の側（すっぽかし・遅刻）は約束したときに決まっていて見えない（性格の `punctual`・仲）。体調不良のキャンセルは当日の健康しだい。あなたが行かなければ（画面を閉じていても）すっぽかしになる。画面を開いている間も会いに行くのは手動（行動パターンには沿わない）。記録は `player.json` の `appoints`。統一モデルでいえば「共有する未来の Activity」の最初の形（手順 4 の一部）。
 
 ### 出先での合流・互いの家
 一人で出かけて連絡先の相手と立ち話をしたら, そのまま一緒に過ごす話になることがある（相手から誘う / こちらから誘う。どちらも仲・機嫌・寂しさ・性格しだいで, 断られることも. 補正なし）。合流したら一人の外出はそこまでで, 相手は同じ行き先の一時シーン（`with.mode = meet`）。外で会っている家に行ける仲の相手とは, 互いの家へ（`bring_home` / `go_her_home`）。相手の家では暮らしぶり（`places.home_glimpse`）が, あなたの家では家の様子への反応（`home.on_guest`）がある。
@@ -187,7 +190,6 @@ Activity = {
 | 残件 | 中身 | 統一モデルとの関係 |
 |---|---|---|
 | 「外にいる」の一本化 | 行き先の表は 1 つにした（`core/places.py`）。「外にいる」の表し方（あなたの out / work, お出かけの `override.outing`, `with.mode = meet`, スケジュールの `away`）はまだ別々 | 移行手順 2〜3 |
-| 約束（アポ制のお出かけ） | いまは「会おう」に応じると半日だけ誘いが断られない（`date_promise`）。日時と行き先を決めて会う約束にし, すっぽかし・遅刻・相手の都合での延期も起きる | 共有する未来の Activity（手順 4） |
 
 ## 8. 開発の手順
 

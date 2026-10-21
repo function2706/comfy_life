@@ -28,6 +28,7 @@ from . import items as items_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
+from . import appoint as appoint_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -123,6 +124,7 @@ class App:
         self.chat = chat_mod.Chat(self)
         self.home = home_mod.Home(self)
         self.places = places_mod.Places(self)
+        self.appoint = appoint_mod.Appoint(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -597,7 +599,7 @@ class App:
             cd = float(a.get("cooldown", 0)) * 60
             last = max(st["cooldowns"].get(a["id"], [0]) or [0])
             out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"])
-                            and (not ctx["apart"] or self.bonds.allowed_apart(a, char["id"])),
+                            and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"]))),
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
 
@@ -623,7 +625,10 @@ class App:
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
-            when = "asleep=false, away=false" if gift_item else self._when(a, ctx)     # 持ち物を渡すなら, 所持金の条件はいらない
+            appt = opts.get("appointment")          # 約束して会えた (条件は約束したときに済んでいる)
+            when = "asleep=false, away=false" if gift_item else "" if appt else self._when(a, ctx)     # 持ち物を渡すなら, 所持金の条件はいらない
+            if not appt and ctx["apart"] and not opts.get("deliver") and self.appoint.needs(a, cid):
+                raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
             if not cond.check(when, ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
             if a.get("home_only") and ctx["outing"]:
@@ -641,7 +646,7 @@ class App:
                     return missed
                 called = True
                 st["peek_until"] = now + 600        # 電話のあいだ, 相手がいまどこで何をしているかは少しわかる
-            if apart and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
+            if apart and not appt and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
                 if self.bonds.stage(cid) == "known":
                     raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
                 raise ValueError("いまは%sと一緒にいません（連絡するか、会いに行きましょう）" % char.get("name", ""))
@@ -679,7 +684,7 @@ class App:
             r = self.pick_reaction(a, ctx)
             invite = apart and (a.get("override") or {}).get("outing")
             promised = st.get("date_promise", 0) > now          # メッセージで「会おう」に応じてくれていた
-            if invite and not promised and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
+            if invite and not appt and not promised and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
                 r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
             mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
             # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
@@ -961,7 +966,10 @@ class App:
         kind = pend["kind"]
         with self.lock:
             ctx = self.context(char, st, dt)
-            key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
+            if kind == "appoint":               # 約束の誘いへの返事
+                key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
+            else:
+                key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
             self.bonds.touch(st, now)
             st["last_interaction"] = now
@@ -973,7 +981,9 @@ class App:
             if key not in ("too_often", "late_night"):
                 self.picked_up_phone(char, st, now)
             if key == "invite_yes":
-                self.chat.add(cid, "sys", "📅 会う約束をした（半日のうちにお出かけに誘えば、会えます）", kind="promise", t=now + 0.001)
+                self.chat.add(cid, "sys", "📅 会おうという話になった（半日のうちに約束すれば、応じてもらいやすい）", kind="promise", t=now + 0.001)
+            if key == "appoint_yes":
+                self.chat.add(cid, "sys", "📅 約束した: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)
             act = {"id": "_chat", "name": "返信", "icon": "📱",
                    "pos": "selfie, holding smartphone, looking at viewer, upper body, smile" if selfie else "", "neg": ""}
@@ -1508,6 +1518,7 @@ class App:
     # ------------------------------------------------------------------ views
     def state_view(self, cid=None, beat=False, idle=None):
         replies = self.deliver_due()
+        appoint_events = self.appoint.live()            # 約束 (キャンセル・遅れて来た・すっぽかし・相手からの誘い)
         # 画面を閉じていた (心拍が途絶えた) なら, 外出はその時点で終わっていた: 家で静かに過ごしていた
         gap = self.outdoor.check_gap() if beat else None
         with self.lock:
@@ -1552,6 +1563,7 @@ class App:
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
+                "appoints": self.appoint.view(), "appoint_events": appoint_events,
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),

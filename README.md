@@ -128,7 +128,7 @@ python server.py --port 9000 --no-browser
 
 `core/bonds.py`。新しく作ったワールドでは誰とも暮らしていない。キャラの定義全員（`data/characters/`）から、くじで「連絡先」「知り合い（known: 連絡・誘い不可、偶然会って話すと連絡先を交換することがある。確率は `bonds.exchange_chance`: あなたの会話スキル・相手の機嫌と好感度・性格の caution で 5〜85%）」「まだ知らない（そのワールドには入らず、出会いの候補）」を決める（`encounters.start_contact` / `start_known`、最低一人は連絡先。worlds.json の `start_bonds`）。状態・ログ・関係は一から（最初のワールドは選んでいたキャラと同居）。間柄といまの居場所は `player.json` の `bonds` / `with`。
 
-- 一緒にいない相手には「連絡」「会う」「あなたの予定」と、お出かけへの誘い（`home_only` で一時シーンが外出のもの）だけ。個別にはコマンドの `"apart": true/false`。条件キー `stage` `apart` `with_mode` `living_other` `rivals` `rivals_known`。
+- 一緒にいない相手には「連絡」「会う」「あなたの予定」だけ。同居していない相手とのお出かけ・訪問・招待は、約束してから（`appoint.needs`。下の「約束」）。個別にはコマンドの `"apart": true/false`。条件キー `stage` `apart` `with_mode` `living_other` `rivals` `rivals_known`。
 - 誘いに応じてくれたら外で会う（お出かけの一時シーンが終われば別れる）。「家に遊びに行く」は `visit_hours` 時間で帰る。
 - コマンドの `"bond"`: `to_visit`（家に行ってもいい？）/ `to_live`（一緒に住まない？。同居は一人だけ）/ `end_live` / `visit_start` / `visit_end`。断る反応（置き換え）なら変わらない。
 - 一緒にいない相手からの働きかけは、`approaches.json` の `"apart": true` のものだけ（📱 メッセージ、画像なし。一緒のときは逆に出ない）。来やすさは `presence.approach_apart_rate_per_hour` × 寂しさ・好感度・機嫌。あなたが外出中・仕事中でも届く。画面で選んでいる相手に限らず、連絡先を知っている離れた相手なら誰からでも届く。メッセージを送れば、それが返事になる。
@@ -177,12 +177,22 @@ python server.py --port 9000 --no-browser
 - 同居相手（`Home.live_check`、同居相手と家で交流したとき、20 時間に一度・35%）: 片付いていれば `home.live_clean`、散らかっていれば `home.live_messy`（機嫌の理由）か `home.live_messy_help`（片付けてくれる）。
 - セリフは `home.LINES`（共通）と性格プリセットの `home.<場面>`（7 場面 × 23 性格）。表示は `state_view.home`（目安・ことば）、トップバーの 🏠 の札から「家の様子」。
 
+### 約束（アポ）
+
+`core/appoint.py`。同居していない相手とは、約束してから会う（約束なしのお出かけ・訪問・招待は `act` で断る。同居相手はいらない）。記録は `player.json` の `appoints`。
+
+- こちらから: トークの「📅 約束する」（`POST /api/appoint {id, t, place, do}`。日時は 30 分後〜2 週間先、行き先は表から、何をするかはその行き先でできるお出かけのコマンド。家に行ける仲なら相手の家 `visit_home` / あなたの家 `invite_home`）。時間帯の条件（`phase`）だけはその時刻で確かめる。返事は `msg_pending` の kind `appoint` で時間差（スマホを見ていればすぐのことも）。受けるかは `Appoint.reply`: その時間の相手の予定（`scheduled_scene` が外出・手が離せない・寝ているなら多くは断る `chat.appoint_busy`）、好感度・機嫌・慎重さ・家に行ける仲・`date_promise`・連絡しすぎ（`chat.appoint_yes` / `appoint_no`）。
+- 相手から: 離れている連絡先の相手（好感度 45 以上）が、ときどき誘ってくる（`_maybe_invite`: 好感度・寂しさ × 性格の `approach`。1〜5 日先、相手の予定が空いている時間。`chat.appoint_invite`）。トークで「行く」「断る」（`POST /api/appoint/answer {id, yes}`）。丸一日返事をしなければ流れる（少し寂しがる）。
+- 相手の側の当日は、約束したときに決まる（`_plan`、画面には出さない）: すっぽかし（仲が浅いほど・`traits.punctual` が低いほど）、遅刻（`punctual` しだいで 5〜60 分）。体調不良のキャンセルは 3 時間前ごろに健康しだい（`chat.appoint_cancel`）。
+- 当日: 約束の 15 分前から 45 分後まで「会いに行く」（`POST /api/appoint/go {id}`。外出中ならそこから向かう）。来れば約束したコマンドを `act(do, opts={appointment})` で実行（条件は約束のときに済んでいるので見ない。`bonds.realize` は通る）。遅れて来るなら約束の場所で待つ（`waiting`、来たら合流）。来なければ待ちぼうけ（`stood_up`、あとで謝りのメッセージ `chat.appoint_sorry` が来ることも）。あなたが 10 分以上遅れると少し機嫌を損ねる。45 分たっても行かなければ（画面を閉じていても）すっぽかし（`missed`: 機嫌・信頼・好感度が下がり、機嫌の理由と `chat.appoint_missed`）。画面を開いたまま放置していても、行動パターンでは会いに行かない。
+- 表示: `state_view.appoints`（約束の一覧と、いま会いに行けるか `due`）・`appoint_events`（キャンセル・誘い・すっぽかし）、トークの `appoints` / `appoint_choices`。
+
 ### メッセージ（トーク）
 
 `core/chat.py`。相手ごとのトーク（`W/chats/<cid>.json`: `seen_t` と `items[{t, who: me/her/sys, kind, text, read_t}]`）。
 
 - 送る種類 `KINDS`（おはよう・おやすみ・ありがとう・ごめんね・雑談・最近どう？・相談・からかう・甘える・会おうよ・写真・スタンプ）。`POST /api/chat/send {id, kind}` → `act("message", opts.msg_kind)` → `_send_later`（トークに要約、`msg_pending.kind`）。
-- 返信は `deliver_due` → `_chat_reply` → `chat.reply`（種類 × 状況: 連絡しすぎ・夜中・理由の有無・仲の深さ・機嫌）。既読（`read_t`）、来ないとき既読だけ。「会おう」に応じると `date_promise`（半日、お出かけの誘いが断られない）。セリフは性格プリセットの `chat.<場面>`（18 場面 × 23 性格、`chat.LINES` が共通）。
+- 返信は `deliver_due` → `_chat_reply` → `chat.reply`（種類 × 状況: 連絡しすぎ・夜中・理由の有無・仲の深さ・機嫌）。既読（`read_t`）、来ないとき既読だけ。「会おう」に応じると `date_promise`（半日のうちに約束を持ちかけると受けてもらいやすい）。セリフは性格プリセットの `chat.<場面>`（18 場面 × 23 性格、`chat.LINES` が共通）。
 - 電話（出た・出なかった・折り返し）、相手からの働きかけ（`"apart": true`、オフライン中も）、それへの返事もトークに並ぶ。
 - API: `GET /api/chats`（一覧・未読）、`GET /api/chat?id=`（トーク）、`POST /api/chat/seen {id}`、`state_view.chat_unread`。
 
@@ -392,7 +402,8 @@ tools/test_street.py  出先でのばったり（顔なじみ・段階的に知�
 tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記）のテスト
 tools/test_join.py  出先での合流（誘う・誘われる・断られる）と互いの家へ（暮らしぶり・家の様子）のテスト
 tools/test_places.py  行き先の表（家・店ごとの品ぞろえ・外出で決まること・約束なしの訪問・お出かけの行き先・行動パターンの移行）のテスト
-tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会う約束・電話や相手からのメッセージ）のテスト
+tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会おう・電話や相手からのメッセージ・すぐの返信）のテスト
+tools/test_appoint.py  約束（決まりごと・誘う・誘われる・当日の来る/遅れる/来ない・体調不良のキャンセル・すっぽかし・家）のテスト
 tools/test_routine.py  あなたの行動パターン（曜日ごとの流れ・予定どおりにいかないこと・時系列のまとめ・以前の設定の読み替え）のテスト
 tools/test_home.py  家の様子（たまる・家事で片付く・一人暮らしで作業なし・招いた相手と同居相手の反応）のテスト
 tools/test_items.py  持ち物・買うものリスト・家での行動・プレゼントのテスト

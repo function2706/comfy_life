@@ -111,6 +111,12 @@ def route(method, path, q, body):
             return a.offline.ack()
         if path == "/api/street":
             return a.street.answer(b["choice"])
+        if path == "/api/appoint":
+            return a.appoint.propose(b["id"], b["t"], b["place"], b["do"])
+        if path == "/api/appoint/answer":
+            return a.appoint.answer(b["id"], bool(b.get("yes")))
+        if path == "/api/appoint/go":
+            return a.appoint.go(b["id"])
         if path == "/api/street/join":
             return a.street.join(bool(b.get("yes")))
         if path == "/api/encounter/force":

@@ -31,7 +31,8 @@
   "gift": 0.85,
   "money": -15,
   "neat": 0,
-  "carer": 0.5
+  "carer": 0.5,
+  "punctual": 0.8
  },
  "lines": {
   "look.free_true": [
