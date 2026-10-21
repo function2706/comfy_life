@@ -1,4 +1,4 @@
-"""外出 (一人の散歩・買い物・外出, 誰かとのお出かけ, 仕事) と, 天気・行き先.
+"""外出 (一人の外出, 誰かとのお出かけ, 仕事) と, 天気. 行き先の表は core/places.py (ここは読み替えて使うだけ).
 
 - 外出は画面を開いている間だけ続く. 心拍が途絶えたら, 最後の心拍の時点で外出は終わり, 家に帰って静かに過ごしていた扱い
   (誰にも会わない. 仕事の給料も最後の心拍まで). 開き直しても「おかえり」の場面にはしない.
@@ -12,35 +12,17 @@ import random
 import time
 from datetime import datetime
 
+from . import places as places_mod
 from . import store
 
-# 行き先: 人の多さ (時間帯ごと), 屋外か, ひとこと
-PLACES = {
-    "park": {"label": "公園", "icon": "🌳", "outdoor": True,
-             "crowd": {"dawn": 0.3, "morning": 1.0, "noon": 1.2, "evening": 1.0, "night": 0.3, "midnight": 0.05}},
-    "shopping_street": {"label": "商店街", "icon": "🏮", "outdoor": True,
-                        "crowd": {"dawn": 0.05, "morning": 0.6, "noon": 1.5, "evening": 1.4, "night": 0.4, "midnight": 0.02}},
-    "riverside": {"label": "河川敷", "icon": "🌊", "outdoor": True,
-                  "crowd": {"dawn": 0.4, "morning": 0.7, "noon": 0.6, "evening": 0.8, "night": 0.15, "midnight": 0.02}},
-    "station": {"label": "駅前", "icon": "🚉", "outdoor": False,
-                "crowd": {"dawn": 0.2, "morning": 1.3, "noon": 1.0, "evening": 1.5, "night": 0.8, "midnight": 0.1}},
-    "cafe": {"label": "カフェ", "icon": "☕", "outdoor": False,
-             "crowd": {"dawn": 0.0, "morning": 0.8, "noon": 1.2, "evening": 0.9, "night": 0.4, "midnight": 0.0}},
-    "mall": {"label": "ショッピングモール", "icon": "🏬", "outdoor": False,
-             "crowd": {"dawn": 0.0, "morning": 0.5, "noon": 1.4, "evening": 1.2, "night": 0.5, "midnight": 0.0}},
-    "town": {"label": "街", "icon": "🏙", "outdoor": True,
-             "crowd": {"dawn": 0.1, "morning": 0.8, "noon": 1.1, "evening": 1.1, "night": 0.5, "midnight": 0.05}},
-    "office": {"label": "職場", "icon": "💼", "outdoor": False,
-               "crowd": {"dawn": 0.2, "morning": 1.0, "noon": 1.0, "evening": 0.8, "night": 0.4, "midnight": 0.1}},
-}
-# 一人の外出で選べる行き先
-CHOICES = {"walk": ["park", "riverside", "shopping_street", "station"],
-           "shopping": ["shopping_street", "mall", "station"],
-           "cafe": ["cafe"],
-           "out": ["park", "riverside", "shopping_street", "station", "cafe", "mall"]}     # out: 以前の「出かける」(互換)
-# 誰かとのお出かけ (一時シーンの場所) → 行き先
-LOCATION_PLACE = {"公園": "park", "商店街": "shopping_street", "河川敷": "riverside", "駅前": "station", "カフェ": "cafe",
-                  "ショッピングモール": "mall", "モール": "mall", "街": "town"}
+# 行き先の表 (core/places.py) を, 以前の名前でも引けるように
+PLACES = places_mod.PLACES
+LOCATION_PLACE = places_mod.LOCATION_PLACE
+# 一人の外出で選べる行き先. 以前の「散歩・買い物・カフェ」(walk / shopping / cafe) の選択肢も, 読み替えのために残す
+CHOICES = {"out": list(places_mod.OUT_PLACES),
+           "walk": [k for k in places_mod.OUT_PLACES if places_mod.main_do(k) == "walk"],
+           "shopping": [k for k in places_mod.OUT_PLACES if "shop" in PLACES[k]["does"]],
+           "cafe": ["cafe"]}
 WEATHER = {"sunny": ("晴れ", "☀", 1.0, 1.0), "cloudy": ("くもり", "☁", 0.9, 1.0), "rain": ("雨", "☔", 0.35, 0.85),
            "snow": ("雪", "❄", 0.3, 0.8)}      # (名前, 印, 屋外の人の多さ, 屋内の人の多さ)
 SEASON_WEATHER = {"spring": (("sunny", 0.5), ("cloudy", 0.3), ("rain", 0.2)),
@@ -85,7 +67,8 @@ class Outdoor:
         app = self.app
         p = app.presence.rec()
         if p.get("mode") == "out":
-            return {"kind": "out", "place": p.get("place") or "town", "with": None}
+            pl = p.get("place") or "town"
+            return {"kind": "out", "place": pl if pl in PLACES else "town", "with": None}
         if p.get("mode") == "work":
             return {"kind": "work", "place": "office", "with": None}
         now = now or time.time()
@@ -94,7 +77,8 @@ class Outdoor:
                 continue
             ov = app.state(cid).get("override") or {}
             if ov.get("outing") and ov.get("until", 0) > now:
-                return {"kind": "outing", "place": LOCATION_PLACE.get(ov.get("location") or "", "town"), "with": cid}
+                pl = ov.get("place") if ov.get("place") in PLACES else places_mod.from_location(ov.get("location"))
+                return {"kind": "outing", "place": pl, "with": cid}
         return None
 
     def rate(self, cur, dt):
@@ -109,8 +93,10 @@ class Outdoor:
         now = now or time.time()
         dt = datetime.fromtimestamp(now)
         cur = self.current(now)
-        out = {"weather": weather(dt), "places": {k: {"label": v["label"], "icon": v["icon"]} for k, v in PLACES.items()},
-               "choices": CHOICES, "current": None}
+        pv = self.app.places.view()
+        ch = dict(CHOICES, out=self.app.places.out_choices())
+        out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
+               "choices": ch, "routine_choices": list(places_mod.OUT_PLACES), "current": None}
         if cur:
             pl = PLACES.get(cur["place"]) or PLACES["town"]
             out["current"] = dict(cur, label=pl["label"], icon=pl["icon"],

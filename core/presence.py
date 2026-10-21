@@ -123,11 +123,14 @@ class Presence:
         m = self.at(now)
         out = {"mode": p["mode"], "state": m, "label": MODE_LABEL.get(m, m), "since": p.get("since")}
         sl = p.get("solo") if p["mode"] in ("busy", "out") else None
-        if sl:      # 一人の時間 (休む・家事・研鑽・散歩・買い物)
-            from .solo import KINDS
-            k = KINDS.get(sl["kind"]) or {}
-            out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": k.get("doing", ""), "icon": k.get("icon", "")}
-            out["label"] = k.get("doing", out["label"])
+        if sl:      # 一人の時間 (休む・家事・研鑽・外出)
+            from .solo import ALL_KINDS
+            k = ALL_KINDS.get(sl["kind"]) or {}
+            doing = k.get("doing", "")
+            if p["mode"] == "out" and p.get("place"):
+                doing = "%s（%s）" % (doing, self.app.places.label(p["place"]))
+            out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": doing, "icon": k.get("icon", "")}
+            out["label"] = doing or out["label"]
         if p["mode"] == "work":
             pay, h, raw = self.app.life.work_pay(p.get("since", now), now)
             out["work"] = {"hours": round(h, 2), "raw": round(raw, 2), "pay": pay}

@@ -1741,7 +1741,8 @@
   "override": {
    "activity": "walk",
    "label": "散歩中",
-   "location": "近所",
+   "location": "公園",
+   "place": "park",
    "minutes": 40,
    "outfit": "@outing",
    "pos": "outdoors, walking, street, trees, scenery",
@@ -1777,7 +1778,14 @@
   ],
   "reason_good": "{call}と散歩した",
   "home_only": true,
-  "with_player": true
+  "with_player": true,
+  "places": [
+   "park",
+   "riverside",
+   "shopping_street",
+   "town",
+   "hill"
+  ]
  },
  {
   "id": "shopping",
@@ -1797,6 +1805,7 @@
    "activity": "shopping",
    "label": "買い物中",
    "location": "商店街",
+   "place": "shopping_street",
    "minutes": 90,
    "outfit": "@outing",
    "pos": "shopping district, storefront, outdoors",
@@ -1826,7 +1835,17 @@
   "cost": 3000,
   "reason_good": "{call}と買い物に行った",
   "home_only": true,
-  "with_player": true
+  "with_player": true,
+  "places": [
+   "shopping_street",
+   "mall",
+   "supermarket",
+   "station",
+   "drugstore",
+   "bookstore",
+   "electronics",
+   "convenience"
+  ]
  },
  {
   "id": "date",
@@ -1847,6 +1866,7 @@
    "activity": "date",
    "label": "デート中",
    "location": "街",
+   "place": "town",
    "minutes": 180,
    "outfit": "stylish outfit, one-piece dress, handbag",
    "pos": "city, cafe, outdoors",
@@ -1891,7 +1911,13 @@
   "cost": 8000,
   "reason_good": "{call}とデートした",
   "home_only": true,
-  "with_player": true
+  "with_player": true,
+  "places": [
+   "town",
+   "mall",
+   "shopping_street",
+   "station"
+  ]
  },
  {
   "id": "picnic",
@@ -1912,6 +1938,7 @@
    "activity": "picnic",
    "label": "ピクニック中",
    "location": "公園",
+   "place": "park",
    "minutes": 150,
    "outing": true,
    "outfit": "@outing",
@@ -1955,7 +1982,12 @@
   "cost": 1000,
   "reason_good": "{call}とピクニックに行った",
   "home_only": true,
-  "with_player": true
+  "with_player": true,
+  "places": [
+   "park",
+   "riverside",
+   "hill"
+  ]
  },
  {
   "id": "hiking",
@@ -1976,7 +2008,8 @@
   "override": {
    "activity": "hiking",
    "label": "ハイキング中",
-   "location": "山道",
+   "location": "山",
+   "place": "mountain",
    "minutes": 240,
    "outing": true,
    "outfit": "hiking outfit, backpack, cap, sneakers",
@@ -2042,7 +2075,8 @@
   "override": {
    "activity": "beach",
    "label": "海でのんびり中",
-   "location": "海辺",
+   "location": "海",
+   "place": "beach",
    "minutes": 180,
    "outing": true,
    "outfit": "@outing",
@@ -2107,6 +2141,7 @@
    "activity": "amusement",
    "label": "遊園地で遊び中",
    "location": "遊園地",
+   "place": "amusement",
    "minutes": 240,
    "outing": true,
    "outfit": "@outing",
@@ -2164,6 +2199,7 @@
    "activity": "aquarium",
    "label": "水族館を見学中",
    "location": "水族館",
+   "place": "aquarium",
    "minutes": 150,
    "outing": true,
    "outfit": "@outing",
@@ -2219,6 +2255,7 @@
    "activity": "cafe",
    "label": "カフェでひと休み中",
    "location": "カフェ",
+   "place": "cafe",
    "minutes": 90,
    "outing": true,
    "outfit": "@outing",
@@ -2277,7 +2314,8 @@
   "override": {
    "activity": "stargazing",
    "label": "星を見ている",
-   "location": "丘の上",
+   "location": "星空の見える丘",
+   "place": "hill",
    "minutes": 60,
    "outing": true,
    "outfit": "@outing",

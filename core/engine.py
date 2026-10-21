@@ -27,6 +27,7 @@ from . import offline as offline_mod
 from . import items as items_mod
 from . import chat as chat_mod
 from . import home as home_mod
+from . import places as places_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, store
 from . import keys as keys_mod
@@ -121,6 +122,7 @@ class App:
         self.items = items_mod.Items(self)
         self.chat = chat_mod.Chat(self)
         self.home = home_mod.Home(self)
+        self.places = places_mod.Places(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
         self._load_index()
@@ -727,6 +729,11 @@ class App:
                 ov = dict(a["override"])
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
                 ov["from_action"] = aid
+                if ov.get("outing"):        # お出かけの行き先 (表の id). 選べるものは places から
+                    pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ov.get("place")
+                    pl = pl if pl in places_mod.PLACES else places_mod.from_location(ov.get("location"))
+                    ov["place"] = pl
+                    ov["location"] = places_mod.PLACES[pl]["label"]
                 st["override"] = ov
             if a.get("end_override") and not r.get("override"):
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
@@ -1163,6 +1170,66 @@ class App:
             e["same_prompt"] = len(have)
             self.save_log(char["id"])
             return {"entry": e}
+
+    def drop_in(self, cid, now=None):
+        """外出の行き先として, 約束なしに相手 (家に行ける仲) の家を訪ねる. 在宅か (本人の予定)・出てくるか・迎えてくれるか
+        (仲・機嫌・性格・時間帯・手が離せないか) しだい. 迎えてくれたら相手の家で過ごす (visit). 留守・断られたら, そのまま外にいる."""
+        now = now or time.time()
+        with self.lock:
+            char = self.char(cid)
+            cid = char["id"]
+            if self.bonds.stage(cid) != "visit":
+                raise ValueError("%sの家は知りません（家に行ける仲になってから）" % char.get("name", ""))
+            p = self.presence.rec()
+            if p.get("mode") not in ("none",) and self.presence.at(now) not in ("here", "idle"):
+                raise ValueError("いまは出かけられません（%s）" % self.presence.view(now)["label"])
+            self.tick(cid, now)
+            st = self.state(cid)
+            dt = datetime.fromtimestamp(now)
+            scene = self.scene_at(char, st, dt)
+            ctx = self.context(char, st, dt, scene, view=False)        # 本人がいまどうしているか
+            name = char.get("name", "")
+            p = st["params"]
+            key, eff = None, {}
+            if scene["away"] or ctx["outing"]:
+                text = "（%sの家を訪ねたが、留守のようだった）" % name
+            elif scene["asleep"]:
+                text = "（%sの家のインターホンを鳴らしたが、出てこなかった。寝ているのかもしれない）" % name
+            elif scene["busy"] and random.random() < 0.6:
+                text = "（%sの家のインターホンを鳴らしたが、出てこなかった）" % name
+            else:
+                ph = ctx.get("phase")
+                pw = 0.35 + (p.get("affection", 50) - 50) / 100.0 + (p.get("trust", 50) - 50) / 150.0 \
+                    + (p.get("mood", 50) - 50) / 150.0 - float(self.traits(char).get("caution", 0)) / 40.0 \
+                    - (0.3 if ph in ("night", "midnight", "dawn") else 0.0) - (0.2 if scene["busy"] else 0.0)
+                if random.random() < max(0.05, min(0.9, pw)):
+                    key, eff = "drop.yes", {"loneliness": -8, "mood": 2, "affection": 1}
+                else:
+                    key, eff = "drop.no", {"mood": -2, "trust": -1}
+                text = self.persona_text(char, key) or places_mod.LINES[key]
+            if key:
+                eff, _ = self.bonds.realize(char, st, eff, "_drop_in", now)
+                self.bonds.touch(st, now)
+                st["last_interaction"] = now
+            deltas = self.apply_effects(st, self.trait_effects(char, eff)) if eff else {}
+            if key == "drop.no":
+                self.life.add_reason(st, "player", "bad", "%sが約束もなしに家に来た" % self.pronouns(char)[2], now, told=True,
+                                     delta=deltas.get("mood", 0), action="_drop_in")
+            e = self.note_entry(char, st, now, "_drop_in", "家を訪ねた", "🚪", text, deltas)
+            self.save_state(cid)
+            if key == "drop.yes":               # 迎えてくれた: 相手の家で過ごす
+                self.bonds.start(cid, "visit", now)
+                self.presence.touch(now)
+                self.solo.note("visit", "%sの家を訪ねた" % name, now)
+                return {"started": "visit", "label": "%sの家" % name, "act": {"entry": e, "job": None, "llm_error": None}}
+            # 留守・出てこない・断られた: そのまま外にいる (近くをぶらぶら. 戻ると外出の結果)
+            self.presence.declare("out", now)
+            pr = self.presence.rec()
+            pr["solo"] = {"kind": "out", "skill": None, "t": now}
+            pr["place"] = "town"
+            self.presence.save()
+            self.solo.note("out", text.strip("（）"), now)
+            return {"started": "out", "label": "外出中", "act": {"entry": e, "job": None, "llm_error": None}, "text": text}
 
     def note_entry(self, char, st, now, aid, name, icon, text, deltas=None):
         """画像を作らない記録 (お金のこと・家のことなど, そばで言われたひとこと). 記録を返す."""

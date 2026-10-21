@@ -232,8 +232,13 @@ function cmdButton(a) {
   const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
     '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
     st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
-  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: tip, onclick: () => (a.id === 'side_job' ? openTask() : a.id === 'message' && S.view.bond && !S.view.bond.mode ? openChat(S.view.character) : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
+  const od = (S.view.outdoor || {}).places || {};
+  const pl = a.override && a.override.outing && a.override.place ? od[a.override.place] : null;    // お出かけの行き先 (表から)
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: [tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
+    onclick: () => (a.id === 'side_job' ? openTask() : a.id === 'message' && S.view.bond && !S.view.bond.mode ? openChat(S.view.character) : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
+      : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
+    pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.label) : null,
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
 
@@ -273,13 +278,41 @@ function renderSolo(soloActs) {
         h('span', { class: 'ic' }, p.icon), h('span', {}, p.label))),
       ...soloActs.filter((a) => !isPlainGo(a)).map(cmdButton)),
     S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
-      h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（人の多さは時間帯と天気しだい）'),
-      OD_CHOICES()[S.placeFor].map((pl) => { const P = (S.view.outdoor.places || {})[pl] || {}; return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }); })) : null,
+      h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（行き先しだいで、することが決まります。人の多さは時間帯と天気しだい）'),
+      ...placeGroups(OD_CHOICES()[S.placeFor], (pl) => { const P = (S.view.outdoor.places || {})[pl] || {}; return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); },
+        placeTip(pl)); })) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
 }
 
 const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) || {};
+// 行き先を分類 (近所・お店・遊びに・家) ごとに並べる
+function placeGroups(ids, mk) {
+  const od = (S.view || {}).outdoor || {};
+  const P = od.places || {}, G = od.groups || {};
+  const by = {};
+  for (const id of ids) (by[(P[id] || {}).group || 'near'] = by[(P[id] || {}).group || 'near'] || []).push(id);
+  return Object.keys(G).filter((g) => by[g]).flatMap((g) => [h('div', { class: 'muted small', style: 'grid-column:1/-1;margin-top:2px' }, G[g]), ...by[g].map(mk)]);
+}
+function placeTip(id) {
+  const od = (S.view || {}).outdoor || {};
+  const p = (od.places || {})[id] || {};
+  return (p.does || []).map((d) => (od.does || {})[d] || d).join('・') || '';
+}
+// 行き先を選べるお出かけ (散歩・買い物・デートなど): 表の行き先から選んで誘う
+function pickPlace(a) {
+  const od = (S.view || {}).outdoor || {};
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { style: 'padding:14px' },
+    h('div', { class: 'row' }, h('b', {}, `${a.icon || ''} ${a.name}: 行き先`), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
+    h('div', { class: 'cmds', style: 'margin-top:8px' }, ...placeGroups(a.places, (id) => {
+      const p = (od.places || {})[id] || {};
+      return h('button', { class: 'cmd', onclick: () => { close(); doAct(a.id, undefined, id); } }, h('span', { class: 'ic' }, p.icon || '📍'), h('span', {}, p.label || id));
+    }))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
 async function soloStart(kind, skill, place) {
   if (S.busy) return;
   S.busy = true;
@@ -872,12 +905,12 @@ async function gameAct(path, body) {
   }
 }
 
-async function doAct(aid, outfit) {
+async function doAct(aid, outfit, place) {
   if (S.busy) return;
   S.busy = true;
   renderCommands();
   try {
-    const r = outfit === undefined ? await api('/api/act', { action: aid }) : await api('/api/dress', { outfit });
+    const r = outfit === undefined ? await api('/api/act', place ? { action: aid, place } : { action: aid }) : await api('/api/dress', { outfit });
     handleActResult(r);
   } catch (e) {
     toast(e.message, 'err');
@@ -2085,8 +2118,9 @@ function pickJson() {
 // 行動パターン: 曜日を選んで, その日の流れ (時刻・行動・行き先・研鑽の分野) を編集. ほかの曜日へコピーもできる
 function routineEditor(days) {
   const L = (S.boot.routine || {}).labels || {};
-  const ch = ((S.view || {}).outdoor || {}).choices || {};
-  const pl = ((S.view || {}).outdoor || {}).places || {};
+  const od0 = (S.view || {}).outdoor || {};
+  const ch = Object.assign({}, od0.choices || {}, { out: od0.routine_choices || (od0.choices || {}).out || [] });   // 人の家は行動パターンには入れない
+  const pl = od0.places || {};
   const skills = ((S.view || {}).solo || {}).skills || {};
   const cur = S.routineDay || 'mon';
   const list = days[cur] = days[cur] || [];

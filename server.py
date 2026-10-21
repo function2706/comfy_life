@@ -72,7 +72,7 @@ def route(method, path, q, body):
     else:
         b = body or {}
         if path == "/api/act":
-            return a.act(b["action"], cid)
+            return a.act(b["action"], cid, opts={"place": b["place"]} if b.get("place") else None)
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")
         if path == "/api/game/start":

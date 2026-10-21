@@ -1,8 +1,11 @@
 """一人の時間 (誰とも一緒にいないとき / 同居していても「ちょっと一人になる」とき).
 
-休む・家事・研鑽・散歩・買い物は「始めて, 戻るまで」. 過ごした時間で結果が決まる.
+休む・家事・研鑽・外出は「始めて, 戻るまで」. 過ごした時間で結果が決まる.
 - 休む / 家事 / 研鑽: 在席状態は「作業中」(busy) と同じ扱い (家にいる)
-- 散歩 / 買い物:     在席状態は「外出中」(out) と同じ扱い. 出かけている間 (画面を開いている間だけ) に偶然の出会いが起こりうる (補正はしない)
+- 外出:             行き先 (core/places.py の表) を選ぶ. 行き先しだいですることが決まる (公園・河川敷ならぶらぶら歩く,
+                    カフェならお茶, 店なら買い物, 水族館などは見て回る, 相手の家なら訪ねる). 在席状態は「外出中」(out).
+                    出かけている間 (画面を開いている間だけ) に偶然の出会いが起こりうる (補正はしない)
+                    以前の「一人で散歩・一人で買い物・カフェで過ごす」(walk / shopping / cafe) は, 外出 + 行き先に読み替える
 - 日記:              その場で書く. その日のログ (全キャラ + 一人の時間) から. LLM が有効なら LLM, 無ければ定型
 
 一緒にいる相手がいれば, 既存の「ちょっと作業するね」「ちょっと出かけてくる」として声をかけ, 相手が反応する.
@@ -15,15 +18,21 @@ import time
 from datetime import date, datetime
 
 from . import cond, llm, store
+from . import places as places_mod
 
 KINDS = {
     "rest": {"label": "休む", "icon": "🛋", "mode": "busy", "doing": "休憩中", "go": "go_busy"},
     "chores": {"label": "家事をする", "icon": "🧹", "mode": "busy", "doing": "家事中", "go": "go_busy"},
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
+    "out": {"label": "外出", "icon": "🚶", "mode": "out", "doing": "外出中", "go": "go_out"},
+}
+# 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
+LEGACY = {
     "walk": {"label": "一人で散歩", "icon": "🚶", "mode": "out", "doing": "散歩中", "go": "go_out"},
     "shopping": {"label": "一人で買い物", "icon": "🛍", "mode": "out", "doing": "買い物中", "go": "go_out"},
     "cafe": {"label": "カフェで過ごす", "icon": "☕", "mode": "out", "doing": "カフェで過ごし中", "go": "go_out"},
 }
+ALL_KINDS = dict(KINDS, **LEGACY)
 # 外出は「何をしに出るか」で選ぶ (目的のない「出かける」は置かない). 同居相手がそばにいれば「ちょっと出かけてくる」と告げてから
 # 告げる相手がいなくてもできる, あなたの予定 (そばに誰かいれば go_* として告げる)
 PLAIN = {
@@ -33,7 +42,8 @@ PLAIN = {
     "leave": {"label": "席を外す", "icon": "👋", "mode": "left", "go": "go_leave", "text": "席を外した"},
 }
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
-              "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた"}
+              "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
+              "out": "{place}へ出かけた"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事"}
 PRACTICE_TEXT = {"talk": "話し方の本を読んだ", "touch": "マッサージのやり方を調べた", "cook": "料理の練習をした",
@@ -83,11 +93,9 @@ class Solo:
         return cond.check(a.get("when", ""), ctx)
 
     def _place(self, kind, place):
-        from .outdoor import CHOICES
-        ch = CHOICES.get(kind)
-        if not ch:
+        if kind != "out":
             return None
-        if place not in ch:
+        if place not in self.app.places.out_choices():
             raise ValueError("行き先を選んでください")
         return place
 
@@ -95,6 +103,12 @@ class Solo:
         app = self.app
         if kind in PLAIN:
             return self.start_plain(kind, place)
+        if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
+            place = place or places_mod.LEGACY_DO[kind]
+            kind = "out"
+        if kind == "out" and places_mod.is_home(place):      # 相手の家を訪ねる
+            self._place(kind, place)
+            return app.drop_in(places_mod.home_of(place))
         k = KINDS.get(kind)
         if not k:
             raise ValueError("一人でできることではありません: %s" % kind)
@@ -120,7 +134,8 @@ class Solo:
         if place:
             p["place"] = place
         app.presence.save()
-        self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", "")), now)
+        self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", ""))
+                  .replace("{place}", app.places.label(place) if place else ""), now)
         return {"started": kind, "label": k["doing"], "act": res}
 
     def start_plain(self, kind, place=None):
@@ -159,7 +174,14 @@ class Solo:
         """一人の時間を h 時間過ごした結果 (画面を開いての一人の時間と, オフラインの行動パターンの両方で使う)."""
         app, L = self.app, self.app.life
         jit = random.uniform(0.6, 1.2)          # 同じ時間でも, はかどる日とそうでない日がある
-        out = {"kind": kind, "hours": round(h, 2)}
+        note_kind = kind
+        if kind == "out":                       # 外出: 行き先しだいで, したことが決まる
+            place = place if place in places_mod.PLACES else "town"
+            kind = places_mod.solo_kind(place)
+        elif kind in LEGACY:
+            place = place or places_mod.LEGACY_DO[kind]
+        where = places_mod.PLACES.get(place, {}).get("label", "") if place else ""
+        out = {"kind": kind, "hours": round(h, 2), "place": place}
         if kind == "rest":
             text = "%s休んだ。少し体が軽くなった" % _dur(h)       # 回復は時間経過 (life.tick_world) で済んでいる
         elif kind == "chores":
@@ -179,14 +201,23 @@ class Solo:
                                        "少し伸びた" if gain >= 0.1 else "伸びた気はあまりしない")
         elif kind == "walk":
             L.tire(2 * h)
-            text = "%s一人で散歩した" % _dur(h)
+            text = "%s%s一人でぶらぶらした" % (_dur(h), where + "を" if where else "")
+        elif kind == "see":
+            L.tire(2 * h)
+            ps = L.player_state()
+            fee = min(int(ps["money"]), int(places_mod.PLACES[place].get("fee", 0)))
+            if fee > 0:
+                ps["money"] -= fee
+                L.save_player()
+            out["money"] = -fee
+            text = "%s一人で%sを見て回った（%s円）" % (_dur(h), where, format(fee, ",")) if fee else "%s一人で%sを見て回った" % (_dur(h), where)
         elif kind == "cafe":
             ps = L.player_state()
             spend = min(int(ps["money"]), int(random.randint(5, 12) * 100 * (1 + min(h, 3) * 0.3)))
             if spend > 0:
                 ps["money"] -= spend
                 L.save_player()
-            bought, missed = app.items.shop("cafe", h)       # 買うものリストの品がカフェにあれば
+            bought, missed = app.items.shop(place or "cafe", h)       # 買うものリストの品がカフェにあれば
             out["money"] = -spend - sum(b["price"] for b in bought)
             out["bought"] = bought
             text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
@@ -198,9 +229,10 @@ class Solo:
             bought, missed = app.items.shop(place or "shopping_street", h)
             out["money"] = -sum(b["price"] for b in bought)
             out["bought"] = bought
-            text = "%s一人で買い物をした。%s" % (_dur(h), app.items.describe(bought, missed) or "買うものリストの品は見つからず、何も買わなかった")
+            text = "%s%s一人で買い物をした。%s" % (_dur(h), where + "で" if where else "",
+                                                app.items.describe(bought, missed) or "買うものリストの品は見つからず、何も買わなかった")
         out["text"] = "（%s）" % text
-        self.note(kind, text, now, hours=round(h, 2))
+        self.note(note_kind, text, now, hours=round(h, 2), place=place)
         return out
 
     # ------------------------------------------------------------------ 日記
@@ -275,7 +307,7 @@ class Solo:
                 continue
             plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"],
                           "ok": self._plain_ok(k["go"], near)})
-        return {"current": dict(cur, **{k: KINDS[cur["kind"]][k] for k in ("label", "icon", "doing")}) if cur else None,
+        return {"current": dict(cur, **{k: ALL_KINDS.get(cur["kind"], KINDS["out"])[k] for k in ("label", "icon", "doing")}) if cur else None,
                 "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],
                 "skills": SKILL_LABEL, "diary_today": any(d["day"] == date.today().isoformat() for d in self.diary_list())}

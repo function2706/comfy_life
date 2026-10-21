@@ -2,14 +2,15 @@
 
 設定 (全体共通, settings.offline):
   {"enabled": true, "days": {"mon": [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "rest"},
-                                    {"at": "09:00", "do": "work"}, {"at": "18:00", "do": "shopping", "place": "shopping_street"}, ...],
+                                    {"at": "09:00", "do": "work"}, {"at": "18:00", "do": "out", "place": "supermarket"}, ...],
                              ..., "sun": [...]}}
-  各行動はその時刻から, 次の行動の時刻まで. 行動は 寝る・休む・家で静かに・仕事・買い物・散歩・カフェ・家事・研鑽 (一人の時間と同じ).
-  以前の設定 (曜日ごとの勤務時間 work) は, この流れの「仕事」に読み替える.
+  各行動はその時刻から, 次の行動の時刻まで. 行動は 寝る・休む・家で静かに・仕事・外出 (行き先しだいで, 歩く・買い物・お茶など)・家事・研鑽
+  (一人の時間と同じ). 以前の設定 (曜日ごとの勤務時間 work) は, この流れの「仕事」に読み替える.
+  以前の「散歩・買い物・カフェ」(walk / shopping / cafe) は「外出 + 行き先」に読み替える (起動時に設定も書き換える: store.migrate_routine).
 画面を閉じていた間は, この流れに沿って過ごしたことにする (次に開いたとき, 時系列のまとめを一度だけ見せる).
 - 仕事: 給料・体力・仕事スキル. 体力や仕事スキルしだいで, うまくいかない (給料が減る・叱られる)・早退・残業も起きる.
   職場で同僚に会うこともある (気づけないので無難な対応)
-- 買い物・散歩・カフェ: 一人の時間と同じ結果 (買うものリストの品を買う など). 出先での出会いも (気づけないので無難な対応)
+- 外出: 一人の時間と同じ結果 (店なら買うものリストの品を買う など). 出先での出会いも (気づけないので無難な対応)
 - 家事・研鑽: 一人の時間と同じ (洗剤・本があるとはかどる)
 - 予定どおりにいかないこともある: 雨や雪で散歩をやめる, 疲れて家事や研鑽を飛ばす, 疲れきっていて出かけるのをやめる
 - 寝る・休む・家で静かに: 体力が戻る (寝ていると早い). 家では誰にも会わない
@@ -21,14 +22,29 @@ import random
 import time
 from datetime import datetime, timedelta
 
+from .places import LEGACY_DO, OUT_PLACES, solo_kind
+
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "shopping": "買い物", "walk": "散歩",
-            "cafe": "カフェで過ごす", "chores": "家事", "practice": "研鑽"}
+DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
+            "practice": "研鑽"}
 WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "rest"}, {"at": "09:00", "do": "work"},
-           {"at": "18:00", "do": "shopping", "place": "shopping_street"}, {"at": "19:00", "do": "rest"}, {"at": "23:00", "do": "sleep"}]
+           {"at": "18:00", "do": "out", "place": "supermarket"}, {"at": "19:00", "do": "rest"}, {"at": "23:00", "do": "sleep"}]
 WEEKEND = [{"at": "00:00", "do": "sleep"}, {"at": "09:00", "do": "rest"}, {"at": "11:00", "do": "chores"},
-           {"at": "13:00", "do": "walk", "place": "park"}, {"at": "15:00", "do": "home"},
-           {"at": "17:00", "do": "shopping", "place": "mall"}, {"at": "18:30", "do": "rest"}, {"at": "23:30", "do": "sleep"}]
+           {"at": "13:00", "do": "out", "place": "park"}, {"at": "15:00", "do": "home"},
+           {"at": "17:00", "do": "out", "place": "mall"}, {"at": "18:30", "do": "rest"}, {"at": "23:30", "do": "sleep"}]
+
+
+def normalize(b):
+    """行動パターンの 1 行を今の語彙に (以前の 散歩・買い物・カフェ → 外出 + 行き先. 行き先は公共の表から)."""
+    b = dict(b)
+    if b.get("do") in LEGACY_DO:
+        b["place"] = b.get("place") or LEGACY_DO[b["do"]]
+        b["do"] = "out"
+    if b.get("do") == "out" and b.get("place") not in OUT_PLACES:
+        b["place"] = "park"
+    if b.get("do") != "out":
+        b.pop("place", None)
+    return b
 DEFAULT_DAYS = {d: [dict(b) for b in (WEEKDAY if i < 5 else WEEKEND)] for i, d in enumerate(DAY_KEYS)}
 DEFAULT = {"enabled": True, "min_minutes": 30}
 
@@ -61,7 +77,7 @@ class Offline:
         c = dict(DEFAULT)
         c.update({k: v for k, v in user.items() if k not in ("work", "days")})
         days = user.get("days") or (from_work(user["work"]) if user.get("work") else DEFAULT_DAYS)
-        c["days"] = {d: sorted([dict(b) for b in (days.get(d) or DEFAULT_DAYS[d]) if b.get("do") in DO_LABEL],
+        c["days"] = {d: sorted([normalize(b) for b in (days.get(d) or DEFAULT_DAYS[d]) if normalize(b).get("do") in DO_LABEL],
                                key=lambda b: _hm(b.get("at", "00:00"))) for d in DAY_KEYS}
         return c
 
@@ -126,6 +142,9 @@ class Offline:
                 continue
             do, h = b["do"], (e - s) / 3600.0
             ent = {"t": s, "end": e, "do": do, "label": DO_LABEL[do], "text": "", "skipped": False}
+            if do == "out":
+                ent["place"] = b.get("place")
+                ent["label"] = "外出（%s）" % app.places.label(b.get("place"))
             if do == "sleep":
                 recover(s, e, rec_night)
                 ent["text"] = "寝ていた"
@@ -155,8 +174,8 @@ class Offline:
                     ent["text"] = res["text"].strip("（）")
                     if res.get("bought"):
                         ent["bought"] = res["bought"]
-                    if do in ("shopping", "walk", "cafe"):
-                        m = self._outing_meets(b.get("place") or {"cafe": "cafe"}.get(do, "town"), s, e)
+                    if do == "out":
+                        m = self._outing_meets(b.get("place") or "town", s, e)
                         meets += m
                         ent["meets"] = m
             t = max(t, e)
@@ -177,10 +196,11 @@ class Offline:
         from .outdoor import PLACES, weather
         w = weather(datetime.fromtimestamp(s))
         place = PLACES.get(b.get("place") or "") or {}
-        if do == "walk" and w["id"] in ("rain", "snow") and place.get("outdoor", True) and random.random() < 0.7:
-            return "%sなので散歩はやめて、家で過ごした" % w["label"]
-        if do in ("shopping", "walk", "cafe") and stamina < 15 and random.random() < 0.6:
-            return "疲れきっていて、%sには出かけなかった" % DO_LABEL[do]
+        if do == "out" and solo_kind(b.get("place")) == "walk" and w["id"] in ("rain", "snow") and place.get("outdoor", True) \
+                and random.random() < 0.7:
+            return "%sなので%sに出かけるのはやめて、家で過ごした" % (w["label"], place.get("label", ""))
+        if do == "out" and stamina < 15 and random.random() < 0.6:
+            return "疲れきっていて、%sには出かけなかった" % place.get("label", "")
         if do in ("chores", "practice") and stamina < 25 and random.random() < 0.6:
             return "疲れていて、%sは飛ばした" % DO_LABEL[do]
         return None

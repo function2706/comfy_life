@@ -84,27 +84,33 @@ def main():
         app.come_back()
         print("plain (near): OK")
 
-        # ---- 3. 誰とも暮らしていない: 一人で散歩・買い物. 出会いは偶然 (補正なし)
+        # ---- 3. 誰とも暮らしていない: 一人で外出 (行き先しだいで, 歩く・買い物). 出会いは偶然 (補正なし)
         app.create_world("ひとり")
         S, L = app.solo, app.life
         cid = app.settings["active_character"]
         assert not app.bonds.together(cid)
-        r = S.start("walk", place="park")
+        r = S.start("out", place="park")
         assert r["act"] is None and app.presence.rec()["mode"] == "out"
         r = back_after(app, 1)
-        assert "散歩" in r["solo"]["text"] and r["entry"]["text"].startswith("（") and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
+        assert "公園" in r["solo"]["text"] and r["solo"]["kind"] == "walk" and r["entry"]["text"].startswith("（") \
+            and "encounter" not in r, "出会いは外出中に (帰ったときではない)"
         app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入が混ざらないように
         app.items.set_list("cookies", 3)                     # 買い物は, 買うものリストの品を買う
         m0 = L.player_state()["money"]
-        S.start("shopping", place="shopping_street")
+        S.start("out", place="shopping_street")
         r = back_after(app, 1)
         assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0 and r["solo"]["bought"], r["solo"]
         try:
-            S.start("walk")
-            raise AssertionError("行き先を選ばずに散歩に出られる")
+            S.start("out")
+            raise AssertionError("行き先を選ばずに出かけられる")
         except ValueError:
             pass
-        print("walk / shopping: OK")
+        # 以前の「一人で散歩」は, 外出 + 行き先に読み替える
+        S.start("walk", place="riverside")
+        assert app.presence.rec()["solo"]["kind"] == "out" and app.presence.rec()["place"] == "riverside"
+        r = back_after(app, 1)
+        assert "河川敷" in r["solo"]["text"]
+        print("out (walk / shopping): OK")
 
         # 告げる相手がいない: 一人で「仕事に行く」など. 一人暮らしに「作業する」は無い (同居相手に作業中と伝えるためのもの)
         v = S.view()
@@ -115,18 +121,14 @@ def main():
         except ValueError:
             pass
         app.world["encounters"] = {"rate_out": 0}
-        assert S.start("cafe", place="cafe")["act"] is None and app.presence.rec()["mode"] == "out"
-        try:
-            S.start("out", place="station")
-            raise AssertionError("目的のない「出かける」が一人の行動に残っている")
-        except ValueError:
-            pass
+        assert S.start("out", place="cafe")["act"] is None and app.presence.rec()["mode"] == "out"
+        assert [k["id"] for k in v["kinds"]] == ["rest", "chores", "practice", "out"], "散歩・買い物・カフェは外出に吸収"
         app.come_back()
         print("plain (alone): OK")
 
         # ---- 4. 日記: その日の出来事から (LLM が無ければ定型)
         d = S.write_diary()
-        assert d["src"] == "template" and d["text"].startswith("今日は一人で過ごした") and "買い物" in d["text"], d["text"]
+        assert d["src"] == "template" and d["text"].startswith("今日は一人で過ごした") and "カフェ" in d["text"], d["text"]
         d2 = S.write_diary()
         assert len(S.diary_list()) == 1 and d2["day"] == d["day"], "同じ日は書き直し"
         assert app.state_view()["solo"]["diary_today"]

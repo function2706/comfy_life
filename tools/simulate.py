@@ -28,7 +28,7 @@ sys.path.insert(0, BASE)
 from core import engine, store  # noqa: E402
 from core import bonds as bonds_mod, chat as chat_mod, life as life_mod, offline as offline_mod  # noqa: E402
 from core import outdoor as outdoor_mod, presence as presence_mod, solo as solo_mod, street as street_mod  # noqa: E402
-from core import encounters as encounters_mod, items as items_mod, games as games_mod  # noqa: E402
+from core import encounters as encounters_mod, items as items_mod, games as games_mod, home as home_mod  # noqa: E402
 
 
 # ---------------------------------------------------------------------- 時計
@@ -56,7 +56,7 @@ def install_clock(start):
     CLOCK.t = start
     time.time = lambda: CLOCK.t
     for m in (engine, store, bonds_mod, chat_mod, life_mod, offline_mod, outdoor_mod, presence_mod, solo_mod, street_mod,
-              encounters_mod, items_mod, games_mod):
+              encounters_mod, items_mod, games_mod, home_mod):
         if getattr(m, "datetime", None) is _REAL_DT:
             m.datetime = FakeDatetime
         if getattr(m, "date", None) is _REAL_DATE:
@@ -183,12 +183,12 @@ class Player:
                     pass
 
     def solo_out(self):
-        kind = self.rng.choice(["walk", "shopping", "cafe", "practice", "chores", "rest"])
-        place = self.rng.choice(outdoor_mod.CHOICES[kind]) if kind in outdoor_mod.CHOICES else None
+        kind = self.rng.choice(["out", "out", "out", "practice", "chores", "rest"])
+        place = self.rng.choice(self.app.places.out_choices()) if kind == "out" else None
         skill = self.rng.choice(list(solo_mod.SKILL_LABEL)) if kind == "practice" else None
         try:
             self.app.solo.start(kind, skill=skill, place=place)
-            self.S.n["solo_" + kind] += 1
+            self.S.n["solo_" + (kind if kind != "out" else "out_" + place.split(":")[0])] += 1
             return CLOCK.t + self.rng.uniform(0.4, 2.0) * 3600
         except (ValueError, KeyError):
             return None
@@ -199,7 +199,7 @@ def snapshot(app, day):
     row = {"day": day.isoformat(), "money": int(ps["money"]), "stamina": round(float(ps.get("stamina", 0)), 1),
            "invest": app.life.portfolio_value(), "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
            "items": sum(ps.get("items", {}).values()), "debt": int(ps.get("debt", 0)),
-           "loans": sum((ps.get("loans") or {}).values()), "chars": {}}
+           "loans": sum((ps.get("loans") or {}).values()), "home": app.home.score(), "chars": {}}
     for cid, c in app.chars.items():
         app.tick(cid)
         p = app.state(cid)["params"]
@@ -372,6 +372,8 @@ def report(S, app, args):
     w("[体力] 23:59 時点 平均 %.0f / 最小 %.0f / 20 未満の日 %d" % (sum(st) / len(st), min(st), sum(1 for x in st if x < 20)))
     w("[スキル] " + ", ".join("%s %.1f→%.1f" % (k, first["skills"][k], last["skills"][k]) for k in first["skills"]))
     w("[持ち物] 合計 %d 個 / 閉じていた間に買った %d 回" % (last["items"], S.n["offline_bought"]))
+    hs = [x["home"] for x in d]
+    w("[家の散らかり] 23:59 時点 平均 %.0f / 最小 %.0f / 最大 %.0f / 最後 %.0f (0 = 片付いている)" % (sum(hs) / len(hs), min(hs), max(hs), hs[-1]))
     w("\n[キャラ] (日ごとの 23:59 時点)")
     for cid in last["chars"]:
         rows = [x["chars"][cid] for x in d if cid in x["chars"]]

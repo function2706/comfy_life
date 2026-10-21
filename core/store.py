@@ -130,7 +130,28 @@ def pending_migrations(meta):
             out.append("ワールド %s のキャラを全体の定義へ移す" % w["id"])
     if not _done(dpath("registry", "characters")):
         out.append("registry/characters を全体の定義へ移す")
+    if _legacy_routine(load(dpath("settings.json"), {}) or {}):
+        out.append("行動パターンの散歩・買い物・カフェを「外出 + 行き先」に読み替える")
     return out
+
+
+def _legacy_routine(s):
+    from .places import LEGACY_DO
+    days = ((s.get("offline") or {}).get("days")) or {}
+    return any(b.get("do") in LEGACY_DO for d in days.values() for b in d or [])
+
+
+def migrate_routine():
+    """設定の行動パターン (settings.offline.days) の 散歩・買い物・カフェ を 外出 + 行き先 に書き換える (済んでいれば何もしない)."""
+    s = load(dpath("settings.json"), {}) or {}
+    if not _legacy_routine(s):
+        return False
+    from .offline import normalize
+    days = s["offline"]["days"]
+    for d in list(days):
+        days[d] = [normalize(b) for b in days[d] or []]
+    save(dpath("settings.json"), s)
+    return True
 
 
 def bootstrap():
@@ -161,6 +182,7 @@ def bootstrap():
         meta = {"current": wid, "worlds": [{"id": wid, "name": "最初のワールド", "created": time.time()}]}
         save(dpath("worlds.json"), meta)
     migrate_characters(meta)
+    migrate_routine()
     if meta.get("current") not in [w["id"] for w in meta["worlds"]]:
         meta["current"] = meta["worlds"][0]["id"]
         save(dpath("worlds.json"), meta)

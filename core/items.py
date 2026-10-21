@@ -1,6 +1,6 @@
 """品物・持ち物・買うものリスト.
 
-- カタログ (CATALOG): 値段と, どの行き先で売っているか. 種類 (kind) は家での行動との対応, 好みの印 (tags) はプレゼントの好み
+- カタログ (CATALOG): 値段と, どの店 (core/places.py の行き先) で売っているか. 種類 (kind) は家での行動との対応, 好みの印 (tags) はプレゼントの好み
 - 持ち物 (player.json の items) と 買うものリスト (shop_list) はワールドごと
 - 買い物 (画面を開いての買い物でも, オフラインの流れの買い物でも) では, 買うものリストの品がその店にあれば買う.
   品切れ・値段の上下もあり, お金が足りなければ買えない. リスト以外の衝動買いも少しある
@@ -13,23 +13,23 @@ import random
 
 # id: (名前, 印, 種類, 値段, 売っている行き先, 好みの印, プレゼントにできるか)
 _C = [
-    ("veggies", "野菜と米", "🥕", "food", 1200, ["shopping_street", "mall"], ["food"], False),
-    ("meat_fish", "肉と魚", "🍖", "food", 1500, ["shopping_street", "mall"], ["food"], False),
-    ("tea_leaves", "お茶っ葉", "🍵", "tea", 800, ["shopping_street", "mall", "cafe"], ["tea"], True),
-    ("coffee_beans", "コーヒー豆", "☕", "tea", 1000, ["cafe", "mall"], ["tea"], True),
-    ("cookies", "クッキー", "🍪", "sweets", 400, ["shopping_street", "mall", "station", "cafe"], ["sweets"], True),
-    ("cake", "ケーキ", "🍰", "sweets", 1200, ["cafe", "station", "shopping_street"], ["sweets"], True),
-    ("detergent", "洗剤", "🧴", "detergent", 500, ["shopping_street", "mall"], ["practical"], False),
-    ("book_talk", "話し方の本", "📕", "book_talk", 1500, ["station", "mall"], ["books"], True),
-    ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["station", "mall"], ["books"], True),
-    ("book_cook", "レシピ本", "📙", "book_cook", 1600, ["station", "mall", "shopping_street"], ["books"], True),
-    ("book_work", "仕事の参考書", "📘", "book_work", 2000, ["station", "mall"], ["books"], True),
-    ("novel", "小説", "📖", "goods", 1200, ["station", "mall"], ["books"], True),
+    ("veggies", "野菜と米", "🥕", "food", 1200, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("meat_fish", "肉と魚", "🍖", "food", 1500, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("tea_leaves", "お茶っ葉", "🍵", "tea", 800, ["supermarket", "shopping_street", "mall", "cafe"], ["tea"], True),
+    ("coffee_beans", "コーヒー豆", "☕", "tea", 1000, ["cafe", "supermarket", "mall"], ["tea"], True),
+    ("cookies", "クッキー", "🍪", "sweets", 400, ["convenience", "supermarket", "shopping_street", "mall", "station", "cafe"], ["sweets"], True),
+    ("cake", "ケーキ", "🍰", "sweets", 1200, ["cafe", "station", "shopping_street", "convenience"], ["sweets"], True),
+    ("detergent", "洗剤", "🧴", "detergent", 500, ["drugstore", "supermarket", "convenience", "shopping_street", "mall"], ["practical"], False),
+    ("book_talk", "話し方の本", "📕", "book_talk", 1500, ["bookstore", "station", "mall"], ["books"], True),
+    ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["bookstore", "mall"], ["books"], True),
+    ("book_cook", "レシピ本", "📙", "book_cook", 1600, ["bookstore", "mall", "shopping_street"], ["books"], True),
+    ("book_work", "仕事の参考書", "📘", "book_work", 2000, ["bookstore", "station", "mall"], ["books"], True),
+    ("novel", "小説", "📖", "goods", 1200, ["bookstore", "station", "mall", "convenience"], ["books"], True),
     ("flowers", "花束", "💐", "goods", 2500, ["shopping_street", "station"], ["flowers"], True),
-    ("plush", "ぬいぐるみ", "🧸", "goods", 3000, ["mall"], ["cute"], True),
-    ("hairpin", "ヘアピン", "🎀", "goods", 1500, ["mall", "shopping_street"], ["accessories", "cute"], True),
+    ("plush", "ぬいぐるみ", "🧸", "goods", 3000, ["mall", "amusement"], ["cute"], True),
+    ("hairpin", "ヘアピン", "🎀", "goods", 1500, ["mall", "shopping_street", "drugstore"], ["accessories", "cute"], True),
     ("scarf", "マフラー", "🧣", "goods", 4000, ["mall"], ["fashion", "practical"], True),
-    ("game", "ゲームソフト", "🎮", "goods", 6000, ["mall"], ["games"], True),
+    ("game", "ゲームソフト", "🎮", "goods", 6000, ["electronics", "mall"], ["games"], True),
     ("necklace", "ネックレス", "💎", "goods", 30000, ["mall"], ["accessories"], True),
 ]
 ESSENTIAL_KINDS = ("food", "detergent")      # 必需品 (借金のあいだも買える)
