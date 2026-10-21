@@ -121,6 +121,12 @@ def main():
             raise AssertionError("一人暮らしで「作業する」ができてしまう")
         except ValueError:
             pass
+        assert not any(x["id"] == "leave" for x in v["plain"]), "一人のときに「席を外す」が出ている"
+        try:
+            S.start("leave")
+            raise AssertionError("一人で「席を外す」ができてしまう")
+        except ValueError:
+            pass
         app.world["encounters"] = {"rate_out": 0}
         assert S.start("out", place="cafe")["act"] is None and app.presence.rec()["mode"] == "out"
         assert [k["id"] for k in v["kinds"]] == ["rest", "chores", "practice", "out"], "散歩・買い物・カフェは外出に吸収"

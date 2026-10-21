@@ -149,6 +149,8 @@ class Solo:
             raise ValueError("一人暮らしでは「作業する」はありません（同居している相手に、作業中と伝えるためのものです）")
         place = self._place(kind, place)
         cid = self.near()
+        if kind == "leave" and not cid:
+            raise ValueError("一人のときは「席を外す」はありません（そばにいる相手に告げて離れるためのものです。一人なら画面を閉じれば、オフライン時の過ごし方どおりに過ごします）")
         if cid:
             r = app.act(k["go"], cid)
             if place and app.presence.rec().get("mode") == "out":
@@ -304,6 +306,8 @@ class Solo:
         for kid, k in PLAIN.items():
             if kid == "busy" and not self.app.bonds.living():
                 continue              # 一人暮らしでは「作業する」はいらない (同居相手に遠慮してもらうためのもの)
+            if kid == "leave" and not near:
+                continue              # 「席を外す」はそばにいる相手に「またね」と告げて離れるためのもの. 一人なら画面を閉じればよい
             try:
                 go = self.app.action(k["go"])
             except KeyError:
