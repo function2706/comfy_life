@@ -206,8 +206,9 @@ class Presence:
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
         e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True) and not a.get("apart"))
-        if a.get("apart"):              # 離れている相手からのメッセージ: トークにも
+        if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
             self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now)
+            self.app.picked_up_phone(char, st, now)
         st["approach"]["entry"] = e["id"]
         return e
 
@@ -292,6 +293,7 @@ class Presence:
             self.app.chat.mark_read_by_her(char["id"], now)
             if out.get("text"):
                 self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
+                self.app.picked_up_phone(char, st, now)
         self.app.save_state(char["id"])
         return e, None
 

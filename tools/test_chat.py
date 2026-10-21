@@ -118,6 +118,46 @@ def main():
         lst = C.list_view()
         assert lst[0]["id"] == cid and lst[0]["unread"] >= 1
         print("calls / approaches: OK")
+
+        # ---- 5. すぐの返信: 相手がメッセージを送った直後 (まだスマホを見ている) に返すと, すぐ返ってくることがある
+        app.set_params({"mood": 70, "affection": 70, "loneliness": 40}, cid)
+        assert st.get("phone_until", 0) > time.time(), "送ってきた相手は, しばらくスマホを見ている"
+        quick = slow = 0
+        for i in range(40):
+            st["contacts"] = []
+            st.pop("msg_pending", None)
+            st["phone_until"], st["phone_turns"] = time.time() + 300, 0
+            C.send(cid, "smalltalk")
+            if st["msg_pending"]["due"] - time.time() <= 90:
+                quick += 1
+            else:
+                slow += 1
+        assert quick and slow, "すぐ返ることが多いが, 必ずではない (%d / %d)" % (quick, slow)
+        # すぐ返すと決まれば, 1 分半以内に届き, 届いたらまたしばらくスマホを見ている
+        for _ in range(20):
+            st["contacts"] = []
+            st.pop("msg_pending", None)
+            st["phone_until"], st["phone_turns"] = time.time() + 300, 0
+            C.send(cid, "thanks")
+            if st["msg_pending"].get("quick"):
+                break
+        pend = st["msg_pending"]
+        pend["reply"] = True
+        assert app.deliver_due(time.time()) == [], "まだ届かない (数十秒後)"
+        out = app.deliver_due(pend["due"] + 1)
+        assert out and not out[0]["late"] and st["phone_until"] > pend["due"]
+        # 時間がたってから返すと, いつもの時間差
+        st["contacts"] = []
+        st["phone_until"] = time.time() - 1
+        C.send(cid, "smalltalk")
+        assert st["msg_pending"]["due"] - time.time() >= 3 * 60 - 1 and not st["msg_pending"]["quick"]
+        # 寝ている・手が離せない相手は, スマホを見ていても (直前に送ってきていても) すぐには返さない
+        st.pop("msg_pending", None)
+        st["phone_until"] = time.time() + 300
+        st["override"] = {"activity": "sleep", "label": "睡眠中", "location": "部屋", "until": time.time() + 9e6, "asleep": True}
+        C.send(cid, "smalltalk")
+        assert not st["msg_pending"]["quick"]
+        print("quick replies: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

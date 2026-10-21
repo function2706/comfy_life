@@ -61,6 +61,7 @@ def route(method, path, q, body):
                 raise LookupError("キャラの定義が見つかりません")
             return {"character": c}
         if path == "/api/chats":
+            a.deliver_due()             # トークを開いている間も, すぐの返信が届くように
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
         if path == "/api/chat":
             return a.chat.thread(_q(q, "id", ""))

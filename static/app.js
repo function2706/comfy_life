@@ -1276,6 +1276,8 @@ async function drawChat() {
   const nb = dlg.querySelector('.chat-body');
   if (nb && (atBottom || S.chatJump)) nb.scrollTop = nb.scrollHeight;
   S.chatJump = false;
+  clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
+  if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(); }, 8000);
 }
 async function sendChat(cid, kind) {
   if (S.busy) return;

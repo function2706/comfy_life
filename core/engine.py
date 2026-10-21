@@ -885,8 +885,11 @@ class App:
                 delay *= 2
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
                 * (0.7 if p.get("stress", 0) > 70 else 1) * (0.6 if ctx.get("too_often") else 1)
+            quick = self._still_on_phone(char, st, now, scene, ctx)
+            if quick:
+                delay = random.uniform(10, 90)
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1,
-                                 "kind": kind}
+                                 "kind": kind, "quick": quick}
         cd = float(a.get("cooldown", 0)) * 60
         if cd:
             st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
@@ -897,6 +900,28 @@ class App:
         self.save_state(cid)
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "sent": True}
+
+    def picked_up_phone(self, char, st, now):
+        """相手があなたにメッセージを送った・返した直後は, しばらくスマホを見ている (すぐの返信の手がかり).
+        どれくらい見ているかは揺らぎと性格 (話しかけてくる多さ) しだい."""
+        st["phone_until"] = now + random.uniform(2, 10) * 60 * min(1.5, max(0.5, float(self.traits(char).get("approach", 1))))
+
+    def _still_on_phone(self, char, st, now, scene, ctx):
+        """相手がまだスマホを見ている間に送ったら, すぐ返ってくることがある. 必ずではない (機嫌・好感度・続いた回数・
+        手が離せない・送りすぎ・性格しだい). すぐ返すと決まれば True."""
+        if now >= st.get("phone_until", 0) or scene["asleep"] or scene["busy"]:
+            st["phone_turns"] = 0
+            return False
+        p = st["params"]
+        pq = 0.75 * (0.5 if p.get("mood", 50) < 35 else 1) * (0.6 if p.get("affection", 50) < 40 else 1) \
+            * (0.5 if ctx.get("too_often") else 1) * (0.8 ** st.get("phone_turns", 0)) \
+            * min(1.3, max(0.5, float(self.traits(char).get("approach", 1))))
+        if random.random() < pq:
+            st["phone_turns"] = st.get("phone_turns", 0) + 1
+            return True
+        st["phone_until"] = 0                  # スマホを置いた: ここからは時間差
+        st["phone_turns"] = 0
+        return False
 
     def _chat_reply(self, char, st, pend, now):
         """メッセージの種類と状況で返信を決めて届ける (効果・既読・トーク・ログ)."""
@@ -914,6 +939,8 @@ class App:
             selfie = key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused") and \
                 random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0)
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
+            if key not in ("too_often", "late_night"):
+                self.picked_up_phone(char, st, now)
             if key == "invite_yes":
                 self.chat.add(cid, "sys", "📅 会う約束をした（半日のうちにお出かけに誘えば、会えます）", kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)
@@ -973,6 +1000,8 @@ class App:
             e["action_name"], e["icon"], e["reply"] = ("折り返し" if pend.get("callback") else "返信"), "📱", True
             self.save_log(cid)
             self.chat.add(cid, "her", e["text"], kind="callback" if pend.get("callback") else "reply", t=now)
+            self.picked_up_phone(char, self.state(cid), now)
+            self.save_state(cid)
             out.append({"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600})
         return out
 
