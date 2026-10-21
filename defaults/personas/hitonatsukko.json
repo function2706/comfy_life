@@ -1681,6 +1681,27 @@
   ],
   "drop.no": [
    "ごめん、急に来られても……今日はダメー。次はちゃんと連絡してね？"
+  ],
+  "chat.appoint_yes": [
+   "📱『{when}、{place}ね！ 楽しみー！ 遅れちゃダメだよ？』"
+  ],
+  "chat.appoint_no": [
+   "📱『ごめんね、その日はやめとく〜』"
+  ],
+  "chat.appoint_busy": [
+   "📱『ごめん！ その時間は予定あるんだー』"
+  ],
+  "chat.appoint_invite": [
+   "📱『ねーねー{call}、{when}、{place}行こ？』"
+  ],
+  "chat.appoint_cancel": [
+   "📱『ごめん……ちょっと体調崩しちゃって。今日の約束、また今度でもいい？』"
+  ],
+  "chat.appoint_sorry": [
+   "📱『今日はほんとにごめんね……行けなくて』"
+  ],
+  "chat.appoint_missed": [
+   "📱『……{call}、今日どしたの？ ずっと待ってたんだけど』"
   ]
  }
 }

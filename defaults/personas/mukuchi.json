@@ -1735,6 +1735,27 @@
   ],
   "drop.no": [
    "……ごめん。急に来られても……今日は、ちょっと。（申し訳なさそうに、ドアの隙間から首を振った）"
+  ],
+  "chat.appoint_yes": [
+   "📱『……{when}、{place}。……うん、楽しみ』"
+  ],
+  "chat.appoint_no": [
+   "📱『……その日は、いい。ごめん』"
+  ],
+  "chat.appoint_busy": [
+   "📱『……その時間、予定ある。ごめん』"
+  ],
+  "chat.appoint_invite": [
+   "📱『……{call}。{when}、{place}。……行かない？』"
+  ],
+  "chat.appoint_cancel": [
+   "📱『……ごめん。熱、出た。今日の約束、また今度』"
+  ],
+  "chat.appoint_sorry": [
+   "📱『……今日、ごめん。行けなかった』"
+  ],
+  "chat.appoint_missed": [
+   "📱『……今日、どうしたの。……ずっと、待ってた』"
   ]
  }
 }

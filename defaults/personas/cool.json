@@ -1723,6 +1723,27 @@
   ],
   "drop.no": [
    "悪いけど、急に来られても困る。……今日は無理。"
+  ],
+  "chat.appoint_yes": [
+   "📱『{when}、{place}ね。……わかった。遅れないで』"
+  ],
+  "chat.appoint_no": [
+   "📱『……その日は、いい』"
+  ],
+  "chat.appoint_busy": [
+   "📱『その時間は予定ある。ごめん』"
+  ],
+  "chat.appoint_invite": [
+   "📱『{call}。{when}、{place}。……行かない？』"
+  ],
+  "chat.appoint_cancel": [
+   "📱『……体調崩した。今日は無理。ごめん、また今度』"
+  ],
+  "chat.appoint_sorry": [
+   "📱『……今日はごめん。行けなかった』"
+  ],
+  "chat.appoint_missed": [
+   "📱『……今日、どうしたの。ずっと待ってたんだけど』"
   ]
  }
 }

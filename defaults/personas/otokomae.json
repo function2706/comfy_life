@@ -1736,6 +1736,27 @@
   ],
   "drop.no": [
    "すまない、急に来られても……今日は都合が悪いんだ。また今度にしてくれ。"
+  ],
+  "chat.appoint_yes": [
+   "📱『{when}、{place}だな。わかった、楽しみにしてる』"
+  ],
+  "chat.appoint_no": [
+   "📱『すまない、その日は遠慮させてくれ』"
+  ],
+  "chat.appoint_busy": [
+   "📱『その時間は予定があるんだ。すまない』"
+  ],
+  "chat.appoint_invite": [
+   "📱『{call}、{when}、{place}に行かないか』"
+  ],
+  "chat.appoint_cancel": [
+   "📱『すまない、少し体調を崩した。今日の約束、また今度にしてもらえるか』"
+  ],
+  "chat.appoint_sorry": [
+   "📱『今日は本当にすまなかった。行けなくて』"
+  ],
+  "chat.appoint_missed": [
+   "📱『……今日はどうした。ずっと待ってたんだが』"
   ]
  }
 }
