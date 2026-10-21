@@ -1284,10 +1284,10 @@
   "work.work_h_ge_8": [
    "遅くまでお疲れさま。……ずっと待っていたのよ。"
   ],
-  "side_job.task_ok_ge_45__free_true": [
+  "side_job.fast": [
    "見事な手際ね。{amount}円も？ ……褒めてあげる。"
   ],
-  "side_job.task_ng_ge_8__free_true": [
+  "side_job.sloppy": [
    "……少し雑ではなくて？ ミスが{ng}個もあるわ。"
   ],
   "_return.said_false__absent_ge_3__loneliness_ge_60": [

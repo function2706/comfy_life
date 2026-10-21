@@ -3388,17 +3388,19 @@
    },
    {
     "text": "すごい手際ですね……！ {amount}円も？",
-    "when": "task_ok>=45, free=true",
+    "when": "task_solved=true, task_fast=true, task_miss<=1, free=true",
     "pos": "surprised, clapping",
     "neg": "",
-    "priority": 1
+    "priority": 1,
+    "key": "fast"
    },
    {
     "text": "……ちょっと雑じゃないですか？ ふふ、ミスが{ng}個も。",
-    "when": "task_ng>=8, free=true",
+    "when": "task_miss>=4, free=true",
     "pos": "teasing smile",
     "neg": "",
-    "priority": 1
+    "priority": 1,
+    "key": "sloppy"
    }
   ],
   "home_only": true,

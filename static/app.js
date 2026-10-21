@@ -1660,9 +1660,9 @@ function renderMoney() {
           title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
           h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
         h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || (av.side_job || {}).cooldown > 0, onclick: openTask,
-          title: '家で1分間の作業をします。こなした数とミスで稼ぎが決まります' },
+          title: '家でパズル（マインスイーパ・数独・ピクロス・15パズル）を解いて稼ぎます。難しさ・速さ・ミスで稼ぎが決まります' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
-          h('small', { class: 'muted' }, (av.side_job || {}).cooldown > 0 ? `あと${Math.ceil(av.side_job.cooldown / 60)}分` : '1分の作業'))),
+          h('small', { class: 'muted' }, (av.side_job || {}).cooldown > 0 ? `あと${Math.ceil(av.side_job.cooldown / 60)}分` : 'パズルを解く'))),
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います')),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
@@ -1694,91 +1694,180 @@ async function trade(asset, qty) {
   finally { S.busy = false; await refresh(); }
 }
 
-/* ---- 内職 (1分間の作業ミニゲーム) */
-const TASKS = {
-  sort: { name: '仕分け', desc: '流れてくる品物を、正しい箱に入れます（キー 1〜4 でも）',
-    bins: [['🍎', '果物', ['🍎', '🍌', '🍇', '🍑', '🍊', '🍓']], ['🥕', '野菜', ['🥕', '🥦', '🍆', '🌽', '🥒', '🧅']],
-      ['🐟', '魚介', ['🐟', '🐠', '🦐', '🦑', '🐙', '🦀']], ['🍞', 'パン', ['🍞', '🥐', '🥖', '🥯', '🥨', '🧇']]],
-    next() { const b = Math.floor(Math.random() * 4); const it = this.bins[b][2]; return { show: it[Math.floor(Math.random() * it.length)], ans: b }; },
-    buttons() { return this.bins.map((b, i) => `${i + 1} ${b[0]} ${b[1]}`); } },
-  check: { name: '検算', desc: '計算が合っているか確かめます（キー ←/F = 合っている、→/J = 間違い）',
-    next() {
-      const a = 10 + Math.floor(Math.random() * 90), b = 10 + Math.floor(Math.random() * 90), plus = Math.random() < 0.6;
-      let r = plus ? a + b : a - b;
-      const ok = Math.random() < 0.5;
-      if (!ok) r += [1, -1, 10, -10, 2][Math.floor(Math.random() * 5)];
-      return { show: `${a} ${plus ? '+' : '−'} ${b} = ${r}`, ans: ok ? 0 : 1 };
-    },
-    buttons() { return ['← 合っている', '間違い →']; } },
-};
-
+/* ---- 内職 (パズル: マインスイーパ・数独・ピクロス・15パズル). 盤面と答え合わせはサーバ */
 function openTask() {
   const dlg = $('#task-dlg');
-  $('#task-sub').textContent = '';
-  $('#task-body').replaceChildren(
-    h('p', { class: 'muted' }, '1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。仕事スキルが上がると単価も上がります。'),
-    h('div', { class: 'task-pick' }, Object.entries(TASKS).map(([k, t]) => h('button', { class: 'cmd', onclick: () => startTask(k) },
-      h('b', {}, t.name), h('small', { class: 'muted' }, t.desc)))));
+  const cat = (S.boot && S.boot.puzzles) || { kinds: [], levels: [] };
+  S.taskLevel = S.taskLevel || 'easy';
+  const draw = () => {
+    $('#task-sub').textContent = '';
+    $('#task-body').replaceChildren(
+      h('p', { class: 'muted' }, '知られたパズルを解いて稼ぎます。解けたら難しさに応じた額（仕事スキルで上がる）、速いほど・ミスが少ないほど多め。途中でやめると少しだけ。終わると30分休憩です。'),
+      h('div', { class: 'row pz-levels' }, h('span', { class: 'muted small' }, '難しさ'),
+        cat.levels.map((l) => h('button', { class: 'btn small' + (S.taskLevel === l.id ? ' primary' : ''), onclick: () => { S.taskLevel = l.id; draw(); } }, l.name))),
+      h('div', { class: 'task-pick' }, cat.kinds.map((k) => h('button', { class: 'cmd', onclick: () => startTask(k.id, S.taskLevel) },
+        h('b', {}, k.name), h('small', { class: 'muted' }, k.desc)))));
+  };
+  draw();
   dlg.showModal();
 }
 
-async function startTask(kind) {
+async function startTask(kind, level) {
   let tk;
-  try { tk = await api('/api/task/start', { kind }); } catch (e) { toast(e.message, 'err'); return; }
-  const T = TASKS[kind];
-  const run = { ok: 0, ng: 0, cur: T.next(), end: Date.now() + tk.seconds * 1000, done: false };
-  S.task = run;
-  $('#task-sub').textContent = `${T.name}・1個 ${tk.unit}円`;
-  const item = h('div', { class: 'task-item' }, run.cur.show);
-  const score = h('div', { class: 'task-score' });
-  const bar = h('i');
-  const pick = (i) => {
-    if (run.done) return;
-    if (i === run.cur.ans) { run.ok++; item.classList.remove('ng'); item.classList.add('ok'); } else { run.ng++; item.classList.remove('ok'); item.classList.add('ng'); }
-    run.cur = T.next();
-    item.textContent = run.cur.show;
-    setTimeout(() => item.classList.remove('ok', 'ng'), 150);
-    score.textContent = `できた ${run.ok}　ミス ${run.ng}`;
+  try { tk = await api('/api/task/start', { kind, level }); } catch (e) { toast(e.message, 'err'); return; }
+  S.task = { tk, view: tk.view, flags: new Set(), xs: new Set(), sel: null, t0: Date.now(), done: false, alt: false, busy: false };
+  S.task.timer = setInterval(taskStats, 500);
+  S.task.key = (ev) => {
+    const T = S.task;
+    if (!T || T.done || T.view.kind !== 'sudoku' || !T.sel) return;
+    if (/^[1-9]$/.test(ev.key)) { ev.preventDefault(); taskMove({ r: T.sel[0], c: T.sel[1], v: +ev.key }); }
   };
-  run.key = (ev) => {
-    const k = ev.key;
-    const idx = kind === 'sort' ? ['1', '2', '3', '4'].indexOf(k)
-      : (k === 'ArrowLeft' || k === 'f' || k === 'F') ? 0 : (k === 'ArrowRight' || k === 'j' || k === 'J') ? 1 : -1;
-    if (idx >= 0) { ev.preventDefault(); pick(idx); }
-  };
-  document.addEventListener('keydown', run.key);
-  score.textContent = 'できた 0　ミス 0';
+  document.addEventListener('keydown', S.task.key);
+  renderTask();
+}
+
+const fmtSec = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function taskStats() {
+  const T = S.task;
+  const el = document.querySelector('.pz-stats');
+  if (!T || !el) return;
+  const v = T.view;
+  const sec = (Date.now() - T.t0) / 1000;
+  let rest = '';
+  if (v.kind === 'mines') rest = `残り地雷 ${v.n - T.flags.size}`;
+  else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
+  else if (v.kind === 'picross') rest = `残り ${v.rows.flat().reduce((a, b) => a + b, 0) - v.filled.length} マス`;
+  else rest = `${v.moves} 手`;
+  el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
+}
+
+// タップ / クリックと, 長押し / 右クリック (旗・×印) を分ける
+function pressable(el, tap, alt) {
+  let timer = null, fired = false;
+  el.addEventListener('pointerdown', (ev) => {
+    if (ev.button === 2) return;
+    fired = false;
+    timer = setTimeout(() => { fired = true; timer = null; alt(); }, 450);
+  });
+  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  el.addEventListener('pointerup', (ev) => { if (ev.button === 2) return; const was = !!timer; cancel(); if (was && !fired) tap(); });
+  el.addEventListener('pointerleave', cancel);
+  el.addEventListener('contextmenu', (ev) => { ev.preventDefault(); if (!fired) alt(); fired = false; });
+}
+
+async function taskMove(mv) {
+  const T = S.task;
+  if (!T || T.done || T.busy) return;
+  T.busy = true;
+  try {
+    const r = await api('/api/task/move', { token: T.tk.token, move: mv });
+    T.view = r.view;
+    T.flash = r.wrong ? `${mv.r},${mv.c}` : null;
+    renderTask();
+    if (r.solved) await finishTask(false);
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.busy = false; }
+}
+
+function renderTask(result) {
+  const T = S.task;
+  if (!T) return;
+  const v = T.view;
+  $('#task-sub').textContent = `${T.tk.name}（${T.tk.level_name}）・解けたら ${yen(T.tk.base)}前後`;
+  const n = v.kind === 'mines' ? v.w : v.kind === 'sudoku' ? 9 : v.n;
+  const extra = v.kind === 'picross' ? 1 : 0;
+  const cell = `min(${v.kind === 'slide' ? 64 : 34}px, calc((min(560px, 96vw) - 48px) / ${n + extra * 2.2}))`;
+  const grid = h('div', { class: `pz-grid pz-${v.kind}`, style: `--cell:${cell}` });
+  const key = (r, c) => `${r},${c}`;
+  if (v.kind === 'mines') {
+    grid.style.gridTemplateColumns = `repeat(${v.w}, var(--cell))`;
+    for (let r = 0; r < v.h; r++) for (let c = 0; c < v.w; c++) {
+      const x = v.grid[r][c], flag = T.flags.has(key(r, c));
+      const el = h('button', { class: 'pz-c' + (x === null ? ' closed' : ' open') + (x === '*' ? ' boom' : '') + (x > 0 ? ' n' + x : '') },
+        x === '*' ? '💥' : x === 'm' ? '💣' : x > 0 ? String(x) : x === null && flag ? '🚩' : '');
+      if (!result && x === null) pressable(el, () => (T.alt ? toggle(T.flags, key(r, c)) : !flag && taskMove({ r, c })), () => toggle(T.flags, key(r, c)));
+      grid.append(el);
+    }
+  } else if (v.kind === 'sudoku') {
+    grid.style.gridTemplateColumns = 'repeat(9, var(--cell))';
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9, given = v.given[i], val = v.cur[i];
+      const sel = T.sel && T.sel[0] === r && T.sel[1] === c;
+      const el = h('button', { class: 'pz-c sd' + (given ? ' given' : '') + (sel ? ' sel' : '') + (T.flash === key(r, c) ? ' wrong' : '')
+        + (c % 3 === 2 && c < 8 ? ' br' : '') + (r % 3 === 2 && r < 8 ? ' bb' : '') }, val ? String(val) : '');
+      if (!result && !given && !val) el.onclick = () => { T.sel = [r, c]; T.flash = null; renderTask(); };
+      grid.append(el);
+    }
+  } else if (v.kind === 'picross') {
+    grid.style.gridTemplateColumns = `calc(var(--cell) * 2.2) repeat(${v.n}, var(--cell))`;
+    const filled = new Set(v.filled.map(([r, c]) => key(r, c))), wrong = new Set(v.x.map(([r, c]) => key(r, c)));
+    grid.append(h('div', {}));
+    v.cols.forEach((cl) => grid.append(h('div', { class: 'pz-clue col' }, cl.map((x) => h('span', {}, String(x))))));
+    for (let r = 0; r < v.n; r++) {
+      grid.append(h('div', { class: 'pz-clue row' }, v.rows[r].join(' ')));
+      for (let c = 0; c < v.n; c++) {
+        const k = key(r, c), f = filled.has(k), w = wrong.has(k), x = T.xs.has(k);
+        const el = h('button', { class: 'pz-c pc' + (f ? ' fill' : '') + (w ? ' wrong' : '') + (c % 5 === 4 && c < v.n - 1 ? ' br' : '') + (r % 5 === 4 && r < v.n - 1 ? ' bb' : '') },
+          w ? '✕' : x && !f ? '×' : '');
+        if (!result && !f && !w) pressable(el, () => (T.alt ? toggle(T.xs, k) : !x && taskMove({ r, c })), () => toggle(T.xs, k));
+        grid.append(el);
+      }
+    }
+  } else {
+    grid.style.gridTemplateColumns = `repeat(${v.n}, var(--cell))`;
+    v.board.forEach((x, i) => {
+      const el = h('button', { class: 'pz-c tile' + (x ? '' : ' blank') + (x === i + 1 ? ' home' : '') }, x ? String(x) : '');
+      if (!result && x) el.onclick = () => taskMove({ r: Math.floor(i / v.n), c: i % v.n });
+      grid.append(el);
+    });
+  }
+  const tools = [];
+  if (!result && (v.kind === 'mines' || v.kind === 'picross')) {
+    tools.push(h('button', { class: 'btn small' + (T.alt ? ' primary' : ''), onclick: () => { T.alt = !T.alt; renderTask(); } },
+      v.kind === 'mines' ? '🚩 旗を立てる' : '× 印を付ける'));
+  }
+  if (!result && v.kind === 'sudoku') {
+    tools.push(h('div', { class: 'pz-pad' }, [1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => h('button', { class: 'btn', disabled: !T.sel,
+      onclick: () => T.sel && taskMove({ r: T.sel[0], c: T.sel[1], v: d }) }, String(d)))));
+  }
   $('#task-body').replaceChildren(
-    h('div', { class: 'task-timer' }, bar), score, item,
-    h('div', { class: 'task-btns ' + kind }, T.buttons().map((label, i) => h('button', { class: 'btn', onclick: () => pick(i) }, label))));
-  run.timer = setInterval(async () => {
-    const rest = run.end - Date.now();
-    bar.style.width = Math.max(0, rest / (tk.seconds * 10)) + '%';
-    if (rest > 0 || run.done) return;
-    run.done = true;
-    clearInterval(run.timer);
-    document.removeEventListener('keydown', run.key);
-    try {
-      const r = await api('/api/task/finish', { token: tk.token, ok: run.ok, ng: run.ng });
-      $('#task-body').replaceChildren(h('div', { class: 'task-result' },
-        h('div', { class: 'big' }, yen(r.task.pay)), h('div', {}, `できた ${r.task.ok}　ミス ${r.task.ng}`),
-        r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
-        h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));
-      handleActResult(r);
-    } catch (e) { toast(e.message, 'err'); $('#task-dlg').close(); }
-    S.task = null;
-    await refresh();
-  }, 100);
+    result || h('div', { class: 'pz-stats muted' }),
+    h('div', { class: 'pz-wrap' }, grid),
+    ...tools,
+    result ? '' : h('div', { class: 'row' }, h('span', { class: 'muted small', style: 'flex:1' }, T.tk.desc),
+      h('button', { class: 'btn small ghost', onclick: () => closeTask() }, 'やめる')));
+  taskStats();
+  function toggle(set, k) { if (set.has(k)) set.delete(k); else set.add(k); renderTask(); }
+}
+
+async function finishTask(gaveUp) {
+  const T = S.task;
+  if (!T || T.done) return;
+  T.done = true;
+  clearInterval(T.timer);
+  document.removeEventListener('keydown', T.key);
+  try {
+    const r = await api('/api/task/finish', { token: T.tk.token });
+    const k = r.task;
+    T.view = k.view;
+    renderTask(h('div', { class: 'task-result' },
+      h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}${k.fast ? '・速い！' : ''}・ミス ${k.miss}）` : `途中でやめた（${fmtSec(k.sec)}・ミス ${k.miss}）`),
+      h('div', { class: 'big' }, yen(k.pay)),
+      r.entry && r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
+      h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));
+    handleActResult(r);
+  } catch (e) { toast(e.message, 'err'); $('#task-dlg').close(); }
+  S.task = null;
+  await refresh();
+  void gaveUp;
 }
 
 function closeTask() {
-  const run = S.task;
-  if (run && !run.done) {
-    if (!confirm('作業を途中でやめますか？（稼ぎはありません）')) return;
-    run.done = true;
-    clearInterval(run.timer);
-    document.removeEventListener('keydown', run.key);
-    S.task = null;
+  const T = S.task;
+  if (T && !T.done) {
+    if (!confirm('途中でやめますか？（進んだぶんの少しだけ稼げます）')) return;
+    finishTask(true);
+    return;
   }
   $('#task-dlg').close();
 }
@@ -3002,7 +3091,9 @@ SEC.prompt = () => {
         n('her_living_cost_per_day', 'キャラが自分で払う生活費（1日）', '一緒に暮らしていないキャラの分'),
         n('work_wage_per_hour', '仕事の時給', '仕事スキルで 0.6〜1.4 倍', '10'),
         n('work_max_hours', '仕事の上限（時間）', '1回の仕事で稼げる時間の上限', '1'),
-        n('side_job_unit', '内職の単価（1個）', '仕事スキルで 0.6〜1.4 倍', '1'),
+        ...['easy', 'mid', 'hard'].map((lv) => { e.side_job_pay = e.side_job_pay || { easy: 300, mid: 700, hard: 1200 };
+          return fld(`内職の基本額（${{ easy: '易', mid: '中', hard: '難' }[lv]}）`, inp(e.side_job_pay, lv, { type: 'number', step: '50' }),
+            '解けたとき。仕事スキルで 0.6〜1.4 倍、速さとミスで上下'); }),
         n('news_rate_per_hour', '株のニュースの出やすさ（1時間あたり）', '0.12 ≒ 1日に3回ほど', '0.01'),
         n('news_accuracy', 'ニュースの当たりやすさ', '0.7 = 7割はニュースどおりに動く', '0.05'),
         n('event_rate_per_hour', '出来事の起きやすさ（1時間あたり）', '0.08 ≒ 起きている間に1日1〜2回', '0.01'));

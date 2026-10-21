@@ -396,6 +396,10 @@ def load_characters():
     return chars
 
 
+# 条件が変わって, セリフのキーが変わったもの (旧 → 新). 編集分に旧いキーしかなければ, 新しいキーとして読む
+LINE_RENAMES = {"side_job.task_ok_ge_45__free_true": "side_job.fast", "side_job.task_ng_ge_8__free_true": "side_job.sloppy"}
+
+
 def load_personas():
     """性格プリセット. defaults/personas の上に data/personas (ユーザー編集分) を重ねる."""
     out = {}
@@ -403,6 +407,10 @@ def load_personas():
         for f in sorted(glob.glob(os.path.join(d, "*.json"))):
             p = load(f)
             if p and p.get("id"):
+                lines = p.get("lines") or {}
+                for old, new in LINE_RENAMES.items():
+                    if old in lines:
+                        lines.setdefault(new, lines.pop(old))
                 p["_custom"] = d != os.path.join(DEFAULTS, "personas")
                 if p["_custom"] and "traits" not in p and p["id"] in out:
                     p["traits"] = out[p["id"]].get("traits")     # 傾向は編集前の既定を引き継ぐ

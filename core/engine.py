@@ -30,7 +30,7 @@ from . import home as home_mod
 from . import places as places_mod
 from . import appoint as appoint_mod
 from . import presence as presence_mod
-from . import comfy, cond, games, life, llm, store
+from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
 from .keys import line_keys
 
@@ -1686,8 +1686,8 @@ class App:
             "money": mv, "ctx": {"profit": profit},
             "extra": {"amount": format(amt, ","), "profit": format(abs(profit), ","), "asset": name, "qty": format(abs(int(qty)), ",")}})
 
-    def task_start(self, kind, cid=None):
-        """内職を始める. 連続ではできない (コマンド side_job のクールダウン)."""
+    def task_start(self, kind, level="easy", cid=None):
+        """内職 (パズル) を始める. 連続ではできない (コマンド side_job のクールダウン). 盤面はサーバで作る."""
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
@@ -1703,36 +1703,51 @@ class App:
             need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
             if self.life.stamina() < need:
                 raise ValueError("疲れていて作業できません（体力 %d / %d 必要）" % (self.life.stamina(), need))
+            pz = puzzles.new(kind, level)
             token = uuid.uuid4().hex[:10]
-            sec = int(self.world.get("economy", {}).get("side_job_seconds", 60))
             self.tasks = {k: v for k, v in self.tasks.items() if now - v["t0"] < 3600}
-            self.tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "sec": sec}
+            self.tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "puzzle": pz}
             self.presence.declare("busy", now)
-            return {"token": token, "seconds": sec, "skill": round(self.life.skill("work"), 1),
-                    "unit": round(float(self.world.get("economy", {}).get("side_job_unit", 15)) * self.life.skill_mult("work"), 1)}
+            base = (self.world.get("economy", {}).get("side_job_pay") or puzzles.BASE_PAY).get(level, puzzles.BASE_PAY[level])
+            return {"token": token, "view": puzzles.view(pz), "skill": round(self.life.skill("work"), 1),
+                    "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
+                    "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind]}
 
-    def task_finish(self, token, ok, ng, cid=None):
+    def task_move(self, token, mv):
+        """内職の一手. 答え合わせはここでする (ミス・できあがり)."""
         with self.lock:
             t = self.tasks.get(token)
             if not t:
                 raise ValueError("作業が見つかりません（やり直してください）")
-            now = time.time()
-            if now - t["t0"] < t["sec"] - 3:
-                raise ValueError("作業時間が足りません")
+            r = puzzles.move(t["puzzle"], mv)
+            return dict(r, view=puzzles.view(t["puzzle"]), sec=round(time.time() - t["t0"], 1))
+
+    def task_finish(self, token, cid=None):
+        """内職を終える (できあがっていても, 途中でやめても). 稼ぎ・体力・仕事スキル・キャラの反応."""
+        with self.lock:
+            t = self.tasks.get(token)
+            if not t:
+                raise ValueError("作業が見つかりません（やり直してください）")
             self.tasks.pop(token, None)
-            ok = max(0, min(int(ok), t["sec"] * 3))        # 1 秒に 3 個より速いのはありえない
-            ng = max(0, int(ng))
+            pz = t["puzzle"]
+            sec = time.time() - t["t0"]
             st = self.state(t["cid"])
-            pay = self.life.side_job_pay(ok, ng)
+            e = self.world.get("economy", {})
+            pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_pay"))
             mv = self.life.move(st, dp=pay) if pay else {}
-            gain = self.life.train("work", 0.05 * ok)
-            self.life.tire(float(self.world.get("economy", {}).get("stamina_per_side_job", 10)))
+            solved = puzzles.solved(pz)
+            gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
+            self.life.tire(float(e.get("stamina_per_side_job", 10)))
             p = self.presence.rec()
             if p["mode"] == "busy":
                 p["mode"] = "none"
-        r = self.act("side_job", t["cid"], opts={"money": mv, "extra": {"amount": format(pay, ","), "ok": ok, "ng": ng},
-                                                 "ctx": {"task_ok": ok, "task_ng": ng, "pay": pay}, "skill": {"work": gain}})
-        r["task"] = {"ok": ok, "ng": ng, "pay": pay}
+        fast = puzzles.fast(pz, sec)
+        r = self.act("side_job", t["cid"], opts={
+            "money": mv, "extra": {"amount": format(pay, ","), "ng": pz["miss"], "puzzle": puzzles.KINDS[pz["kind"]]},
+            "ctx": {"task_solved": solved, "task_fast": fast, "task_miss": pz["miss"], "task_level": pz["level"], "pay": pay},
+            "skill": {"work": gain}})
+        r["task"] = {"solved": solved, "fast": fast, "miss": pz["miss"], "sec": round(sec), "pay": pay, "kind": pz["kind"],
+                     "level": pz["level"], "view": puzzles.view(pz, reveal=not solved)}
         return r
 
     def prompt_preview(self, cid=None):
@@ -1744,7 +1759,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
                 "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),

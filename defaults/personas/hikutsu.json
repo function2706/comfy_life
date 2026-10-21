@@ -768,10 +768,10 @@
   "side_job.free_false": [
    "（黙々と作業を進めた。{amount}円になった）"
   ],
-  "side_job.task_ok_ge_45__free_true": [
+  "side_job.fast": [
    "すごい手際ですね……。{amount}円も……。{fp}だったらその半分もできないです"
   ],
-  "side_job.task_ng_ge_8__free_true": [
+  "side_job.sloppy": [
    "……ミスが{ng}個も。……あ、す、すみません、{fp}が言えたことじゃないですね"
   ],
   "invest_buy.default": [

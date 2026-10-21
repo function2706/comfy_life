@@ -282,10 +282,6 @@ class Life:
         log = self.player_state().get("work_log") or {}
         return round(sum(v for k, v in sorted(log.items())[-days:]), 2)
 
-    def side_job_pay(self, ok, ng):
-        unit = float(self.econ().get("side_job_unit", 15)) * self.skill_mult("work")
-        return max(0, int(round((ok - ng * 0.5) * unit / 10.0)) * 10)
-
     def her_money(self, st):
         m = st.setdefault("money", {})
         if "a" not in m:

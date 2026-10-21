@@ -418,7 +418,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <p>あなたとキャラが、それぞれ所持金を持っています。「お金」タブで見られます。</p>
 <div class="wallets">
   <div class="wallet"><div class="big">🧑</div><b>あなた</b>
-    <ul><li>仕事（実際に離れた時間ぶん）</li><li>内職（1分の作業）</li><li>株（自分で銘柄を選んで売買）</li><li>わずかな日給</li></ul></div>
+    <ul><li>仕事（実際に離れた時間ぶん）</li><li>内職（パズルを解く）</li><li>株（自分で銘柄を選んで売買）</li><li>わずかな日給</li></ul></div>
   <div class="mid">
     <div class="r">プレゼント・お小遣い →</div>
     <div class="r">お金を貸す・お願いに応える →</div>
@@ -440,10 +440,12 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <h3>💪 あなたの体力</h3>
 <p>仕事と内職で減り、時間で戻ります（1時間で5。「先に寝るね」で寝ている間は12）。体力が減っていると、キャラに構っても効きが悪くなります（体力0で 0.6 倍）。ステータスタブで見られます。</p>
 <h3>🧵 内職</h3>
-<p>家でする1分間の作業です。こなした数が多いほど、ミスが少ないほど稼げます。体力を10使い、終わると30分は休憩です。</p>
+<p>家でパズルを解いて稼ぎます。種類と難しさ（易・中・難）を選びます。盤面は毎回変わります。解けたら難しさに応じた額（仕事スキルで上がる）で、目安の時間より速いと多め、とても遅いと少なめ、ミスが多いと減ります。途中でやめると、進んだぶんの少しだけです。体力を10使い、終わると30分は休憩です。</p>
 <div class="cards">
-  <div class="card"><div class="hd"><span class="ic">🍎</span>仕分け</div><p>流れてくる品物を、果物・野菜・魚介・パンの箱に入れます。キー 1〜4 でも操作できます。</p></div>
-  <div class="card"><div class="hd"><span class="ic">🧮</span>検算</div><p>計算が合っているか確かめます。← か F で「合っている」、→ か J で「間違い」。</p></div>
+  <div class="card"><div class="hd"><span class="ic">💣</span>マインスイーパ</div><p>数字は周りの地雷の数。地雷以外を全部開けたらできあがり。最初に開けたマスの周りに地雷はありません。旗は右クリック・長押し（または「🚩 旗を立てる」に切り替え）。地雷を開けるとミス（続けられます）。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🔢</span>数独</div><p>縦・横・3×3 のどこにも 1〜9 が一つずつ。マスを選んで数字を押します（キー 1〜9 でも）。間違えた数字は入らず、ミスになります。答えは一つだけです。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🎨</span>ピクロス</div><p>数字は、その行・列に続けて塗るマスの数。全部塗れたらできあがり。塗るマスでないところを塗るとミスで×が付きます。自分用の×印は右クリック・長押し（または「× 印を付ける」）。答えは一つだけで、理詰めで解けます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🧩</span>15パズル</div><p>空いているマスの隣の駒を押して動かし、1 から順に並べます（易は 3×3）。ミスはありません。</p></div>
 </div>
 <h3>📈 株</h3>
 <p>4つの銘柄を、株数を決めて売買します。値動きはリアル時間で進み、閉じている間も動きます。</p>
@@ -617,7 +619,7 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
   <tr><td><code>player_gender</code> <code>player_age</code> <code>player_has_job</code> <code>player_likes</code></td><td>設定「あなた」の性別（male / female / other / none）、年齢（未設定は 0）、職業があるか、好きなものの数</td></tr>
   <tr><td><code>my_stamina</code> <code>work_3d</code></td><td>あなたの体力（0〜100）、ここ3日で給料の出た勤務時間</td></tr>
   <tr><td><code>roll</code></td><td>実行のたびに変わる 0〜99 の乱数。<code>sk_cook&lt;30, roll&lt;45</code> のように「ときどき」を書くのに使う</td></tr>
-  <tr><td><code>work_h</code> <code>task_ok</code> <code>task_ng</code> <code>pay</code></td><td>仕事から帰ったとき・内職のあとだけ：働いた時間、こなした数、ミスの数、稼ぎ</td></tr>
+  <tr><td><code>work_h</code> <code>task_solved</code> <code>task_fast</code> <code>task_miss</code> <code>task_level</code> <code>pay</code></td><td>仕事から帰ったとき・内職のあとだけ：働いた時間、パズルが解けたか、目安より速かったか、ミスの数、難しさ（easy / mid / hard）、稼ぎ</td></tr>
   <tr><td><code>game_stage</code> <code>lives</code> など</td><td>ミニゲーム中だけ使えるキー（設定 → ミニゲームに一覧）</td></tr>
 </table>
 <h3>効果</h3>
@@ -636,7 +638,7 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
   <tr><td><code>{location}</code> <code>{activity_label}</code> <code>{time}</code></td><td>場所、過ごし方、時刻</td></tr>
   <tr><td><code>{ev_text}</code> <code>{bad_text}</code> <code>{away_text}</code></td><td>出来事の説明（常体の節。例：友だちとちょっとケンカした）</td></tr>
   <tr><td><code>{amount}</code> <code>{cost}</code> <code>{profit}</code> <code>{req_text}</code></td><td>金額（数字だけ）、費用、株の損益、お願いの内容</td></tr>
-  <tr><td><code>{asset}</code> <code>{qty}</code> <code>{ok}</code> <code>{ng}</code></td><td>売買した銘柄と株数、内職でこなした数とミスの数</td></tr>
+  <tr><td><code>{asset}</code> <code>{qty}</code> <code>{puzzle}</code> <code>{ng}</code></td><td>売買した銘柄と株数、内職のパズルの名前とミスの数</td></tr>
 </table>
 <p>「（」で始まるセリフはナレーションとして表示されます。</p>
 

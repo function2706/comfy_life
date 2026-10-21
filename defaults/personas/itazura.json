@@ -1003,11 +1003,11 @@
    "（黙々と作業を進めた。{amount}円になった）",
    "（ちょっかいもなく、黙々と作業を進めた。{amount}円になった）"
   ],
-  "side_job.task_ok_ge_45__free_true": [
+  "side_job.fast": [
    "すごい手際……！ {amount}円も？ ……ちょっと見直した",
    "え、{amount}円？ やるじゃん。からかうとこないな～"
   ],
-  "side_job.task_ng_ge_8__free_true": [
+  "side_job.sloppy": [
    "……ちょっと雑じゃない？ ふふっ、ミスが{ng}個も。",
    "あはは、ミス{ng}個～！ ……ごめん、手伝うから怒んないで"
   ],

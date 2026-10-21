@@ -1302,10 +1302,10 @@
   "work.work_h_ge_8": [
    "遅くまでお疲れさま……！ ずーっと待ってたんだよ？"
   ],
-  "side_job.task_ok_ge_45__free_true": [
+  "side_job.fast": [
    "すごい手際っ……！ {amount}円も!? {call}、天才じゃない!?"
   ],
-  "side_job.task_ng_ge_8__free_true": [
+  "side_job.sloppy": [
    "……ちょっと雑じゃない？ あははっ、ミスが{ng}個も！"
   ],
   "_return.said_false__absent_ge_3__loneliness_ge_60": [

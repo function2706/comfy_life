@@ -132,9 +132,11 @@ def route(method, path, q, body):
         if path == "/api/market/trade":
             return a.trade(b["asset"], int(b["qty"]), cid)
         if path == "/api/task/start":
-            return a.task_start(b.get("kind") or "sort", cid)
+            return a.task_start(b.get("kind") or "mines", b.get("level") or "easy", cid)
+        if path == "/api/task/move":
+            return a.task_move(b["token"], b.get("move") or {})
         if path == "/api/task/finish":
-            return a.task_finish(b["token"], b.get("ok", 0), b.get("ng", 0), cid)
+            return a.task_finish(b["token"], cid)
         if path == "/api/image/delete":
             return a.delete_image(b["path"])
         if path == "/api/reroll":

@@ -181,25 +181,22 @@ def main():
         free()
         L.player_state()["stamina"] = 5
         try:
-            app.task_start("sort")
+            app.task_start("slide")
             raise AssertionError("疲れていても内職できてしまう")
         except ValueError as e:
             print("  疲れて内職:", e)
         L.player_state()["stamina"] = 100
-        tk = app.task_start("sort")
-        assert P.rec()["mode"] == "busy"
-        try:
-            app.task_finish(tk["token"], 50, 2)
-            raise AssertionError("時間前に終われてしまう")
-        except ValueError:
-            pass
-        app.tasks[tk["token"]]["t0"] -= 61
+        tk = app.task_start("slide", "easy")
+        assert P.rec()["mode"] == "busy" and tk["view"]["board"]
+        pz = app.tasks[tk["token"]]["puzzle"]
+        pz["board"] = [1, 2, 3, 4, 5, 6, 7, 0, 8]          # あと一手
+        assert app.task_move(tk["token"], {"r": 2, "c": 2})["solved"], "答え合わせはサーバで"
         m0 = L.player_state()["money"]
-        r = app.task_finish(tk["token"], 50, 2)
-        print("内職:", r["task"], r["entry"]["text"])
-        assert L.player_state()["money"] - m0 == r["task"]["pay"] > 0 and P.rec()["mode"] == "none"
+        r = app.task_finish(tk["token"])
+        print("内職:", {k: v for k, v in r["task"].items() if k != "view"}, r["entry"]["text"])
+        assert r["task"]["solved"] and L.player_state()["money"] - m0 == r["task"]["pay"] > 0 and P.rec()["mode"] == "none"
         try:
-            app.task_start("sort")
+            app.task_start("slide")
             raise AssertionError("連続で内職できてしまう")
         except ValueError as e:
             print("  連続:", e)

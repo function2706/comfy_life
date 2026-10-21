@@ -1298,10 +1298,10 @@
   "work.work_h_ge_8": [
    "……おそくまで、おつかれさま。ずっと、まってた。（玄関から離れようとしない）"
   ],
-  "side_job.task_ok_ge_45__free_true": [
+  "side_job.fast": [
    "……はやい。{amount}円も？（ぱちぱちと小さく拍手した）"
   ],
-  "side_job.task_ng_ge_8__free_true": [
+  "side_job.sloppy": [
    "……ちょっと、雑。ミス、{ng}個。（くすっと小さく笑った）"
   ],
   "_return.said_false__absent_ge_3__loneliness_ge_60": [
