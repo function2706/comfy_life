@@ -1678,6 +1678,36 @@
   ],
   "chat.too_often": [
    "📱『……連絡、多い』"
+  ],
+  "invite_home.default": [
+   "……おじゃまします。"
+  ],
+  "invite_home.decline": [
+   "今日は無理。また今度。"
+  ],
+  "see_off.default": [
+   "そろそろ帰る。……悪くなかった。"
+  ],
+  "home.guest_clean": [
+   "……ちゃんと片付いてる。意外。"
+  ],
+  "home.guest_messy_mind": [
+   "……散らかってる。人を呼ぶなら、片付けておくものでしょう。"
+  ],
+  "home.guest_messy_ok": [
+   "別に、気にしない。座れればいい。"
+  ],
+  "home.guest_messy_help": [
+   "……見てられない。少しだけ片付ける。{call}も手を動かして。"
+  ],
+  "home.live_clean": [
+   "片付いてると、落ち着く。……それだけ。"
+  ],
+  "home.live_messy": [
+   "……散らかってきた。そろそろ片付けて。"
+  ],
+  "home.live_messy_help": [
+   "散らかってたから、片付けておいた。……別に、ついでよ。"
   ]
  }
 }
