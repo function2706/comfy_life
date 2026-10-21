@@ -126,7 +126,8 @@ class App:
         self.places = places_mod.Places(self)
         self.appoint = appoint_mod.Appoint(self)
         self.presence = presence_mod.Presence(self)
-        self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid})
+        self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
+        self._tasks_w = None
         self._load_index()
         self._ensure_worker()
 
@@ -1576,7 +1577,7 @@ class App:
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
-                "side_job": self.task_ready(char, st, now),
+                "side_job": self.task_ready(char, st, now), "task_active": self.task_active(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),
@@ -1696,19 +1697,56 @@ class App:
             why = self.task_ready(char, st, now)
             if why:
                 raise ValueError(why["reason"])
+            if self.task_active():
+                raise ValueError("やりかけの内職があります（続きから）")
             pz = puzzles.new(kind, level)
             token = uuid.uuid4().hex[:10]
-            self.tasks = {k: v for k, v in self.tasks.items() if now - v["t0"] < 3600}
-            self.tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "puzzle": pz}
+            tasks = self._task_store()
+            tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "puzzle": pz}
+            self._task_save()
             self.presence.declare("busy", now)
-            base = (self.world.get("economy", {}).get("side_job_pay") or puzzles.BASE_PAY).get(level, puzzles.BASE_PAY[level])
-            return {"token": token, "view": puzzles.view(pz), "skill": round(self.life.skill("work"), 1),
-                    "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
-                    "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind]}
+            return self._task_info(token)
+
+    def _task_store(self):
+        """内職の作業 (このワールドの分). 再起動のあとは tasks.json から読む. 1 日たったものは捨てる."""
+        if self._tasks_w != store.WORLD:
+            now = time.time()
+            self.tasks = {k: v for k, v in (store.load(store.wpath("tasks.json"), {}) or {}).items() if now - v.get("t0", 0) < 86400}
+            self._tasks_w = store.WORLD
+        return self.tasks
+
+    def _task_save(self):
+        store.save(store.wpath("tasks.json"), self._task_store())
+
+    def task_active(self):
+        """やりかけの内職 (いちばん新しいもの) の token. 無ければ None."""
+        ts = self._task_store()
+        return max(ts, key=lambda k: ts[k]["t0"]) if ts else None
+
+    def _task_info(self, token):
+        t = self._task_store()[token]
+        pz = t["puzzle"]
+        kind, level = pz["kind"], pz["level"]
+        base = puzzles.base_pay(kind, level, self.world.get("economy", {}).get("side_job_rate_per_min"))
+        return {"token": token, "view": puzzles.view(pz), "skill": round(self.life.skill("work"), 1),
+                "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
+                "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind],
+                "elapsed": round(time.time() - t["t0"], 1)}
+
+    def task_resume(self, token=None):
+        """やりかけの内職の続き (盤面と経過時間)."""
+        with self.lock:
+            token = token or self.task_active()
+            if not token or token not in self._task_store():
+                raise ValueError("やりかけの内職はありません")
+            self.presence.declare("busy", time.time())
+            return self._task_info(token)
 
     def task_ready(self, char, st, now=None):
         """内職を始められないなら理由 {reason, wait (休憩の残り秒)}. 始められるなら None. 画面にも先に出す."""
         now = now or time.time()
+        if self.task_active():
+            return None                      # やりかけがあれば, 続きから
         a = self.action("side_job")
         ctx = self.context(char, st, datetime.fromtimestamp(now))
         if self.presence.rec().get("mode") not in ("none", "busy") or ctx["outing"] or self.bonds.mode(char["id"]) in ("meet", "visit"):
@@ -1727,24 +1765,26 @@ class App:
     def task_move(self, token, mv):
         """内職の一手. 答え合わせはここでする (ミス・できあがり)."""
         with self.lock:
-            t = self.tasks.get(token)
+            t = self._task_store().get(token)
             if not t:
                 raise ValueError("作業が見つかりません（やり直してください）")
             r = puzzles.move(t["puzzle"], mv)
+            self._task_save()
             return dict(r, view=puzzles.view(t["puzzle"]), sec=round(time.time() - t["t0"], 1))
 
     def task_finish(self, token, cid=None):
         """内職を終える (できあがっていても, 途中でやめても). 稼ぎ・体力・仕事スキル・キャラの反応."""
         with self.lock:
-            t = self.tasks.get(token)
+            t = self._task_store().get(token)
             if not t:
                 raise ValueError("作業が見つかりません（やり直してください）")
             self.tasks.pop(token, None)
+            self._task_save()
             pz = t["puzzle"]
             sec = time.time() - t["t0"]
             st = self.state(t["cid"])
             e = self.world.get("economy", {})
-            pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_pay"))
+            pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_rate_per_min"))
             mv = self.life.move(st, dp=pay) if pay else {}
             solved = puzzles.solved(pz)
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
@@ -1996,6 +2036,7 @@ class App:
             store.save_worlds(meta)
             # ワールドごとの記憶を捨てて読み直す (生成中のジョブは元のワールドのログへ書き戻す)
             self.states, self.logs, self.tasks = {}, {}, {}
+            self._tasks_w = None
             self.life.player = None
             self.reload()
             return self.worlds_view()

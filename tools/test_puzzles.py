@@ -115,11 +115,21 @@ def main():
         q = P.new(kind, level, rng)
         if kind == "slide":
             q["board"] = list(range(1, q["n"] ** 2)) + [0]
+        elif kind == "mines":
+            P.move(q, {"r": 0, "c": 0}, rng)
+            q["open"] = [[r, c] for r in range(q["h"]) for c in range(q["w"]) if [r, c] not in q["mines"]]
+        elif kind == "picross":
+            q["filled"] = [[r, c] for r in range(q["n"]) for c in range(q["n"]) if q["sol"][r][c]]
         elif kind == "sudoku":
             q["cur"] = list(q["solution"])
         q["miss"] = miss
         return q
 
+    # 種類が違っても, 目安の時間あたりの稼ぎはならされる (難しいほど少し上乗せ)
+    for lv in ("easy", "mid", "hard"):
+        per_min = [P.pay(done(k, lv), P.PAR[k][lv]) / (P.PAR[k][lv] / 60.0) for k in P.KINDS]
+        assert max(per_min) / min(per_min) < 1.15, (lv, per_min)
+    assert P.pay(done("sudoku", "easy"), 1) > P.pay(done("mines", "easy"), 1) * 3, "時間のかかる数独は, そのぶん多い"
     e, m_, h = done("sudoku", "easy"), done("sudoku", "mid"), done("sudoku", "hard")
     par = P.PAR["sudoku"]
     assert P.pay(e, par["easy"]) < P.pay(m_, par["mid"]) < P.pay(h, par["hard"])
@@ -186,6 +196,28 @@ def main():
         r = app.task_finish(tk["token"])
         assert not r["task"]["solved"] and r["task"]["pay"] == 0 and r["task"]["view"]["grid"]
         print("flow: OK")
+
+        # サーバを再起動しても, やりかけの内職は続きから (盤面・経過時間). やりかけがあるうちは新しく始めない
+        st["cooldowns"] = {}
+        L.player_state()["stamina"] = 100
+        tk = app.task_start("sudoku", "easy")
+        pz = app.tasks[tk["token"]]["puzzle"]
+        i = pz["puzzle"].index(0)
+        app.task_move(tk["token"], {"r": i // 9, "c": i % 9, "v": pz["solution"][i]})
+        try:
+            app.task_start("mines")
+            raise AssertionError("やりかけがあるのに新しく始められる")
+        except ValueError as e:
+            assert "続き" in str(e)
+        app2 = engine.App()                        # 再起動
+        assert app2.task_active() == tk["token"] and app2.state_view(cid)["task_active"] == tk["token"]
+        assert app2.state_view(cid)["side_job"] is None, "やりかけがあれば, 休憩中でも続きはできる"
+        r = app2.task_resume()
+        assert r["token"] == tk["token"] and r["view"]["cur"][i] == pz["solution"][i] and r["elapsed"] >= 0
+        out = app2.task_finish(tk["token"])
+        assert not out["task"]["solved"] and app2.task_active() is None
+        assert engine.App().task_active() is None, "終えたら, 保存からも消える"
+        print("resume after restart: OK")
 
         # 旧いキーのままの編集分 (data/personas) も, 新しいキーとして読む
         p = json.load(open(os.path.join(store.DEFAULTS, "personas", "genki.json"), encoding="utf-8"))

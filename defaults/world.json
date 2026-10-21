@@ -11,7 +11,7 @@
   "event_rate_per_hour": 0.08,
   "work_wage_per_hour": 1200,
   "work_max_hours": 9,
-  "side_job_pay": {"easy": 300, "mid": 700, "hard": 1200},
+  "side_job_rate_per_min": 50,
   "news_rate_per_hour": 0.12,
   "news_accuracy": 0.7,
   "news_bias": 0.0005,

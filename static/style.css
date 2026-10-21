@@ -596,6 +596,8 @@ a.btn { color: inherit; }
 .pz-levels { gap: 6px; align-items: center; }
 .pz-stats { text-align: center; font-variant-numeric: tabular-nums; }
 .pz-wrap { display: flex; justify-content: center; overflow-x: auto; }
+.pz-wrap.zoom { justify-content: flex-start; overflow: auto; max-height: 62vh; border-radius: 6px; -webkit-overflow-scrolling: touch; }
+.pz-wrap.zoom .pz-grid { margin: 0 auto; }
 .pz-grid { display: grid; gap: 1px; background: var(--line); padding: 1px; border-radius: 6px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .pz-c { width: var(--cell); height: var(--cell); border: 0; padding: 0; margin: 0; font: inherit; font-size: calc(var(--cell) * .5); font-weight: 700; color: var(--text);
   background: var(--panel2); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-touch-callout: none; }
@@ -609,20 +611,34 @@ a.btn { color: inherit; }
 .pz-sudoku .sd { color: var(--accent2); }
 .pz-sudoku .given { color: var(--text); background: var(--panel3); cursor: default; }
 .pz-sudoku .sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pz-sudoku .peer { background: #2f2a3a; }
+.pz-sudoku .given.peer { background: #3a3446; }
+.pz-sudoku .same { background: #4a3d5e; color: #fff; }
+.pz-sudoku .memo { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; font-size: calc(var(--cell) * .26); font-weight: 400;
+  color: var(--muted); line-height: 1; align-items: center; justify-items: center; }
 .pz-sudoku .wrong { background: #6b2c2c; }
 .pz-sudoku .br, .pz-picross .br { box-shadow: 2px 0 0 0 var(--muted); }
 .pz-sudoku .bb, .pz-picross .bb { box-shadow: 0 2px 0 0 var(--muted); }
 .pz-sudoku .br.bb, .pz-picross .br.bb { box-shadow: 2px 0 0 0 var(--muted), 0 2px 0 0 var(--muted); }
+.pz-picross .pc { touch-action: none; }          /* マスはドラッグで塗る. ヒントの帯は指でずらせる (拡大のとき) */
 .pz-picross .pc { background: #f1ece4; color: #666; }
-.pz-picross .fill { background: #2b2633; }
+.pz-picross .pc.hl { background: #e6dfd2; }
+.pz-picross .pc.fill, .pz-picross .pc.pending { background: #2b2633; }
+.pz-picross .pc.fill.hl { background: #3d3549; }
+.pz-picross .pending { opacity: .6; }
 .pz-picross .wrong { color: #d24b4b; }
-.pz-clue { background: var(--panel); color: var(--muted); font-size: 11px; display: flex; align-items: center; justify-content: flex-end; padding: 0 3px; }
-.pz-clue.col { flex-direction: column; justify-content: flex-end; padding: 2px 0; min-height: calc(var(--cell) * 1.6); line-height: 1.15; }
+.pz-clue { background: var(--panel); color: var(--text); font-size: clamp(12px, calc(var(--cell) * .48), 15px); font-weight: 600; display: flex;
+  align-items: center; justify-content: flex-end; padding: 0 5px; white-space: nowrap; letter-spacing: .02em; touch-action: pan-x pan-y; }
+.pz-clue.col { flex-direction: column; justify-content: flex-end; padding: 3px 0; min-height: calc(var(--cell) * 1.6); line-height: 1.2; }
+.pz-clue.done { color: var(--muted); opacity: .45; }
+.pz-clue.cur { background: #3a3346; }
 .pz-slide .tile { background: var(--accent-d); border-radius: 6px; }
 .pz-slide .tile.home { background: var(--accent); }
 .pz-slide .blank { background: var(--panel); cursor: default; }
 .pz-pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
-.pz-pad .btn { justify-content: center; padding: 10px 0; }
+.pz-pad .btn { justify-content: center; padding: 8px 0 4px; flex-direction: column; gap: 0; line-height: 1.1; }
+.pz-pad .btn small { font-size: 10px; color: var(--muted); }
+.pz-pad .btn.done { opacity: .35; }
 .task-result { text-align: center; display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .task-result .big { font-size: 34px; font-weight: 700; color: var(--accent2); }
 @media (max-width: 980px) { .away-overlay { inset: 0; } }

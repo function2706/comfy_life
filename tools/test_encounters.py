@@ -166,6 +166,7 @@ def main():
         assert app.visit() is None and app.presence.rec()["mode"] == "out"
         app.presence.back()
         p = app.presence.rec()
+        app.world["economy"]["work_hours"] = [0, 24]           # 給料の出る時間帯に左右されないように (流す時刻しだいで 0 円になる)
         app.presence.declare("work", time.time() - 3 * 3600)
         p["beat"] = time.time() - 2 * 3600                 # 1 時間働いたところで閉じた
         n0 = len(app.log(app.settings["active_character"]))

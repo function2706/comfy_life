@@ -3,9 +3,10 @@
 - 盤面はサーバで作る (毎回ランダム). 数独とピクロスは解が一つだけになるように, マインスイーパは最初に開けたマスとその周りに
   地雷を置かない. 答え合わせもサーバでする (手をひとつずつ受け取って判定する. 画面の申告は信じない).
 - ミス: マインスイーパの爆発 (続けられる)・数独の誤入力 (入らない)・ピクロスの誤りマス (×が付く). 15 パズルにミスはない.
-- 稼ぎ (pay): 難易度ごとの基本額 (economy.side_job_pay) × 仕事スキルの倍率 × 速さ (目安の時間 PAR より速ければ 1.2 倍,
-  2 倍より遅ければ 0.8 倍) × ミス (1 回 1 割減, 4 割まで). 解けずにやめたら, 進んだぶんの 2 割だけ.
-盤面の状態は App.tasks[token]["puzzle"] (メモリだけ. 1 時間で消える).
+- 稼ぎ (pay): 基本額 × 仕事スキルの倍率 × 速さ (目安の時間 PAR より速ければ 1.2 倍, 2 倍より遅ければ 0.8 倍)
+  × ミス (1 回 1 割減, 4 割まで). 基本額は 目安の時間 (分) × 1 分あたりの額 (economy.side_job_rate_per_min) ×
+  難しさの上乗せ (LEVEL_BONUS) で, 種類が違っても時間あたりの稼ぎがならされる. 解けずにやめたら, 進んだぶんの 2 割.
+盤面の状態は App.tasks[token]["puzzle"] (ワールドの tasks.json にも書く. サーバを再起動しても続きから. 1 日で消える).
 """
 import random
 import time
@@ -22,7 +23,8 @@ SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)}
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)}}       # (一辺, 崩す手数)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
        "picross": {"easy": 120, "mid": 360, "hard": 720}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
-BASE_PAY = {"easy": 300, "mid": 700, "hard": 1200}
+RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
+LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
 
 
@@ -393,9 +395,14 @@ def view(p, reveal=False):
     return v
 
 
-def pay(p, sec, mult=1.0, base=None):
-    """稼ぎ (10 円単位). base: 難易度ごとの基本額 (economy.side_job_pay). 解けていなければ進んだぶんの 2 割."""
-    b = float((base or BASE_PAY).get(p["level"], BASE_PAY[p["level"]])) * mult
+def base_pay(kind, level, rate=None):
+    """解けたときの基本額 (仕事スキル・速さ・ミスの前): 目安の時間 (分) × 1 分あたりの額 × 難しさの上乗せ."""
+    return PAR[kind][level] / 60.0 * float(rate or RATE_PER_MIN) * LEVEL_BONUS[level]
+
+
+def pay(p, sec, mult=1.0, rate=None):
+    """稼ぎ (10 円単位). rate: 1 分あたりの額 (economy.side_job_rate_per_min). 解けていなければ進んだぶんの 2 割."""
+    b = base_pay(p["kind"], p["level"], rate) * mult
     if not solved(p):
         return int(round(b * progress(p) * 0.2 / 10.0)) * 10
     par = PAR[p["kind"]][p["level"]]
