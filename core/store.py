@@ -77,11 +77,70 @@ def deep_merge(base, over):
     return out
 
 
+BACKUP_KEEP = 5                 # 移行前のバックアップを残す世代数
+BACKUP_MARK = "_backup.txt"
+_backed_up = set()             # この起動でもうバックアップした data/ (一回の起動で一度だけ)
+
+
+def backup_dir():
+    """移行前のバックアップの置き場所 (data/ の隣の data_backup/)."""
+    return DATA.rstrip("/\\") + "_backup"
+
+
+def backup(reason):
+    """形式が変わる移行の前に, data/ を data_backup/<日時>/ へ丸ごと写す. 画像フォルダは大きいので除き, 画像の索引だけ含める.
+    古いバックアップは BACKUP_KEEP 世代だけ残す. 一回の起動で一度だけ. 写せなくても起動は止めない. 写した先を返す."""
+    if DATA in _backed_up or not os.path.isdir(DATA):
+        return None
+    _backed_up.add(DATA)
+    root = backup_dir()
+    name = time.strftime("%Y%m%d-%H%M%S")
+    dst = os.path.join(root, name)
+    i = 1
+    while os.path.exists(dst):
+        i += 1
+        dst = os.path.join(root, "%s-%d" % (name, i))
+    img = os.path.normcase(os.path.abspath(dpath("images")))
+
+    def skip(d, names):
+        if os.path.normcase(os.path.abspath(d)) == img:
+            return [n for n in names if n != "index.json"]
+        return [n for n in names if n.endswith(".tmp") or (d == DATA and n == "server.log")]
+    try:
+        shutil.copytree(DATA, dst, ignore=skip)
+        with open(os.path.join(dst, BACKUP_MARK), "w", encoding="utf-8") as f:
+            f.write("%s\n%s のデータを, 移行の前に写したもの. 戻すときは data/ をこの中身で置き換える.\n" % (reason, name))
+    except OSError as e:
+        print("[WARN] 移行前のバックアップに失敗しました: %s" % e)
+        return None
+    olds = sorted(d for d in os.listdir(root) if os.path.isfile(os.path.join(root, d, BACKUP_MARK)))
+    for d in olds[:-BACKUP_KEEP]:
+        shutil.rmtree(os.path.join(root, d), ignore_errors=True)
+    return dst
+
+
+def pending_migrations(meta):
+    """起動時に data/ の形式を変える移行のうち, まだ済んでいないもの (理由の文字列のリスト)."""
+    out = []
+    if not meta or not meta.get("worlds"):
+        if any(os.path.exists(dpath(n)) for n in WORLD_ITEMS + ("characters", "settings.json")):
+            out.append("data 直下の旧形式を最初のワールドへ移す")
+    for w in (meta or {}).get("worlds") or []:
+        if not _done(dpath("worlds", w["id"], "characters")):
+            out.append("ワールド %s のキャラを全体の定義へ移す" % w["id"])
+    if not _done(dpath("registry", "characters")):
+        out.append("registry/characters を全体の定義へ移す")
+    return out
+
+
 def bootstrap():
-    """data/ を用意する. 旧形式 (data 直下にキャラ・状態・ログ) なら最初のワールドへ移す."""
+    """data/ を用意する. 旧形式 (data 直下にキャラ・状態・ログ) なら最初のワールドへ移す (その前にバックアップ)."""
     global WORLD
-    os.makedirs(dpath("images"), exist_ok=True)
     meta = load(dpath("worlds.json"))
+    todo = pending_migrations(meta)
+    if todo:
+        backup(" / ".join(todo))
+    os.makedirs(dpath("images"), exist_ok=True)
     if not meta or not meta.get("worlds"):
         wid = "w1"
         wdir = dpath("worlds", wid)

@@ -80,6 +80,7 @@ class Life:
             self._asset_state(m, a, t)
         # 以前の「投資」(1 銘柄) を持っていたら, 最初の銘柄 (インデックス) の保有に移す
         if ps.get("units") and self.assets():
+            store.backup("以前の投資 (1 銘柄) を株の保有に移す")
             first = self.assets()[0]
             st = self._asset_state(m, first, t)
             value = float(ps["units"]) * float(ps.get("price", 1000))

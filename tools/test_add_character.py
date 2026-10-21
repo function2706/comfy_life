@@ -79,6 +79,7 @@ def main():
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(tmp + "_backup", ignore_errors=True)     # 移行前の自動バックアップ
 
 
 if __name__ == "__main__":

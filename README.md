@@ -382,4 +382,9 @@ defaults/personas/ 性格プリセット (セリフ集) 16 種
 tools/dump_line_keys.py / check_persona.py  セリフ集の台本書き出し / 検査
 tools/convert_pronouns.py  セリフ中の一人称・二人称を {fp} / {call} に変換 (移行用)
 tools/test_mahjong_board.py  麻雀・盤面ゲームのテスト
+tools/test_backup.py  データ移行の前の自動バックアップ (data_backup/<日時>/, 画像は索引だけ, 数世代) のテスト
+tools/simulate.py  長期シミュレーション (一時データで数週間ぶんを進めて, 数値の推移と偏りを報告)
+docs/DESIGN.md     設計書 (公理・概念とデータの置き場所・重なっている概念・統一モデル案・残件・開発の手順・バランスの所見)
 ```
+
+起動時に data/ の形式が変わる移行をするときは, その前に data/ を `data_backup/<日時>/` へ写します（画像フォルダは除き, 画像の索引は含める。古いものは 5 世代だけ残す）。

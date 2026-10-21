@@ -148,6 +148,8 @@ class App:
         self._sync_defaults("events", self.events, "events.json")
         self._sync_defaults("approaches", self.approaches, "approaches.json")
         for c in self.chars.values():
+            if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []) or "wardrobe" not in c:
+                store.backup("キャラの定義に後から増えた項目を補う")      # 定義を書き換える前に (一回の起動で一度だけ)
             # お出かけ着と, 着せ替えの服を外に着ていけるか (既定の服だけ判定. 自作の服は設定で選ぶ)
             if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []):
                 c.setdefault("outfit_outing", c.get("outfit_default", ""))

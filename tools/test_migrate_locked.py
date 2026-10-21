@@ -71,6 +71,7 @@ def main():
         finally:
             os.replace = real_replace
             shutil.rmtree(tmp, ignore_errors=True)
+            shutil.rmtree(tmp + "_backup", ignore_errors=True)     # 移行前の自動バックアップ
     print("ALL OK")
 
 
