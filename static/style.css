@@ -603,6 +603,7 @@ a.btn { color: inherit; }
 .pz-mines .closed:hover { background: #463e55; }
 .pz-mines .open { background: var(--panel); cursor: default; }
 .pz-mines .boom { background: #6b2c2c; }
+.pz-mines .glow { background: #5a5170; }
 .pz-mines .n1 { color: #7fb2ff; } .pz-mines .n2 { color: #8fd88f; } .pz-mines .n3 { color: #ff8f8f; } .pz-mines .n4 { color: #c39bff; }
 .pz-mines .n5 { color: #ffb86b; } .pz-mines .n6 { color: #6be0d8; } .pz-mines .n7, .pz-mines .n8 { color: #ddd; }
 .pz-sudoku .sd { color: var(--accent2); }

@@ -12,7 +12,7 @@ import time
 
 KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slide": "15パズル"}
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
-DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗）",
+DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
         "picross": "数字は、その列に続けて塗るマスの数。全部塗れたらできあがり（右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます"}
@@ -55,6 +55,8 @@ def mines_move(p, mv, rng=random):
     r, c = int(mv["r"]), int(mv["c"])
     if not (0 <= r < p["h"] and 0 <= c < p["w"]):
         raise ValueError("盤の外です")
+    if mv.get("chord"):
+        return mines_chord(p, r, c, mv.get("flags") or [], rng)
     if p["mines"] is None:
         _mines_place(p, r, c, rng)
     ms = {tuple(x) for x in p["mines"]}
@@ -75,6 +77,24 @@ def mines_move(p, mv, rng=random):
             stack.extend(y for y in _nb(x[0], x[1], p["h"], p["w"]) if y not in opened and y not in ms)
     p["open"] = [list(x) for x in sorted(opened)]
     return {}
+
+
+def mines_chord(p, r, c, flags, rng=random):
+    """一括開け: 開いている数字マスの周りに, その数字と同じ数の旗があれば, 旗のない周りのマスをまとめて開ける.
+    旗が間違っていれば, 普通に爆発する (ミス). 旗が足りなければ何もしない (short). 旗は画面の側の印なので, 位置を受け取る."""
+    if p["mines"] is None or [r, c] not in p["open"]:
+        return {}
+    num = mines_count(p, r, c)
+    fl = {(int(a), int(b)) for a, b in flags}
+    around = list(_nb(r, c, p["h"], p["w"]))
+    if num == 0 or sum(1 for x in around if x in fl) != num:
+        return {"short": True}
+    wrong = False
+    for y, x in around:
+        if (y, x) in fl or [y, x] in p["open"] or [y, x] in p["boom"]:
+            continue
+        wrong = mines_move(p, {"r": y, "c": x}, rng).get("wrong") or wrong
+    return {"wrong": True} if wrong else {}
 
 
 def mines_solved(p):

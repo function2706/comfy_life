@@ -70,6 +70,33 @@ def main():
             if [r, c] not in p["mines"]:
                 out = P.move(p, {"r": r, "c": c})
     assert out["solved"] and P.view(p)["grid"][m[0]][m[1]] == "*"
+    # 一括開け: 旗の数がそろっていれば周りを開ける. 足りなければ何もしない. 旗が違えば爆発
+    def fresh():
+        for _ in range(200):
+            q = P.new("mines", "easy", rng)
+            P.move(q, {"r": 4, "c": 4}, rng)
+            ms = {tuple(x) for x in q["mines"]}
+            for (r, c) in sorted(tuple(x) for x in q["open"]):
+                n = P.mines_count(q, r, c)
+                around = list(P._nb(r, c, q["h"], q["w"]))
+                closed = [x for x in around if list(x) not in q["open"]]
+                if n and len(closed) > n:
+                    return q, (r, c), [x for x in around if x in ms], [x for x in closed if x not in ms]
+        raise AssertionError("一括開けを試せる盤面が無い")
+
+    q, (r, c), mines_near, safe_near = fresh()
+    assert P.move(q, {"r": r, "c": c, "chord": True, "flags": mines_near[:-1]}).get("short") and q["miss"] == 0
+    before = len(q["open"])
+    out = P.move(q, {"r": r, "c": c, "chord": True, "flags": [list(x) for x in mines_near]})
+    assert not out.get("wrong") and q["miss"] == 0 and all(list(x) in q["open"] for x in safe_near) and len(q["open"]) > before
+    q, (r, c), mines_near, safe_near = fresh()
+    wrong_flags = [list(safe_near[0])] + [list(x) for x in mines_near[1:]]     # 旗を一つ間違える
+    out = P.move(q, {"r": r, "c": c, "chord": True, "flags": wrong_flags})
+    assert out.get("wrong") and q["miss"] >= 1 and list(mines_near[0]) in q["boom"], "旗が違えば, 普通に爆発する"
+    closed = next([y, x] for y in range(q["h"]) for x in range(q["w"]) if [y, x] not in q["open"] and [y, x] not in q["boom"])
+    n0 = len(q["open"])
+    P.move(q, {"r": closed[0], "c": closed[1], "chord": True, "flags": []})
+    assert len(q["open"]) == n0, "閉じているマスでは一括開けしない"
     print("mines: OK")
 
     # ---- 4. 15 パズル: 崩れていて, 隣の駒だけ動く

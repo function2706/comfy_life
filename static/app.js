@@ -1741,6 +1741,31 @@ function taskStats() {
   el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
 }
 
+// マインスイーパの一括開け: 数字マスをダブルクリック・ダブルタップ・左右同時クリック
+function chordable(el, go) {
+  let last = 0;
+  el.addEventListener('dblclick', (ev) => { ev.preventDefault(); go(); });
+  el.addEventListener('pointerdown', (ev) => {
+    if (ev.buttons === 3) { ev.preventDefault(); go(); return; }        // 左右同時
+    if (ev.pointerType === 'touch') { const t = Date.now(); if (t - last < 350) { last = 0; go(); } else last = t; }
+  });
+  el.addEventListener('contextmenu', (ev) => ev.preventDefault());
+}
+async function chord(r, c) {
+  const T = S.task;
+  if (!T || T.done || T.busy) return;
+  const flags = [...T.flags].map((k) => k.split(',').map(Number));
+  T.busy = true;
+  try {
+    const res = await api('/api/task/move', { token: T.tk.token, move: { r, c, chord: true, flags } });
+    T.view = res.view;
+    T.flash = null;
+    if (res.short) { T.glow = `${r},${c}`; setTimeout(() => { if (S.task === T) { T.glow = null; renderTask(); } }, 400); }
+    renderTask();
+    if (res.solved) await finishTask(false);
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.busy = false; }
+}
 // タップ / クリックと, 長押し / 右クリック (旗・×印) を分ける
 function pressable(el, tap, alt) {
   let timer = null, fired = false;
@@ -1783,9 +1808,11 @@ function renderTask(result) {
     grid.style.gridTemplateColumns = `repeat(${v.w}, var(--cell))`;
     for (let r = 0; r < v.h; r++) for (let c = 0; c < v.w; c++) {
       const x = v.grid[r][c], flag = T.flags.has(key(r, c));
-      const el = h('button', { class: 'pz-c' + (x === null ? ' closed' : ' open') + (x === '*' ? ' boom' : '') + (x > 0 ? ' n' + x : '') },
+      const glow = T.glow && x === null && !flag && Math.abs(+T.glow.split(',')[0] - r) <= 1 && Math.abs(+T.glow.split(',')[1] - c) <= 1;
+      const el = h('button', { class: 'pz-c' + (x === null ? ' closed' : ' open') + (x === '*' ? ' boom' : '') + (x > 0 ? ' n' + x : '') + (glow ? ' glow' : '') },
         x === '*' ? '💥' : x === 'm' ? '💣' : x > 0 ? String(x) : x === null && flag ? '🚩' : '');
       if (!result && x === null) pressable(el, () => (T.alt ? toggle(T.flags, key(r, c)) : !flag && taskMove({ r, c })), () => toggle(T.flags, key(r, c)));
+      if (!result && x > 0) chordable(el, () => chord(r, c));
       grid.append(el);
     }
   } else if (v.kind === 'sudoku') {
