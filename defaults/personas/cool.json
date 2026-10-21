@@ -1744,6 +1744,33 @@
   ],
   "chat.appoint_missed": [
    "📱『……今日、どうしたの。ずっと待ってたんだけど』"
+  ],
+  "enc.join.invite": [
+   "……{call}。このあと暇なら、もう少し一緒にいない？"
+  ],
+  "enc.join.yes": [
+   "いいけど。……少しだけなら。"
+  ],
+  "enc.join.no": [
+   "ごめん、このあと用事。……また今度。"
+  ],
+  "bring_home.default": [
+   "……いいの？ じゃあ、少しだけ寄っていく。"
+  ],
+  "bring_home.decline": [
+   "今日はいい。そういう気分じゃない。……また今度。"
+  ],
+  "bring_home.decline_shy": [
+   "……まだ早い。また今度にして。"
+  ],
+  "go_her_home.default": [
+   "うち？ ……散らかってるけど。どうぞ。"
+  ],
+  "go_her_home.decline": [
+   "今日はだめ。……また今度にして。"
+  ],
+  "go_her_home.decline_shy": [
+   "……うちは、まだ。もう少し時間をちょうだい。"
   ]
  }
 }
