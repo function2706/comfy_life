@@ -1576,6 +1576,7 @@ class App:
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
+                "side_job": self.task_ready(char, st, now),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),
@@ -1691,18 +1692,10 @@ class App:
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
-            a = self.action("side_job")
             now = time.time()
-            ctx = self.context(char, st, datetime.fromtimestamp(now))
-            if not cond.check(a.get("when", ""), ctx) or (a.get("home_only") and ctx["outing"]):
-                raise ValueError("今は内職できません")
-            cd = float(a.get("cooldown", 0)) * 60
-            last = max(st["cooldowns"].get("side_job", [0]) or [0])
-            if cd and now - last < cd:
-                raise ValueError("まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60))
-            need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
-            if self.life.stamina() < need:
-                raise ValueError("疲れていて作業できません（体力 %d / %d 必要）" % (self.life.stamina(), need))
+            why = self.task_ready(char, st, now)
+            if why:
+                raise ValueError(why["reason"])
             pz = puzzles.new(kind, level)
             token = uuid.uuid4().hex[:10]
             self.tasks = {k: v for k, v in self.tasks.items() if now - v["t0"] < 3600}
@@ -1712,6 +1705,24 @@ class App:
             return {"token": token, "view": puzzles.view(pz), "skill": round(self.life.skill("work"), 1),
                     "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
                     "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind]}
+
+    def task_ready(self, char, st, now=None):
+        """内職を始められないなら理由 {reason, wait (休憩の残り秒)}. 始められるなら None. 画面にも先に出す."""
+        now = now or time.time()
+        a = self.action("side_job")
+        ctx = self.context(char, st, datetime.fromtimestamp(now))
+        if self.presence.rec().get("mode") not in ("none", "busy") or ctx["outing"] or self.bonds.mode(char["id"]) in ("meet", "visit"):
+            return {"reason": "いまは家にいないので内職できません", "wait": 0}
+        if not cond.check(a.get("when", ""), ctx):
+            return {"reason": "今は内職できません", "wait": 0}
+        cd = float(a.get("cooldown", 0)) * 60
+        last = max(st["cooldowns"].get("side_job", [0]) or [0])
+        if cd and now - last < cd:
+            return {"reason": "まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60), "wait": int(last + cd - now)}
+        need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
+        if self.life.stamina() < need:
+            return {"reason": "疲れていて作業できません（体力 %d / %d 必要）" % (self.life.stamina(), need), "wait": 0}
+        return None
 
     def task_move(self, token, mv):
         """内職の一手. 答え合わせはここでする (ミス・できあがり)."""

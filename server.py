@@ -11,6 +11,7 @@ import threading
 import traceback
 import urllib.parse
 import webbrowser
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +31,21 @@ def _safe_join(root, rel):
 def _q(q, k, default=None):
     v = q.get(k)
     return v[0] if v else default
+
+
+def call_api(method, path, q, body):
+    """API を呼んで (応答, 状態コード) を返す. 利用者へのお断り (ValueError: 休憩中・お金が足りない など) は 400 で返し,
+    ログは 1 行だけ (トレースバックなし). 見つからないものは 404. 想定外の例外はトレースバックをログに残して 400."""
+    try:
+        return route(method, path, q, body), 200
+    except LookupError as e:
+        return {"error": str(e)}, 404
+    except ValueError as e:
+        APP.logq.put("%s [INFO] お断り %s %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), method, path, e))
+        return {"error": str(e)}, 400
+    except Exception as e:  # noqa: BLE001
+        APP.logq.put("[API ERROR] %s %s: %s\n%s" % (method, path, e, traceback.format_exc().rstrip()))
+        return {"error": str(e)}, 400
 
 
 def route(method, path, q, body):
@@ -231,13 +247,8 @@ class Handler(BaseHTTPRequestHandler):
         if method == "POST":
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
-        try:
-            self._json(route(method, u.path, q, body))
-        except LookupError as e:
-            self._json({"error": str(e)}, 404)
-        except Exception as e:  # noqa: BLE001
-            APP.logq.put("[API ERROR] %s %s: %s\n%s" % (method, u.path, e, traceback.format_exc().rstrip()))
-            self._json({"error": str(e)}, 400)
+        obj, code = call_api(method, u.path, q, body)
+        self._json(obj, code)
 
     def do_GET(self):
         p = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)

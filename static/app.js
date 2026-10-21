@@ -241,6 +241,7 @@ function cmdButton(a) {
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
+    a.id === 'side_job' && S.view.side_job ? h('small', { class: 'muted' }, S.view.side_job.reason.replace(/^.*（(.*)）$/, '$1')) : null,
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
 
@@ -1659,10 +1660,10 @@ function renderMoney() {
         h('button', { class: 'cmd', disabled: S.busy || !(av.go_work || {}).ok, onclick: () => doAct('go_work'),
           title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
           h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
-        h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || (av.side_job || {}).cooldown > 0, onclick: openTask,
+        h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || !!v.side_job, onclick: openTask,
           title: '家でパズル（マインスイーパ・数独・ピクロス・15パズル）を解いて稼ぎます。難しさ・速さ・ミスで稼ぎが決まります' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
-          h('small', { class: 'muted' }, (av.side_job || {}).cooldown > 0 ? `あと${Math.ceil(av.side_job.cooldown / 60)}分` : 'パズルを解く'))),
+          h('small', { class: 'muted' }, v.side_job ? v.side_job.reason.replace(/^.*（(.*)）$/, '$1') : 'パズルを解く'))),
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います')),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
@@ -1697,6 +1698,15 @@ async function trade(asset, qty) {
 /* ---- 内職 (パズル: マインスイーパ・数独・ピクロス・15パズル). 盤面と答え合わせはサーバ */
 function openTask() {
   const dlg = $('#task-dlg');
+  const why = S.view && S.view.side_job;          // 休憩中・体力不足などで始められない: 先に理由を出す
+  if (why) {
+    $('#task-sub').textContent = '';
+    $('#task-body').replaceChildren(h('p', {}, `🧵 ${why.reason}`),
+      h('p', { class: 'muted small' }, '内職は1回ごとに体力を10使い、終わると30分休憩です。'),
+      h('button', { class: 'btn', onclick: () => dlg.close() }, '閉じる'));
+    if (!dlg.open) dlg.showModal();
+    return;
+  }
   const cat = (S.boot && S.boot.puzzles) || { kinds: [], levels: [] };
   S.taskLevel = S.taskLevel || 'easy';
   const draw = () => {
@@ -1714,7 +1724,7 @@ function openTask() {
 
 async function startTask(kind, level) {
   let tk;
-  try { tk = await api('/api/task/start', { kind, level }); } catch (e) { toast(e.message, 'err'); return; }
+  try { tk = await api('/api/task/start', { kind, level }); } catch (e) { toast(e.message, 'err'); await refresh(); return; }
   S.task = { tk, view: tk.view, flags: new Set(), xs: new Set(), sel: null, t0: Date.now(), done: false, alt: false, busy: false };
   S.task.timer = setInterval(taskStats, 500);
   S.task.key = (ev) => {
