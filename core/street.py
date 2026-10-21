@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime
 
 from . import store
+from .places import PLACES
 
 STAGES = ["まだ知らない", "見かけたことがある", "会釈する仲", "立ち話する仲", "知り合い"]
 CALL_P = [0.08, 0.2, 0.45, 0.6, 0.6]          # 段階ごとの, 相手から声をかけてくる起きやすさ
@@ -32,7 +33,11 @@ LINES = {"enc.call.first": "あの……すみません、これ、落としま�
          "enc.call.again": "あ……よく、ここで会いますね。",
          "enc.call.known": "あれ、{call}？ こんなところで会うなんて、偶然ですね。",
          "enc.chat": "ふふ、ちょっとだけお話ししちゃいましたね。……この辺、よく来るんですか？",
-         "enc.decline": "あ、ごめんなさい。お急ぎでしたね。"}
+         "enc.decline": "あ、ごめんなさい。お急ぎでしたね。",
+         "enc.join.invite": "あの、{call}。よかったら、このまま少し一緒にいませんか？",
+         "enc.join.yes": "いいですよ。じゃあ、少しだけ一緒に。",
+         "enc.join.no": "ごめんなさい、このあと用事があって……また今度。"}
+JOIN_WAIT = 600         # 立ち話のあと, 一緒に過ごすか決めるまで (秒)
 
 
 def haunts_of(c):
@@ -108,7 +113,7 @@ class Street:
             who = self._new_person(ppl, place, phase, work, now)
             kind = "person"
         where = (PLACES.get(place) or PLACES["town"])["label"]
-        return self._meet(kind, who, where, with_cid, now)
+        return self._meet(kind, who, where, with_cid, now, place)
 
     def _new_person(self, ppl, place, phase, work, now):
         enc = self.app.encounters
@@ -129,7 +134,7 @@ class Street:
         self.save_people(ppl)
         return pid
 
-    def _meet(self, kind, who, where, with_cid, now):
+    def _meet(self, kind, who, where, with_cid, now, place=None):
         app = self.app
         if kind == "char":
             c = app.chars[who]
@@ -151,7 +156,7 @@ class Street:
             key = "enc.call.known" if kind == "char" else "enc.call.again" if stage_i >= 2 else "enc.call.first"
             text = self._line(c, key, where)
         pend = {"kind": kind, "who": who, "type": typ, "t": now, "until": now + TIMEOUT, "where": where, "with": with_cid,
-                "name": name, "text": text, "stage": stage_i}
+                "name": name, "text": text, "stage": stage_i, "place": place}
         self.rec()["street_pending"] = pend
         app.presence.save()
         msg = ("%sで、%sに声をかけられた" % (where, name)) if typ == "call" else ("%sで、%sを見かけた" % (where, name))
@@ -285,10 +290,104 @@ class Street:
                                              "。一緒にいた人を紹介した" if introduced else "")
             if line:
                 text += "\n" + line
+            join = self._join_chance(char, st, pend, talk, auto, now)
+            if join and join["offer"]:
+                text += "\n" + join["line"]
             if choice != "pass" or not auto:
                 app.encounters._entry(cid, now, "ばったり", "✨", text, deltas)
             app.save_state(cid)
-        return {"text": text, "exchanged": exchanged, "introduced": introduced}
+        return {"text": text, "exchanged": exchanged, "introduced": introduced, "join": join}
+
+    # ------------------------------------------------------------------ そのまま一緒に過ごす (出先での合流)
+    def _join_chance(self, char, st, pend, talk, auto, now):
+        """立ち話をした連絡先の相手とは, そのまま一緒に過ごす話になることがある. 相手から誘われる (仲・寂しさ・性格しだい)
+        か, こちらから誘える (受けるかは相手しだい). 一人で出かけているときだけ. 決めるまでの記録 street_join を返す (無ければ None)."""
+        app = self.app
+        cid = char["id"]
+        p = app.presence.rec()
+        if not talk or auto or pend.get("with") or p.get("mode") != "out" or app.bonds.stage(cid) not in ("contact", "visit") \
+                or app.bonds.with_rec():
+            return None
+        pr = st["params"]
+        po = (0.15 + (pr.get("affection", 50) - 50) / 100.0 + (pr.get("loneliness", 50) - 50) / 200.0) \
+            * float(app.traits(char).get("approach", 1))
+        offer = pr.get("affection", 0) >= 40 and random.random() < max(0.0, min(0.6, po))
+        j = {"cid": cid, "name": char.get("name", ""), "place": pend.get("place") or "town", "where": pend["where"], "t": now,
+             "until": now + JOIN_WAIT, "offer": offer}
+        if offer:
+            j["line"] = self._line(char, "enc.join.invite", pend["where"])
+        p["street_join"] = j
+        app.presence.save()
+        return dict(j)
+
+    def join_view(self, now=None):
+        now = now or time.time()
+        j = self.rec().get("street_join")
+        if not j or now >= j["until"] or self.rec().get("mode") != "out":
+            return None
+        return {"cid": j["cid"], "name": j["name"], "where": j["where"], "offer": j["offer"], "line": j.get("line", "")}
+
+    def join(self, yes, now=None):
+        """一緒に過ごすか決める. 相手から誘われていれば yes で合流 (no なら別れる).
+        誘われていなければ, yes はこちらから誘う (断られることも). 結果 {joined, text} を返す."""
+        app = self.app
+        now = now or time.time()
+        j = self.rec().pop("street_join", None)
+        app.presence.save()
+        if not j or now >= j["until"] or j["cid"] not in app.chars or self.rec().get("mode") != "out":
+            raise ValueError("いまは誰とも一緒にいません")
+        cid = j["cid"]
+        char = app.char(cid)
+        if not yes:
+            text = "（%sとは、そこで別れた）" % char.get("name", "")
+            if j["offer"]:          # 誘ったのに断られた: 少しだけ残念 (性格しだい)
+                with app.lock:
+                    st = app.state(cid)
+                    app.apply_effects(st, app.trait_effects(char, {"mood": -1}))
+                    app.save_state(cid)
+            app.outdoor.note(text.strip("（）"), now)
+            return {"joined": False, "text": text}
+        with app.lock:
+            st = app.state(cid)
+            pr = st["params"]
+            line = ""
+            if not j["offer"]:      # こちらから誘う: 受けるかは仲・機嫌・慎重さしだい (補正なし)
+                pj = 0.3 + (pr.get("affection", 50) - 50) / 80.0 + (pr.get("mood", 50) - 50) / 120.0 \
+                    + (0.15 if app.bonds.stage(cid) == "visit" else 0.0) - float(app.traits(char).get("caution", 0)) / 40.0
+                ok = random.random() < max(0.05, min(0.9, pj))
+                line = self._line(char, "enc.join.yes" if ok else "enc.join.no", j["where"])
+                if not ok:
+                    text = "（%sを誘ったが、断られた）\n%s" % (char.get("name", ""), line)
+                    app.encounters._entry(cid, now, "誘ってみた", "🚶", text, {})
+                    app.outdoor.note("%sを誘ったが、断られた" % char.get("name", ""), now)
+                    return {"joined": False, "text": text}
+        return self._do_join(char, j, line, now)
+
+    def _do_join(self, char, j, line, now):
+        """出先で合流: 一人の外出はそこまで (過ごした時間の結果は残す). 相手と同じ行き先で, 外で会っている (meet) ことにする."""
+        app = self.app
+        cid = char["id"]
+        ll = app.presence.back(now)
+        res = app.solo.finish(ll) if ll else None
+        with app.lock:
+            st = app.state(cid)
+            pl = j["place"] if j["place"] in PLACES else "town"
+            st["override"] = {"activity": "together", "label": "%sで一緒に過ごしている" % PLACES[pl]["label"],
+                              "location": PLACES[pl]["label"], "place": pl, "minutes": 90, "until": now + 90 * 60,
+                              "outing": True, "outfit": "@outing", "from_action": "_join",
+                              "pos": "outdoors, walking together, smile", "neg": "", "effects": {}}
+            app.bonds.start(cid, "meet", now)
+            eff, _ = app.bonds.realize(char, st, {"loneliness": -10, "mood": 3, "affection": 1}, "_join", now)
+            app.bonds.touch(st, now)
+            st["last_interaction"] = now
+            deltas = app.apply_effects(st, app.trait_effects(char, eff))
+            text = "（%sで、%sとそのまま一緒に過ごすことにした）" % (PLACES[pl]["label"], char.get("name", ""))
+            if line:
+                text += "\n" + line
+            e = app.encounters._entry(cid, now, "一緒に過ごす", "🚶", text, deltas)
+            app.save_state(cid)
+        app.outdoor.note("%sと一緒に過ごすことにした" % char.get("name", ""), now)
+        return {"joined": True, "text": text, "solo": res, "entry": e["id"] if isinstance(e, dict) else e}
 
     def view(self, now=None):
         pend = self.pending()

@@ -71,5 +71,8 @@ def all_keys(actions, minigames, approaches=()):
     for k, t in ENC_LINES.items():
         out[k] = {"scene": "出先でのばったり / %s" % {"enc.call.first": "知らない人が声をかけてくる", "enc.call.again": "顔なじみが声をかけてくる",
                                                    "enc.call.known": "知り合いが声をかけてくる", "enc.chat": "立ち話",
-                                                   "enc.decline": "急いでいると断られた"}[k], "when": "", "text": t}
+                                                   "enc.decline": "急いでいると断られた",
+                                                   "enc.join.invite": "立ち話のあと, 一緒に過ごそうと誘ってくる",
+                                                   "enc.join.yes": "一緒に過ごそうと誘ったら, 応じた",
+                                                   "enc.join.no": "一緒に過ごそうと誘ったら, 断られた"}[k], "when": "", "text": t}
     return out

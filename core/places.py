@@ -101,6 +101,30 @@ def solo_kind(pid):
     return {"walk": "walk", "shop": "shopping", "tea": "cafe", "see": "see", "visit": "visit"}.get(main_do(pid), "walk")
 
 
+# 相手の家を訪ねたときに見える暮らしぶり (好みの印 → 部屋のようす)
+GLIMPSE_TAGS = {"books": "本棚に本がぎっしり並んでいる", "cute": "ベッドにぬいぐるみが並んでいる",
+                "games": "テレビの前にゲーム機が置いてある", "flowers": "窓辺に花が飾ってある", "tea": "棚にお茶の缶がいくつも並んでいる",
+                "fashion": "服がハンガーにたくさん掛かっている", "accessories": "小物入れにアクセサリーが並んでいる",
+                "sweets": "テーブルにお菓子の箱が置いてある", "food": "台所に調味料がそろっている",
+                "practical": "日用品がきちんと整理されている"}
+
+
+def home_glimpse(app, char, st):
+    """相手の家の暮らしぶり (きれい好きか・好きなもの・懐具合が, 部屋ににじむ). ナレーションを返す. 毎回少し違う."""
+    import random
+    neat = float(app.traits(char).get("neat", 0))
+    r = random.gauss(neat / 10.0, 0.35)
+    tidy = "きれいに片付いていた" if r > 0.35 else "ほどよく生活感があった" if r > -0.35 else "少し散らかっていた"
+    likes = [t for t in app.items.likes(char)[0] if t in GLIMPSE_TAGS]
+    seen = [GLIMPSE_TAGS[t] for t in random.sample(likes, min(len(likes), random.choice((1, 2))))] if likes else []
+    money = app.life.her_money(st)["a"]
+    if money < 5000:
+        seen.append("家具は少なく、質素な暮らしぶりだ")
+    elif money > 60000 and random.random() < 0.5:
+        seen.append("家具は少しいいものをそろえているようだ")
+    return "（%sの部屋は%s。%s）" % (char.get("name", ""), tidy, "。".join(seen)) if seen else "（%sの部屋は%s）" % (char.get("name", ""), tidy)
+
+
 class Places:
     """表に家を加えて引く (家に行ける仲の相手が変われば, 表も変わる)."""
 

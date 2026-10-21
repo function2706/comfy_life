@@ -1431,6 +1431,23 @@ function chime() {
     });
   } catch (e) { /* 音が出せない環境でも, 画面の知らせはある */ }
 }
+// 立ち話のあと: そのまま一緒に過ごすか (相手から誘われた / こちらから誘える)
+function joinCard() {
+  const j = S.view.street_join;
+  if (!j) return null;
+  const go = async (yes) => {
+    if (S.busy) return;
+    S.busy = true;
+    try { const r = await api('/api/street/join', { yes }); toast(r.text.replace(/\n/, ' '), 'ok'); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  return h('div', { class: 'street-card' + (j.offer ? ' calling' : '') },
+    h('div', {}, j.offer ? `🚶 ${j.name}に、このまま一緒にいないかと誘われた` : `🚶 ${j.name}と、${j.where}で立ち話をした`),
+    j.line ? h('div', { class: 'muted' }, `「${j.line}」`) : '',
+    h('div', { class: 'row' },
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => go(true) }, j.offer ? '一緒に過ごす' : '一緒に過ごさない？と誘う'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => go(false) }, j.offer ? '今日はやめておく' : 'ここで別れる')));
+}
 async function answerStreet(choice) {
   if (S.busy) return;
   S.busy = true;
@@ -1459,6 +1476,7 @@ function renderAway() {
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     streetCard() || '',
+    joinCard() || '',
     phonePanel(),
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),

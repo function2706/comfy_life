@@ -111,6 +111,8 @@ def route(method, path, q, body):
             return a.offline.ack()
         if path == "/api/street":
             return a.street.answer(b["choice"])
+        if path == "/api/street/join":
+            return a.street.join(bool(b.get("yes")))
         if path == "/api/encounter/force":
             return {"encounter": a.encounters.happen("out", stranger=b.get("stranger"))}
         if path == "/api/encounter":

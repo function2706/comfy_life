@@ -751,6 +751,8 @@ class App:
                     st["override"] = {"activity": "guest", "label": "あなたの家に遊びに来ている", "location": "あなたの家",
                                       "until": (self.bonds.with_rec() or {}).get("until", now + 3 * 3600), "from_action": aid,
                                       "pos": "indoors, apartment, living room", "neg": ""}
+                elif a.get("bond") == "visit_start":       # 相手の家に来た: 暮らしぶりが見える
+                    home_note = places_mod.home_glimpse(self, char, st)
                 elif social and not narrate and self.bonds.mode(cid) == "home":
                     home_note, heff = self.home.live_check(char, st, now)     # 同居相手は日々の家の様子に反応する
                 if at_home and a.get("home_clean"):
@@ -1217,7 +1219,9 @@ class App:
                                      delta=deltas.get("mood", 0), action="_drop_in")
             e = self.note_entry(char, st, now, "_drop_in", "家を訪ねた", "🚪", text, deltas)
             self.save_state(cid)
-            if key == "drop.yes":               # 迎えてくれた: 相手の家で過ごす
+            if key == "drop.yes":               # 迎えてくれた: 相手の家で過ごす (暮らしぶりが見える)
+                e["text"] += "\n" + places_mod.home_glimpse(self, char, st)
+                self.save_log(cid)
                 self.bonds.start(cid, "visit", now)
                 self.presence.touch(now)
                 self.solo.note("visit", "%sの家を訪ねた" % name, now)
@@ -1548,7 +1552,7 @@ class App:
                 "games": self.games.view(char, st, ctx),
                 "life": self.life.view(char, st),
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
-                "street_pending": self.street.view(), "street_auto": street_auto, "offline_report": self.offline.report(),
+                "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
                 "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
                 "chat_unread": self.chat.unread_total(),
                 "contacts": self._contacts_view(),

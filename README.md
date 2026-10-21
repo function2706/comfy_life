@@ -225,6 +225,8 @@ python server.py --port 9000 --no-browser
 - 誰に会うか: 人ごとの「よく行く場所と時間帯」（`street.haunts_of`、名前と外見から決まる）で重み付け。仕事中は同僚だけ。初めての顔はほかのワールドの登録キャラ、いなければ生成し、`W/people.json` に記録（ここに来る習慣も付く）。
 - 段階: まだ知らない → 見かけた → 会釈する仲 → 立ち話する仲 → 知り合い（ここで登録を尋ねる）。進むかはこちらの反応 × 相手の `caution` × 偶然。
 - 声をかけられた / 見かけた: `presence.street_pending` に入り、`POST /api/street {choice}` で反応（chat / nod / decline、見かけたなら talk / nod / pass）。`street.TIMEOUT` 秒たつと、声をかけられたなら会釈して流し、見かけただけなら通り過ぎる。セリフは性格プリセットの `enc.call.first` / `enc.call.again` / `enc.call.known` / `enc.chat` / `enc.decline`。
+- **出先での合流**（`street._join_chance` / `join`）: 一人で出かけていて、連絡先・家に行ける仲の相手と立ち話（chat / talk）をしたら、そのまま一緒に過ごす話になる（`presence.street_join`、10 分のうちに決める。`state_view.street_join`、`POST /api/street/join {yes}`）。相手から誘われる（好感度 40 以上で、好感度・寂しさ × 性格の `approach`。`enc.join.invite`）か、こちらから誘う（好感度・機嫌・家に行ける仲・慎重さしだいで断られる。`enc.join.yes` / `enc.join.no`）。合流すると一人の外出はそこまで（`solo.finish` で結果は残る）で、相手は同じ行き先の一時シーン（`override.place`、90 分）、`with.mode = meet`。好感度などは `bonds.realize` を通す。
+- 外で会っている家に行ける仲の相手とは、互いの家へ（「うちに寄っていく？」`bring_home` → `guest`、「家に寄ってもいい？」`go_her_home` → `visit`。機嫌が低い・好感度 55 未満なら断られる）。相手の家に着くと、暮らしぶりが見える（`places.home_glimpse`: きれい好きか・好きなもの・懐具合がナレーションににじむ。約束なしの訪問で迎えてもらえたときも）。あなたの家なら、家の様子に反応する（`home.on_guest`）。
 - 知り合いの登録は従来どおり `POST /api/encounter {yes}`。`POST /api/encounter/force {stranger}` でも試せる（設定 → データ）。
 
 ### 既定データの更新
@@ -388,6 +390,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記）のテスト
+tools/test_join.py  出先での合流（誘う・誘われる・断られる）と互いの家へ（暮らしぶり・家の様子）のテスト
 tools/test_places.py  行き先の表（家・店ごとの品ぞろえ・外出で決まること・約束なしの訪問・お出かけの行き先・行動パターンの移行）のテスト
 tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会う約束・電話や相手からのメッセージ）のテスト
 tools/test_routine.py  あなたの行動パターン（曜日ごとの流れ・予定どおりにいかないこと・時系列のまとめ・以前の設定の読み替え）のテスト

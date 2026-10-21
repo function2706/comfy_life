@@ -2748,6 +2748,102 @@
   "end_override": true
  },
  {
+  "id": "bring_home",
+  "name": "うちに寄っていく？",
+  "icon": "🏠",
+  "category": "会う",
+  "when": "stage=visit, with_mode=meet, phase!=midnight",
+  "cooldown": 60,
+  "bond": "guest_start",
+  "end_override": true,
+  "effects": {
+   "loneliness": -10,
+   "mood": 3,
+   "heart": 4
+  },
+  "reactions": [
+   {
+    "text": "いいんですか？ じゃあ、ちょっとだけおじゃまします。",
+    "when": "",
+    "pos": "smile, walking together, street, evening",
+    "neg": ""
+   },
+   {
+    "text": "今日はこのまま帰りますね。また今度、ゆっくり。",
+    "when": "mood<40",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "apologetic smile, waving, street",
+    "neg": "",
+    "key": "decline"
+   },
+   {
+    "text": "今日はこのまま帰りますね。また今度、ゆっくり。",
+    "when": "affection<55",
+    "priority": 1,
+    "override": true,
+    "effects": {},
+    "pos": "apologetic smile, waving, street",
+    "neg": "",
+    "key": "decline_shy"
+   }
+  ],
+  "reason_good": "{call}の家に寄らせてもらった",
+  "pos": "outdoors, street",
+  "neg": ""
+ },
+ {
+  "id": "go_her_home",
+  "name": "家に寄ってもいい？",
+  "icon": "🚪",
+  "category": "会う",
+  "when": "stage=visit, with_mode=meet, phase!=midnight",
+  "cooldown": 60,
+  "bond": "visit_start",
+  "end_override": true,
+  "effects": {
+   "loneliness": -10,
+   "mood": 2,
+   "heart": 3
+  },
+  "reactions": [
+   {
+    "text": "うちですか？ ……ちょっと散らかってるかもですけど、どうぞ。",
+    "when": "",
+    "pos": "shy smile, entrance, opening door",
+    "neg": ""
+   },
+   {
+    "text": "ごめんなさい、今日は部屋がちょっと……また今度にしてください。",
+    "when": "mood<40",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "apologetic, street",
+    "neg": "smile",
+    "key": "decline"
+   },
+   {
+    "text": "ごめんなさい、今日は部屋がちょっと……また今度にしてください。",
+    "when": "affection<55",
+    "priority": 1,
+    "override": true,
+    "effects": {},
+    "pos": "apologetic, street",
+    "neg": "smile",
+    "key": "decline_shy"
+   }
+  ],
+  "reason_good": "{call}を家に招いた",
+  "pos": "outdoors, street",
+  "neg": ""
+ },
+ {
   "id": "ask_live",
   "name": "一緒に住まない？",
   "icon": "🏡",
