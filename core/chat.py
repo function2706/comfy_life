@@ -48,12 +48,17 @@ LINES = {
     "chat.stamp": "📱『（スタンプが返ってきた）』",
     "chat.late_night": "📱『……こんな時間に、どうしたんですか？ もう寝ますね』",
     "chat.too_often": "📱『……ちょっと、連絡多くないですか？』",
+    "chat.repaid": "📱『あ、確かに受け取りました。わざわざありがとうございます』",
+    "chat.money_worry": "📱『……あの、{call}。お金のこと、大丈夫ですか？ 無理してないか、ちょっと心配で』",
+    "chat.money_distrust": "📱『……{call}、お金のこと、ちゃんと考えてますか？ ……ちょっと気になってて』",
 }
 SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "thanks": "お礼", "apology": "謝罪 (理由を知っている)",
                "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "雑談", "ask_how": "近況 ({news} に出来事)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
                "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
-               "stamp": "スタンプ", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ"}
+               "stamp": "スタンプ", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
+               "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
+               "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)"}
 
 
 class Chat:
@@ -126,6 +131,8 @@ class Chat:
         cid = char["id"]
         stage = app.bonds.stage(cid)
         extra = {}
+        if kind == "repaid":                    # 返したお金の受け取り (効き目は返したときに済んでいる)
+            return "repaid", {}, extra
         if ctx.get("too_often"):
             return "too_often", {"mood": -2, "affection": -1}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":

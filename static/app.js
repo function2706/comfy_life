@@ -1174,7 +1174,8 @@ function renderItems() {
     h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
       h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。リストにない物をつい買うこともあります。'),
       cat.map((it) => h('div', { class: 'row item-row' },
-        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後・${it.places.map(PLACE_LABEL).join(' ')}`)),
+        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後・${it.places.map(PLACE_LABEL).join(' ')}`),
+          iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
         h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => setWant(it.id, (want[it.id] || 0) - 1) }, '−'),
         h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
         h('button', { class: 'btn small', onclick: () => setWant(it.id, (want[it.id] || 0) + 1) }, '＋')))));
@@ -1492,8 +1493,11 @@ function renderMoney() {
         policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
       L.living ? h('div', { class: 'money-row', title: 'あなたの家の毎日の生活費と、月はじめの家賃・光熱費・通信費の分け方' }, h('span', {}, '生活費・家賃'),
         policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${v.name}が払う`]])) : '',
-      L.debt ? h('div', { class: 'money-row', title: '払えなかった生活費・家賃' }, h('span', {}, '借金'), h('b', { class: 'down' }, yen(L.debt))) : '',
-      ...(L.loans || []).map((x) => h('div', { class: 'money-row' }, h('span', {}, `${x.name}に借りている`), h('b', { class: 'down' }, yen(x.amount)))),
+      L.debt ? h('div', { class: 'money-row', title: '払えなかった生活費・家賃。月はじめに少し利息がつきます' }, h('span', {}, '借金'), h('b', { class: 'down' }, yen(L.debt)),
+        h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), onclick: () => repay('debt', L.debt, '借金') }, '返す')) : '',
+      ...(L.loans || []).map((x) => h('div', { class: 'money-row' }, h('span', {}, `${x.name}に借りている`), h('b', { class: 'down' }, yen(x.amount)),
+        h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), onclick: () => repay(x.id, x.amount, x.name) }, '返す'))),
+      L.in_debt ? h('div', { class: 'muted small' }, '借金のあいだは、食材・洗剤などの必需品しか買えません。') : '',
       (L.money_notes || []).length ? h('div', { class: 'muted small' }, ...L.money_notes.slice(-3).map((x) => h('div', {}, `${fmtTime(x.t)} ${x.text}`))) : ''),
     h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
       h('div', { class: 'earn' },
@@ -1515,6 +1519,17 @@ function renderMoney() {
         h('span', { class: 'muted small' }, fmtTime(n.t)))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
 }
 
+async function repay(to, owed, name) {
+  if (S.busy) return;
+  const v = prompt(`${name}に返す額（円）`, String(Math.min(owed, (S.view.life || {}).my_money || 0)));
+  if (v === null) return;
+  const amount = Math.trunc(+v);
+  if (!(amount > 0)) return toast('返す額を入れてください', 'err');
+  S.busy = true;
+  try { const r = await api('/api/money/repay', { to, amount }); toast(`${yen(r.amount)}返しました${r.left ? `（残り ${yen(r.left)}）` : '（完済）'}`); }
+  catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
 async function trade(asset, qty) {
   qty = Math.trunc(qty);
   if (!qty) return toast('株数を入れてください', 'err');

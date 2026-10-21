@@ -5,7 +5,10 @@
   一人なら半分) と, 月はじめの基本コスト (家賃・光熱費・通信費. home_cost_per_month). 一緒に暮らしている相手とは
   その人の living_policy (折半 / あなた / 相手) で分ける. 一緒に暮らしていない人は, 自分の生活費を自分で払う (her_living_cost_per_day).
 - 払えなければ, 連絡先を知っている人に借りる (頼む相手・断られるか・印象がどう変わるかは間柄・仲・性格・懐具合しだい).
-  借りられなければ借金になる (player.json の debt. 利息・取り立てはまだない). 借りたお金は loans に残る.
+  借りられなければ借金になる (player.json の debt). 借りたお金は loans に残る.
+- 借金のあいだ (debt か loans が残っている) は, 必需品 (食材・日用品. items.ESSENTIAL_KINDS) しか買えない. スキルの伸びは抑えない.
+  借金 (debt) には月はじめに少し利息がつく (debt_interest_per_month). お金があるときに返せる (repay).
+  事情を知っている相手 (お金を貸した人・同居相手) は, 返すのが遅いと心配したり不信感を持ったりする (性格・仲しだい. money_concern).
 - 出来事は data/events.json. 時間の経過でときどき起き, 機嫌などを動かし, 「理由」として記録される.
 - 機嫌の理由は state["reasons"] に良い方・悪い方とも記録する: キャラ側の出来事 (event) か, あなたの行動 (player) か,
   あなたがその理由を知っているか (told). 謝る・相談にのる・何かあった？ の反応はこれで変わる.
@@ -153,6 +156,7 @@ class Life:
                 live = self.app.bonds.living()
                 self.pay_home(int(e.get("living_cost_per_day", 3000)) // (1 if live else 2), t, "生活費")
                 if d0.month != d1.month:
+                    self.charge_interest(t)
                     self.pay_home(int(e.get("home_cost_per_month", 60000)), t, "%d月の家賃・光熱費・通信費" % d1.month)
         ps["last_tick"] = t
         if changed:
@@ -348,6 +352,7 @@ class Life:
                 if hm["a"] < own:
                     self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
                 hm["a"] -= min(own, max(hm["a"], 0))
+            self.money_concern(char, st, t1)
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
         if ctx["asleep"]:
@@ -391,6 +396,8 @@ class Life:
         ps["money"] -= got                      # 借りた分は, そのまま支払いに
         short -= got
         if short > 0:
+            if not int(ps.get("debt", 0)):
+                ps["debt_t"] = t                # 借金が始まった時 (返済の遅れの目安)
             ps["debt"] = int(ps.get("debt", 0)) + short
             self.money_note(t, "%sが払えず、%s円の借金をした（借金 %s円）" % (what, format(short, ","), format(ps["debt"], ",")))
         self.save_player()
@@ -408,9 +415,10 @@ class Life:
             return 0.0
         p = st["params"]
         recent = sum(1 for x in st.get("lent") or [] if t - x["t"] < 30 * 86400)
+        owed = int((self.player_state().get("loans") or {}).get(char["id"], 0))     # まだ返してもらっていない
         f = 0.2 + (p.get("affection", 40) - 50) / 100.0 + (p.get("trust", 40) - 50) / 120.0 \
             + {"contact": 0.0, "visit": 0.15, "live": 0.25}.get(self.app.bonds.stage(char["id"]), -1) - 0.15 * recent \
-            - float(self.app.traits(char).get("caution", 0)) / 50.0 - (0.2 if hm < amount * 2 else 0.0)
+            - float(self.app.traits(char).get("caution", 0)) / 50.0 - (0.2 if hm < amount * 2 else 0.0) - (0.2 if owed else 0.0)
         return max(0.03, min(0.9, f))
 
     def borrow(self, amount, t, what):
@@ -431,6 +439,8 @@ class Life:
                 st.setdefault("lent", []).append({"t": t, "amount": amount, "what": what})
                 del st["lent"][:-20]
                 loans = self.player_state().setdefault("loans", {})
+                if not int(loans.get(cid, 0)):
+                    self.player_state().setdefault("loan_t", {})[cid] = t
                 loans[cid] = int(loans.get(cid, 0)) + amount
                 d = app.apply_effects(st, app.trait_effects(char, {"trust": -(1.5 + 1.5 * recent), "mood": -1 - recent}))
                 self.add_reason(st, "player", "bad", "%sに%sのお金を貸した" % (call, what), t, told=True,
@@ -444,6 +454,131 @@ class Life:
             app.save_state(cid)
             self.money_note(t, "%sが足りず、%sに借りようとしたが断られた" % (what, char.get("name", "")))
         return 0
+
+    # ---------------------------------------------------------- 借金のあいだ・利息・返済・返済の遅れ
+    def in_debt(self):
+        """借金 (debt) か, 誰かに借りたお金 (loans) が残っている."""
+        ps = self.player_state()
+        return int(ps.get("debt", 0)) > 0 or any(int(v) > 0 for v in (ps.get("loans") or {}).values())
+
+    def charge_interest(self, t):
+        """月はじめ: 借金に少し利息がつく (知り合いに借りた分にはつかない)."""
+        ps = self.player_state()
+        debt = int(ps.get("debt", 0))
+        if debt <= 0:
+            return 0
+        add = max(1, int(round(debt * float(self.econ().get("debt_interest_per_month", 0.015)))))
+        ps["debt"] = debt + add
+        self.money_note(t, "借金に%s円の利息がついた（借金 %s円）" % (format(add, ","), format(ps["debt"], ",")))
+        self.save_player()
+        return add
+
+    def owed_since(self, cid, st, t):
+        """その相手が, あなたのお金のことで気にし始める起点 (貸したまま返ってきていない・同居していて借金を知っている). 無ければ None."""
+        ps = self.player_state()
+        since = None
+        if int((ps.get("loans") or {}).get(cid, 0)) > 0:
+            since = (ps.get("loan_t") or {}).get(cid) or min([x["t"] for x in st.get("lent") or []] or [t])
+        if self.app.bonds.living() == cid and int(ps.get("debt", 0)) > 0:
+            d0 = ps.get("debt_t") or t
+            since = min(since, d0) if since else d0
+        return since
+
+    def money_concern(self, char, st, t):
+        """日付が変わったとき: 事情を知っている相手は, 返済が遅いと気にする (猶予 loan_grace_days を過ぎてから, ときどき).
+        心配するか不信感を持つかは, 慎重さ (caution)・好感度・信頼・遅れの長さしだい. 不信感は口に出さないことも.
+        口に出したら, 一緒にいればその場で, 離れていればメッセージで. 鍵は chat.money_worry / chat.money_distrust."""
+        cid = char["id"]
+        e = self.econ()
+        since = self.owed_since(cid, st, t)
+        if not since:
+            return None
+        over = (t - since) / 86400.0 - float(e.get("loan_grace_days", 14))
+        if over <= 0 or random.random() >= float(e.get("money_concern_per_day", 0.25)):
+            return None
+        app = self.app
+        p = st["params"]
+        pd = 0.3 + float(app.traits(char).get("caution", 0)) / 30.0 - (p.get("affection", 50) - 50) / 100.0 \
+            - (p.get("trust", 50) - 50) / 120.0 + over / 60.0
+        distrust = random.random() < max(0.1, min(0.9, pd))
+        eff = {"trust": -2, "affection": -1, "mood": -2} if distrust else {"mood": -1, "stress": 2}
+        d = app.apply_effects(st, app.trait_effects(char, eff))
+        owed = int((self.player_state().get("loans") or {}).get(cid, 0))
+        call = app.pronouns(char)[2]
+        said = not distrust or random.random() < 0.5
+        self.add_reason(st, "player", "bad", ("%sが貸したお金を返してくれない" if owed else "%sの借金が気になる") % call, t,
+                        told=said, delta=d.get("mood", 0), action="_money_concern")
+        key = "money_distrust" if distrust else "money_worry"
+        if said:
+            text = app.chat.line(char, key, {})
+            if app.bonds.together(cid):
+                app.note_entry(char, st, t, "_money_concern", "お金のこと", "💴", text.replace("📱", "", 1), d)
+            else:
+                app.chat.add(cid, "her", text, kind=key, t=t)
+                app.picked_up_phone(char, st, t)
+        return key
+
+    def repay(self, to, amount, t=None):
+        """お金を返す. to = "debt" (借金) か, 借りた相手の id. 返した額と, 相手 (いれば) を返す.
+        相手に返したら, 喜ばれ, 信頼が少し戻る (bonds.realize を通す. 遅れていたほど全部は戻らない)."""
+        t = t or time.time()
+        ps = self.player_state()
+        amount = int(amount)
+        if amount <= 0:
+            raise ValueError("返す額を入れてください")
+        if to == "debt":
+            owed = int(ps.get("debt", 0))
+        else:
+            if to not in self.app.chars:
+                raise KeyError("相手が見つかりません: %s" % to)
+            owed = int((ps.get("loans") or {}).get(to, 0))
+        if owed <= 0:
+            raise ValueError("返すお金はありません")
+        amount = min(amount, owed)
+        if ps["money"] < amount:
+            raise ValueError("お金が足りません（手元 %s円）" % format(ps["money"], ","))
+        ps["money"] -= amount
+        left = owed - amount
+        if to == "debt":
+            ps["debt"] = left
+            if not left:
+                ps.pop("debt_t", None)
+            self.money_note(t, "借金を%s円返した（%s）" % (format(amount, ","), "残り %s円" % format(left, ",") if left else "完済"))
+            self.save_player()
+            return {"amount": amount, "left": left}
+        app = self.app
+        char, st = app.chars[to], app.state(to)
+        self.her_money(st)["a"] += amount
+        ps["loans"][to] = left
+        since = (ps.get("loan_t") or {}).get(to) or t
+        if not left:
+            ps["loans"].pop(to, None)
+            ps.get("loan_t", {}).pop(to, None)
+        late = max(0.0, (t - since) / 86400.0 - float(self.econ().get("loan_grace_days", 14)))
+        eff = {"mood": 2, "trust": (2.5 if not left else 1.0) * (0.5 if late > 0 else 1.0)}
+        eff, _ = app.bonds.realize(char, st, eff, "_repay", t)
+        app.bonds.touch(st, t)
+        d = app.apply_effects(st, app.trait_effects(char, eff))
+        if not left:
+            for r in st.get("reasons") or []:        # 返してもらえない, は解決
+                if r.get("action") in ("_money_concern", "_borrow") and r["mood"] == "bad":
+                    r["resolved"] = True
+        self.money_note(t, "%sに%s円返した（%s）" % (char.get("name", ""), format(amount, ","),
+                                                  "残り %s円" % format(left, ",") if left else "全部返した"))
+        self.save_player()
+        if app.bonds.together(to):
+            text = app.chat.line(char, "repaid", {}).replace("📱", "", 1)
+            app.note_entry(char, st, t, "_repay", "お金を返した", "💴", text, d)
+        else:                                       # 離れていれば振り込み. 返事はいつものメッセージの時間差で
+            app.chat.add(to, "sys", "💴 %s円を返した（振り込んだ）" % format(amount, ","), kind="repay", t=t)
+            pend = st.get("msg_pending")
+            if pend:
+                pend["kind"] = "repaid"
+            else:
+                st["msg_pending"] = {"aid": "message", "t": t, "due": t + random.uniform(5, 60) * 60, "reply": True,
+                                     "count": 1, "kind": "repaid"}
+        app.save_state(to)
+        return {"amount": amount, "left": left, "to": to, "deltas": d}
 
     # ---------------------------------------------------------- 出来事
     def happen(self, char, st, t, ctx, force=None):
@@ -576,7 +711,7 @@ class Life:
         req = dict(st["request"], text=fmt(st["request"].get("text")), label=fmt(st["request"].get("label"))) \
             if st.get("request") else None
         return {
-                "debt": int(ps.get("debt", 0)),
+                "debt": int(ps.get("debt", 0)), "in_debt": self.in_debt(),
                 "loans": [{"id": k, "name": (self.app.chars.get(k) or {}).get("name", k), "amount": v}
                           for k, v in (ps.get("loans") or {}).items() if v],
                 "money_notes": (ps.get("money_notes") or [])[-5:],

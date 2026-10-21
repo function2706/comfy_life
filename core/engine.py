@@ -1142,6 +1142,16 @@ class App:
             self.save_log(char["id"])
             return {"entry": e}
 
+    def note_entry(self, char, st, now, aid, name, icon, text, deltas=None):
+        """画像を作らない記録 (お金のこと・家のことなど, そばで言われたひとこと). 記録を返す."""
+        dt = datetime.fromtimestamp(now)
+        scene = self.scene_at(char, st, dt)
+        act = {"id": aid, "name": name, "icon": icon, "pos": "", "neg": ""}
+        pos, neg, parts = self.build_prompt(char, st, dt, act)
+        e = self._new_entry(char["id"], now, act, self.format_text(text, char, scene, dt), deltas or {}, scene, dt, pos, neg, parts)
+        self.save_log(char["id"])
+        return e
+
     def _new_entry(self, cid, now, a, text, deltas, scene, dt, pos, neg, parts):
         e = {"id": uuid.uuid4().hex[:12], "t": now, "action": a.get("id"), "action_name": a.get("name", ""),
              "icon": a.get("icon", ""), "text": text, "deltas": deltas, "scene": scene["label"],
@@ -1544,6 +1554,12 @@ class App:
                 raise KeyError("働きかけが見つかりません: %s" % aid)
             self.save_state(char["id"])
             return {"entry": e, "job": e.get("job")}
+
+    def repay(self, to, amount, cid=None):
+        """借金・借りたお金を返す."""
+        with self.lock:
+            r = self.life.repay(to, amount)
+        return dict(r, ok=True)
 
     def trade(self, asset, qty, cid=None):
         with self.lock:

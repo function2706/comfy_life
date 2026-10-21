@@ -6,6 +6,7 @@
   品切れ・値段の上下もあり, お金が足りなければ買えない. リスト以外の衝動買いも少しある
 - 家での行動が持ち物を使う: 料理=食材, お茶=お茶っ葉など, おやつ=お菓子 (無ければありあわせで効き目が落ちる),
   家事=洗剤 (あるとはかどる), 研鑽=その分野の本・教材 (あると伸びやすい. 減らない)
+- 借金のあいだは必需品 (ESSENTIAL_KINDS: 食材・日用品) しか買わない (リストにあっても見送る. 衝動買いもしない)
 - プレゼントは持ち物から. キャラクターの好き・苦手 (定義の likes / dislikes. 無ければ性格プリセットの既定) と品物の印を照らす
 """
 import random
@@ -31,7 +32,9 @@ _C = [
     ("game", "ゲームソフト", "🎮", "goods", 6000, ["mall"], ["games"], True),
     ("necklace", "ネックレス", "💎", "goods", 30000, ["mall"], ["accessories"], True),
 ]
-CATALOG = {i: {"id": i, "name": n, "icon": ic, "kind": k, "price": p, "places": pl, "tags": tg, "giftable": gf}
+ESSENTIAL_KINDS = ("food", "detergent")      # 必需品 (借金のあいだも買える)
+CATALOG = {i: {"id": i, "name": n, "icon": ic, "kind": k, "price": p, "places": pl, "tags": tg, "giftable": gf,
+               "essential": k in ESSENTIAL_KINDS}
            for i, n, ic, k, p, pl, tg, gf in _C}
 TAG_LABEL = {"food": "食べ物", "tea": "お茶", "sweets": "甘いもの", "practical": "実用品", "books": "本", "flowers": "花",
              "cute": "かわいいもの", "accessories": "アクセサリー", "fashion": "服", "games": "ゲーム"}
@@ -104,9 +107,13 @@ class Items:
         リスト以外の衝動買いも少し. 買ったもの [{id, name, price}] と, 買えなかった理由 [str] を返す."""
         ps = self.ps()
         bought, missed = [], []
+        strict = self.app.life.in_debt()
         for iid, want in list(ps["shop_list"].items()):
             it = CATALOG.get(iid)
             if not it or place not in it["places"]:
+                continue
+            if strict and not it["essential"]:
+                missed.append("借金があるので、%sは見送った" % it["name"])
                 continue
             for _ in range(int(want)):
                 if random.random() < 0.12:
@@ -124,7 +131,7 @@ class Items:
                     ps["shop_list"].pop(iid, None)
         # 衝動買い: 安いものをたまに (長くいるほど)
         cheap = [i for i in CATALOG.values() if place in i["places"] and i["price"] <= 1500]
-        if cheap and random.random() < min(0.35, 0.12 * max(0.5, hours)):
+        if cheap and not strict and random.random() < min(0.35, 0.12 * max(0.5, hours)):
             it = random.choice(cheap)
             price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
             if ps["money"] >= price + 3000:
@@ -158,7 +165,8 @@ class Items:
     def view(self):
         ps = self.ps()
         return {"items": [dict(CATALOG[i], count=n) for i, n in sorted(ps["items"].items()) if i in CATALOG and n > 0],
-                "shop_list": [dict(CATALOG[i], want=n) for i, n in sorted(ps["shop_list"].items()) if i in CATALOG]}
+                "shop_list": [dict(CATALOG[i], want=n) for i, n in sorted(ps["shop_list"].items()) if i in CATALOG],
+                "in_debt": self.app.life.in_debt()}
 
     @staticmethod
     def catalog():

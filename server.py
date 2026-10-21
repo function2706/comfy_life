@@ -119,6 +119,8 @@ def route(method, path, q, body):
             return a.force_approach(b["id"], cid)
         if path == "/api/approaches":
             return {"approaches": a.save_approaches(b["approaches"])}
+        if path == "/api/money/repay":
+            return a.repay(b["to"], int(b.get("amount", 0)), cid)
         if path == "/api/market/trade":
             return a.trade(b["asset"], int(b["qty"]), cid)
         if path == "/api/task/start":
