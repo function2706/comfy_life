@@ -228,8 +228,10 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - こちらから: トークの「📅 約束する」（`POST /api/appoint {id, t, place, do}`。日時は 30 分後〜2 週間先、行き先は表から、何をするかはその行き先でできるお出かけのコマンド。家に行ける仲なら相手の家 `visit_home` / あなたの家 `invite_home`）。時間帯の条件（`phase`）だけはその時刻で確かめる。返事は `msg_pending` の kind `appoint` で時間差（スマホを見ていればすぐのことも）。受けるかは `Appoint.reply`: その時間の相手の予定（`scheduled_scene` が外出・手が離せない・寝ているなら多くは断る `chat.appoint_busy`）、好感度・機嫌・慎重さ・家に行ける仲・`date_promise`・連絡しすぎ（`chat.appoint_yes` / `appoint_no`）。
 - 相手から: 離れている連絡先の相手（好感度 45 以上）が、ときどき誘ってくる（`_maybe_invite`: 好感度・寂しさ × 性格の `approach`。1〜5 日先、相手の予定が空いている時間。`chat.appoint_invite`）。トークで「行く」「断る」（`POST /api/appoint/answer {id, yes}`）。丸一日返事をしなければ流れる（少し寂しがる）。
 - 相手の側の当日は、約束したときに決まる（`_plan`、画面には出さない）: すっぽかし（仲が浅いほど・`traits.punctual` が低いほど）、遅刻（`punctual` しだいで 5〜60 分）。体調不良のキャンセルは 3 時間前ごろに健康しだい（`chat.appoint_cancel`）。
-- 当日: 約束の 15 分前から 45 分後まで「会いに行く」（`POST /api/appoint/go {id}`。外出中ならそこから向かう）。来れば約束したコマンドを `act(do, opts={appointment})` で実行（条件は約束のときに済んでいるので見ない。`bonds.realize` は通る）。遅れて来るなら約束の場所で待つ（`waiting`、来たら合流）。来なければ待ちぼうけ（`stood_up`、あとで謝りのメッセージ `chat.appoint_sorry` が来ることも）。あなたが 10 分以上遅れると少し機嫌を損ねる。45 分たっても行かなければ（画面を閉じていても）すっぽかし（`missed`: 機嫌・信頼・好感度が下がり、機嫌の理由と `chat.appoint_missed`）。画面を開いたまま放置していても、行動パターンでは会いに行かない。
-- 表示: `state_view.appoints`（約束の一覧と、いま会いに行けるか `due`）・`appoint_events`（キャンセル・誘い・すっぽかし）、トークの `appoints` / `appoint_choices`。
+- 当日は自分で出向く: 約束の場所へは、ふつうの外出（`solo.start("out", place)`。`POST /api/appoint/go {id}` は行き先を約束の場所にした外出を始めるだけ）。`Appoint.live` → `_tick` が state_view のたびに、あなたが約束の場所にいるか（`Appoint.here`: 外出中で `presence.place` が約束の場所 / あなたの家なら家にいる）を見て、着いた時刻（`arrived`。約束の 3 時間前から数え、時刻の前に離れれば消す）を覚える。約束の時刻を過ぎて、その場所にいて相手が来ていれば会う（`_meet`: 外出を終えて `act(do, opts={appointment})`。条件は約束のときに済んでいるので見ない。`bonds.realize` は通る）。相手が遅れていれば着いて待つ（`waiting`）。相手が来ないなら 30 分（`GIVE_UP`）待ってあきらめる（`stood_up`、あとで謝りのメッセージ `chat.appoint_sorry` が来ることも）。着いたのが 10 分以上遅ければ少し機嫌を損ねる。45 分（`GRACE`）たっても約束の場所にいなければ（画面を閉じていても）すっぽかし（`missed`: 機嫌・信頼・好感度が下がり、機嫌の理由と `chat.appoint_missed`）。画面を閉じていた間の外出の切り上げ（`outdoor.check_gap`）は約束の判定より先に行う。画面を開いたまま放置していても、行動パターンでは出向かない。
+- 移動時間はない（一人の外出・お出かけ・合流と同じく、出かけるとすぐ着く）。入れるなら行き先の表に距離を持たせ、外出全体（偶然の出会いの時間・閉まる時刻）と合わせて扱う必要がある。
+- 相手の家の約束: 約束の 3 時間前から約束の 45 分後までに相手の家へ出かけると、約束なしの訪問（`drop_in`）ではなく玄関先で待つ（`Appoint.arrive_home_of`。外出中で、行き先は `home:<id>`。家では偶然の出会いは起きない）。あなたの家に招く約束は、その時間に家にいればよい。
+- 表示: `state_view.appoints`（約束の一覧と、もうすぐか `due`・約束の場所にいるか `here`・残り秒 `remain`）・`appoint_events`（着いた・会えた・キャンセル・誘い・すっぽかし）、トークの `appoints` / `appoint_choices`。「一人で」とトークの約束に「🚶 ◯◯へ出かける」、外出中の画面に「約束: ◯時 ◯◯さん（あと◯分）」。
 
 ### メッセージ（トーク）
 

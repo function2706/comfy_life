@@ -16,7 +16,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
-from core.appoint import GRACE  # noqa: E402
+from core.appoint import GIVE_UP, GRACE  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)
@@ -121,30 +121,50 @@ def main():
             return x
 
         app.set_params({"affection": 70, "mood": 70, "energy": 80, "sleepiness": 0}, cid)
+        P = app.presence
+        # 自分で出向く: 約束の場所への外出. 早く着けばその場で待ち, 時刻を迎えると会える
         x = make(time.time() + 3600, {})
-        try:
-            A.go(x["id"])
-            raise AssertionError("約束の 15 分より前に会えてしまう")
-        except ValueError:
-            pass
-        x["t"] = time.time()
         r = A.go(x["id"])
-        assert r["status"] == "met" and B.mode(cid) == "meet" and st["override"]["place"] == "riverside", r
-        app.act("go_home", cid)
-        x = make(time.time() - 60, {"late": 20})
-        r = A.go(x["id"])
-        assert r["status"] == "waiting" and app.presence.rec()["mode"] == "out" and B.mode(cid) is None
-        assert A.live(time.time()) == [] or B.mode(cid) is None
-        A.get(x["id"])["arrive"] = time.time() - 1
+        assert r["status"] == "going" and P.rec()["mode"] == "out" and P.rec()["place"] == "riverside", r
+        assert A.view()[-1]["here"] and A.live(time.time()) == [] and x["status"] == "set" and x.get("arrived")
+        x["t"] = time.time() - 1
         A.live(time.time())
-        assert A.get(x["id"])["status"] == "met" and B.mode(cid) == "meet" and app.presence.rec()["mode"] == "none"
+        assert x["status"] == "met" and B.mode(cid) == "meet" and st["override"]["place"] == "riverside" and P.rec()["mode"] == "none"
+        assert "遅れて" not in app.log(cid)[-1]["text"], "早く着いて待っていたので遅刻ではない"
+        app.act("go_home", cid)
+        # 別の用事で同じ場所に来ていても会える
+        app.solo.start("out", place="riverside")
+        x = make(time.time() - 1, {})
+        A.live(time.time())
+        assert x["status"] == "met" and B.mode(cid) == "meet"
+        app.act("go_home", cid)
+        # 相手が遅れる: 着いて待つ (外出中のまま). 来たら会える
+        x = make(time.time() - 60, {"late": 20})
+        A.go(x["id"])
+        A.live(time.time())
+        assert x["status"] == "waiting" and P.rec()["mode"] == "out" and B.mode(cid) is None
+        x["arrived"], x["t"] = time.time() - 30 * 60, time.time() - 30 * 60        # 時間どおりに着いて, 相手が 20 分遅れた
+        A.live(time.time())
+        assert x["status"] == "met" and B.mode(cid) == "meet" and P.rec()["mode"] == "none"
         assert "遅れて来た" in app.log(cid)[-1]["text"], app.log(cid)[-1]["text"]
         app.act("go_home", cid)
+        # 相手が来ない: 待ちぼうけ (しばらく待ってあきらめる)
         x = make(time.time(), {"noshow": True})
-        r = A.go(x["id"])
-        assert r["status"] == "stood_up" and "来なかった" in r["text"] and app.presence.rec()["mode"] == "out"
+        A.go(x["id"])
+        assert A.live(time.time()) == [] and x["status"] == "set"
+        out = A.live(time.time() + GIVE_UP + 1)
+        assert x["status"] == "stood_up" and any("来なかった" in t for t in out) and P.rec()["mode"] == "out"
         app.come_back()
-        print("meet / late / no-show: OK")
+        # 出かけても, 時刻の前に家に帰れば (画面を閉じても) 約束の場所にはいない
+        x = make(time.time() + 600, {})
+        A.go(x["id"])
+        P.rec()["since"] -= 300
+        app.come_back()
+        A.live(time.time() + 700)
+        assert x["status"] == "set" and not x.get("arrived")
+        A.live(time.time() + 600 + GRACE + 1)
+        assert x["status"] == "missed"
+        print("go / wait / meet / late / no-show: OK")
 
         # ---- 5. 体調不良のキャンセル (健康しだい)
         cancels = {"sick": 0, "well": 0}
@@ -168,8 +188,9 @@ def main():
         assert any(r.get("action") == "_appoint" and "すっぽかした" in r["tell"] for r in st["reasons"])
         assert any(i["kind"] == "appoint_missed" for i in C.load(cid)["items"])
         x = make(time.time() - 20 * 60, {})
-        r = A.go(x["id"])
-        assert r["status"] == "met" and "遅れてしまった" in app.log(cid)[-1]["text"]
+        A.go(x["id"])
+        A.live(time.time())
+        assert x["status"] == "met" and "遅れてしまった" in app.log(cid)[-1]["text"]
         assert any("遅れてきた" in r["tell"] for r in st["reasons"])
         app.act("go_home", cid)
         print("missed / me late: OK")
@@ -178,13 +199,17 @@ def main():
         B.set_stage(cid, "visit")
         ch = {c["place"]: [d["id"] for d in c["dos"]] for c in A.choices(cid)}
         assert ch["home:" + cid] == ["visit_home"] and ch["home:me"] == ["invite_home"]
-        x = make(time.time(), {}, do="visit_home", place="home:" + cid)
-        r = A.go(x["id"])
-        assert B.mode(cid) == "visit" and "の部屋は" in r["entry"]["text"], r["entry"]["text"]
+        x = make(time.time() + 300, {}, do="visit_home", place="home:" + cid)
+        r = A.go(x["id"])            # 相手の家へ出向く: 約束の前後なら, 約束なしの訪問ではなく玄関先で待つ
+        assert app.presence.rec()["mode"] == "out" and app.presence.rec()["place"] == "home:" + cid and B.mode(cid) is None, r
+        x["t"] = time.time() - 1
+        A.live(time.time())
+        assert x["status"] == "met" and B.mode(cid) == "visit" and "の部屋は" in app.log(cid)[-1]["text"], app.log(cid)[-1]["text"]
         B.end()
-        x = make(time.time(), {}, do="invite_home", place="home:me")
-        A.go(x["id"])
-        assert B.mode(cid) == "guest"
+        x = make(time.time() - 1, {}, do="invite_home", place="home:me")      # あなたの家に招く: 家にいればよい
+        assert A.go(x["id"])["status"] == "here"
+        A.live(time.time())
+        assert x["status"] == "met" and B.mode(cid) == "guest"
         B.end()
         # 同居相手とは約束はいらない
         B.set_stage(cid, "live")

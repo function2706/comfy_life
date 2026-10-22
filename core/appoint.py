@@ -5,11 +5,15 @@
   受けるかは仲・機嫌・慎重さ・その時間の相手の予定 (予定があれば断られる)・「会おうよ」に応じていたか (date_promise) しだい.
 - 相手から: 離れている連絡先の相手が, ときどきメッセージで誘ってくる (仲・寂しさ・性格しだい. 補正なし). トークで受ける / 断る.
   丸一日返事をしなければ, 流れる (少し寂しがる).
-- 約束の時刻の 15 分前から「会いに行く」. 相手の側は, 約束したときに決まっている (見えない):
+- 約束の場所へは, 自分で出向く: ふつうの外出 (一人の「外出」で行き先を約束の場所に) で行く. 約束の場所にいる状態で約束の時刻を
+  迎えると会える (早く着けば, その場で待つ. 待っている間も外出中で, 偶然の出会いなども普段どおり. 別の用事で同じ場所に来ていても会える).
+  相手の家での約束は, 相手の家へ出向く (約束の前後なら, 約束なしの訪問ではなく玄関先で待つ). あなたの家に招く約束は, 家にいればよい.
+  移動に時間はかからない (ほかの外出と同じく, 出かけたらすぐ着く). 外出は画面を開いている間だけなので, 閉じれば家に帰る (= いない).
+- 相手の側は, 約束したときに決まっている (見えない):
   すっぽかし (仲が浅いほど・時間にルーズな性格ほど) / 遅刻 (性格の punctual しだい) / 体調不良のキャンセル (3 時間前ごろ, 健康しだい).
-  来なければ, その場所で待ちぼうけ (あとで謝りのメッセージが来ることも). 遅れて来れば, それまで待つ.
-- あなたが約束の時刻から 45 分たっても会いに行かなければ (画面を閉じていても), すっぽかしたことになる (相手は傷つく).
-  あなたが遅れて行けば, 少し機嫌を損ねる. 画面を開いたまま放置していても, 行動パターンでは会いに行かない (手動で).
+  来なければ, その場所で待ちぼうけ (30 分待って来なければあきらめる. あとで謝りのメッセージが来ることも). 遅れて来れば, それまで待つ.
+- あなたが約束の時刻に約束の場所にいなければ遅刻: 遅れて着けば少し機嫌を損ね, 45 分たってもいなければ (画面を閉じていても)
+  すっぽかしたことになる (相手は傷つく). 画面を開いたまま放置していても, 行動パターンでは出向かない (手動で).
 - 会ったら, 約束したお出かけのコマンドを実行する (条件は約束したときに済んでいる). 新しい交流は bonds.realize を通る (act の中).
 記録は player.json の appoints ([{id, cid, t, place, do, by, status, plan, made, ...}]).
 status: asked (返事待ち) / offered (相手からの誘い) / set (約束した) / waiting (着いて待っている) / met / stood_up (相手が来なかった) /
@@ -23,9 +27,11 @@ from datetime import datetime, timedelta
 from . import cond
 from . import places as places_mod
 
-EARLY = 15 * 60          # 約束の時刻のこれだけ前から会いに行ける
-GRACE = 45 * 60          # 約束の時刻からこれだけ過ぎても会いに行かなければ, すっぽかしたことに
-LATE_ME = 10 * 60        # これより遅れて行くと, 相手は少し機嫌を損ねる
+EARLY = 15 * 60          # 約束の時刻のこれだけ前から「もうすぐ」として知らせる
+GRACE = 45 * 60          # 約束の時刻からこれだけ過ぎても約束の場所にいなければ, すっぽかしたことに
+LATE_ME = 10 * 60        # これより遅れて着くと, 相手は少し機嫌を損ねる
+GIVE_UP = 30 * 60        # 相手が来ないとき, これだけ待ったらあきらめる
+NEAR = 3 * 3600          # 約束のこれだけ前からは, 相手の家へ出かけると「約束の訪問」(玄関先で待つ)
 OPEN = ("asked", "offered", "set", "waiting")
 STATUS_LABEL = {"asked": "返事待ち", "offered": "誘われている", "set": "約束した", "waiting": "待っている", "met": "会えた",
                 "stood_up": "来なかった", "missed": "行かなかった", "declined": "断られた", "cancelled": "キャンセル",
@@ -263,59 +269,106 @@ class Appoint:
         return None
 
     # ------------------------------------------------------------------ 当日
+    def due_at(self, place, now=None):
+        """その行き先での, 近いうちの約束 (相手の家へ出かけるときに, 約束なしの訪問と区別する)."""
+        now = now or time.time()
+        return next((x for x in self.all() if x["status"] in ("set", "waiting") and x["place"] == place
+                     and x["t"] - NEAR <= now <= x["t"] + GRACE), None)
+
+    def here(self, place, now=None):
+        """あなたがいま, その約束の場所にいるか (外出の行き先 / あなたの家なら家にいる)."""
+        app = self.app
+        p = app.presence.rec()
+        mode = p.get("mode")
+        w = app.bonds.with_rec()
+        if place == places_mod.HOME_ME:
+            return mode in ("none", "busy") and not (w and w["mode"] in ("meet", "visit")) and not app.outdoor.current(now)
+        return mode == "out" and (p.get("place") or "town") == place and not w
+
     def go(self, aid, now=None):
-        """約束の場所へ会いに行く. 相手が来るか・遅れるかは約束したときに決まっている."""
+        """約束の場所へ出かける (ふつうの外出. 行き先を約束の場所に). あなたの家に招く約束なら, 家にいればよい."""
         app = self.app
         now = now or time.time()
         x = self.get(aid)
-        if x["status"] != "set":
+        if x["status"] not in ("set", "waiting"):
             raise ValueError("この約束はもう%s" % STATUS_LABEL.get(x["status"], x["status"]))
-        if now < x["t"] - EARLY:
-            raise ValueError("まだ早いです（%sの約束）" % fmt_when(x["t"], now))
+        if self.here(x["place"], now):
+            return {"status": "here", "text": "（もう%sにいる。%sの約束の時刻を待つ）" % (app.places.label(x["place"]), fmt_when(x["t"], now))}
+        if x["place"] == places_mod.HOME_ME:
+            raise ValueError("あなたの家に来てもらう約束です（%sに家にいれば会えます）" % fmt_when(x["t"], now))
         pres = app.presence.rec()
-        if pres.get("mode") not in ("none", "out"):
-            raise ValueError("いまは出かけられません（%s）" % app.presence.view(now)["label"])
-        if app.bonds.with_rec():
-            raise ValueError("いまは%sと一緒です" % app.chars[app.bonds.with_rec()["cid"]].get("name", ""))
-        char = app.char(x["cid"])
-        plan = x.get("plan") or {}
         if pres.get("mode") == "out":          # 一人で出かけていたなら, そこから向かう (結果は残す)
             ll = app.presence.back(now)
             if ll:
                 app.solo.finish(ll)
-        x["went"] = now
-        me_late = now - x["t"] > LATE_ME
-        if plan.get("noshow"):
-            x["status"] = "stood_up"
-            x["sorry_at"] = now + random.uniform(30, 180) * 60
-            self.save()
-            self._wait_out(x, now)
-            text = "（%sで待っていたが、%sは来なかった）" % (app.places.label(x["place"]), char.get("name", ""))
-            app.outdoor.note(text.strip("（）"), now)
-            app.solo.note("out", text.strip("（）"), now)
-            return {"status": "stood_up", "text": text}
-        arrive = x["t"] + plan.get("late", 0) * 60
-        if now < arrive:
-            x["status"] = "waiting"
-            x["arrive"] = arrive
-            x["me_late"] = me_late
-            self.save()
-            self._wait_out(x, now)
-            text = "（%sに着いた。%sはまだ来ていない）" % (app.places.label(x["place"]), char.get("name", ""))
-            app.outdoor.note(text.strip("（）"), now)
-            return {"status": "waiting", "text": text}
-        return self._meet(x, now, me_late)
+        r = app.solo.start("out", place=x["place"])
+        return dict(r, status="going", text="（%sへ出かけた。約束は%s）" % (app.places.label(x["place"]), fmt_when(x["t"], now)))
 
-    def _wait_out(self, x, now):
-        """約束の場所で待つ (公共の場所なら外出中. 相手の家の前・あなたの家なら, そこで)."""
+    def arrive_home_of(self, place, now=None):
+        """相手の家へ出かけた (約束の訪問): 約束なしの訪問ではなく, 玄関先で約束の時刻を待つ (外出中)."""
         app = self.app
-        if places_mod.is_home(x["place"]) and places_mod.home_of(x["place"]) == "me":
-            return
+        now = now or time.time()
         app.presence.declare("out", now)
         pr = app.presence.rec()
-        pr["solo"] = {"kind": "out", "skill": None, "t": now}
-        pr["place"] = x["place"] if x["place"] in places_mod.PLACES else "town"
+        pr["solo"] = {"kind": "out", "skill": None, "t": now, "appoint": True}
+        pr["place"] = place
         app.presence.save()
+        x = self.due_at(place, now)
+        text = "%sの家の前に着いた（約束は%s）" % (app.places.label(place).replace("の家", ""), fmt_when(x["t"], now) if x else "")
+        app.solo.note("out", text, now)
+        return {"started": "out", "label": "%sへ" % app.places.label(place), "act": None, "done": "（%s）" % text}
+
+    def _tick(self, x, now, out):
+        """約束の時刻の前後: あなたが約束の場所にいるか・相手が来るか (遅刻・すっぽかし) を進める. 変わったら True."""
+        app = self.app
+        char = app.chars[x["cid"]]
+        plan = x.setdefault("plan", {})
+        at = self.here(x["place"], now)
+        if now < x["t"] - NEAR:
+            return False
+        if at:
+            x.setdefault("arrived", now)          # 着いた時刻 (早く着いていれば, 約束の時刻より前)
+        elif now < x["t"]:
+            x.pop("arrived", None)                # 時刻の前に離れた: 着いていないことに
+        if now < x["t"]:
+            return False
+        arrived = x.get("arrived")
+        if plan.get("noshow"):
+            if at and now >= max(x["t"], arrived) + GIVE_UP:       # 待ったが来なかった
+                x["status"] = "stood_up"
+                x["sorry_at"] = now + random.uniform(30, 180) * 60
+                text = "%sで待っていたが、%sは来なかった" % (app.places.label(x["place"]), char.get("name", ""))
+                app.outdoor.note(text, now)
+                app.solo.note("out", text, now)
+                out.append(text)
+                return True
+            if not arrived and now > x["t"] + GRACE:
+                x["status"] = "missed"            # 二人とも来なかった (相手は気にしない)
+                return True
+            return False
+        come = x["t"] + plan.get("late", 0) * 60
+        if at and now >= come:
+            r = self._meet(x, now, arrived - x["t"] > LATE_ME)
+            out.append((r.get("entry") or {}).get("text", "").split("\n")[0] or "%sと会えた" % char.get("name", ""))
+            return True
+        if at and x["status"] == "set":
+            x["status"] = "waiting"               # 着いた. 相手はまだ
+            out.append("%sに着いた。%sはまだ来ていない" % (app.places.label(x["place"]), char.get("name", "")))
+            return True
+        if not at and x["status"] == "waiting":
+            x["status"] = "set"                   # 待つのをやめて離れた
+        if now > x["t"] + GRACE:                  # 約束の時刻を過ぎても, その場所にいなかった
+            x["status"] = "missed"
+            st = app.state(x["cid"])
+            with app.lock:
+                d = app.apply_effects(st, app.trait_effects(char, {"mood": -8, "trust": -4, "affection": -2}))
+                app.life.add_reason(st, "player", "bad", "%sが約束をすっぽかした" % app.pronouns(char)[2], now,
+                                    told=True, delta=d.get("mood", 0), action="_appoint")
+                app.chat.add(x["cid"], "her", app.chat.line(char, "appoint_missed", {}), kind="appoint_missed", t=x["t"] + GRACE)
+                app.save_state(x["cid"])
+            out.append("%sとの約束（%s）に行かなかった" % (char.get("name", ""), fmt_when(x["t"], now)))
+            return True
+        return False
 
     def _meet(self, x, now, me_late=False):
         app = self.app
@@ -384,22 +437,9 @@ class Appoint:
                         app.save_state(cid)
                         out.append("%sから、約束のキャンセルの連絡が来た" % char.get("name", ""))
                         continue
-                if now > x["t"] + GRACE:            # あなたが行かなかった
-                    x["status"] = "missed"
-                    changed = True
-                    if not plan.get("noshow"):
-                        with app.lock:
-                            d = app.apply_effects(st, app.trait_effects(char, {"mood": -8, "trust": -4, "affection": -2}))
-                            app.life.add_reason(st, "player", "bad", "%sが約束をすっぽかした" % app.pronouns(char)[2], now,
-                                                told=True, delta=d.get("mood", 0), action="_appoint")
-                            app.chat.add(cid, "her", app.chat.line(char, "appoint_missed", {}), kind="appoint_missed",
-                                         t=x["t"] + GRACE)
-                            app.save_state(cid)
-                        out.append("%sとの約束（%s）に行かなかった" % (char.get("name", ""), fmt_when(x["t"], now)))
-            elif x["status"] == "waiting" and now >= x.get("arrive", 0):
-                r = self._meet(x, now, x.get("me_late"))
-                out.append((r.get("entry") or {}).get("text", "").split("\n")[0])
-                changed = True
+                changed = self._tick(x, now, out) or changed
+            elif x["status"] == "waiting":
+                changed = self._tick(x, now, out) or changed
             elif x["status"] == "stood_up" and now >= x.get("sorry_at", 9e18):
                 x.pop("sorry_at", None)
                 changed = True
@@ -425,8 +465,9 @@ class Appoint:
         for x in sorted(self.all(), key=lambda x: x["t"]):
             if x["status"] not in OPEN or x["cid"] not in app.chars:
                 continue
-            due = x["status"] == "set" and x["t"] - EARLY <= now <= x["t"] + GRACE
-            out.append({"id": x["id"], "cid": x["cid"], "name": app.chars[x["cid"]].get("name", ""), "t": x["t"],
+            due = x["status"] in ("set", "waiting") and x["t"] - EARLY <= now <= x["t"] + GRACE
+            out.append({"here": x["status"] in ("set", "waiting") and self.here(x["place"], now),
+                        "home_me": x["place"] == places_mod.HOME_ME, "remain": int(x["t"] - now), "id": x["id"], "cid": x["cid"], "name": app.chars[x["cid"]].get("name", ""), "t": x["t"],
                         "when": fmt_when(x["t"], now), "place": x["place"], "place_label": app.places.label(x["place"]),
                         "do": x["do"], "do_label": app.action(x["do"]).get("name", x["do"]), "by": x["by"], "status": x["status"],
                         "status_label": STATUS_LABEL[x["status"]], "due": due})

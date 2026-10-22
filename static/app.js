@@ -308,6 +308,9 @@ function renderSoloTab() {
       btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null,
+    (v.appoints || []).some((x) => x.status === 'set' || x.status === 'waiting') ? h('div', { class: 'cat' },
+      h('div', { class: 'cat-title' }, '約束（自分でその場所へ出向く）'),
+      (v.appoints || []).filter((x) => x.status === 'set' || x.status === 'waiting').map((x) => appointLine(x, true))) : null,
     h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, 'スマホ'),
       h('div', { class: 'cmds' }, h('button', { class: 'cmd', disabled: S.busy, onclick: () => openChat(), title: '連絡先の人を選んで、メッセージの種類か電話を選ぶ（誰かといるときも使えます）' },
         h('span', { class: 'ic' }, '📱'), h('span', {}, 'スマホを見る'), v.chat_unread ? h('small', { class: 'muted' }, `未読 ${v.chat_unread}`) : null))),
@@ -1032,10 +1035,12 @@ async function drawChat() {
     }
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
     for (const x of th.appoints || []) {
-      body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when} ${x.place_label}「${x.do_label}」（${x.status_label}）`,
+      body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`,
         x.status === 'offered' ? h('span', {}, '　',
           h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く'), ' ',
-          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る')) : ''));
+          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'))
+          : (x.status === 'set' || x.status === 'waiting') && !x.here && !x.home_me
+            ? h('span', {}, '　', h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`)) : ''));
     }
     const can = !th.together;
     threadEl = h('div', { class: 'chat-thread' },
@@ -1197,14 +1202,25 @@ function chime() {
     });
   } catch (e) { /* 音が出せない環境でも, 画面の知らせはある */ }
 }
-// 約束の時刻が近い: 会いに行く (相手が遅れていれば待つ)
+// 約束: 自分でその場所へ出向く (行き先を約束の場所にした外出). 約束の場所にいる状態で時刻を迎えると会える
+const remainText = (sec) => (sec > 0 ? `あと${fmtDur(sec)}` : `${fmtDur(-sec)}過ぎ`);
+function appointLine(x, withBtn) {
+  const set = x.status === 'set' || x.status === 'waiting';
+  return h('div', { class: 'appoint-line' },
+    h('div', {}, x.status === 'waiting' ? `📍 ${x.place_label}で待っている（${x.name}はまだ来ていない）`
+      : `📅 ${x.when}に${x.place_label}で${x.name}と「${x.do_label}」`, set ? h('span', { class: 'muted small' }, `（${remainText(x.remain)}）`) : ''),
+    withBtn && set ? h('div', { class: 'row' },
+      x.here ? h('span', { class: 'muted small' }, x.home_me ? '家にいれば、時間に来てくれます' : 'もう着いている。時間まで、ここで待つ')
+        : x.home_me ? h('span', { class: 'muted small' }, 'あなたの家に来てもらう約束（その時間に家にいる）')
+          : h('button', { class: 'btn small', disabled: S.busy || ((S.view.presence || {}).mode !== 'none' && (S.view.presence || {}).mode !== 'out'),
+            title: '行き先を約束の場所にして出かけます（すぐ着きます）。画面を閉じると家に帰るので、約束の場所にいないことになります',
+            onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`)) : '');
+}
+// 約束の時刻が近い: 出かける (着いていれば, 時間まで待つ)
 function appointCard() {
   const due = (S.view.appoints || []).filter((x) => x.due || x.status === 'waiting');
   if (!due.length) return null;
-  return h('div', { class: 'street-card calling' }, due.map((x) => h('div', {},
-    h('div', {}, x.status === 'waiting' ? `📍 ${x.place_label}で待っている（${x.name}はまだ来ていない）`
-      : `📅 ${x.when} ${x.place_label}で${x.name}と「${x.do_label}」の約束`),
-    x.status === 'waiting' ? '' : h('div', { class: 'row' }, h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, '会いに行く')))));
+  return h('div', { class: 'street-card calling' }, due.map((x) => appointLine(x, true)));
 }
 async function goAppoint(id) {
   if (S.busy) return;
@@ -1258,7 +1274,10 @@ function renderAway() {
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     streetCard() || '',
     joinCard() || '',
-    appointCard() || '',
+    ...(S.view.appoints || []).filter((x) => (x.status === 'set' || x.status === 'waiting') && x.remain < 6 * 3600 && x.remain > -2700)
+      .map((x) => h('div', { class: 'away-appoint' + (x.here ? ' here' : '') },
+        `📅 約束: ${hhmm(x.t)} ${x.name}（${x.place_label}・${remainText(x.remain)}）${x.here ? '　📍ここ' : ''}`,
+        x.here || x.home_me ? '' : h('button', { class: 'btn small', disabled: S.busy, style: 'margin-left:6px', onclick: () => goAppoint(x.id) }, `${x.place_label}へ向かう`))),
     phonePanel(),
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),

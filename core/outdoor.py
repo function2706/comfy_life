@@ -68,6 +68,8 @@ class Outdoor:
         p = app.presence.rec()
         if p.get("mode") == "out":
             pl = p.get("place") or "town"
+            if places_mod.is_home(pl):              # 相手の家の前 (約束の訪問で待っている)
+                return {"kind": "out", "place": pl, "with": None}
             return {"kind": "out", "place": pl if pl in PLACES else "town", "with": None}
         if p.get("mode") == "work":
             return {"kind": "work", "place": "office", "with": None}
@@ -83,6 +85,8 @@ class Outdoor:
 
     def rate(self, cur, dt):
         """1時間あたりの出会いの起きやすさ."""
+        if places_mod.is_home(cur["place"]):
+            return 0.0                              # 家では偶然の出会いは起きない
         pl = PLACES.get(cur["place"]) or PLACES["town"]
         ph = self.app.phase_at(dt).get("id", "noon")
         w = weather(dt)
@@ -98,7 +102,7 @@ class Outdoor:
         out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
                "choices": ch, "routine_choices": list(places_mod.OUT_PLACES), "current": None}
         if cur:
-            pl = PLACES.get(cur["place"]) or PLACES["town"]
+            pl = self.app.places.get(cur["place"]) or PLACES["town"]
             out["current"] = dict(cur, label=pl["label"], icon=pl["icon"],
                                   log=(self.app.presence.rec().get("street_log") or [])[-6:])
         return out

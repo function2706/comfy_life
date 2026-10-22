@@ -1695,9 +1695,10 @@ class App:
         「誰かと」の相手 (target. cid がそばにいればその人) の様子 (with), あなたの 1 本の時系列のログ.
         誰もそばにいなければ target / with は None."""
         replies = self.deliver_due()
-        appoint_events = self.appoint.live()            # 約束 (キャンセル・遅れて来た・すっぽかし・相手からの誘い)
         # 画面を閉じていた (心拍が途絶えた) なら, 外出はその時点で終わっていた: 家で静かに過ごしていた
+        # (約束の場所にいたかどうかは, 家に帰ったあとで見る)
         gap = self.outdoor.check_gap() if beat else None
+        appoint_events = self.appoint.live()            # 約束 (着いた・会えた・遅刻・すっぽかし・キャンセル・相手からの誘い)
         with self.lock:
             now = time.time()
             for oid in self.bonds.company() or ([self.settings.get("active_character")] if self.settings.get("active_character") in self.chars else []):

@@ -110,6 +110,8 @@ class Solo:
             kind = "out"
         if kind == "out" and places_mod.is_home(place):      # 相手の家を訪ねる
             self._place(kind, place)
+            if app.appoint.due_at(place):                     # 約束の訪問: 玄関先で約束の時刻を待つ
+                return app.appoint.arrive_home_of(place)
             return app.drop_in(places_mod.home_of(place))
         k = KINDS.get(kind)
         if not k:
