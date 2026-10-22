@@ -1189,7 +1189,6 @@ function renderMoney() {
   $('#tab-money').replaceChildren(
     h('div', { class: 'pgroup money-box' }, h('h4', {}, '財布'),
       h('div', { class: 'money-row' }, h('span', {}, 'あなた'), h('b', {}, yen(L.my_money || 0))),
-      h('div', { class: 'money-row' }, h('span', {}, v.name), h('b', {}, yen(L.her_money || 0))),
       inv.value ? h('div', { class: 'money-row' }, h('span', {}, '株（評価額）'),
         h('b', { class: inv.value >= inv.invested ? 'up' : 'down' }, `${yen(inv.value)}（${inv.value >= inv.invested ? '+' : ''}${yen(inv.value - inv.invested)}）`)) : '',
       h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),

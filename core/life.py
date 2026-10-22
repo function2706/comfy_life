@@ -337,8 +337,7 @@ class Life:
             return {"payer": "me", "p": -cost, "a": 0}
         if hm["a"] >= cost:
             return {"payer": "her", "p": 0, "a": -cost}
-        raise ValueError("お金が足りません（費用 %s円 / あなた %s円 / %s %s円）"
-                         % (format(cost, ","), format(ps["money"], ","), char.get("name", ""), format(hm["a"], ",")))
+        raise ValueError("お金が足りません（費用 %s円 / あなた %s円）" % (format(cost, ","), format(ps["money"], ",")))
 
     # ================================================================== キャラの毎日
     def step(self, char, st, t0, t1, h):
@@ -718,7 +717,9 @@ class Life:
                 "money_notes": (ps.get("money_notes") or [])[-5:],
                 "living": self.app.bonds.living() == char["id"],
                 "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
-                             "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],"my_money": ps["money"], "her_money": self.her_money(st)["a"],
+                             "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],
+                # 相手の所持金は出さない (分かるのは, 貸し借り・取り決め・本人が口にしたことだけ)
+                "my_money": ps["money"],
                 "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},
                 "market": self.market_view(),
                 "skills": {k: round(v, 1) for k, v in ps["skills"].items()},

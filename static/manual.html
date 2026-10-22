@@ -415,7 +415,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 
 <!-- ============================================================ -->
 <h2 id="money"><span class="ic">💴</span>お金（仕事・内職・株）</h2>
-<p>あなたとキャラが、それぞれ所持金を持っています。「お金」タブで見られます。</p>
+<p>あなたとキャラが、それぞれ所持金を持っています。「お金」タブで見られるのは、あなたの所持金だけです。相手の所持金は（離れていても、一緒に暮らしていても）画面には出ません。分かるのは、あなたが知りうること（貸し借りの額・生活費の分け方の取り決め・相手が口にしたこと）だけで、お金に困っているかは、おねだりや会話・部屋の様子からにじみます。</p>
 <div class="wallets">
   <div class="wallet"><div class="big">🧑</div><b>あなた</b>
     <ul><li>仕事（実際に離れた時間ぶん）</li><li>内職（パズルを解く）</li><li>株（自分で銘柄を選んで売買）</li><li>わずかな日給</li></ul></div>
@@ -615,7 +615,7 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
   <tr><td><code>absent</code> <code>repeat</code></td><td>最後のふれあいからの時間（時間）、クールダウン中の連続回数</td></tr>
   <tr><td><code>outfit</code></td><td>着せ替え中の服の id（おまかせなら空）。着せ替えの反応では着替え先</td></tr>
   <tr><td><code>cause</code> <code>knows</code> <code>untold</code> <code>ev_mood</code></td><td>機嫌の理由まわり：原因（player / event）、理由を聞いたか、まだ話していない出来事の数、その出来事が good / bad か</td></tr>
-  <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金、誰が払うか（me / her / split）</td></tr>
+  <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金（画面には出ないが、条件には使える）、誰が払うか（me / her / split）</td></tr>
   <tr><td><code>presence</code> <code>said</code> <code>left_mode</code> <code>left_h</code></td><td>あなたの在席：here / idle / busy / out / work / sleep / left / gone、告げてから離れたか、どう離れていたか、何時間離れていたか（戻って15分まで）</td></tr>
   <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code></td><td>あなたのスキル（0〜100）</td></tr>
   <tr><td><code>player_gender</code> <code>player_age</code> <code>player_has_job</code> <code>player_likes</code></td><td>設定「あなた」の性別（male / female / other / none）、年齢（未設定は 0）、職業があるか、好きなものの数</td></tr>
