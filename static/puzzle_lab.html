@@ -83,11 +83,14 @@ function stopBoard() {
 }
 async function newBoard(seed) {
   stopBoard();
+  const my = S.boardSeq = (S.boardSeq || 0) + 1;      // 続けて押したら最後の盤面だけ (前のを残すとキー操作が二重になる)
   const s = seed !== undefined ? seed : $('#seed').value;
   let tk;
   $('#task-body').replaceChildren(h('p', { class: 'muted' }, '盤面を作っています…'));
   try { tk = await api('/api/task/start', { kind: S.kind, level: S.level, seed: s === '' ? null : s, skill: +$('#skill').value || 0 }); }
   catch (e) { toast(e.message, 'err'); return; }
+  if (my !== S.boardSeq) return;
+  stopBoard();
   S.lastSeed = tk.seed;
   tk.level_name += `・seed ${tk.seed}`;        // 見出しに seed も出す (同じ盤面を出し直すとき用)
   beginTask(tk);

@@ -52,7 +52,7 @@ function taskStats() {
   if (v.kind === 'mines') rest = `残り地雷 ${v.n - T.flags.size}`;
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
   else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
-  else if (v.kind === 'slither') rest = `線 ${(T.sl ? T.sl.st : v.st).filter((x) => x === 1).length} 本${T.sl && T.sl.trial ? '　✎ 仮置き中' : ''}`;
+  else if (v.kind === 'slither') rest = `線 ${(T.sl ? T.sl.st : v.st).filter((x) => x === 1).length} 本${T.sl && T.sl.trials.length ? `　✎ 仮置き中${T.sl.trials.length > 1 ? `（${T.sl.trials.length} 段目）` : ''}` : ''}`;
   else rest = `${v.moves} 手`;
   el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
 }
@@ -218,13 +218,72 @@ async function taskMove(mv) {
 
 // ---- スリザーリンク: 点と点の間に線を引いて一つの輪を作る.
 // なぞって線 (最初の辺に線があれば消しながら), クリック・タップで × (もう一度で消す. 線をクリックすると消す).
-// 元に戻す / やり直す, 仮置き (そこから先の線と×を別の見た目にして, 確定して抜けるか, 消して抜けるか), つながっていない線の色分け.
+// 元に戻す / やり直す, 仮置き (そこから先の線と×を別の見た目にして, 確定して抜けるか, 消して抜けるか. 仮置きの中でさらに仮置きできる), つながっていない線の色分け.
+// 履歴は通常の手 (sl.base) と仮置きの段ごと (sl.trials[i]) に別々の {hist, redo} を持ち, 元に戻す・やり直すは今の段の中だけをたどる.
+//   消して抜ける: その段の線と×を入る前に戻し, その段の履歴は捨てる (一つ上の履歴は入る前のまま. やり直しの残りも).
+//   確定して抜ける: その段でした変わり分をまとめて一つの手として一つ上の履歴に積む (元に戻すで仮置きごと取り消せる).
 // 辺の番号はサーバ (core/slither.py) と同じ: 横の辺 r * w + c, 縦の辺 H + r * (w + 1) + c (H = (h + 1) * w).
-const SL_PAL = ['#e0784a', '#3fa6c9', '#9c6ade', '#d24b8f', '#4caf6f', '#c9a227'];
+const SL_PAL = ['#9c6ade', '#d24b8f', '#3fa6c9', '#4caf6f', '#c9a227', '#e0784a'];      // つながっていない線 (実線. 仮置きは点線)
 function slColor() { try { return localStorage.getItem('kurashi.slitherColor') !== '0'; } catch (e) { return true; } }
 function setSlColor(on) { try { localStorage.setItem('kurashi.slitherColor', on ? '1' : '0'); } catch (e) { /* 覚えられなくても動く */ } }
-function slInit(T) {
-  T.sl = { st: T.view.st.slice(), hist: [], redo: [], trial: null };
+const SL_TRIAL_PAL = ['#e0a23a', '#2f9fd0', '#3fae6a', '#c4577f', '#8a6fd1'];      // 仮置きの段ごとの色 (段の上限もこの数)
+function slInit(T) { T.sl = slState(T.view.st); }
+// ---- 盤の状態と履歴 (画面にもサーバにも触れない. tools/test_slither_history.py が確かめる)
+function slState(st) { return { st: st.slice(), base: { hist: [], redo: [] }, trials: [] }; }
+function slLevel(sl) { return sl.trials.length ? sl.trials[sl.trials.length - 1] : sl.base; }
+function slSetSt(sl, e, val, changes) {
+  const from = sl.st[e];
+  if (from === val) return;
+  if (!changes.has(e)) changes.set(e, from);
+  for (const tr of sl.trials) if (!tr.orig.has(e)) tr.orig.set(e, from);      // 段ごとに, 入ったときの値
+  sl.st[e] = val;
+}
+// ひとまとまりの操作 (なぞり 1 回・クリック 1 回) を今の段の履歴に積む. 変わった辺 [{e, from, to}] (無ければ null)
+function slRecord(sl, changes) {
+  const list = [...changes].filter(([e, from]) => sl.st[e] !== from).map(([e, from]) => ({ e, from, to: sl.st[e] }));
+  if (!list.length) return null;
+  const lv = slLevel(sl);
+  lv.hist.push(list);
+  lv.redo = [];
+  return list;
+}
+function slUndoSt(sl) {      // 戻した辺 [[e, 値]] (戻すものが無ければ null)
+  const lv = slLevel(sl), a = lv.hist.pop();
+  if (!a) return null;
+  for (const x of a) sl.st[x.e] = x.from;
+  lv.redo.push(a);
+  return a.map((x) => [x.e, x.from]);
+}
+function slRedoSt(sl) {
+  const lv = slLevel(sl), a = lv.redo.pop();
+  if (!a) return null;
+  for (const x of a) sl.st[x.e] = x.to;
+  lv.hist.push(a);
+  return a.map((x) => [x.e, x.to]);
+}
+function slTrialBegin(sl) {
+  if (sl.trials.length >= SL_TRIAL_PAL.length) return false;
+  sl.trials.push({ orig: new Map(), hist: [], redo: [] });
+  return true;
+}
+function slTrialEndSt(sl, keep) {      // 変わった辺 [[e, 値]] (サーバに送る)
+  const tr = sl.trials.pop();
+  if (!tr) return [];
+  if (keep) {
+    const list = [...tr.orig].filter(([e, o]) => sl.st[e] !== o).map(([e, o]) => ({ e, from: o, to: sl.st[e] }));
+    if (list.length) { const lv = slLevel(sl); lv.hist.push(list); lv.redo = []; }
+    return [];
+  }
+  const out = [];
+  for (const [e, o] of tr.orig) if (sl.st[e] !== o) { sl.st[e] = o; out.push([e, o]); }
+  return out;
+}
+function slTrialDepth(sl, e) {      // その辺を変えた, いちばん深い仮置きの段 (1 から. 変えていなければ 0)
+  for (let i = sl.trials.length - 1; i >= 0; i--) {
+    const o = sl.trials[i].orig;
+    if (o.has(e) && o.get(e) !== sl.st[e]) return i + 1;
+  }
+  return 0;
 }
 function slEnds(v, e) {      // 辺 → 両端の点 [r, c]
   const H = (v.h + 1) * v.w;
@@ -238,7 +297,6 @@ function slEdgeBetween(v, a, b) {      // 隣り合う 2 点の間の辺 (隣で
   if (c1 === c2 && Math.abs(r1 - r2) === 1) return (v.h + 1) * v.w + Math.min(r1, r2) * (v.w + 1) + c1;
   return null;
 }
-function slTrialEdge(T, e) { const tr = T.sl.trial; return !!tr && tr.orig.has(e) && tr.orig.get(e) !== T.sl.st[e]; }
 // 線のかたまり: いちばん大きいもの以外に色を付ける (つながっていない線)
 function slComponents(v, st) {
   const nv = (v.h + 1) * (v.w + 1), par = Array.from({ length: nv }, (_, i) => i);
@@ -275,16 +333,18 @@ function slBoard(T, v, cs, result) {
     s.forEach((x, e) => {
       if (!x) return;
       const [[r1, c1], [r2, c2]] = slEnds(v, e);
-      const trial = !result && slTrialEdge(T, e);
+      const depth = result ? 0 : slTrialDepth(T.sl, e), trial = depth > 0;
       if (x === 1) {
         const ln = mk('line', { x1: X(c1), y1: Y(r1), x2: X(c2), y2: Y(r2), class: 'sl-line' + (trial ? ' trial' : ''), 'stroke-width': Math.max(3, cs * 0.12) });
-        const cc = col(e);
-        if (cc && !trial) ln.setAttribute('stroke', cc);
+        const cc = trial ? SL_TRIAL_PAL[depth - 1] : col(e);
+        if (cc) ln.style.stroke = cc;
         layer.append(ln);
       } else {
         const mx = (X(c1) + X(c2)) / 2, my = (Y(r1) + Y(r2)) / 2, d = cs * 0.1;
         for (const [a, b, c, dd] of [[-d, -d, d, d], [-d, d, d, -d]]) {
-          layer.append(mk('line', { x1: mx + a, y1: my + b, x2: mx + c, y2: my + dd, class: 'sl-x' + (trial ? ' trial' : ''), 'stroke-width': Math.max(1.5, cs * 0.05) }));
+          const xl = mk('line', { x1: mx + a, y1: my + b, x2: mx + c, y2: my + dd, class: 'sl-x' + (trial ? ' trial' : ''), 'stroke-width': Math.max(1.5, cs * 0.05) });
+          if (trial) xl.style.stroke = SL_TRIAL_PAL[depth - 1];
+          layer.append(xl);
         }
       }
     });
@@ -354,20 +414,10 @@ function slBoard(T, v, cs, result) {
   T.slDraw = draw;
   return svg;
 }
-function slSet(T, e, val, changes) {
-  const from = T.sl.st[e];
-  if (from === val) return;
-  if (!changes.has(e)) changes.set(e, from);
-  if (T.sl.trial && !T.sl.trial.orig.has(e)) T.sl.trial.orig.set(e, from);
-  T.sl.st[e] = val;
-}
-// ひとまとまりの操作 (なぞり 1 回・クリック 1 回) を履歴に積んで, サーバに送る
-async function slCommit(T, changes, keepRedo) {
-  const list = [...changes].filter(([e, from]) => T.sl.st[e] !== from).map(([e, from]) => ({ e, from, to: T.sl.st[e] }));
-  if (!list.length) return;
-  T.sl.hist.push(list);
-  if (!keepRedo) T.sl.redo = [];
-  await slSend(T, list.map((x) => [x.e, x.to]));
+function slSet(T, e, val, changes) { slSetSt(T.sl, e, val, changes); }
+async function slCommit(T, changes) {
+  const list = slRecord(T.sl, changes);
+  if (list) await slSend(T, list.map((x) => [x.e, x.to]));
 }
 async function slSend(T, edges) {
   try {
@@ -379,42 +429,26 @@ async function slSend(T, edges) {
     if (r.solved) await finishTask(false);
   } catch (e) { toast(e.message, 'err'); }
 }
-function slUndo(T) {
-  const a = T.sl.hist.pop();
-  if (!a) return;
-  for (const x of a) T.sl.st[x.e] = x.from;
-  T.sl.redo.push(a);
-  slSend(T, a.map((x) => [x.e, x.from]));
-}
-function slRedo(T) {
-  const a = T.sl.redo.pop();
-  if (!a) return;
-  for (const x of a) T.sl.st[x.e] = x.to;
-  T.sl.hist.push(a);
-  slSend(T, a.map((x) => [x.e, x.to]));
-}
+function slUndo(T) { const edges = slUndoSt(T.sl); if (edges) slSend(T, edges); }
+function slRedo(T) { const edges = slRedoSt(T.sl); if (edges) slSend(T, edges); }
 function slTrialEnd(T, keep) {
-  const tr = T.sl.trial;
-  if (!tr) return;
-  T.sl.trial = null;
-  if (keep) { slSend(T, []); return; }
-  const changes = new Map();
-  for (const [e, o] of tr.orig) if (T.sl.st[e] !== o) { changes.set(e, T.sl.st[e]); T.sl.st[e] = o; }
-  slCommit(T, new Map([...changes].map(([e, from]) => [e, from])));      // 消して抜けた, も元に戻せる一つの操作
+  if (!T.sl.trials.length) return;
+  slSend(T, slTrialEndSt(T.sl, keep));      // 確定は送るものが無くても, 見た目と並びを直す
 }
 // 操作の並び (元に戻す・やり直す・仮置き・色分け). 描き直さずに入れ替えられるように
 function slTools(T) {
   const box = document.querySelector('.sl-tools');
   if (!box || T.done) return;
-  const sl = T.sl;
+  const sl = T.sl, lv = slLevel(sl), n = sl.trials.length;
+  const begin = () => { if (slTrialBegin(sl)) { slTools(T); taskStats(); } };
   box.replaceChildren(
-    h('button', { class: 'btn small', disabled: !sl.hist.length, title: 'Ctrl+Z', onclick: () => slUndo(T) }, '↶ 元に戻す'),
-    h('button', { class: 'btn small', disabled: !sl.redo.length, title: 'Ctrl+Y', onclick: () => slRedo(T) }, '↷ やり直す'),
-    ...(sl.trial
-      ? [h('button', { class: 'btn small primary', onclick: () => slTrialEnd(T, true) }, '✔ 仮置きを確定して抜ける'),
-        h('button', { class: 'btn small', onclick: () => slTrialEnd(T, false) }, '✖ 仮置きを消して抜ける')]
-      : [h('button', { class: 'btn small', title: '確定できない分かれ道で、試しに引いてみる（ここから先の線と×が別の色になる）',
-        onclick: () => { sl.trial = { orig: new Map() }; slTools(T); taskStats(); } }, '✎ 仮置き')]),
+    h('button', { class: 'btn small', disabled: !lv.hist.length, title: n ? 'Ctrl+Z（この仮置きの中だけ）' : 'Ctrl+Z', onclick: () => slUndo(T) }, '↶ 元に戻す'),
+    h('button', { class: 'btn small', disabled: !lv.redo.length, title: n ? 'Ctrl+Y（この仮置きの中だけ）' : 'Ctrl+Y', onclick: () => slRedo(T) }, '↷ やり直す'),
+    ...(n
+      ? [h('button', { class: 'btn small primary', title: 'この仮置きでした線と×を残す（まとめて一つの手になり、元に戻すで取り消せる）', onclick: () => slTrialEnd(T, true) }, '✔ 仮置きを確定して抜ける'),
+        h('button', { class: 'btn small', title: 'この仮置きでした線と×を消して、入る前に戻す', onclick: () => slTrialEnd(T, false) }, '✖ 仮置きを消して抜ける'),
+        h('button', { class: 'btn small', disabled: n >= SL_TRIAL_PAL.length, title: `仮置きの中で、さらに試しに引いてみる（${SL_TRIAL_PAL.length} 段まで。段ごとに色が変わる）`, onclick: begin }, '✎ さらに仮置き')]
+      : [h('button', { class: 'btn small', title: '確定できない分かれ道で、試しに引いてみる（ここから先の線と×が別の色になる）', onclick: begin }, '✎ 仮置き')]),
     h('label', { class: 'small muted', title: 'ひと続きの輪の本体とつながっていない線のかたまりを、別の色で出す' },
       h('input', { type: 'checkbox', checked: slColor(), onchange: (ev) => { setSlColor(ev.target.checked); if (T.slDraw) T.slDraw(); } }), ' つながっていない線を色分け'));
 }
