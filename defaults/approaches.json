@@ -145,5 +145,14 @@
    "effects": {"mood": 4, "loneliness": -6, "boredom": -4, "affection": 1}},
   "later": {"label": "あとで読む", "text": "📱『あとでちゃんと読んでくださいね！』", "effects": {}},
   "ignore": {"text": "（{name}からの長いメッセージが、読まれないまま残っている）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "worry_you", "label": "顔色が悪いのに気づいた", "icon": "🤒", "when": "player_sick>=1, asleep=false, busy=false", "weight": 4, "cooldown_h": 8,
+  "text": "{call}、なんだか顔色が悪くないですか……？", "pos": "worried, looking at viewer, concerned", "neg": "",
+  "accept": {"label": "実は少し……", "text": "やっぱり。無理しないで、今日は休んでください。{fp}、お粥でも作りましょうか？",
+             "effects": {"affection": 1, "trust": 2, "mood": -1}, "care": true, "reason_good": "{call}の具合が悪いのに気づいて、看病した",
+             "pos": "holding bowl, rice porridge, gentle smile", "neg": ""},
+  "later": {"label": "大丈夫", "text": "……ならいいんですけど。つらかったら言ってくださいね。", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は、心配そうにこちらを見ていた）", "effects": {"mood": -2}}
  }
 ]

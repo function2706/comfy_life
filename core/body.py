@@ -11,6 +11,15 @@
 - 買って食べる (buy): コンビニ・スーパー・駅前で, お弁当・おにぎり・サラダなど. 手軽だが栄養は偏りがち.
 - 持ち物の食べもの (item): 買ってきたお弁当・カップ麺などを家で.
 あなたにしか見えない体の様子は, 自覚できる言葉でだけ出す (「お腹がすいた」「野菜が足りていない気がする」).
+
+体調 (health.level 0〜3): 0 = ふつう / 1 = 軽い不調 (少しだるい) / 2 = 風邪 (熱っぽい) / 3 = 寝込むほど (病院へ行ったほうが良さそう).
+- 崩れやすさ: 日付が変わるたびに, その日の過ごし方から決まる. 栄養の偏り・寝不足・働きすぎ (ここ 3 日の勤務)・空腹の時間・
+  体力の消耗・雨や雪の中の外出・冬. 重なるほど崩しやすい (補正はしない. 何もなくても, ごくまれに崩す).
+- 治り方: 軽ければ, 休めば (よく寝る・休む) 自然に治る. 薬 (持ち物の風邪薬. ドラッグストア・コンビニ) を飲むと治りやすい
+  (寝込むほどだと効きにくい). 寝込むほどなら病院 (行き先. 営業時間・お金がかかる) で診てもらうと, 軽いところまで戻る.
+  無理をすれば (働きすぎ・寝不足・偏った食事のまま) こじらせることもある.
+- 体調が悪い間: 体力が戻りにくい・仕事の給料が下がる・スキルが伸びにくい. 寝込んでいると仕事に行けない.
+  行動パターンの仕事も, 休む・早退することがある.
 """
 import random
 import time
@@ -65,6 +74,11 @@ BUY_PLACES = ("convenience", "supermarket", "station")
 ITEM_MEALS = {"bento": ({"staple": 11, "protein": 7, "veg": 2}, 52), "cup_noodle": ({"staple": 9, "protein": 1, "veg": 1}, 38)}
 
 
+HEALTH_WORD = {0: "", 1: "少しだるい", 2: "熱っぽい。風邪をひいたみたいだ", 3: "寝込むほどつらい。病院へ行ったほうが良さそうだ"}
+HEALTH_MULT = {"stamina": (1.0, 0.85, 0.65, 0.35), "work": (1.0, 0.92, 0.75, 0.5), "train": (1.0, 0.85, 0.6, 0.3)}
+MEDICINE = "cold_medicine"
+
+
 def _meal_label(t):
     h = datetime.fromtimestamp(t).hour
     return "朝ご飯" if 4 <= h < 10 else "昼ご飯" if 10 <= h < 15 else "夕ご飯" if 15 <= h < 22 else "夜食"
@@ -80,6 +94,8 @@ class Body:
         b.setdefault("satiety", 70.0)
         b.setdefault("nutri", {k: 60.0 for k in NUTRI})
         b.setdefault("meals", [])
+        b.setdefault("health", {"level": 0, "since": None})
+        b.setdefault("today", {})
         return b
 
     # ------------------------------------------------------------------ 時間の経過 (life.tick_world の 5 分ごと)
@@ -89,14 +105,133 @@ class Body:
         b["satiety"] = max(0.0, b["satiety"] - (SATIETY_PER_H_SLEEP if sleeping else SATIETY_PER_H) * h)
         for k in NUTRI:
             b["nutri"][k] = max(0.0, b["nutri"][k] - NUTRI_PER_DAY * h / 24.0)
+        td = b["today"]                       # その日の過ごし方 (日付が変わったときの体調の判定に)
+        if sleeping:
+            td["slept"] = td.get("slept", 0.0) + h
+        if b["satiety"] < 15:
+            td["hungry"] = td.get("hungry", 0.0) + h
+        if mode in ("out", "work"):
+            td["out"] = td.get("out", 0.0) + h
+        sl = self.app.presence.rec().get("solo") or {}
+        if mode == "busy" and sl.get("kind") == "rest":
+            td["rested"] = td.get("rested", 0.0) + h
+
+    def level(self):
+        return int(self.rec()["health"]["level"])
 
     def stamina_mult(self):
-        """お腹がすいていると, 体力が戻りにくい."""
+        """お腹がすいている・体調が悪いと, 体力が戻りにくい."""
         s = self.rec()["satiety"]
-        return 0.4 if s < 8 else 0.6 if s < 20 else 1.0
+        return (0.4 if s < 8 else 0.6 if s < 20 else 1.0) * HEALTH_MULT["stamina"][self.level()]
 
     def train_mult(self):
-        return 1.0
+        return HEALTH_MULT["train"][self.level()]
+
+    def work_mult(self):
+        return HEALTH_MULT["work"][self.level()]
+
+    # ------------------------------------------------------------------ 体調 (日付が変わったとき)
+    def risk(self, t):
+        """その日の過ごし方から, 体調を崩しやすさ (目安 0〜). 何が効いたかも返す."""
+        from .outdoor import weather
+        b = self.rec()
+        td = b["today"]
+        L = self.app.life
+        why = {}
+        for k in NUTRI:
+            v = b["nutri"][k]
+            if v < 20:
+                why["nutri_" + k] = 0.04
+            elif v < 35:
+                why["nutri_" + k] = 0.015
+        if td.get("hungry", 0) > 2:
+            why["hungry"] = min(0.06, 0.01 * td["hungry"])
+        slept = td.get("slept")
+        if slept is not None and slept < 5:
+            why["sleep"] = 0.06
+        elif slept is not None and slept < 6.5:
+            why["sleep"] = 0.02
+        w3 = L.recent_work(3)
+        if w3 > 30:
+            why["work"] = 0.07
+        elif w3 > 26:
+            why["work"] = 0.035
+        if L.stamina() < 15:
+            why["stamina"] = 0.03
+        wx = weather(datetime.fromtimestamp(t - 3600))
+        if td.get("out", 0) > 1 and wx["id"] in ("rain", "snow"):
+            why["weather"] = 0.02
+        if datetime.fromtimestamp(t).month in (12, 1, 2):
+            why["winter"] = 0.01
+        return 0.006 + sum(why.values()), why
+
+    def daily(self, t):
+        """日付が変わったとき: 体調が崩れる・こじれる・治る (その日の過ごし方と, 薬・病院しだい. 補正はしない)."""
+        b = self.rec()
+        hl = b["health"]
+        lv = int(hl["level"])
+        r, why = self.risk(t)
+        td = b["today"]
+        rest = (0.2 if td.get("slept", 0) >= 7 else 0.0) + min(0.2, 0.05 * td.get("rested", 0))
+        med = hl.get("med_until", 0) > t
+        rest += 0.15 if hl.get("care_until", 0) > t - 86400 else 0.0          # 看病してもらった
+        note = None
+        if lv == 0:
+            if random.random() < min(0.5, r):
+                hl.update(level=1, since=t)
+                note = "体調を崩しかけている"
+        else:
+            heal = {1: 0.4, 2: 0.25, 3: 0.06}[lv] + rest + (0.3 if med and lv <= 2 else 0.08 if med else 0.0) - 1.5 * (r - 0.006)
+            worse = 0.0 if lv >= 3 else (r - 0.006) * 3.0 + (0.08 if not rest else 0.0)
+            x = random.random()
+            if x < max(0.03, heal):
+                hl["level"] = lv - 1
+                note = "体調が少しよくなった" if lv > 1 else "体調が戻った"
+                if hl["level"] == 0:
+                    hl["since"] = None
+            elif x < max(0.03, heal) + min(0.5, worse):
+                hl["level"] = lv + 1
+                note = "体調が悪くなった"
+        hl["why"] = sorted(why, key=why.get, reverse=True)[:3]
+        b["today"] = {}
+        if note:
+            self.app.solo.note("health", "%s（%s）" % (note, HEALTH_WORD[hl["level"]] or "いつもどおり"), t)
+        return note
+
+    def medicine(self, now=None):
+        """風邪薬を飲む (持ち物). 一日ほど治りやすくなる (寝込むほどだと効きにくい)."""
+        app = self.app
+        now = now or time.time()
+        if app.items.count(MEDICINE) <= 0:
+            raise ValueError("風邪薬を持っていません（ドラッグストア・コンビニで買えます）")
+        b = self.rec()
+        app.items.add(MEDICINE, -1)
+        b["health"]["med_until"] = now + 24 * 3600
+        app.life.save_player()
+        text = "風邪薬を飲んだ" + ("" if self.level() else "（特に悪いところはないけれど）")
+        app.solo.note("health", text, now, id="h%d" % int(now * 1000), icon="💊", name="薬")
+        return {"text": text}
+
+    def clinic(self, now=None):
+        """病院で診てもらう (行き先 clinic から戻ったとき). お金がかかる. 寝込むほどでも軽いところまで戻り, 薬ももらえる."""
+        app = self.app
+        now = now or time.time()
+        lv = self.level()
+        ps = app.life.player_state()
+        fee = random.choice((1500, 2000, 2500)) + (1000 if lv >= 2 else 0)
+        paid = min(fee, max(0, int(ps["money"])))
+        ps["money"] -= paid
+        app.life.ledger(now, -paid, "medical", "病院")
+        hl = self.rec()["health"]
+        if lv == 0:
+            text = "病院で診てもらったが、特に悪いところはないと言われた"
+        else:
+            hl["level"] = 1
+            hl["med_until"] = now + 48 * 3600
+            app.items.add(MEDICINE, 2)
+            text = "病院で診てもらい、薬をもらった。少し楽になった気がする"
+        app.life.save_player()
+        return {"text": "%s（%s円）" % (text, format(paid, ",")), "money": -paid}
 
     # ------------------------------------------------------------------ 食べる
     def _eat(self, t, how, label, nutri, full, price=0, where="", note=""):
@@ -189,6 +324,28 @@ class Body:
             app.solo.note("meal", r["text"], now, id="e%d" % int(now * 1000), icon="🍽" if how == "out" else "🍙",
                           name="外食" if how == "out" else "買って食べる")
         r["price"] = price
+        return r
+
+    def pair_cost(self, place):
+        """一緒に外食したときの費用の目安 (二人分. メニューの安いほう二つの平均 x 2)."""
+        m = sorted(x[2] for x in MENUS.get(place) or [])[:2]
+        return int(round(sum(m) / float(len(m)) * 2 / 100.0)) * 100 if m else 2000
+
+    def eat_with(self, place, char, now=None):
+        """誰かと外食したときの, あなたの食事 (払いは呼び出し側). 書き添えるナレーションを返す."""
+        now = now or time.time()
+        menu = MENUS.get(place) or MENUS["family"]
+        m = random.choice(menu[:2])
+        r = self._eat(now, "out", m[1], m[3], m[4], 0, place)
+        self.app.solo.note("meal", "%sと%s" % (char.get("name", ""), r["text"]), now, id="e%d" % int(now * 1000), icon="🍽", name="外食")
+        return "（%sを食べた）" % m[1]
+
+    def cared(self, char, now=None):
+        """そばにいる人が看病してくれた: お粥でお腹が少し満たされ, 半日ほど治りやすい."""
+        now = now or time.time()
+        b = self.rec()
+        b["health"]["care_until"] = now + 12 * 3600
+        r = self._eat(now, "cared", "%sの作ったお粥" % char.get("name", ""), {"staple": 6, "protein": 1, "veg": 1}, 25)
         return r
 
     def eat_item(self, iid, now=None):
@@ -295,7 +452,10 @@ class Body:
         items = [{"id": i, "name": self.app.items.catalog_name(i), "count": self.app.items.count(i)} for i in ITEM_MEALS
                  if self.app.items.count(i) > 0]
         last = b["meals"][-1] if b["meals"] else None
-        return {"hunger": self.hunger_word(b["satiety"]), "satiety_low": b["satiety"] < 30, "nutri": self.nutri_words(),
+        hl = b["health"]
+        health = {"level": int(hl["level"]), "word": HEALTH_WORD[int(hl["level"])], "since": hl.get("since"),
+                  "medicine": self.app.items.count(MEDICINE), "med": hl.get("med_until", 0) > now}
+        return {"health": health, "hunger": self.hunger_word(b["satiety"]), "satiety_low": b["satiety"] < 30, "nutri": self.nutri_words(),
                 "home": self.at_home(now), "dishes": self.dishes(), "items": items,
                 "place": place, "place_label": self.app.places.label(place) if place else "",
                 "menu": self.menu(place, now) if place else [],

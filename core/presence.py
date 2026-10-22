@@ -286,6 +286,8 @@ class Presence:
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         if out.get("skill"):
             self.app.life.train(out["skill"], 1.0)
+        if ans == "accept" and out.get("care"):          # 看病してくれる (あなたの体調が治りやすい)
+            self.app.body.cared(char, now)
         if out.get("reason_good") and deltas.get("mood", 0) > 0:
             self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", self.app.pronouns(char)[2]),
                                      now, told=True, delta=deltas.get("mood", 0), action="_ap_" + a["id"])

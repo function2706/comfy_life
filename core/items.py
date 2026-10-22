@@ -24,6 +24,7 @@ _C = [
     ("coffee_beans", "コーヒー豆", "☕", "tea", 1000, ["cafe", "supermarket", "mall"], ["tea"], True),
     ("cookies", "クッキー", "🍪", "sweets", 400, ["convenience", "supermarket", "shopping_street", "mall", "station", "cafe"], ["sweets"], True),
     ("cake", "ケーキ", "🍰", "sweets", 1200, ["cafe", "station", "shopping_street", "convenience"], ["sweets"], True),
+    ("cold_medicine", "風邪薬", "💊", "medicine", 1200, ["drugstore", "convenience"], ["practical"], False),
     ("detergent", "洗剤", "🧴", "detergent", 500, ["drugstore", "supermarket", "convenience", "shopping_street", "mall"], ["practical"], False),
     ("book_talk", "話し方の本", "📕", "book_talk", 1500, ["bookstore", "station", "mall"], ["books"], True),
     ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["bookstore", "mall"], ["books"], True),
@@ -151,7 +152,7 @@ class Items:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
                 ps["money"] -= price
-                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
+                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine" else "shopping", it["name"])
                 self.add(iid, it.get("servings", 1))
                 bought.append({"id": iid, "name": it["name"], "icon": it["icon"], "price": price})
                 ps["shop_list"][iid] = ps["shop_list"].get(iid, 0) - 1
@@ -164,7 +165,7 @@ class Items:
             price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
             if ps["money"] >= price + 3000:
                 ps["money"] -= price
-                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
+                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine" else "shopping", it["name"])
                 self.add(it["id"], it.get("servings", 1))
                 bought.append({"id": it["id"], "name": it["name"], "icon": it["icon"], "price": price, "impulse": True})
         self.save()

@@ -2297,6 +2297,76 @@
   "with_player": true
  },
  {
+  "id": "eat_out",
+  "name": "ご飯を食べに行く",
+  "icon": "🍽",
+  "category": "おでかけ",
+  "when": "free=true, phase=morning|noon|evening|night",
+  "cooldown": 240,
+  "effects": {
+   "satiety": 45,
+   "mood": 5,
+   "loneliness": -6,
+   "boredom": -5
+  },
+  "pos": "restaurant, sitting at table, eating, food on table, smile",
+  "neg": "",
+  "override": {
+   "activity": "eat_out",
+   "label": "一緒に食事中",
+   "location": "定食屋",
+   "place": "teishoku",
+   "minutes": 60,
+   "outing": true,
+   "outfit": "@outing",
+   "pos": "restaurant, indoors, table, warm lighting",
+   "neg": "",
+   "effects": {}
+  },
+  "places": [
+   "teishoku",
+   "ramen",
+   "fastfood",
+   "family",
+   "restaurant"
+  ],
+  "reactions": [
+   {
+    "text": "いいですね、何食べましょうか。……実は{fp}、ちょうどお腹すいてたんです。",
+    "when": "",
+    "pos": "holding menu, smile",
+    "neg": ""
+   },
+   {
+    "text": "お腹ぺこぺこだったので、助かります……！ いただきます！",
+    "when": "satiety<30",
+    "pos": "eating, happy",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "今日は{fp}が出しますね。いつものお礼です。",
+    "when": "payer=her",
+    "pos": "smile, wink",
+    "neg": "",
+    "priority": 1
+   },
+   {
+    "text": "……{call}、顔色あんまりよくないですよ。温かいもの、ちゃんと食べてくださいね。",
+    "when": "player_sick>=1",
+    "pos": "worried, looking at viewer",
+    "neg": "",
+    "priority": 2
+   }
+  ],
+  "cost": 2000,
+  "meal_out": true,
+  "ledger": "eatout",
+  "reason_good": "{call}と一緒にご飯を食べに行った",
+  "home_only": true,
+  "with_player": true
+ },
+ {
   "id": "stargazing",
   "name": "星を見に行く",
   "icon": "🌌",

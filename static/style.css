@@ -763,3 +763,6 @@ a.btn { color: inherit; }
 .kakeibo .kb-cats { margin: 6px 0; }
 .kakeibo .kb-day { border-top: 1px solid var(--line); padding: 4px 0; }
 .money-row.small { font-size: 12px; }
+/* あなたの体調 */
+.health-now { margin: 4px 0 6px; padding: 6px 10px; border-radius: 10px; background: #3a2a22; color: #f1c9a8; font-size: 13px; }
+.health-now.lv3 { background: #4a2222; color: #ffc0c0; }

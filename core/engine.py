@@ -46,10 +46,10 @@ SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: 
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
-                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "meal": "食事", "busy": "作業", "work": "仕事",
+                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "meal": "食事", "health": "体調", "busy": "作業", "work": "仕事",
                  "sleep": "寝る", "leave": "席を外す", "back": "戻る", "side_job": "内職", "invest": "株", "offline": "閉じていた間"}
 MY_KIND_ICON = {"rest": "🛋", "chores": "🧹", "practice": "📚", "out": "🚶", "walk": "🚶", "shopping": "🛍", "cafe": "☕", "see": "👀",
-                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "meal": "🍚", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
+                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "meal": "🍚", "health": "🤒", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
                 "back": "🏠", "side_job": "🧵", "invest": "📈", "offline": "🌙"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
                  "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
@@ -421,7 +421,9 @@ class App:
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx["roll"] = random.randint(0, 99)
-        ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
+        ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
+        ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)
+        ctx["player_hungry"] = self.body.rec()["satiety"] < 30                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -754,6 +756,9 @@ class App:
             extra = self.life.mood_text(st, now)          # {ev_text} {bad_text} {away_text} {req_text} {amount}
             extra.update(opts.get("extra") or {})
             plan, req = None, st.get("request")
+            if a.get("meal_out") and not apart:     # 一緒に外食: 費用は行き先のメニュー (二人分)
+                a = dict(a, cost=self.body.pair_cost(opts.get("place") if opts.get("place") in (a.get("places") or []) else
+                                                     (a.get("override") or {}).get("place")))
             if a.get("cost"):
                 plan = self.life.plan_payment(char, st, int(a["cost"]), "me" if a.get("payer") == "me" else None)
                 ctx["payer"] = plan["payer"]
@@ -817,6 +822,11 @@ class App:
                     st.setdefault("gifts", []).append(now)
                     st["gifts"] = [x for x in st["gifts"] if now - x < 30 * 86400]
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
+            if a.get("meal_out") and not r.get("override") and not narrate:
+                pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else (a.get("override") or {}).get("place")
+                meal_note = self.body.eat_with(pl, char, now)          # あなたも食べる (払いは上の費用で済んでいる)
+            else:
+                meal_note = None
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
@@ -919,6 +929,8 @@ class App:
             text += "\n" + self.format_text(item_note, char, scene, dt)
         if home_note:
             text += "\n" + self.format_text(home_note, char, scene, dt)
+        if meal_note:
+            text += "\n" + meal_note
         with self.lock:
             entry = self._new_entry(cid, now, a, text, deltas, scene2, dt, pos, neg, parts)
             entry["text_src"] = text_src

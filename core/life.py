@@ -99,7 +99,7 @@ class Life:
             sd["f"][k] = round(0.1 if random.random() < 0.15 else random.uniform(0.5, 1.3), 2)     # 伸びない日もある
         got = float(sd["got"].get(k, 0.0))
         g = float(gain) * SKILL_RATE * apt[k] * sd["f"][k] * max(0.0, 1.0 - old / 100.0) ** 1.5 / (1.0 + got / SKILL_DAY_SOFT)
-        g *= self.app.body.train_mult() if hasattr(self.app, "body") else 1.0     # 体調が悪いと伸びにくい
+        g *= self.app.body.train_mult()          # 体調が悪いと伸びにくい
         peak = float(ps.setdefault("skill_peak", {}).get(k, old))
         if old < peak and g > 0:        # 鈍ったぶんは戻りやすい (元の高さまで)
             back = min(peak - old, g * RELEARN)
@@ -196,6 +196,7 @@ class Life:
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:
                 self.rust(t)
+                self.app.body.daily(t)                         # 体調 (その日の過ごし方しだい)
                 ps["money"] += int(e.get("player_daily_income", 1000))
                 self.ledger(t, int(e.get("player_daily_income", 1000)), "income", "日々の収入")
                 live = self.app.bonds.living()
@@ -311,7 +312,7 @@ class Life:
         if (t1 - t0) < 900:
             return 0, 0.0, (t1 - t0) / 3600.0
         h, raw = self.work_hours(t0, t1, record)
-        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") / 10.0)) * 10, h, raw
+        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") * self.app.body.work_mult() / 10.0)) * 10, h, raw
 
     def stamina(self):
         return float(self.player_state().get("stamina", 100))

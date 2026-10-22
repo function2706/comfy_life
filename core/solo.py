@@ -159,6 +159,8 @@ class Solo:
         if kind == "busy" and not app.bonds.living():
             raise ValueError("一人暮らしでは「作業する」はありません（同居している相手に、作業中と伝えるためのものです）")
         place = self._place(kind, place)
+        if kind == "work" and app.body.level() >= 3:
+            raise ValueError("寝込むほどつらくて、仕事に行けそうにない（休むか、病院へ）")
         cid = self.near(cid)
         if kind == "leave" and not cid:
             raise ValueError("一人のときは「席を外す」はありません（そばにいる相手に告げて離れるためのものです。一人なら画面を閉じれば、オフライン時の過ごし方どおりに過ごします）")
@@ -231,6 +233,10 @@ class Solo:
                     out["money"] = -r["price"]
                 else:
                     text = "%s%sに行ったが、何も食べなかった" % (_dur(h), where)
+        elif kind == "clinic":                  # 病院で診てもらう
+            r = app.body.clinic(now)
+            out["money"] = r["money"]
+            text = "%s%s" % (_dur(h), r["text"])
         elif kind == "see":
             L.tire(2 * h)
             ps = L.player_state()

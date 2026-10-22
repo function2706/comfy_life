@@ -270,7 +270,10 @@ class Offline:
         skill = L.skill("work")
         notes = []
         end = e
-        if random.random() < 0.03 + (0.35 if stamina < 25 else 0.12 if stamina < 45 else 0.0):
+        lv = self.app.body.level()
+        if lv >= 3 or (lv == 2 and random.random() < 0.4):           # 体調が悪くて休んだ
+            return {"start": s, "end": s, "hours": 0.0, "paid_h": 0.0, "pay": 0, "skill": 0, "notes": ["体調が悪くて、仕事を休んだ"]}
+        if random.random() < 0.03 + (0.35 if stamina < 25 else 0.12 if stamina < 45 else 0.0) + (0.3 if lv == 2 else 0.1 if lv == 1 else 0.0):
             end = s + (e - s) * random.uniform(0.3, 0.8)                  # 体調が悪くて早退
             notes.append("体調がすぐれず、早退した")
         elif random.random() < 0.15:

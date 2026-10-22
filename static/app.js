@@ -313,6 +313,12 @@ function renderSoloTab() {
         h('span', { class: 'ic' }, '📱'), h('span', {}, 'スマホを見る'), v.chat_unread ? h('small', { class: 'muted' }, `未読 ${v.chat_unread}`) : null))),
     h('div', { class: 'pgroup' }, h('h4', {}, 'あなた'),
       h('div', { class: 'muted small', style: 'margin-bottom:4px' }, `いま: ${(v.presence || {}).label || '—'}${near ? `（そばに${(v.company || []).map((c) => c.name).join('・')}）` : '（一人）'}`),
+      v.meal && v.meal.health && v.meal.health.level ? h('div', { class: 'health-now lv' + v.meal.health.level },
+        h('span', {}, `🤒 ${v.meal.health.word}`), v.meal.health.med ? h('span', { class: 'muted small' }, '（薬を飲んだ）') : '',
+        h('div', { class: 'row', style: 'gap:6px;margin-top:4px' },
+          h('button', { class: 'btn small', disabled: S.busy || !v.meal.health.medicine, title: v.meal.health.medicine ? `風邪薬 ×${v.meal.health.medicine}` : '風邪薬を持っていない（ドラッグストア・コンビニで買える）',
+            onclick: takeMedicine }, `💊 薬を飲む${v.meal.health.medicine ? '' : '（なし）'}`),
+          h('span', { class: 'muted small' }, v.meal.health.level >= 3 ? '病院は「外出」の行き先から（営業時間あり・お金がかかる）' : '休めば治ることも。こじらせることも'))) : '',
       v.meal ? h('div', { class: 'small', style: 'margin-bottom:4px' }, `🍚 ${v.meal.hunger}`, ...(v.meal.nutri || []).map((x) => h('span', { class: 'muted' }, `・${x}`)),
         v.meal.last ? h('span', { class: 'muted' }, `（最後に食べたのは ${fmtTime(v.meal.last.t)} の${v.meal.last.label}）`) : '') : '',
       h('div', { class: 'prow', title: '仕事・内職・外出・家事で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
@@ -361,6 +367,13 @@ async function soloStart(kind, skill, place) {
     const r = await api('/api/solo/start', withT({ kind, skill, place }));
     if (r.act) handleActResult(r.act); else toast(r.done || `${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+
+async function takeMedicine() {
+  if (S.busy) return;
+  S.busy = true;
+  try { toast((await api('/api/medicine', {})).text, 'ok'); } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
 

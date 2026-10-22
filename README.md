@@ -250,6 +250,15 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 行動パターン: `do: meal` + `how`（`cook` / `out` / `buy`）+ `place`（`offline.MEAL_PLACES`）。`body.routine_meal`: 自炊は足りない栄養を補える献立（`best_dish`）、食材がなければ買い置き、それも無ければ食べない。外食・買って食べるは、閉まっている・お金が足りなければ食べない。食事の予定が無い時間は、何も食べない。既定の行動パターンに朝・昼・夕の食事を入れた。閉じていた間のお腹と栄養が食事の前後で正しく動くよう、`offline.simulate` は行動の順に `tick_world` を進める。
 - 生活費 `economy.living_cost_per_day` は食費抜き（既定 1,200 円。二人暮らしの額）。以前の既定（3,000 円。食費込み）のままのワールドは、起動時に直す（`App._migrate_living_cost`。自動バックアップ。`economy.living_cost_no_food`）。
 
+### 体調（あなた）
+
+`core/body.py` の `health`（`level` 0〜3: ふつう・少しだるい・風邪・寝込む）。日付が変わるたびに `body.daily`: その日の過ごし方（`body.today`: 寝た時間・空腹の時間・外にいた時間・休んだ時間。`body.step` が数える）と、栄養の偏り・ここ 3 日の勤務・体力・雨雪の中の外出・冬から崩しやすさ `body.risk` を出し、ふつうなら崩す・不調なら治る / こじれるを決める（補正なし）。治りやすさは休み（7 時間以上寝た・休んだ）・薬（`med_until`）・看病（`care_until`）しだい。
+
+- 体調が悪い間の不利（`body.HEALTH_MULT`）: 体力の戻り（`stamina_mult`）・仕事の給料（`work_mult` → `life.work_pay`）・スキルの伸び（`train_mult` → `life.train`）。寝込んでいると「仕事に行く」ができない。行動パターンの仕事は、風邪なら休む・早退しやすく、寝込んでいれば休む（`offline._work`）。
+- 薬: 持ち物の `cold_medicine`（風邪薬。ドラッグストア・コンビニ。家計簿では「医療」）。`POST /api/medicine`。病院: 行き先 `clinic`（営業時間・定休日あり）に外出して戻ると `body.clinic`（お金がかかる。不調なら軽いところまで戻り、薬を 2 回分もらう）。
+- 画面: 「一人で」の「あなた」に言葉と「💊 薬を飲む」（`state_view.meal.health`）。
+- キャラの反応: 条件キー `player_sick`（0〜3）・`player_hungry`。働きかけ `worry_you`（顔色が悪いのに気づく。応じると `care: true` → `body.cared`: お粥と半日の看病）。コマンド `eat_out`（ご飯を食べに行く。行き先は食べに行く店。費用は `body.pair_cost`（二人分）、あなたも食べる `body.eat_with`。家計簿では「外食」）。どちらも効き目は `bonds.realize` を通る。
+
 ### 家計簿
 
 `core/kakeibo.py`。あなたの財布のお金の出入りは裏ですべて記録する（`player.json` の `ledger.raw`: `{t, a: 金額, c: 分類, n: メモ}`、120 日ぶん。`life.ledger` / `life.move(..., cat, note)`。分類 `kakeibo.CATS`: 収入・食費・外食・買い物・交際費・娯楽・医療・家賃・光熱費・通信費・生活費・借りたお金・返済・株・その他）。見えるのは家計簿につけた分（`ledger.book`）だけ。
