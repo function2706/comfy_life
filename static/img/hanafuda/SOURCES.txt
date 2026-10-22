@@ -1,0 +1,49 @@
+hf00.svg	File:Hanafuda January Hikari Alt2.svg
+hf01.svg	File:Hanafuda January Tanzaku Alt2.svg
+hf02.svg	File:Hanafuda January Kasu 1 Alt2.svg
+hf03.svg	File:Hanafuda January Kasu 2 Alt2.svg
+hf04.svg	File:Hanafuda February Tane Alt2.svg
+hf05.svg	File:Hanafuda February Tanzaku Alt2.svg
+hf06.svg	File:Hanafuda February Kasu 1 Alt2.svg
+hf07.svg	File:Hanafuda February Kasu 2 Alt2.svg
+hf08.svg	File:Hanafuda March Hikari Alt2.svg
+hf09.svg	File:Hanafuda March Tanzaku Alt2.svg
+hf10.svg	File:Hanafuda March Kasu 1 Alt2.svg
+hf11.svg	File:Hanafuda March Kasu 2 Alt2.svg
+hf12.svg	File:Hanafuda April Tane Alt2.svg
+hf13.svg	File:Hanafuda April Tanzaku Alt2.svg
+hf14.svg	File:Hanafuda April Kasu 1 Alt2.svg
+hf15.svg	File:Hanafuda April Kasu 2 Alt2.svg
+hf16.svg	File:Hanafuda May Tane Alt2.svg
+hf17.svg	File:Hanafuda May Tanzaku Alt2.svg
+hf18.svg	File:Hanafuda May Kasu 1 Alt2.svg
+hf19.svg	File:Hanafuda May Kasu 2 Alt2.svg
+hf20.svg	File:Hanafuda June Tane Alt2.svg
+hf21.svg	File:Hanafuda June Tanzaku Alt2.svg
+hf22.svg	File:Hanafuda June Kasu 1 Alt2.svg
+hf23.svg	File:Hanafuda June Kasu 2 Alt2.svg
+hf24.svg	File:Hanafuda July Tane Alt2.svg
+hf25.svg	File:Hanafuda July Tanzaku Alt2.svg
+hf26.svg	File:Hanafuda July Kasu 1 Alt2.svg
+hf27.svg	File:Hanafuda July Kasu 2 Alt2.svg
+hf28.svg	File:Hanafuda August Hikari Alt2.svg
+hf29.svg	File:Hanafuda August Tane Alt2.svg
+hf30.svg	File:Hanafuda August Kasu 1 Alt2.svg
+hf31.svg	File:Hanafuda August Kasu 2 Alt2.svg
+hf32.svg	File:Hanafuda September Tane Alt2.svg
+hf33.svg	File:Hanafuda September Tanzaku Alt2.svg
+hf34.svg	File:Hanafuda September Kasu 1 Alt2.svg
+hf35.svg	File:Hanafuda September Kasu 2 Alt2.svg
+hf36.svg	File:Hanafuda October Tane Alt2.svg
+hf37.svg	File:Hanafuda October Tanzaku Alt2.svg
+hf38.svg	File:Hanafuda October Kasu 1 Alt2.svg
+hf39.svg	File:Hanafuda October Kasu 2 Alt2.svg
+hf40.svg	File:Hanafuda November Hikari Alt2.svg
+hf41.svg	File:Hanafuda November Tane Alt2.svg
+hf42.svg	File:Hanafuda November Tanzaku Alt2.svg
+hf43.svg	File:Hanafuda November Kasu Alt2.svg
+hf44.svg	File:Hanafuda December Hikari Alt2.svg
+hf45.svg	File:Hanafuda December Kasu 2 Alt2.svg
+hf46.svg	File:Hanafuda December Kasu 1 Alt2.svg
+hf47.svg	File:Hanafuda December Kasu 3 Alt2.svg
+back.svg	File:Hanafuda card back Alt2.svg

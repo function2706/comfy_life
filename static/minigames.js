@@ -87,20 +87,32 @@ const MJ_HONOR = '東南西北白發中';
 const MJ_PIPS = { 1: [4], 2: [1, 7], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
   7: [0, 1, 2, 3, 5, 6, 8], 8: [0, 1, 2, 3, 5, 6, 7, 8], 9: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
 const MJ_RED = { 1: [4], 5: [4], 7: [0, 1, 2], 9: [3, 4, 5] };          // 赤い粒 (本物の牌の配色にならう)
+// 牌・札の絵 (static/img/. 麻雀牌は FluffyStuff/riichi-mahjong-tiles (CC0), 花札は Wikimedia Commons の一式 (CC BY-SA 4.0)).
+// 絵が読み込めたら絵を出し (has-img), 読み込めなければ下の柄・文字の表示のまま
+const MJ_IMG = ['Man', 'Pin', 'Sou'];
+const MJ_HONOR_IMG = ['Ton', 'Nan', 'Shaa', 'Pei', 'Haku', 'Hatsu', 'Chun'];
+function withImg(el, src) {
+  const img = h('img', { class: 'face', alt: '', draggable: 'false', src });
+  img.addEventListener('load', () => el.classList.add('has-img'));
+  img.addEventListener('error', () => img.remove());
+  el.append(img);
+  return el;
+}
 function tileEl(t, o = {}) {
   const cls0 = `tile${o.small ? ' small' : ''}${o.hl ? ' hl' : ''}${o.dim ? ' dim' : ''}${o.drawn ? ' drawn' : ''}`;
   const attrs = (cls) => ({ class: `${cls0} ${cls}`, disabled: o.disabled, onclick: o.onclick, title: o.title || '' });
   const tag = o.onclick ? 'button' : 'div';
-  if (t >= 27) return h(tag, attrs('z' + (t - 26)), h('span', { class: 't-top' }, MJ_HONOR[t - 27]));
+  if (t >= 27) return withImg(h(tag, attrs('z' + (t - 26)), h('span', { class: 't-top' }, MJ_HONOR[t - 27])), `/static/img/mahjong/${MJ_HONOR_IMG[t - 27]}.svg`);
   const n = t % 9 + 1, s = Math.floor(t / 9);
-  if (s === 0) return h(tag, attrs('m'), h('span', { class: 't-top' }, MJ_NUM[n - 1]), h('span', { class: 't-bot' }, '萬'));
+  const src = `/static/img/mahjong/${MJ_IMG[s]}${n}.svg`;
+  if (s === 0) return withImg(h(tag, attrs('m'), h('span', { class: 't-top' }, MJ_NUM[n - 1]), h('span', { class: 't-bot' }, '萬')), src);
   const kind = s === 1 ? 'p' : 's';
   const pos = MJ_PIPS[n], red = MJ_RED[n] || [];
-  return h(tag, attrs(kind), h('span', { class: 't-num' }, String(n)),
+  return withImg(h(tag, attrs(kind), h('span', { class: 't-num' }, String(n)),
     h('span', { class: `t-pips n${n}` }, Array.from({ length: 9 }, (_, i) => h('i', { class: pos.includes(i) ? (red.includes(i) ? 'on red' : 'on') : '' }))),
-    h('span', { class: 'sr' }, `${n}${kind === 'p' ? '筒' : '索'}`));
+    h('span', { class: 'sr' }, `${n}${kind === 'p' ? '筒' : '索'}`)), src);
 }
-const tileBack = (small) => h('div', { class: 'tile back' + (small ? ' small' : '') });
+const tileBack = (small) => h('div', { class: 'tile back' + (small ? ' small' : '') });     // 裏は今の色のまま (絵の裏は赤が強いので)
 
 function renderMahjong(cur) {
   const m = cur.mj, me = S.view.name;
@@ -298,14 +310,14 @@ const HF_CARDS = [
 ];
 const HF_KIND = { h: '光', n: 'タネ', t: '短冊', k: 'カス' };
 function hfEl(id, o = {}) {
-  if (o.back) return h('div', { class: 'hcard back' + (o.small ? ' small' : '') });
+  if (o.back) return withImg(h('div', { class: 'hcard back' + (o.small ? ' small' : '') }), '/static/img/hanafuda/back.svg');
   const m = Math.floor(id / 4), [k, name, pic] = HF_CARDS[id];
   const red = name === '赤短', blue = name === '青短';
-  return h(o.onclick ? 'button' : 'div', {
+  return withImg(h(o.onclick ? 'button' : 'div', {
     class: `hcard k-${k}${red ? ' aka' : ''}${blue ? ' ao' : ''}${o.small ? ' small' : ''}${o.hl ? ' hl' : ''}${o.dim ? ' dim' : ''}`,
     onclick: o.onclick, disabled: o.disabled, title: `${HF_MONTH[m]}（${m + 1}月）${name ? 'に' + name : 'のカス'}・${HF_KIND[k]}`,
   }, h('span', { class: 'hc-m' }, HF_MONTH[m]), h('span', { class: 'hc-pic' }, pic || HF_EMOJI[m]),
-  h('span', { class: 'hc-n' }, name || 'カス'));
+  h('span', { class: 'hc-n' }, name || 'カス')), `/static/img/hanafuda/hf${String(id).padStart(2, '0')}.svg`);
 }
 
 function raceScore(cur, mid, unit) {

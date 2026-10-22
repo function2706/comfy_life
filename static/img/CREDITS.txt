@@ -1,0 +1,14 @@
+牌・札の絵 (くらしのミニゲームで使用. 個人で使うもので, 配布はしない)
+
+麻雀牌 (static/img/mahjong/)
+  出どころ: https://github.com/FluffyStuff/riichi-mahjong-tiles (Regular)
+  作者: FluffyStuff
+  ライセンス: パブリックドメイン (CC0 1.0) — static/img/mahjong/LICENSE.md
+  手を加えていない (牌の土台 Front.svg に絵を重ねて表示する)
+
+花札 (static/img/hanafuda/)
+  出どころ: Wikimedia Commons "Category:SVG Hanafuda with traditional colors (red border)"
+           https://commons.wikimedia.org/wiki/Category:SVG_Hanafuda_with_traditional_colors_(red_border)
+  作者: Louie Mantia Jr. (元の絵), すけじょ (赤枠の版), ほか各ファイルのページに記載の人
+  ライセンス: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/)
+  手を加えていない (ファイル名だけ hf00〜hf47 / back に変えた. 元のファイル名は SOURCES.txt)

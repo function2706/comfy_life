@@ -406,6 +406,13 @@ ComfyUI で「Export (API)」した JSON を登録できます。
 - ComfyUI との通信は、既定ではシステムのプロキシを通しません。プロキシが必要な環境では、**設定 → 画像生成** の「システムのプロキシを使う」をオンにしてください。
 - 失敗のパターンは、モックで再現できます: `python tools/mock_comfy.py --fail reject|exec|hang`
 
+## 牌・札の絵のクレジット
+
+ミニゲームの麻雀牌と花札は、次の自由に使える絵を使っています（個人で使うもので、配布はしていません。詳しくは `static/img/CREDITS.txt`）。絵が読み込めないときは、柄と文字の表示に戻ります。
+
+- 麻雀牌（`static/img/mahjong/`）: [FluffyStuff/riichi-mahjong-tiles](https://github.com/FluffyStuff/riichi-mahjong-tiles) — パブリックドメイン（CC0 1.0）
+- 花札（`static/img/hanafuda/`）: Wikimedia Commons の [SVG Hanafuda with traditional colors (red border)](https://commons.wikimedia.org/wiki/Category:SVG_Hanafuda_with_traditional_colors_(red_border))（Louie Mantia Jr. の絵をもとにした版）— [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+
 ## ファイル構成
 
 ```

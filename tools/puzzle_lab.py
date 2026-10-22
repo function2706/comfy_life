@@ -26,7 +26,8 @@ from core import puzzles  # noqa: E402
 from core.life import skill_mult_of  # noqa: E402
 
 STATIC = os.path.join(BASE, "static")
-TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
+TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".svg": "image/svg+xml", ".png": "image/png"}
 
 
 class Lab:

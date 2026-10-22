@@ -28,7 +28,8 @@ sys.path.insert(0, BASE)
 from core import engine, store  # noqa: E402
 
 STATIC = os.path.join(BASE, "static")
-TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
+TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".svg": "image/svg+xml", ".png": "image/png"}
 OPPONENT = "相手"
 KEEP = ("ended", "refused", "error")               # 応答のうち画面に返すもの (セリフ・画像・ヒントは返さない)
 

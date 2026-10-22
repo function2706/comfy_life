@@ -507,7 +507,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <div class="cards">
   <div class="card"><div class="hd"><span class="ic">✊</span>野球拳</div><p>じゃんけんで負けたほうが1枚ずつ脱ぎます。キャラが降参したら勝ち、あなたのライフが尽きたら負けです。</p></div>
   <div class="card"><div class="hd"><span class="ic">👉</span>あっち向いてホイ</div><p>じゃんけんの勝者が指さします。先に3本取ったほうの勝ちです。</p></div>
-  <div class="card"><div class="hd"><span class="ic">🀄</span>脱衣麻雀</div><p>二人打ちの簡易麻雀です。鳴きはなく、リーチ・ツモ・ロンだけです。満貫以上は2段階、役満は一気に決着します。牌は柄で見分けられます（萬子は漢数字と赤い「萬」、筒子は青い丸の並び、索子は緑の竹の並び。筒子と索子は角に小さく数字も）。スマホなど狭い画面では手牌を2段に並べて大きく見せます。</p></div>
+  <div class="card"><div class="hd"><span class="ic">🀄</span>脱衣麻雀</div><p>二人打ちの簡易麻雀です。鳴きはなく、リーチ・ツモ・ロンだけです。満貫以上は2段階、役満は一気に決着します。牌は本物の牌の絵で出ます（絵が読み込めないときは、萬子は漢数字と赤い「萬」、筒子は青い丸の並び、索子は緑の竹の並びの柄で見分けられます）。スマホなど狭い画面では手牌を2段に並べて大きく見せます。</p></div>
   <div class="card"><div class="hd"><span class="ic">🔴</span>コネクトフォー</div><p>上の ▼ からコマを落とし、縦・横・斜めに4つ並べます。</p></div>
   <div class="card"><div class="hd"><span class="ic">⬡</span>ヘックス</div><p>自分の色の辺どうしを、つながったコマで結びます。</p></div>
   <div class="card"><div class="hd"><span class="ic">⚫</span>リバーシ</div><p>はさんで裏返します。最後に多いほうの勝ちです。</p></div>
@@ -818,6 +818,13 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
 <p>しきい値などは世界設定の <code>bonds</code>（<code>visit_hours</code> 遊びに行ける時間、<code>meet_min_affection</code> 誘いに応じる好感度、<code>deep_affection</code> 深い仲とみなす好感度、<code>jealousy_per_day</code> 気づきやすさ、<code>renotice_days</code>、<code>selfie_rate</code> 自撮りの多さ）で変えられます。</p>
 
 <!-- ============================================================ -->
+<h2 id="credits"><span class="ic">🖼</span>牌・札の絵のクレジット</h2>
+<p>ミニゲームの麻雀牌と花札は、次の自由に使える絵を使っています（個人で使うもので、配布はしていません）。</p>
+<ul>
+  <li>麻雀牌: <a href="https://github.com/FluffyStuff/riichi-mahjong-tiles">FluffyStuff/riichi-mahjong-tiles</a>（パブリックドメイン・CC0 1.0）</li>
+  <li>花札: Wikimedia Commons の <a href="https://commons.wikimedia.org/wiki/Category:SVG_Hanafuda_with_traditional_colors_(red_border)">SVG Hanafuda with traditional colors (red border)</a>（Louie Mantia Jr. の絵をもとにした版。<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>）</li>
+</ul>
+
 <h2 id="data"><span class="ic">🗃</span>データの保存先</h2>
 <p>ワールドごとの分は <code>data/worlds/&lt;ワールドid&gt;/</code> の下にあります（表の <code>W/</code>）。以前の版の <code>data/</code> は、初回起動時に「最初のワールド」へ移します。</p>
 <table>
