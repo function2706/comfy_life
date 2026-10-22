@@ -7,16 +7,19 @@
 
     python tools/test_appoint.py
 """
+import collections
 import os
 import random
 import shutil
 import sys
 import tempfile
 import time
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
-from core.appoint import GIVE_UP, GRACE  # noqa: E402
+from core import places as places_mod  # noqa: E402
+from core.appoint import COUNTER_MAX, GIVE_UP, GRACE, phase_ok  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)
@@ -111,6 +114,69 @@ def main():
         A.live(time.time() + 25 * 3600)
         assert A.get(x2["id"])["status"] == "lapsed" and st["params"]["mood"] < m0, "誘いに返事をしないと, 流れる (少し寂しがる)"
         print("invited: OK")
+
+        # ---- 3b. 誘いやすさは, その日の機嫌・ストレス・体調で変わる (補正はしない)
+        mf = A.mood_factor
+        assert mf({"mood": 80}) > mf({"mood": 50}) > mf({"mood": 20}) and mf({"mood": 50, "stress": 80}) < mf({"mood": 50})
+        assert mf({"mood": 50, "health": 30}) < 0.5 * mf({"mood": 50})
+        # 行き先は好みで少しだけ傾く. どの性格でも幅広く (決め打ちしない)
+        day = datetime(2026, 10, 18, 13, 0)
+        opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in A.dos_at(cid, pid)
+                if phase_ok(app, a, day) and places_mod.open_state(pid, day)["open"]]
+        npl = len({p for p, _ in opts})
+        saved = dict(char)
+        for pid in sorted(app.personas):
+            char["persona_id"] = pid
+            char.pop("likes", None)
+            char.pop("dislikes", None)
+            st["place_fun"] = {}
+            got = collections.Counter(A.pick(char, st, opts)[0] for _ in range(1500))
+            w = [A.place_weight(char, st, p) for p, _ in opts]
+            assert max(w) / min(w) <= 1.9, (pid, max(w), min(w))
+            assert len(got) >= npl * 0.9, (pid, len(got), npl)
+            share = max(got.values()) / 1500.0
+            per = collections.Counter(p for p, _ in opts)
+            assert share < 2.2 * max(per.values()) / len(opts), (pid, got.most_common(3))
+        char.clear()
+        char.update(saved)
+        # 一緒に行って楽しかった行き先は, 少しだけ選ばれやすい
+        st["place_fun"] = {}
+        w0 = A.place_weight(char, st, "aquarium")
+        A.remember(cid, "aquarium", 8)
+        assert A.place_weight(char, st, "aquarium") > w0 - 0.1 and A.place_weight(char, st, "aquarium") <= 1.5
+        print("invite mood / places: OK (%d places)" % npl)
+
+        # ---- 3c. 誘いに「別の日時なら」と返す: 相手は受ける / 断る / さらに別の案 (回数の上限まで)
+        outcomes = collections.Counter()
+        for i in range(60):
+            x = {"id": "c%d" % i, "cid": cid, "t": time.time() + 2 * 86400, "place": "riverside", "do": "walk", "by": "her",
+                 "status": "offered", "made": time.time()}
+            A.all().append(x)
+            st.pop("msg_pending", None)
+            A.counter(x["id"], time.time() + 3 * 86400 + 3600 * (i % 5))
+            assert x["status"] == "asked" and x["rounds"] == 1 and st["msg_pending"]["kind"] == "appoint"
+            busy = i % 2 == 0
+            app.scheduled_scene = (lambda c, d: dict(sched(c, d), away=True, busy=False, asleep=False)) if busy else free
+            app.set_params({"affection": 60, "mood": 60}, cid)
+            key, _, extra = A.reply(char, st, st["msg_pending"], time.time(), app.context(char, st, datetime.now()))
+            outcomes[(busy, key)] += 1
+            if key == "appoint_counter":
+                assert x["status"] == "offered" and x["rounds"] == 2 and extra["when"], x
+            x["status"] = "cancelled"
+        app.scheduled_scene = free
+        assert outcomes[(False, "appoint_yes")] > 0 and outcomes[(True, "appoint_busy")] > 0, outcomes
+        assert sum(v for (b, k), v in outcomes.items() if k == "appoint_counter") > 0, outcomes
+        x = {"id": "cmax", "cid": cid, "t": time.time() + 2 * 86400, "place": "riverside", "do": "walk", "by": "her",
+             "status": "offered", "made": time.time(), "rounds": COUNTER_MAX}
+        A.all().append(x)
+        try:
+            A.counter("cmax", time.time() + 3 * 86400)
+            raise AssertionError("やりとりが延々続く")
+        except ValueError:
+            pass
+        x["status"] = "cancelled"
+        st.pop("msg_pending", None)
+        print("counter: OK", dict(outcomes))
 
         # ---- 4. 当日: 会いに行く. 来る / 遅れる / 来ない
         def make(t, plan, do="walk", place="riverside"):

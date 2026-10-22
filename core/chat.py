@@ -56,6 +56,7 @@ LINES = {
     "chat.appoint_no": "📱『ごめんなさい、その日はちょっと……』",
     "chat.appoint_busy": "📱『その時間は予定があって……ごめんなさい』",
     "chat.appoint_invite": "📱『{call}、{when}、{place}に行きませんか？』",
+    "chat.appoint_counter": "📱『その時間はちょっと……。{when}なら、{place}行けますけど、どうですか？』",
     "chat.appoint_cancel": "📱『ごめんなさい、ちょっと体調を崩しちゃって……今日の約束、また今度にしてもらえますか』",
     "chat.appoint_sorry": "📱『今日は本当にごめんなさい……行けなくて』",
     "chat.appoint_missed": "📱『……今日、どうしたんですか？ ずっと待ってたんですけど』",
@@ -69,6 +70,7 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)",
                "appoint_yes": "約束の誘い (応じた. {when} {place})", "appoint_no": "約束の誘い (断った)",
                "appoint_busy": "約束の誘い (その時間は予定がある)", "appoint_invite": "相手から約束に誘う ({when} {place})",
+               "appoint_counter": "約束のやりとりで, 相手が別の日時を返す ({when} {place})",
                "appoint_cancel": "約束の当日, 体調を崩してキャンセル", "appoint_sorry": "約束をすっぽかしたあとで謝る",
                "appoint_missed": "あなたが約束をすっぽかした"}
 

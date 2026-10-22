@@ -1038,7 +1038,9 @@ async function drawChat() {
       body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`,
         x.status === 'offered' ? h('span', {}, '　',
           h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く'), ' ',
-          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'))
+          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'), ' ',
+          h('button', { class: 'btn small ghost', disabled: S.busy, title: '別の日時（・行き先）を返す。相手の予定や気分しだいで、受けてくれる・断られる・また別の案が返ってくる',
+            onclick: () => { S.apForm = { counter: x.id, place: x.place, do: x.do }; drawChat(); } }, '別の日時なら'))
           : (x.status === 'set' || x.status === 'waiting') && !x.here && !x.home_me
             ? h('span', {}, '　', h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`)) : ''));
     }
@@ -1092,7 +1094,8 @@ function appointForm(th) {
     sel('day', days), sel('time', times.map((t) => [t, t])),
     sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
     sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
-    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, '誘う'),
+    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, f.counter ? 'この日時なら、と返す' : '誘う'),
+    f.counter ? h('button', { class: 'btn small ghost', onclick: () => { S.apForm = null; drawChat(); } }, 'やめる') : '',
     h('span', { class: 'muted small' }, '返事は時間差で届きます。その時間に予定があれば断られます'));
 }
 async function proposeAppoint(cid) {
@@ -1102,7 +1105,11 @@ async function proposeAppoint(cid) {
   d.setHours(hh, mm, 0, 0);
   if (S.busy) return;
   S.busy = true;
-  try { await api('/api/appoint', { id: cid, t: d.getTime() / 1000, place: f.place, do: f.do }); S.apForm = null; S.chatJump = true; } catch (e) { toast(e.message, 'err'); }
+  try {
+    if (f.counter) await api('/api/appoint/answer', { id: f.counter, counter: { t: d.getTime() / 1000, place: f.place, do: f.do } });
+    else await api('/api/appoint', { id: cid, t: d.getTime() / 1000, place: f.place, do: f.do });
+    S.apForm = null; S.chatJump = true;
+  } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
 async function answerAppoint(id, yes) {

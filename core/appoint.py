@@ -3,7 +3,10 @@
 - こちらから: トークの「📅 約束する」で, 日時・行き先 (core/places.py の表)・何をするか (お出かけのコマンド. 相手の家なら訪ねる,
   あなたの家なら招く) を決めて誘う. 返事はいつものメッセージの時間差で届く (msg_pending の kind "appoint").
   受けるかは仲・機嫌・慎重さ・その時間の相手の予定 (予定があれば断られる)・「会おうよ」に応じていたか (date_promise) しだい.
-- 相手から: 離れている連絡先の相手が, ときどきメッセージで誘ってくる (仲・寂しさ・性格しだい. 補正なし). トークで受ける / 断る.
+- 相手から: 離れている連絡先の相手が, ときどきメッセージで誘ってくる (仲・寂しさ・その日の機嫌・ストレス・体調・性格しだい.
+  出会わせる方向の補正はなし). 行き先は, その人の好み (好きなもの)・一緒に行って楽しかった所・まだ行ったことのない所で,
+  少しだけ選ばれやすさが傾く (性格で決め打ちしない. どの人でも幅広い行き先から). トークで 受ける / 断る / 「別の日時なら」と返す.
+  別の案には, 相手がその時間の予定・仲・機嫌・性格しだいで 受ける / 断る / さらに別の案を返す (やりとりは COUNTER_MAX 回まで).
   丸一日返事をしなければ, 流れる (少し寂しがる).
 - 約束の場所へは, 自分で出向く: ふつうの外出 (一人の「外出」で行き先を約束の場所に) で行く. 約束の場所にいる状態で約束の時刻を
   迎えると会える (早く着けば, その場で待つ. 待っている間も外出中で, 偶然の出会いなども普段どおり. 別の用事で同じ場所に来ていても会える).
@@ -32,6 +35,11 @@ GRACE = 45 * 60          # 約束の時刻からこれだけ過ぎても約束�
 LATE_ME = 10 * 60        # これより遅れて着くと, 相手は少し機嫌を損ねる
 GIVE_UP = 30 * 60        # 相手が来ないとき, これだけ待ったらあきらめる
 NEAR = 3 * 3600          # 約束のこれだけ前からは, 相手の家へ出かけると「約束の訪問」(玄関先で待つ)
+COUNTER_MAX = 3          # 誘いへの「別の日時なら」のやりとりの回数の上限 (あなたと相手の案を合わせて)
+# 好きなもの (items の好みの印) → 行きたくなる行き先 (気持ち傾くだけ)
+LIKE_PLACES = {"books": ("bookstore",), "sweets": ("cafe", "mall"), "tea": ("cafe",), "flowers": ("park", "hill"),
+               "games": ("electronics", "amusement"), "food": ("teishoku", "ramen", "restaurant", "shopping_street"),
+               "cute": ("aquarium", "mall"), "fashion": ("mall",), "accessories": ("mall",), "practical": ("supermarket", "mall")}
 OPEN = ("asked", "offered", "set", "waiting")
 STATUS_LABEL = {"asked": "返事待ち", "offered": "誘われている", "set": "約束した", "waiting": "待っている", "met": "会えた",
                 "stood_up": "来なかった", "missed": "行かなかった", "declined": "断られた", "cancelled": "キャンセル",
@@ -140,27 +148,7 @@ class Appoint:
         x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": place, "do": do, "by": "me", "status": "asked", "made": now}
         self.all().append(x)
         self.save()
-        with app.lock:
-            st = app.state(cid)
-            scene = app.scene_at(char, st, datetime.fromtimestamp(now))
-            ctx = app.context(char, st, datetime.fromtimestamp(now), scene)
-            app._phoned(st, now)
-            ctx.update(app.bonds.ctx(cid, st))
-            app.chat.add(cid, "me", "（%s、%sで「%s」に誘った）" % (fmt_when(t, now), app.places.label(place), a.get("name", do)),
-                         kind="appoint", t=now)
-            pend = st.get("msg_pending")
-            if pend:            # 返信は, いちばん新しいメッセージに対して
-                pend.update(kind="appoint", appoint=x["id"], count=pend.get("count", 1) + 1, reply=True)
-            else:
-                p = st["params"]
-                delay = random.uniform(3, 40) * 60 * (2 if p.get("mood", 50) < 35 else 1)
-                quick = app._still_on_phone(char, st, now, scene, ctx)
-                if quick:
-                    delay = random.uniform(10, 90)
-                st["msg_pending"] = {"aid": "message", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "appoint",
-                                     "appoint": x["id"], "quick": quick}
-            app.presence.drop(st)
-            app.save_state(cid)
+        self._send(x, now, "（%s、%sで「%s」に誘った）" % (fmt_when(t, now), app.places.label(place), a.get("name", do)))
         return dict(x, label=STATUS_LABEL[x["status"]])
 
     def reply(self, char, st, pend, now, ctx):
@@ -176,10 +164,13 @@ class Appoint:
         p = st["params"]
         busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
         if (busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8:
+            alt = self._alt_time(char, x, now) if x.get("counter") and int(x.get("rounds", 0)) < COUNTER_MAX else None
+            if alt and random.random() < 0.3 + (p.get("affection", 50) - 50) / 100.0 + (p.get("mood", 50) - 50) / 200.0:
+                return self._counter_back(x, alt, now, extra)        # その時間は無理だけど, この時間なら
             x["status"] = "declined"
             self.save()
             return "appoint_busy", {}, extra
-        promised = st.get("date_promise", 0) > now
+        promised = st.get("date_promise", 0) > now or bool(x.get("counter"))        # 自分から誘った話の続き
         pa = 0.35 + (p.get("affection", 50) - 50) / 80.0 + (p.get("mood", 50) - 50) / 150.0 \
             - float(app.traits(char).get("caution", 0)) / 50.0 + (0.1 if app.bonds.stage(char["id"]) == "visit" else 0.0) \
             + (0.3 if promised else 0.0) - (0.3 if ctx.get("too_often") else 0.0)
@@ -191,9 +182,20 @@ class Appoint:
             st.pop("date_promise", None)
             self.save()
             return "appoint_yes", {"heart": 2, "mood": 2}, extra
+        if x.get("counter") and int(x.get("rounds", 0)) < COUNTER_MAX and random.random() < 0.35:
+            alt = self._alt_time(char, x, now)
+            if alt:
+                return self._counter_back(x, alt, now, extra)
         x["status"] = "declined"
         self.save()
         return "appoint_no", {}, extra
+
+    def _counter_back(self, x, t, now, extra):
+        """相手が, さらに別の日時を返してくる (あなたが受ける / 断る / また返す)."""
+        x.update(t=t, status="offered", made=now, rounds=int(x.get("rounds", 0)) + 1)
+        self.save()
+        extra = dict(extra, when=fmt_when(t, now))
+        return "appoint_counter", {}, extra
 
     def _plan(self, char, st):
         """相手の側の, 当日のこと (約束したときに決まる. 画面には出さない). 体調不良のキャンセルは当日の健康で決める."""
@@ -242,7 +244,7 @@ class Appoint:
         if p.get("affection", 0) < 45:
             return None
         rate = 0.02 * max(0.1, (p.get("affection", 50) - 35) / 30.0 + (p.get("loneliness", 30) - 40) / 80.0) \
-            * float(app.traits(char).get("approach", 1))
+            * float(app.traits(char).get("approach", 1)) * self.mood_factor(p)
         if random.random() >= rate * h:
             return None
         dt0 = datetime.fromtimestamp(now)
@@ -256,7 +258,7 @@ class Appoint:
                     if phase_ok(app, a, day) and places_mod.open_state(pid, day)["open"]]
             if not opts:
                 continue
-            pid, a = random.choice(opts)
+            pid, a = self.pick(char, st, opts)
             x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": day.timestamp(), "place": pid, "do": a["id"], "by": "her",
                  "status": "offered", "made": now}
             self.all().append(x)
@@ -266,6 +268,111 @@ class Appoint:
             app.picked_up_phone(char, st, now)
             app.save_state(cid)
             return x
+        return None
+
+    @staticmethod
+    def mood_factor(p):
+        """その日の気分での, 誘う気持ちの強さ (落ち込んでいる・ストレスが高い・体調が悪い日は誘いにくい. 機嫌がいい日は誘いやすい)."""
+        f = 1.0 + (p.get("mood", 50) - 50) / 60.0
+        if p.get("stress", 0) > 65:
+            f *= 0.6
+        if p.get("health", 90) < 50:
+            f *= 0.35
+        return max(0.1, min(1.5, f))
+
+    def place_weight(self, char, st, pid):
+        """行き先の選ばれやすさ (気持ち傾くだけ. 0.8〜1.5): 好きなものに合う所・一緒に行って楽しかった所・まだ行ったことのない所."""
+        lk, dk = self.app.items.likes(char)
+        w = 1.0
+        if any(pid in LIKE_PLACES.get(t, ()) for t in lk):
+            w += 0.25
+        if any(pid in LIKE_PLACES.get(t, ()) for t in dk):
+            w -= 0.2
+        fun = (st.get("place_fun") or {}).get(pid)
+        if fun is None:
+            w += 0.1                                  # 行ったことのない所への興味
+        else:
+            w += max(-0.15, min(0.2, fun / 25.0))     # 一緒に行って楽しかった (つまらなかった)
+        return max(0.8, min(1.5, w))
+
+    def pick(self, char, st, opts):
+        """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然."""
+        return random.choices(opts, [self.place_weight(char, st, pid) for pid, _ in opts])[0]
+
+    def remember(self, cid, place, mood_delta):
+        """一緒に行った行き先の楽しさを覚える (次に誘うときに, 少しだけ選ばれやすく)."""
+        st = self.app.state(cid)
+        pf = st.setdefault("place_fun", {})
+        pf[place] = round(0.6 * float(pf.get(place, 0.0)) + 0.4 * float(mood_delta) * 3, 2)
+
+    # ------------------------------------------------------------------ 誘いに「別の日時なら」
+    def counter(self, aid, t, place=None, do=None, now=None):
+        """相手からの誘い (offered) に, 別の日時 (・行き先) を返す. 返事は時間差 (msg_pending の kind appoint)."""
+        app = self.app
+        now = now or time.time()
+        x = self.get(aid)
+        if x["status"] != "offered":
+            raise ValueError("いまは誘われていません")
+        if int(x.get("rounds", 0)) >= COUNTER_MAX:
+            raise ValueError("もう何度もやりとりしているので、受けるか断るかにしましょう")
+        place = place or x["place"]
+        do = do or x["do"]
+        t = float(t)
+        if t < now + 30 * 60 or t > now + 14 * 86400:
+            raise ValueError("約束は 30 分後から 2 週間先までです")
+        if not any(a["id"] == do for a in self.dos_at(x["cid"], place)):
+            raise ValueError("その行き先では、それはできません")
+        a = app.action(do)
+        if not phase_ok(app, a, datetime.fromtimestamp(t)):
+            raise ValueError("「%s」はその時間帯にはできません（%s）" % (a.get("name", do), a.get("when", "")))
+        o = places_mod.open_state(place, datetime.fromtimestamp(t))
+        if not o["open"]:
+            raise ValueError("その時間、%sは閉まっています（%s・%s）" % (app.places.label(place), o["note"], o["hours"]))
+        x.update(t=t, place=place, do=do, status="asked", made=now, rounds=int(x.get("rounds", 0)) + 1, counter=True)
+        self.save()
+        self._send(x, now, "（別の日時なら、と返した: %s、%sで「%s」）" % (fmt_when(t, now), app.places.label(place), a.get("name", do)))
+        return dict(x, label=STATUS_LABEL[x["status"]])
+
+    def _send(self, x, now, text):
+        """約束の誘い・別の案を送る (トークに要約. 返事はいつものメッセージの時間差・すぐの返信)."""
+        app = self.app
+        cid = x["cid"]
+        char = app.chars[cid]
+        with app.lock:
+            st = app.state(cid)
+            scene = app.scene_at(char, st, datetime.fromtimestamp(now))
+            ctx = app.context(char, st, datetime.fromtimestamp(now), scene)
+            app._phoned(st, now)
+            app.chat.add(cid, "me", text, kind="appoint", t=now)
+            pend = st.get("msg_pending")
+            if pend:            # 返信は, いちばん新しいメッセージに対して
+                pend.update(kind="appoint", appoint=x["id"], count=pend.get("count", 1) + 1, reply=True)
+            else:
+                p = st["params"]
+                delay = random.uniform(3, 40) * 60 * (2 if p.get("mood", 50) < 35 else 1)
+                quick = app._still_on_phone(char, st, now, scene, ctx)
+                if quick:
+                    delay = random.uniform(10, 90)
+                st["msg_pending"] = {"aid": "message", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "appoint",
+                                     "appoint": x["id"], "quick": quick}
+            app.presence.drop(st)
+            app.save_state(cid)
+
+    def _alt_time(self, char, x, now):
+        """相手が返す別の案: あなたの案の近く (前後の日・時間) で, 相手の予定が空いていて, 行き先が開いている時間. 無ければ None."""
+        app = self.app
+        base = datetime.fromtimestamp(x["t"])
+        a = app.action(x["do"])
+        for _ in range(12):
+            d = (base + timedelta(days=random.choice((0, 0, 1, -1, 2)))).replace(
+                hour=random.choice((10, 11, 13, 14, 15, 16, 17, 18, 19)), minute=0, second=0, microsecond=0)
+            if d.timestamp() < now + 3600 or abs(d.timestamp() - x["t"]) < 3600:
+                continue
+            sc = app.scheduled_scene(char, d)
+            if sc["away"] or sc["busy"] or sc["asleep"]:
+                continue
+            if phase_ok(app, a, d) and places_mod.open_state(x["place"], d)["open"]:
+                return d.timestamp()
         return None
 
     # ------------------------------------------------------------------ 当日
@@ -385,6 +492,8 @@ class Appoint:
         if x["place"] in places_mod.PLACES:
             opts["place"] = x["place"]
         r = app.act(x["do"], cid, opts=opts)
+        if r.get("entry") and x["place"] in places_mod.PLACES:
+            self.remember(cid, x["place"], (r["entry"].get("deltas") or {}).get("mood", 0))
         notes = []
         if late:
             notes.append("（%sは%d分ほど遅れて来た）" % (char.get("name", ""), late))

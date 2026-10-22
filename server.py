@@ -136,6 +136,9 @@ def route(method, path, q, body):
         if path == "/api/appoint":
             return a.appoint.propose(b["id"], b["t"], b["place"], b["do"])
         if path == "/api/appoint/answer":
+            c = b.get("counter")
+            if c:                   # 「別の日時（・行き先）なら」
+                return a.appoint.counter(b["id"], c["t"], c.get("place"), c.get("do"))
             return a.appoint.answer(b["id"], bool(b.get("yes")))
         if path == "/api/appoint/go":
             return a.appoint.go(b["id"])
