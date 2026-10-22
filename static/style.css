@@ -713,3 +713,41 @@ a.btn { color: inherit; }
 .home-fill.lv4 { background: #e2675a; }
 .home-parts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px; }
 @media (max-width: 520px) { .home-parts { grid-template-columns: 1fr; } }
+
+/* ---------- あなた中心: そばにいる人・一人で / 誰かと・関係性・ログの絞り込み ---------- */
+.chip.near { background: #2a2540; color: #ddd3ff; cursor: pointer; }
+.chip.near.alone { background: var(--panel3); color: var(--muted); }
+.topbar .chip.near { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+/* 一人のとき (誰もそばにいない) は, ステージに何も出さない */
+.stage.alone .stage-img, .stage.alone .stage-bg, .stage.alone .stage-empty, .stage.alone .dialogue,
+.stage.alone .stage-tools, .stage.alone .chip.scene { display: none; }
+.stage.alone .gen-badge.idle { display: none; }
+.tabs button[hidden] { display: none; }
+.tabs button.dot::after { content: '•'; color: var(--accent); margin-left: 2px; }
+.with-body { padding-top: 0; }
+.with-card .who { padding: 10px 2px 8px; border-bottom: none; }
+.with-card .char-select { font-weight: 700; font-size: 15px; }
+.subtabs { display: flex; gap: 4px; margin: 0 0 10px; padding: 3px; background: var(--panel2); border-radius: 10px; position: sticky; top: 0; z-index: 2; }
+.subtabs button { flex: 1; background: none; border: none; padding: 6px 0; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.subtabs button.on { background: var(--panel3); color: var(--text); }
+.who-face.small { width: 38px; height: 38px; font-size: 16px; border-width: 1px; }
+.person { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel2); }
+.person.near { border-color: var(--accent-d); }
+.person-head { display: flex; gap: 10px; align-items: center; }
+.person-grid { display: grid; grid-template-columns: 7.5em 1fr; gap: 3px 10px; margin-top: 8px; }
+.log-filter { margin-bottom: 8px; gap: 8px; }
+.log-who { color: var(--accent2); font-weight: 600; }
+.log-item.mine .log-thumb { background: var(--panel3); }
+.ap-item + .ap-item { border-top: 1px solid var(--line); padding-top: 8px; }
+.ap-item { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 560px) {
+  .person-grid { grid-template-columns: 6.5em 1fr; }
+  .subtabs button { font-size: 12px; }
+}
+@media (max-width: 980px) { .stage.alone { height: 0; min-height: 0; } }   /* スマホ幅で一人のときは, 空のステージで場所を取らない */
+@media (max-width: 560px) {      /* 上のバーが横にはみ出さないように (そばにいる人の札を足したぶん) */
+  .topbar { gap: 6px; }
+  .topbar .chip.phase, .topbar .clock-date, .topbar .clock-s { display: none; }
+  .topbar .btn.ghost { padding-left: 6px; padding-right: 6px; }
+  .topbar .chip { padding: 3px 7px; }
+}

@@ -22,13 +22,14 @@
 ```
 server.py            HTTP サーバ / API (Python 3.8 標準ライブラリだけ)
 static/              UI (素の JS) と説明書 manual.html
-core/engine.py       App: 時間経過・場面・行動 (act)・プロンプト合成・生成キュー・state_view (画面の 1 回の更新)
+core/engine.py       App: 時間経過・場面・行動 (act)・プロンプト合成・生成キュー・state_view (画面の 1 回の更新. あなた中心)・
+                     「誰かと」の相手 (target)・あなたの時系列 (timeline)・関係性 (people_view)
 core/store.py        ファイル入出力・data/ の初期化と移行・移行前のバックアップ
 core/cond.py         条件式 ("free=true, mood>=50, phase=night|midnight")
 core/keys.py         セリフのキー (性格プリセットの差し替え用)
 core/life.py         お金・株・仕事・スキル・体力, キャラの出来事・機嫌の理由・おねだり
 core/presence.py     あなたの在席状態と, キャラからの働きかけ
-core/bonds.py        あなたと各キャラの間柄・いま誰と一緒か・現実的な深まり方・嫉妬・自撮り
+core/bonds.py        あなたと各キャラの間柄・いまそばにいる人 (company)・現実的な深まり方・嫉妬・自撮り・あなたが知ったこと
 core/solo.py         一人の時間・あなたの予定 (告げる相手なし)・日記
 core/places.py       行き先の表 (公共の行き先 + あなたの家 + 知っている相手の家)・以前の表し方の読み替え
 core/outdoor.py      外出の現在地・天気・出会いの起きやすさ・画面を閉じたときの切り上げ
@@ -50,7 +51,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 | あなたの 5 分刻み | 株の値動き・ニュース・日給・体力の回復 | `life.tick_world` |
 | 画面を閉じていた間 | 行動パターンに沿った仕事・買い物・出会い・届いたメッセージ | `outdoor.check_gap` → `offline.simulate` |
 
-`App.tick` は画面で選んでいるキャラ（と, 操作・返信の届いたキャラ）だけ進む。ほかのキャラは次に触れたときにまとめて追いつく（結果は同じだが, 14 日を超えた分は捨てられる）。
+`App.tick` は画面の更新のたびに, そばにいる人と連絡先を知っている人（と, 操作・返信の届いたキャラ）を進める。ほかのキャラは次に触れたときにまとめて追いつく（結果は同じだが, 14 日を超えた分は捨てられる）。
 
 ## 3. データの置き場所
 
@@ -70,17 +71,27 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 | `worlds/<w>/relations.json` | ワールド | キャラ同士の関係 a→b (knows / kind / affinity) |
 | `worlds/<w>/people.json` | ワールド | 出先で会った未登録の人 (段階・習慣・同僚か) |
 | `worlds/<w>/chats/<cid>.json` | ワールド | トーク |
-| `worlds/<w>/mylog.json` / `diary.json` | ワールド | 一人の時間の記録 / 日記 |
+| `worlds/<w>/mylog.json` / `diary.json` | ワールド | 一人の時間の記録（`kind` `text`。誰もいないときの行動の結果は `id` `icon` `name` `money` `skill` も）/ 日記 |
 | `worlds/<w>/home.json` | ワールド | あなたの家の状態 (`mess` / `dishes` / `laundry` / `trash` 各 0〜100・`last_t`・同居相手が最後に反応した時 `live_seen`) |
-| `worlds/<w>/local.json` | ワールド | 選んでいるキャラ・既定追従の記録 (`seen_*`) |
+| `worlds/<w>/local.json` | ワールド | 最後に選んだ「誰かと」の相手（`active_character`. そばにいなければ使わない）・既定追従の記録 (`seen_*`) |
 | `worlds/<w>/{params,actions,world,minigames,events,approaches}.json` | ワールド | 定義類 (起動時に既定へ追従. `defaults/default_history.json`) |
 | `data_backup/<日時>/` | — | 移行前の自動バックアップ (画像は索引だけ. `store.BACKUP_KEEP` 世代) |
 
-キャラの状態 (`state/<cid>.json`) の主な項目: `params`・`override`（一時的な過ごし方）・`dress`・`cooldowns`・`last_interaction`・`money.a`・`events`・`reasons`（機嫌の理由）・`request`（おねだり）・`approach` / `ap_last`（働きかけ）・`gain_day` / `touch_days` / `last_touch` / `gifts`（現実的な深まり方）・`contacts`（連絡の回数）・`msg_pending`（返信の予定. 一つだけ）・`date_promise`（会う約束）・`peek_until`（電話中だけ様子が見える）・`jealous`・`lent`（あなたに貸したお金）。
+キャラの状態 (`state/<cid>.json`) の主な項目: `params`・`override`（一時的な過ごし方）・`dress`・`cooldowns`・`last_interaction`・`money.a`・`events`・`reasons`（機嫌の理由）・`request`（おねだり）・`approach` / `ap_last`（働きかけ）・`gain_day` / `touch_days` / `last_touch` / `gifts`（現実的な深まり方）・`contacts`（連絡の回数）・`msg_pending`（返信の予定. 一つだけ）・`date_promise`（会う約束）・`peek_until`（電話中だけ様子が見える）・`jealous`・`lent`（あなたに貸したお金）・`last_met` / `last_contact`（最後に会った・連絡した）・`known`（あなたが知ったこと: 好き・苦手・聞いた話）。
 
-あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`appoints`（約束）・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）。
+あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`appoints`（約束）・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）/ `side_job_t`（最後に内職を終えた時刻. 休憩はあなたの記録）。
 
 ## 4. 主要な概念
+
+### あなたが中心（何を・誰と）
+画面と API は「選んだキャラ 1 人」ではなく「あなた」が中心。あなたの在席・一人の行動・お金・持ち物・スマホがいつもあり, そこに **いまそばにいる人たち**（`bonds.company()`）が加わる。
+- そばにいる: 外で会っている・相手の家にいる・招いた人（`with`）と, 家にいる同居相手。同居相手は, あなたも相手も家にいるときだけ（`bonds.mode` / `home_together`: 在席が `out` / `work` か, 相手の場面が `away` なら離れている）。招いた人と同居相手が両方いれば二人。
+- **そばにいる効果（寂しさが紛れる）は, あなたとその人の二人きりのときだけ**（`engine._step` の `bonds.alone_with`）。複数人いる中では, あなたへの寂しさは紛れない。
+- 「誰かと」の相手（`App.target`）はそばにいる人から選ぶ。誰もいなければ None で, 画面の「誰かと」は出さず, ステージ（画像と会話欄）には何も出さない（画像は常にキャラクターのものだけ）。いまは一人に向けた行動だけ（二人同時に向けた行動・ほかの人が見ている反応は未着手）。
+- 一人の行動（戻る・仕事から帰る・内職・株）は, そばに誰もいなければ誰も反応せず, 結果はあなたの記録（`App.my_entry` → mylog）。いれば, その人が反応する（いままでの `_back` / `work` など）。
+- 記録はあなたの 1 本の時系列（`App.timeline`）: 各キャラのログと一人の時間の記録を時刻順に並べ, 人で絞り込む。離れていたときの記録は `apart`（相手がそのとき何をしていたかは出さない）。
+- 関係性（`App.people_view`）: 知っている人全員の間柄・最後に会った/連絡した・あなたが知っていること（`bonds.learn` / `remember`）・貸し借り。相手の所持金は出さない。
+- 以前の「選んでいるキャラ」（`settings.active_character`）は, 最後に選んだ「誰かと」の相手として残し, そばにいなければ使わない。`App.char(None)` は互換のためにそれを返す（API は相手を明示する）。データの移行は要らない（内職の休憩は以前のキャラの状態の記録も見る）。
 
 ### ワールドとキャラ（定義と個体）
 定義は全体に 1 つ（`characters/`）, 個体（状態・ログ・間柄・関係）はワールドごと。ワールド A のひなと B のひなは別の日々を過ごす。定義の削除はどこにも現れていないときだけ。新しいワールドは誰とも暮らしておらず, 定義全員から「連絡先／知り合い／まだ知らない」をくじで決める（`encounters.start_cast`）。まだ知らない定義は, そのワールドでの出会いの候補になる。
@@ -143,11 +154,11 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 | あなたが「何をしているか」 | `presence.mode`（busy/out/work/sleep/left）＋ `presence.solo.kind` ＋ `presence.place`, `solo.KINDS` / `solo.PLAIN`, `go_*` コマンド（`presence_set`）, `offline` の `do`（sleep/rest/home/work/out/chores/practice）。同じ活動に 3〜4 通りの語彙がある（外出は「外出 + 行き先」にそろえた） |
 | 外出していること | あなたの out / work, キャラの `override.outing`（誰かとのお出かけ）, `bonds.with.mode = meet`, キャラのスケジュールの `away`。`outdoor.current` がこれらを寄せ集めて現在地を推定している |
 | 行き先 | 表は `core/places.py` 1 つにした（一人の外出・お出かけの `override.place`・行動パターン・品ぞろえ・家）。残っているのは, キャラのスケジュールの `location`（自由記述. 出会いとは無関係）と, 顔なじみの習慣 `street.HAUNT_PLACES`（名前から決まるので, 既存の人の習慣が変わらないよう以前の 6 か所のまま） |
-| 誰と一緒か | `bonds.with`（あなた側の 1 枠）, 同居（`stage = live` で家にいれば一緒）, 誘ったお出かけの `override`（キャラ側）。`bonds.sync` が両者を合わせている |
+| 誰と一緒か | `bonds.with`（あなた側の 1 枠）, 同居（`stage = live` で, あなたも相手も家にいれば一緒）, 誘ったお出かけの `override`（キャラ側）。`bonds.sync` が両者を合わせ, `bonds.company()` がまとめて「いまそばにいる人たち」にする。同時にそばにいられるのは, いまは「会っている・招いた人 1 人 + 家にいる同居相手」まで |
 | 出会い | 現行の `outdoor.live` → `street.happen`（起きやすさは `world.outdoor.rate_*`）と, 旧来の `encounters.happen` / `roll` / `bump` / `meet_stranger`（`world.encounters.rate_*` / `stranger_share`）。後者は `/api/encounter/force` とテストからしか呼ばれず, `roll` は使われていない |
 | 「知り合い」 | 未登録の人の段階 `street.STAGES[4]`「知り合い」（ここで登録を尋ね, 登録すると contact）と, 登録キャラの `bonds` の known「知り合い（連絡先を知らない）」 |
 | 交流した記録 | `last_interaction`（engine）, `last_touch` / `touch_days`（bonds）, `contacts`（連絡の回数）, `ap_last`, `gifts` |
-| 何があったかの記録 | キャラごとの `log`, `mylog`, `presence.street_log`, `offline_report.timeline`, トーク, 日記, `reasons` / `events` |
+| 何があったかの記録 | キャラごとの `log`, `mylog`, `presence.street_log`, `offline_report.timeline`, トーク, 日記, `reasons` / `events`。画面のログは `App.timeline` で `log` と `mylog` を 1 本に並べている（保存は別々のまま） |
 | 「そばにいない」と「出かけている」 | `context()` は離れている相手について, あなたから見て「そばにいない」ことを `away=True` で表す。以前は同じ `away` がその人自身のパラメータの規則（退屈が減る・ストレスの目標 +25・元気が速く減る）にも効き, 家にいても「ずっと外出中」の体の動きになっていた。いまは本人の動き・出来事は `context(..., view=False)`（本人の予定どおり）で分けている。条件式のキー `away` 自体は, まだ「見えない」と「出かけている」の両方の意味で使われている（統一モデルで分ける） |
 | 体力の回復 | `life.tick_world`（在席から推定）と `offline.simulate`（行動パターンから計算し直して上書き） |
 | 返信の予定 | `msg_pending`（1 枠. 送るたびに `count` と `kind` を上書き）。働きかけの返事待ち `approach` も 1 枠 |

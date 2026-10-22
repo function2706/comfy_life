@@ -56,27 +56,29 @@ function fmtTime(t) {
 /* ---------------------------------------------------------------- state */
 const S = {
   boot: null,       // settings, params, actions, world, characters, character
-  view: null,       // /api/state
+  view: null,       // /api/state (あなた中心: company = いまそばにいる人, target = 「誰かと」の相手, with = その人の様子)
   current: null,    // 表示中のログエントリ
   jobs: new Map(),  // jid -> job view
   busy: false,
   typing: null,
   lastDeltas: {},
   showHidden: false,
+  tab: 'solo', sub: 'commands', logWho: '',
 };
 const pname = (id) => (S.boot.params.find((p) => p.id === id) || {}).name || id;
+const T = () => (S.view && S.view.with) || null;          // 「誰かと」の相手の様子 (誰もそばにいなければ null)
+const tid = () => (S.view && S.view.target) || null;
+const cname = (id) => (S.boot.characters.find((x) => x.id === id) || {}).name || '';
+// 「誰かと」の操作には相手を添える
+const withT = (body) => Object.assign({}, body || {}, tid() ? { character: tid() } : {});
 
 /* ---------------------------------------------------------------- boot */
 async function loadBoot() {
   S.boot = await api('/api/boot');
-  const sel = $('#char-select');
-  sel.replaceChildren(...S.boot.characters.map((c) => h('option', { value: c.id }, c.name)));
-  sel.value = S.boot.character.id;
   const ws = $('#world-select');
   ws.replaceChildren(...S.boot.worlds.worlds.map((w) => h('option', { value: w.id }, '🌐 ' + w.name)));
   ws.value = S.boot.worlds.current;
   ws.hidden = S.boot.worlds.worlds.length < 2;
-  $('#nameplate').textContent = S.boot.character.name;
 }
 
 // ワールドを切り替えたら, キャラ・ログ・お金・在席がすべて別になるので画面ごと読み直す
@@ -86,19 +88,31 @@ async function switchWorld(id) {
 }
 
 async function refresh() {
+  if (!S.boot) return;               // 起動の読み込みより先に呼ばれた (画面の表示切り替えなど)
   try {
-    S.view = await api('/api/state?beat=1&idle=' + idleSec());
+    const q = S.view && S.view.target ? '&character=' + encodeURIComponent(S.view.target) : '';
+    S.view = await api('/api/state?beat=1&idle=' + idleSec() + q);
   } catch (e) {
     toast('状態の取得に失敗: ' + e.message, 'err');
     return;
   }
-  for (const j of S.view.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
-  if (S.view.gap) toast(S.view.gap.text, 'ok');
-  if (S.view.street_auto) toast(S.view.street_auto.text.split('\n')[0], 'ok');
-  for (const m of S.view.appoint_events || []) toast(`📅 ${m}`, 'ok');
-  if (S.view.closed) toast(S.view.closed.text, 'ok');
-  for (const m of S.view.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
-  renderWho();
+  const v = S.view;
+  // ミニゲームの画面 (minigames.js) は S.view.games / S.view.name を見る: 「誰かと」の相手のもの
+  v.games = (T() || {}).games || { list: [], current: null };
+  v.name = (T() || {}).name || '';
+  for (const j of v.jobs) if (!S.jobs.has(j.id)) trackJob(j.id);
+  if (v.gap) toast(v.gap.text, 'ok');
+  if (v.street_auto) toast(v.street_auto.text.split('\n')[0], 'ok');
+  for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
+  if (v.closed) toast(v.closed.text, 'ok');
+  for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
+  // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
+  const who = (v.company || []).map((c) => c.id).join(',');
+  if (S.lastCompany !== undefined && S.lastCompany !== who) { S.current = null; clearStage(); }
+  if (S.lastCompany !== who && S.tab !== 'with' && v.target && S.lastCompany !== undefined) showTab('with');
+  S.lastCompany = who;
+  renderTop();
+  renderStageMode();
   renderAway();
   renderApproach();
   renderRequest();
@@ -106,33 +120,28 @@ async function refresh() {
   renderStreet();
   renderOffline();
   const cb = $('#chat-badge');
-  cb.hidden = !S.view.chat_unread;
-  cb.textContent = S.view.chat_unread > 99 ? '99+' : String(S.view.chat_unread || '');
+  cb.hidden = !v.chat_unread;
+  cb.textContent = v.chat_unread > 99 ? '99+' : String(v.chat_unread || '');
   if (S.chatDlg && S.chatDlg.open) drawChat();
-  renderCommands();
-  renderDress();
-  renderGames();
-  renderStatus();
+  renderTabs();
+  renderSoloTab();
+  renderWith();
   renderMoney();
   renderItems();
+  renderPeople();
   renderLog();
-  if (!S.current && S.view.log.length) showEntry(S.view.log[S.view.log.length - 1], false);
-  if (!S.view.log.length && !S.current) showGreeting();
-  showAutoEntry();
+  if (T()) {
+    const last = v.log.find((e) => e.who === tid() && !e.mine);
+    if (!S.current && last) showEntry(last, false);
+    if (!S.current && !last) showGreeting();
+    showAutoEntry();
+  }
 }
 
 function showGreeting() {
-  const n = S.boot.character.name;
-  const b = S.view.bond;
-  // 離れている相手は, 間柄 (段階) に合わせて言う
-  const apart = {
-    known: `（${n}とは顔見知り。連絡先は知らないので、出先で偶然会えたら話せるかもしれない）`,
-    contact: `（${n}とは連絡先を知っている仲。メッセージを送ったり、お出かけに誘ったりしてみよう）`,
-    visit: `（${n}とは家を行き来する仲。メッセージを送ったり、家に遊びに行ったりしてみよう）`,
-  };
-  setDialogue(b && !b.mode
-    ? apart[b.stage] || apart.contact
-    : `（${n}との暮らしが始まった。右のコマンドから話しかけてみよう）`, false);
+  const t = T();
+  if (!t) return;
+  setDialogue(t.bond && t.bond.mode === 'home' ? `（${t.name}がいる。右の「誰かと」から話しかけてみよう）` : `（${t.name}と一緒にいる）`, false);
 }
 
 /* ---------------------------------------------------------------- clock */
@@ -141,28 +150,29 @@ function tickClock() {
   $('#clock-hm').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   $('#clock-s').textContent = ':' + pad(d.getSeconds());
   $('#clock-date').textContent = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`;
-  if (S.view && S.view.override_until) {
-    const rest = Math.max(0, Math.round(S.view.override_until - Date.now() / 1000));
+  const t = T();
+  if (t && t.override_until) {
+    const rest = Math.max(0, Math.round(t.override_until - Date.now() / 1000));
     const el = $('#ov-rest');
     if (el) el.textContent = rest > 0 ? `あと${Math.ceil(rest / 60)}分` : '';
-    if (rest === 0) refresh();
+    if (rest === 0 && !S.ovRefresh) { S.ovRefresh = true; refresh().finally(() => { S.ovRefresh = false; }); }
   }
   updateGenBadge();
-  if (S.view && S.view.approach) {
-    const rest = Math.max(0, Math.round(S.view.approach.until - Date.now() / 1000));
-    const el = $('#ap-rest');
-    if (el) el.textContent = `（あと${Math.ceil(rest / 60)}分）`;
-    if (rest === 0 && !S.apRefresh) { S.apRefresh = true; refresh().finally(() => { S.apRefresh = false; }); }
+  const aps = (S.view && S.view.approaches) || [];
+  if (aps.length) {
+    for (const ap of aps) {
+      const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
+      const el = document.getElementById('ap-rest-' + ap.cid);
+      if (el) el.textContent = `（あと${Math.ceil(rest / 60)}分）`;
+      if (rest === 0 && !S.apRefresh) { S.apRefresh = true; refresh().finally(() => { S.apRefresh = false; }); }
+    }
   }
 }
 
-/* ---------------------------------------------------------------- who / scene */
-// 離れている相手 (同居して家にいる / 会っている 以外) の様子は, 既定では見えない (設定 → 表示 で見られる)
-const veiled = () => !!(S.view && S.view.bond && !S.view.bond.mode && !S.ui.showApart);
-function moodFace(p) {
-  if (veiled()) return '❔';
-  if (S.view.scene.asleep) return '😴';
-  if (S.view.scene.away) return '🚶';
+/* ---------------------------------------------------------------- top bar / stage */
+function moodFace(p, sc) {
+  if (sc && sc.asleep) return '😴';
+  if (sc && sc.away) return '🚶';
   if ((p.health ?? 100) < 50) return '🤒';
   if ((p.shyness ?? 0) >= 60) return '😳';
   if ((p.heart ?? 0) >= 60) return '🥰';
@@ -175,119 +185,135 @@ function moodFace(p) {
 }
 
 const BOND_IC = { known: '👤', contact: '📱', visit: '🔑', live: '🏠' };
-function renderWho() {
+function renderTop() {
   const v = S.view;
-  const sel = $('#char-select');
-  const rank = (b) => (b && b.mode ? 0 : 1) * 10 + ({ live: 0, visit: 1, contact: 2, known: 3 }[b && b.stage] ?? 4);
-  for (const o of [...sel.options].sort((x, y) => rank((v.bonds || {})[x.value]) - rank((v.bonds || {})[y.value]))) {
-    const b = (v.bonds || {})[o.value];   // キャラ切替に, あなたとの間柄を添える (一緒にいる人から順に)
-    const c = S.boot.characters.find((x) => x.id === o.value);
-    if (b && c) o.textContent = `${BOND_IC[b.stage] || ''} ${c.name}${b.mode && b.mode !== 'home' ? '（一緒）' : ''}`;
-    sel.append(o);
-  }
-  sel.value = v.character;
   $('#phase-chip').textContent = v.phase.label || '—';
   const wx = (v.outdoor || {}).weather;
   $('#weather-chip').textContent = wx ? `${wx.icon} ${wx.label}` : '';
-  // 誰と暮らしているか・いまそばに誰がいるか (いなければ, そうはっきり書く)
-  const nm = (id) => (S.boot.characters.find((x) => x.id === id) || {}).name || '';
-  const liv = v.bond && v.bond.living;
-  const near = Object.entries(v.bonds || {}).filter(([, b]) => b.mode).map(([id]) => nm(id));
-  const hc = $('#home-chip');
+  // 誰と暮らしているか・家の様子
+  const live = (v.people || []).find((p) => p.stage === 'live');
   const hm = v.home || {};
-  hc.textContent = `🏠 ${liv ? nm(liv) + 'と同居' : '一人暮らし'}・${near.length ? 'そばに' + near.join('、') : 'いまは一人'}${hm.label ? '・' + hm.label : ''}`;
-  hc.title = `${liv ? nm(liv) + 'と暮らしている' : '誰とも暮らしていない（一人暮らし）'}。${near.length ? 'いまそばにいるのは ' + near.join('、') : 'いまそばには誰もいない'}。家は「${hm.label || '—'}」（クリックで家の様子）`;
+  const hc = $('#home-chip');
+  hc.textContent = `🏠 ${live ? live.name + 'と同居' : '一人暮らし'}${hm.label ? '・' + hm.label : ''}`;
+  hc.title = `${live ? live.name + 'と暮らしている' : '誰とも暮らしていない（一人暮らし）'}。家は「${hm.label || '—'}」（クリックで家の様子）`;
   hc.dataset.level = String(hm.level ?? '');
   if (S.homeDlg && S.homeDlg.open) drawHome();
-  const hide = veiled();
-  const sc = v.scene;
-  const where = sc.location ? `📍${sc.location}` : '';
-  const peek = hide && v.peek;     // 電話で話したので, いまどこで何をしているかだけは分かる
-  $('#scene-chip').textContent = hide && !peek ? `📱 ${v.name}とは離れている` : `${peek ? '📞 ' : ''}${where}　${sc.label || ''}`.trim();
-  $('#who-name').textContent = v.name;
-  $('#who-scene').replaceChildren(...(hide && !peek ? ['離れていて、いまの様子はわからない'] : peek ? [`電話で聞いた: ${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`] : [
-    `${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`,
-    sc.source === 'override' ? h('span', { class: 'muted', id: 'ov-rest', style: 'margin-left:6px' }) : null,
-  ]).filter(Boolean));
-  const face = $('#who-face');
-  const lastImg = [...v.log].reverse().find((e) => e.image);
-  if (lastImg) { face.style.backgroundImage = `url("${imgUrl(lastImg.image)}")`; face.textContent = ''; face.title = moodFace(v.params); }
-  else { face.style.backgroundImage = ''; face.textContent = moodFace(v.params); }
-  $('#who-tags').replaceChildren(
-    h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(v.params)),
-    v.bond ? h('span', { class: 'tag bond' + (v.bond.mode ? '' : ' apart'), title: 'あなたとの間柄・いまどこで会っているか' },
-      `${BOND_IC[v.bond.stage] || ''}${v.bond.stage_label}・${v.bond.label}`) : '',
-    v.pending_msg ? h('span', { class: 'tag', title: '送ったメッセージへの返信は、相手の状況しだい（来ないことも）' }, '📱 返信待ち') : '',
-    !hide && v.dress && v.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + v.dress.wearing) : '',
-    !hide && v.life && v.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
-      v.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
-    ...(hide ? [] : v.tags.map((t) => h('span', { class: 'tag' }, t.label))),
-  );
+  // いまそばにいる人 (いなければ, そうはっきり書く)
+  const comp = v.company || [];
+  const nc = $('#near-chip');
+  nc.textContent = comp.length ? `👥 ${comp.map((c) => c.name).join('・')}` : '🧍 いまは一人';
+  nc.title = comp.length ? 'いまそばにいる: ' + comp.map((c) => `${c.name}（${c.label}）`).join('、') : 'いまそばには誰もいない';
+  nc.classList.toggle('alone', !comp.length);
+}
+
+// 一人のとき (誰もそばにいないとき), ステージ (画像と会話欄) には何も出さない. 画像は常にキャラクターのものだけ
+function renderStageMode() {
+  const alone = !T();
+  $('#stage').classList.toggle('alone', alone);
+  const t = T();
+  const sc = t && t.scene;
+  $('#scene-chip').textContent = t ? `${sc.location ? '📍' + sc.location + '　' : ''}${t.name}: ${sc.label || ''}` : '';
+}
+function clearStage() {
+  if (S.typing) { clearInterval(S.typing); S.typing = null; }
+  const img = $('#stage-img'); img.removeAttribute('src'); delete img.dataset.rel; img.classList.remove('show');
+  $('#stage-bg').style.backgroundImage = '';
+  $('#dtext').textContent = ''; $('#nameplate').textContent = ''; $('#dtime').textContent = ''; $('#deltas').replaceChildren();
+}
+
+/* ---------------------------------------------------------------- tabs */
+function showTab(tab) {
+  if (tab === 'with' && !T()) tab = 'solo';
+  S.tab = tab;
+  $$('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === tab));
+  for (const t of ['solo', 'with', 'money', 'items', 'people', 'log']) $('#tab-' + t).hidden = t !== tab;
+}
+function showSub(sub) {
+  S.sub = sub;
+  $$('#subtabs button').forEach((x) => x.classList.toggle('on', x.dataset.sub === sub));
+  for (const t of ['commands', 'dress', 'games', 'status', 'wmoney']) $('#tab-' + t).hidden = t !== sub;
+}
+function renderTabs() {
+  const wb = $('#tabs button[data-tab="with"]');
+  const comp = S.view.company || [];
+  wb.hidden = !comp.length;           // そばに誰もいなければ「誰かと」は出さない
+  wb.textContent = comp.length === 1 ? `${comp[0].name}と` : '誰かと';
+  if (S.tab === 'with' && !comp.length) showTab('solo');
+  else showTab(S.tab);
+  const aps = S.view.approaches || [];
+  $('#tabs button[data-tab="people"]').classList.toggle('dot', aps.some((a) => a.apart));
 }
 
 /* ---------------------------------------------------------------- commands */
-// 「何を、誰と（あるいは一人で）するか」: 上に「一人で」、下に「〇〇と」（相手はここで選ぶ）
+// 「何を、誰と（あるいは一人で）するか」: 「一人で」タブと「誰かと」タブ（相手はそばにいる人から選ぶ）
 const isSoloAction = (a) => a.category === 'あなたの予定' || a.id === 'side_job';
-const isPlainGo = (a) => a.category === 'あなたの予定' && /^go_/.test(a.id);   // 一人で欄では, 告げる相手の有無で出し分ける
+const isMoneyAction = (a) => a.category === 'お金' && a.id !== 'side_job';     // 相手とのお金のやりとり (「誰かと」の「お金のこと」)
 function cmdButton(a) {
-  const st = S.view.available[a.id];
+  const st = T().available[a.id];
   const tip = [a.when ? '条件: ' + a.when : '', S.ui.deltas !== false && a.effects && Object.keys(a.effects).length ?
     '効果: ' + Object.entries(a.effects).map(([k, v]) => `${pname(k)}${v > 0 ? '+' : ''}${v}`).join(' ') : '',
     st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
   const od = (S.view.outdoor || {}).places || {};
   const pl = a.override && a.override.outing && a.override.place ? od[a.override.place] : null;    // お出かけの行き先 (表から)
   return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: [tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
-    onclick: () => (a.id === 'side_job' ? openTask() : a.id === 'message' && S.view.bond && !S.view.bond.mode ? openChat(S.view.character) : ['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
+    onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
-    a.id === 'side_job' && S.view.side_job ? h('small', { class: 'muted' }, S.view.side_job.reason.replace(/^.*（(.*)）$/, '$1')) : null,
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
 }
 
-function renderSolo(soloActs) {
-  const v = S.view, so = v.solo || {};
+// 「一人で」: 一人の行動 (休む・家事・研鑽・日記・外出・仕事・内職・寝る など) と スマホ. 下に, あなたの体力とスキル
+function renderSoloTab() {
+  const v = S.view, so = v.solo || {}, Y = v.you || {};
   const free = (v.presence || {}).mode === 'none';
-  const btn = (icon, label, onclick, tip) => h('button', { class: 'cmd', disabled: !free || S.busy, title: tip || '', onclick },
+  const btn = (icon, label, onclick, tip, dis) => h('button', { class: 'cmd', disabled: !free || S.busy || dis, title: tip || '', onclick },
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'practice'
-    ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderCommands(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
-    : (OD_CHOICES()[k.id] && OD_CHOICES()[k.id].length === 1 ? btn(k.icon, k.label, () => soloStart(k.id, null, OD_CHOICES()[k.id][0]),
-      '出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
-    : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderCommands(); },
+    ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderSoloTab(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
+    : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderSoloTab(); },
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
-      : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで')));
-  // 誰かと一緒にいるときは畳んでおく (開け閉めは覚える)
-  const open = S.soloOpen ?? !(v.bond && v.bond.mode);
-  const head = h('div', { class: 'with-head', style: 'cursor:pointer', title: '開く／畳む',
-    onclick: () => { S.soloOpen = !open; renderCommands(); } }, `${open ? '▾' : '▸'} 🧍 一人で`,
-    so.current ? h('span', { class: 'muted small', style: 'margin-left:8px' }, `${so.current.icon} ${so.current.doing}`) : null);
-  // 家での一人の時間・作業の最中は, ここに「終わる」を出す (畳んでいても見えるように見出しのすぐ下)
+      : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで'));
   const pres = v.presence || {};
   const busyNow = pres.mode === 'busy' ? h('div', { class: 'solo-now' },
     h('span', {}, pres.solo ? `${pres.solo.icon} ${pres.solo.label}…` : '🖥 作業中…'),
     h('span', { class: 'muted small' }, '終えると、過ごした時間で結果が出ます'),
     h('button', { class: 'btn primary small', disabled: S.busy, onclick: comeBack }, pres.solo ? `${pres.solo.label.replace(/中$/, '')}を終える` : '作業を終える')) : null;
-  if (!open) return h('div', { class: 'cat solo' }, head, busyNow);
-  return h('div', { class: 'cat solo' },
-    head,
+  const near = so.near;
+  const sj = v.side_job;
+  $('#tab-solo').replaceChildren(...[
     busyNow,
-    h('div', { class: 'cmds' }, ...kinds,
-      h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
-        h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
-      // 作業する・出かける・仕事・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
-      ...(so.plain || []).map((p) => h('button', { class: 'cmd', disabled: !free || !p.ok || S.busy,
-        title: so.near ? `${so.near.name}に告げてから` : '告げる相手はいない（一人で）', onclick: () => (OD_CHOICES()[p.id] ? (S.placeFor = S.placeFor === p.id ? null : p.id, renderCommands()) : soloStart(p.id)) },
-        h('span', { class: 'ic' }, p.icon), h('span', {}, p.label))),
-      ...soloActs.filter((a) => !isPlainGo(a)).map(cmdButton)),
-    S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
+    h('div', { class: 'cat solo' },
+      h('div', { class: 'cat-title' }, near ? `一人で（${near.name}には告げてから）` : '一人で'),
+      h('div', { class: 'cmds' }, ...kinds,
+        h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
+          h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
+        // 作業する・仕事に行く・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
+        ...(so.plain || []).map((p) => btn(p.icon, p.label, () => soloStart(p.id), near ? `${near.name}に告げてから` : '告げる相手はいない（一人で）', !p.ok)),
+        h('button', { class: 'cmd', disabled: S.busy || !!sj, onclick: openTask,
+          title: '家でパズル（マインスイーパ・数独・ピクロス・スリザーリンク・15パズル）を解いて稼ぎます' },
+          h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'), sj ? h('small', { class: 'muted' }, sj.reason.replace(/^.*（(.*)）$/, '$1')) : null))),
+    S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（行き先しだいで、することが決まります。人の多さは時間帯と天気しだい）'),
       ...placeGroups(OD_CHOICES()[S.placeFor], (pl) => { const P = (S.view.outdoor.places || {})[pl] || {};
         if (P.open === false) return h('button', { class: 'cmd', disabled: true, title: `${P.label}は閉まっています（${P.hours}）` },
           h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
         return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }, placeTip(pl)); })) : null,
-    S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-top:6px' },
-      Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null);
+    S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
+      Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null,
+    h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, 'スマホ'),
+      h('div', { class: 'cmds' }, h('button', { class: 'cmd', disabled: S.busy, onclick: () => openChat(), title: '連絡先の人を選んで、メッセージの種類か電話を選ぶ（誰かといるときも使えます）' },
+        h('span', { class: 'ic' }, '📱'), h('span', {}, 'スマホを見る'), v.chat_unread ? h('small', { class: 'muted' }, `未読 ${v.chat_unread}`) : null))),
+    h('div', { class: 'pgroup' }, h('h4', {}, 'あなた'),
+      h('div', { class: 'muted small', style: 'margin-bottom:4px' }, `いま: ${(v.presence || {}).label || '—'}${near ? `（そばに${(v.company || []).map((c) => c.name).join('・')}）` : '（一人）'}`),
+      h('div', { class: 'prow', title: '仕事・内職・外出・家事で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
+        h('span', {}, '体力'),
+        h('div', { class: 'bar' }, h('i', { style: `width:${Y.stamina ?? 100}%;background:${(Y.stamina ?? 100) >= 50 ? 'var(--good)' : (Y.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
+        h('span', { class: 'pval' }, Math.floor(Y.stamina ?? 100))),
+      Object.entries(Y.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
+        h('span', {}, `${SKILL_NAME[k] || k}スキル`),
+        h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
+        h('span', { class: 'pval' }, Math.floor(val)))))].filter(Boolean));
 }
 
 const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) || {};
@@ -323,7 +349,7 @@ async function soloStart(kind, skill, place) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const r = await api('/api/solo/start', { kind, skill, place });
+    const r = await api('/api/solo/start', withT({ kind, skill, place }));
     if (r.act) handleActResult(r.act); else toast(`${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
@@ -387,38 +413,110 @@ async function openDiary() {
   refresh();
 }
 
+/* ---------------------------------------------------------------- 誰かと */
+// そばにいる人とすること. 複数人いれば, 相手をプルダウンで選ぶ (いまは一人に向けた行動だけ)
+async function setTarget(id) {
+  if (S.busy || id === tid()) return;
+  try { await api('/api/target', { id }); } catch (e) { toast(e.message, 'err'); }
+  S.view.target = id;
+  S.current = null; clearStage();
+  await refresh();
+}
+function renderWith() {
+  const t = T();
+  if (!t) {           // 誰もそばにいない: 中身も空に
+    $('#with-card').replaceChildren();
+    for (const id of ['commands', 'dress', 'games', 'status', 'wmoney']) $('#tab-' + id).replaceChildren();
+    return;
+  }
+  const comp = S.view.company || [];
+  const sc = t.scene;
+  const face = h('div', { class: 'who-face' });
+  if (t.face) { face.style.backgroundImage = `url("${imgUrl(t.face)}")`; face.title = moodFace(t.params, sc); } else face.textContent = moodFace(t.params, sc);
+  const pick = comp.length > 1
+    ? h('select', { class: 'char-select', title: '誰に向けてするか（そばにいる人から）', onchange: (ev) => setTarget(ev.target.value) },
+      comp.map((c) => h('option', { value: c.id, selected: c.id === t.character }, `${BOND_IC[c.stage] || ''} ${c.name}`)))
+    : h('b', { class: 'who-name' }, t.name);
+  $('#with-card').replaceChildren(h('div', { class: 'who' }, face,
+    h('div', { class: 'who-body' },
+      h('div', { class: 'row', style: 'gap:6px' }, pick, comp.length > 1 ? h('span', { class: 'muted small' }, `と（ほかに ${comp.filter((c) => c.id !== t.character).map((c) => c.name).join('・')}）`) : h('span', { class: 'muted small' }, 'と')),
+      h('div', { class: 'who-scene' }, `${sc.label}${sc.location ? '（' + sc.location + '）' : ''}`,
+        sc.source === 'override' ? h('span', { class: 'muted', id: 'ov-rest', style: 'margin-left:6px' }) : null),
+      h('div', { class: 'tags' },
+        h('span', { class: 'tag', style: 'background:#2b2540;color:#d9d0ff' }, moodFace(t.params, sc)),
+        t.bond ? h('span', { class: 'tag bond', title: 'あなたとの間柄・いまどこで会っているか' }, `${BOND_IC[t.bond.stage] || ''}${t.bond.stage_label}・${t.bond.label}`) : '',
+        t.dress && t.dress.wearing ? h('span', { class: 'tag dress' }, '👗' + t.dress.wearing) : '',
+        t.life && t.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
+          t.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
+        ...t.tags.map((x) => h('span', { class: 'tag' }, x.label))))));
+  showSub(S.sub);
+  renderCommands();
+  renderDress();
+  renderGames();
+  renderStatus();
+  renderWMoney();
+}
+
 function renderCommands() {
+  const t = T();
   const box = $('#tab-commands');
-  const av = S.view.available;
+  if (!t) { box.replaceChildren(); return; }
+  const av = t.available;
   const cats = new Map();
-  const soloActs = [];
   let hidden = 0;
   for (const a of S.boot.actions) {
-    if (a.category === 'system' || !av[a.id]) continue;
+    if (a.category === 'system' || !av[a.id] || isSoloAction(a) || isMoneyAction(a) || a.category === '連絡') continue;
     if (!av[a.id].ok && !S.showHidden) { hidden++; continue; }
-    if (isSoloAction(a)) { soloActs.push(a); continue; }
     if (!cats.has(a.category)) cats.set(a.category, []);
     cats.get(a.category).push(a);
   }
-  const out = [renderSolo(soloActs)];
-  const b = S.view.bond || {};
-  out.push(h('div', { class: 'with-head' }, '👥 ', $('#char-select'), h('span', {}, ' と'),
-    h('span', { class: 'muted small', style: 'margin-left:8px' }, (b.label || '') + (S.view.pending_msg ? '・📱返信待ち' : ''))));
+  const out = [];
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
       h('div', { class: 'cmds' }, list.map(cmdButton))));
   }
-  if (!cats.size) out.push(h('p', { class: 'muted' }, b.stage === 'known' ? '連絡先を知らないので、いまはできることがない。偶然会えたら……' : '今できることはなさそうだ…'));
+  if (!cats.size) out.push(h('p', { class: 'muted' }, '今できることはなさそうだ…'));
   out.push(h('button', { class: 'cmds-hidden-toggle', onclick: () => { S.showHidden = !S.showHidden; renderCommands(); } },
     S.showHidden ? '▲ 今できないコマンドを隠す' : `▼ 今できないコマンドも表示 (${hidden})`));
   box.replaceChildren(...out);
 }
 
+// 相手とのお金のやりとり: お小遣い・お金を借りる・高価なプレゼント, お出かけ代と生活費の取り決め, 借りているお金を返す
+function renderWMoney() {
+  const t = T();
+  const box = $('#tab-wmoney');
+  if (!t) { box.replaceChildren(); return; }
+  const L = t.life || {};
+  const Y = S.view.you || {};
+  const policy = (key, opts) => h('select', { onchange: async (ev) => {
+    try {
+      const c = clone((await api('/api/character?id=' + encodeURIComponent(t.character))).character);
+      c[key] = ev.target.value;
+      await api('/api/character/save', { data: c }); await loadBoot(); await refresh();
+    } catch (e) { toast(e.message, 'err'); }
+  } }, opts.map(([k, l]) => h('option', { value: k, selected: L[key] === k }, l)));
+  const acts = S.boot.actions.filter((a) => isMoneyAction(a) && t.available[a.id]);
+  box.replaceChildren(
+    h('div', { class: 'pgroup money-box' }, h('h4', {}, `${t.name}とのお金`),
+      h('div', { class: 'money-row' }, h('span', {}, 'あなたの手元'), h('b', {}, yen(Y.my_money || 0))),
+      h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),
+        policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
+      L.living ? h('div', { class: 'money-row', title: 'あなたの家の毎日の生活費と、月はじめの家賃・光熱費・通信費の分け方' }, h('span', {}, '生活費・家賃'),
+        policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${t.name}が払う`]])) : '',
+      L.owed ? h('div', { class: 'money-row' }, h('span', {}, `${t.name}に借りている`), h('b', { class: 'down' }, yen(L.owed)),
+        h('button', { class: 'btn small', disabled: S.busy || !(Y.my_money > 0), onclick: () => repay(t.character, L.owed, t.name) }, '返す')) : '',
+      h('p', { class: 'hint' }, `${t.name}の所持金は分かりません。困っているかどうかは、おねだりや会話からにじみます。`)),
+    acts.length ? h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, 'やりとり'),
+      h('div', { class: 'cmds' }, acts.filter((a) => t.available[a.id].ok || S.showHidden).map(cmdButton))) : '');
+}
+
 /* ---------------------------------------------------------------- dress tab */
 function renderDress() {
-  const d = S.view.dress;
-  const items = S.boot.character.wardrobe || [];
+  const t = T();
+  if (!t) { $('#tab-dress').replaceChildren(); return; }
+  const d = t.dress;
+  const items = t.wardrobe || [];
   const card = (id, icon, name, ok, tip) => h('button', {
     class: 'outfit' + (d.current === id ? ' on' : ''), disabled: !d.can || !ok || S.busy,
     title: tip || '', onclick: () => doAct('_dress', id),
@@ -433,7 +531,7 @@ function renderDress() {
       card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
       items.map((o) => card(o.id, o.icon || '👕', o.name || o.id, d.items[o.id], o.when ? '条件: ' + o.when : o.pos))),
     items.length ? '' : h('p', { class: 'muted small' }, '服が登録されていません。設定 → 着せ替え から追加できます。'),
-    h('p', { class: 'hint', style: 'margin-top:12px' }, S.boot.character.dress_reset_on_sleep !== false
+    h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
       ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
   );
 }
@@ -446,7 +544,7 @@ async function gameAct(path, body) {
   S.busy = true;
   renderGames();
   try {
-    const r = await api(path, body);
+    const r = await api(path, withT(body));
     S.gameHint = r.hint || null;
     S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.refused ? '断られてしまった…' : null;
     if (r.entry) handleActResult(r);
@@ -463,7 +561,7 @@ async function doAct(aid, outfit, place) {
   S.busy = true;
   renderCommands();
   try {
-    const r = outfit === undefined ? await api('/api/act', place ? { action: aid, place } : { action: aid }) : await api('/api/dress', { outfit });
+    const r = outfit === undefined ? await api('/api/act', withT(place ? { action: aid, place } : { action: aid })) : await api('/api/dress', withT({ outfit }));
     handleActResult(r);
   } catch (e) {
     toast(e.message, 'err');
@@ -478,9 +576,15 @@ function handleActResult(r) {
   if (r.encounter) toast(r.encounter.text, 'ok');
   if (r.solo) toast(r.solo.text, 'ok');
   if (r.work_note) toast(r.work_note, 'err');
+  if (!r.entry) return;
   S.lastDeltas = r.entry.deltas || {};
-  showEntry(r.entry, true);
   if (r.job) trackJob(r.job);
+  // 一人のとき (誰もそばにいない) はステージに何も出さない: 結果は知らせとログで
+  if (r.entry.mine || !r.entry.who && !tid() || r.entry.who && r.entry.who !== tid() && !(S.view.company || []).some((c) => c.id === r.entry.who)) {
+    if (r.entry.text && !r.solo) toast(r.entry.text.replace(/\n.*/s, ''), r.missed ? 'err' : 'ok');
+    return;
+  }
+  showEntry(r.entry, true);
 }
 
 /* ---------------------------------------------------------------- stage */
@@ -543,7 +647,7 @@ function setDialogue(text, animate, name) {
   const narr = text.startsWith('（') || text.startsWith('(');
   dlg.classList.toggle('narr', narr);
   dlg.classList.toggle('phone', text.startsWith('📱'));
-  $('#nameplate').textContent = narr ? 'ナレーション' : (name || S.boot.character.name);
+  $('#nameplate').textContent = narr ? 'ナレーション' : (name || (T() || {}).name || '');
   const el = $('#dtext');
   if (S.typing) { clearInterval(S.typing); S.typing = null; }
   if (!animate) { el.textContent = text; return; }
@@ -552,6 +656,7 @@ function setDialogue(text, animate, name) {
   el.replaceChildren('', h('span', { class: 'caret' }));
   S.typing = setInterval(() => {
     i++;
+    if (!el.firstChild) { clearInterval(S.typing); S.typing = null; return; }     // 途中でステージを片付けた
     el.firstChild.textContent = chars.slice(0, i).join('');
     if (i >= chars.length) { clearInterval(S.typing); S.typing = null; el.textContent = text; }
   }, 28);
@@ -559,8 +664,9 @@ function setDialogue(text, animate, name) {
 }
 
 function showEntry(e, animate) {
+  if (!T()) { if (e.image) openLightbox(e, { path: e.image, seed: e.seed, pos: e.pos, neg: e.neg, t: e.t }); return; }   // 一人のときはステージを使わない
   S.current = e;
-  setDialogue(e.text || `（${e.action_name}）`, animate);
+  setDialogue(e.text || `（${e.action_name}）`, animate, e.who_name || cname(e.who));
   $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`
     + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : e.busy_skip ? '（生成中のため新規生成なし）' : ''}` : '');
   $('#deltas').replaceChildren(...Object.entries(S.ui.deltas === false ? {} : (e.deltas || {})).map(([k, v]) => {
@@ -568,7 +674,7 @@ function showEntry(e, animate) {
     const cls = p.neutral ? '' : ((v > 0) !== !!p.invert ? 'up' : 'down');
     return h('span', { class: 'delta ' + cls }, `${pname(k)} ${v > 0 ? '+' : ''}${v}`);
   }), ...Object.entries(e.money || {}).map(([k, v]) => h('span', { class: 'delta money ' + (v > 0 ? 'up' : 'down') },
-    `${k === 'p' ? 'あなた' : S.boot.character.name} ${v > 0 ? '+' : ''}${yen(v)}`)),
+    `${k === 'p' ? 'あなた' : e.who_name || cname(e.who)} ${v > 0 ? '+' : ''}${yen(v)}`)),
   ...Object.entries(e.skill || {}).map(([k, v]) => h('span', { class: 'delta skill up' }, `${SKILL_NAME[k] || k}スキル +${v}`)));
   if (e.image) setImage(e.image);
   else if (!$('#stage-img').dataset.rel) $('#stage-empty').hidden = false;
@@ -719,9 +825,9 @@ function sparkline(vals, title) {
 /* ---- キャラからのお願い */
 function renderRequest() {
   const box = $('#request-box');
-  const req = S.view.life && S.view.life.request;
+  const req = T() && T().life && T().life.request;      // おねがいは, そばにいるときに言われる
   if (!req) { box.hidden = true; return; }
-  const name = S.view.name;
+  const name = T().name;
   const label = { money: `お金を貸してほしいみたい（${yen(req.amount)}）`, gift: `買ってほしいものがあるみたい（${yen(req.amount)}）`,
     treat: 'ごちそうしたいみたい', present: 'プレゼントを用意してくれたみたい' }[req.kind] || req.label;
   box.hidden = false;
@@ -741,7 +847,7 @@ function renderEncounter() {
   const answer = async (yes) => {
     try {
       const r = await api('/api/encounter', { yes });
-      if (r.registered) { toast(`${r.registered.name}を登録しました（キャラ切替から連絡できます）`, 'ok'); await loadBoot(); }
+      if (r.registered) { toast(`${r.registered.name}を登録しました（スマホから連絡できます）`, 'ok'); await loadBoot(); }
     } catch (e) { toast(e.message, 'err'); }
     await refresh();
   };
@@ -755,27 +861,12 @@ function renderEncounter() {
       h('button', { class: 'btn', onclick: () => answer(false) }, 'やめておく')));
 }
 
-/* ---- スマホ: 外出中・仕事中・一人の時間でも, そばにいない相手にメッセージ・電話できる.
+/* ---- スマホ: 外出中・仕事中・一人の時間・誰かといるときでも, そばにいない相手にメッセージ・電話できる (トーク一覧から).
    メッセージの返信は相手の状況しだいで遅れる/来ない. 電話は出ないことも (あとで折り返しが来ることも) */
 function phonePanel() {
-  const cs = S.view.contacts || [];
-  if (!cs.length) return '';
-  const open = !!S.phoneOpen;
-  const send = async (cid, action) => {
-    if (S.busy) return;
-    S.busy = true;
-    try {
-      const r = await api('/api/act', { action, character: cid });
-      toast(r.entry.text.replace(/\n.*/s, ''), r.missed ? 'err' : 'ok');
-    } catch (e) { toast(e.message, 'err'); }
-    finally { S.busy = false; await refresh(); }
-  };
-  return h('div', { class: 'phone-panel' },
-    h('button', { class: 'btn small', onclick: () => { S.phoneOpen = !open; renderAway(); } }, open ? '📱 スマホをしまう' : '📱 スマホを見る'),
-    open ? h('div', { class: 'phone-list' }, cs.map((c) => h('div', { class: 'row' },
-      h('span', { style: 'flex:1' }, `${BOND_IC[c.stage] || ''} ${c.name}`),
-      h('button', { class: 'btn small', disabled: S.busy, onclick: () => openChat(c.id) }, '📱 メッセージ'),
-      h('button', { class: 'btn small', disabled: S.busy, onclick: () => send(c.id, 'call') }, '📞 電話')))) : '');
+  if (!(S.view.contacts || []).length) return '';
+  return h('div', { class: 'phone-panel' }, h('button', { class: 'btn small', onclick: () => openChat() },
+    `📱 スマホを見る${S.view.chat_unread ? `（未読 ${S.view.chat_unread}）` : ''}`));
 }
 
 /* ---- 持ち物: 持っている品物・買うものリスト・品物の一覧 (どの店で売っているか) */
@@ -786,13 +877,14 @@ function renderItems() {
   const cat = (S.boot.catalog || {}).items || [];
   const want = Object.fromEntries(iv.shop_list.map((x) => [x.id, x.want]));
   const setWant = async (id, qty) => { try { await api('/api/items/list', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
-  const canGive = !!(S.view.bond && S.view.bond.mode && (S.view.available.gift || {}).ok);   // いま目の前にいて, 受け取れる状態か
+  const t = T();
+  const canGive = !!(t && (t.available.gift || {}).ok);   // いま目の前にいて, 受け取れる状態か
   box.replaceChildren(
     h('div', { class: 'pgroup' }, h('h4', {}, '🎒 持ち物'),
       iv.items.length ? iv.items.map((it) => h('div', { class: 'row item-row' },
         h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}`),
-        it.giftable && canGive ? h('button', { class: 'btn small', disabled: S.busy, title: `${S.view.name}に渡す`,
-          onclick: () => giveItem(it.id, S.view.character) }, `🎁 ${S.view.name}に渡す`) : ''))
+        it.giftable && canGive ? h('button', { class: 'btn small', disabled: S.busy, title: `${t.name}に渡す`,
+          onclick: () => giveItem(it.id, t.character) }, `🎁 ${t.name}に渡す`) : ''))
         : h('p', { class: 'muted small' }, 'なにも持っていない。買うものリストに入れておくと、買い物のときに買ってくる。'),
       h('p', { class: 'hint' }, '料理は食材、お茶はお茶っ葉・コーヒー豆、おやつはお菓子を使います（無ければありあわせで効き目が落ちる）。家事は洗剤があるとはかどり、研鑽はその分野の本があると伸びやすくなります（本は減りません）。')),
     h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
@@ -815,9 +907,9 @@ function giftPicker(aid) {
   if (!gifts.length) { toast('持ち物に渡せるものがない（持ち物タブの「買うものリスト」に入れておくと、買い物のときに買ってくる）', 'err'); return; }
   const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto;overflow:auto' });
   const close = () => { dlg.close(); dlg.remove(); };
-  dlg.append(h('div', { style: 'padding:16px' }, h('h3', {}, `${S.view.name}に渡すもの`),
+  dlg.append(h('div', { style: 'padding:16px' }, h('h3', {}, `${T().name}に渡すもの`),
     gifts.map((it) => h('div', { class: 'row item-row' }, h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}`),
-      h('button', { class: 'btn small primary', onclick: () => { close(); giveItem(it.id, S.view.character); } }, '渡す'))),
+      h('button', { class: 'btn small primary', onclick: () => { close(); giveItem(it.id, tid()); } }, '渡す'))),
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
   document.body.append(dlg);
   dlg.showModal();
@@ -858,7 +950,7 @@ async function drawChat() {
   const keepScroll = dlg.querySelector('.chat-body');
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
-    h('div', { class: 'chat-head' }, h('b', {}, '💬 メッセージ'), h('div', { class: 'spacer' }),
+    h('div', { class: 'chat-head' }, h('b', {}, '📱 スマホ'), h('span', { class: 'muted small', style: 'margin-left:8px' }, '相手を選んで、メッセージか電話'), h('div', { class: 'spacer' }),
       h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
     list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; drawChat(); } },
       avatar(c.face, c.name),
@@ -900,6 +992,7 @@ async function drawChat() {
       h('div', { class: 'chat-send' },
         can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`)),
           (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
+          ...(th.actions || []).map((a) => h('button', { class: 'chat-kind', disabled: S.busy || !a.ok, onclick: () => phoneAct(th.id, a.id) }, `${a.icon} ${a.name}`)),
           S.apForm ? appointForm(th) : '']
           : h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。')));
     void lastMine;
@@ -947,6 +1040,17 @@ async function answerAppoint(id, yes) {
   if (S.busy) return;
   S.busy = true;
   try { await api('/api/appoint/answer', { id, yes }); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
+// スマホから: 電話・「家に行ってもいい？」など (結果はトークと知らせに)
+async function phoneAct(cid, action) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/act', { action, character: cid });
+    toast(r.entry.text.replace(/\n.*/s, ''), r.missed ? 'err' : 'ok');
+    S.chatJump = true;
+  } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
 async function sendChat(cid, kind) {
@@ -1080,7 +1184,7 @@ function renderAway() {
   const p = S.view.presence || {};
   const a = AWAY[p.mode];
   if (!a) { box.hidden = true; return; }
-  const name = S.view.name;
+  const comp = (S.view.company || []).map((c) => c.name).join('・');
   const since = p.since ? Math.max(0, Date.now() / 1000 - p.since) : 0;
   box.hidden = false;
   box.replaceChildren(h('div', { class: 'away-card' },
@@ -1104,7 +1208,7 @@ function renderAway() {
       h('br'), `画面を閉じると、そこで${p.mode === 'work' ? '仕事' : '外出'}を切り上げて家に帰ります。誰かに会えるのは、画面を開いて出かけているあいだだけです${p.mode === 'work' ? '（給料も閉じた時点まで）' : ''}。`,
       (S.boot.settings.offline || {}).enabled !== false ? h('span', {}, h('br'), '閉じたあとは「オフライン時の過ごし方」どおりに過ごします（勤務時間なら仕事、それ以外は家で静かに）。') : '',
       h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' : '「' + a[2] + '」で戻ります。')
-      : h('p', { class: 'muted small' }, S.view.bond && S.view.bond.mode ? `${name}のそばを離れています。このまま画面を閉じてもかまいません。`
+      : h('p', { class: 'muted small' }, comp ? `${comp}のそばを離れています。このまま画面を閉じてもかまいません。`
         : '一人で過ごしています。このまま画面を閉じてもかまいません。', h('br'), '「' + a[2] + '」で戻ります。'),
     h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
 }
@@ -1112,31 +1216,33 @@ function renderAway() {
 async function comeBack() {
   if (S.busy) return;
   S.busy = true;
-  try { handleActResult(await api('/api/presence/back', {})); } catch (e) { toast(e.message, 'err'); }
+  try { handleActResult(await api('/api/presence/back', withT({}))); } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
 
-/* ---- キャラからの働きかけ */
+/* ---- キャラからの働きかけ: そばにいる人が話しかけてくる / 離れている人からメッセージが来て返事を待たれている */
 function renderApproach() {
   const box = $('#approach-box');
-  const ap = S.view.approach;
-  if (!ap) { box.hidden = true; return; }
-  const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
+  const aps = S.view.approaches || [];
+  if (!aps.length) { box.hidden = true; return; }
   box.hidden = false;
-  box.replaceChildren(
-    h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${S.view.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
-      h('span', { class: 'muted small', id: 'ap-rest' }, `（あと${Math.ceil(rest / 60)}分）`)),
-    h('div', { class: 'row' },
-      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach('accept') }, ap.accept),
-      h('button', { class: 'btn', disabled: S.busy, onclick: () => answerApproach('later') }, ap.later)));
+  box.replaceChildren(...aps.map((ap) => {
+    const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
+    return h('div', { class: 'ap-item' },
+      h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
+        h('span', { class: 'muted small', id: 'ap-rest-' + ap.cid }, `（あと${Math.ceil(rest / 60)}分）`)),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'accept') }, ap.accept),
+        h('button', { class: 'btn', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later)));
+  }));
 }
 
-async function answerApproach(ans) {
+async function answerApproach(cid, ans) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const r = await api('/api/approach', { answer: ans });
-    if (r.entry) handleActResult(r);
+    const r = await api('/api/approach', { answer: ans, character: cid });
+    if (r.entry) handleActResult(Object.assign(r, { entry: Object.assign({ who: cid }, r.entry) }));
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
@@ -1159,16 +1265,12 @@ function showAutoEntry() {
 }
 
 /* ---- お金タブ: 財布・支払い・銘柄・ニュース・稼ぐ */
+// お金タブ: あなたのお金 (財布・借金と借りているお金・仕事・内職・株). 相手とのお金のやりとりは「誰かと」の「お金のこと」
 function renderMoney() {
   const v = S.view;
-  const L = v.life || {};
+  const L = v.you || {};
   const M = L.market || { assets: [], news: [] };
   const inv = L.invest || {};
-  const policy = (key, opts) => h('select', { value: L[key], onchange: async (ev) => {
-    const c = clone(S.boot.character);
-    c[key] = ev.target.value;
-    try { await api('/api/character/save', { data: c }); await loadBoot(); await refresh(); } catch (e) { toast(e.message, 'err'); }
-  } }, opts.map(([k, l]) => h('option', { value: k }, l)));
   const asset = (a) => {
     const qty = h('input', { type: 'number', min: 1, step: 1, value: S.tradeQty?.[a.id] || 1, class: 'qty',
       oninput: (ev) => { (S.tradeQty = S.tradeQty || {})[a.id] = ev.target.value; } });
@@ -1185,29 +1287,25 @@ function renderMoney() {
         h('button', { class: 'btn', disabled: S.busy || !a.qty, onclick: () => trade(a.id, -qty.value) }, '売る'),
         a.qty ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => trade(a.id, -a.qty) }, '全部売る') : ''));
   };
-  const av = v.available || {};
+  const ok = (k) => ((v.solo || {}).plain || []).some((p) => p.id === k && p.ok) && (v.presence || {}).mode === 'none';
   $('#tab-money').replaceChildren(
-    h('div', { class: 'pgroup money-box' }, h('h4', {}, '財布'),
-      h('div', { class: 'money-row' }, h('span', {}, 'あなた'), h('b', {}, yen(L.my_money || 0))),
+    h('div', { class: 'pgroup money-box' }, h('h4', {}, 'あなたの財布'),
+      h('div', { class: 'money-row' }, h('span', {}, '手元'), h('b', {}, yen(L.my_money || 0))),
       inv.value ? h('div', { class: 'money-row' }, h('span', {}, '株（評価額）'),
         h('b', { class: inv.value >= inv.invested ? 'up' : 'down' }, `${yen(inv.value)}（${inv.value >= inv.invested ? '+' : ''}${yen(inv.value - inv.invested)}）`)) : '',
-      h('div', { class: 'money-row' }, h('span', {}, 'お出かけ代'),
-        policy('pay_policy', [['auto', 'おまかせ'], ['me', 'あなたが払う'], ['split', '割り勘'], ['her', 'おごってもらう']])),
-      L.living ? h('div', { class: 'money-row', title: 'あなたの家の毎日の生活費と、月はじめの家賃・光熱費・通信費の分け方' }, h('span', {}, '生活費・家賃'),
-        policy('living_policy', [['split', '折半'], ['me', 'あなたが払う'], ['her', `${v.name}が払う`]])) : '',
       L.debt ? h('div', { class: 'money-row', title: '払えなかった生活費・家賃。月はじめに少し利息がつきます' }, h('span', {}, '借金'), h('b', { class: 'down' }, yen(L.debt)),
         h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), onclick: () => repay('debt', L.debt, '借金') }, '返す')) : '',
       ...(L.loans || []).map((x) => h('div', { class: 'money-row' }, h('span', {}, `${x.name}に借りている`), h('b', { class: 'down' }, yen(x.amount)),
-        h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), onclick: () => repay(x.id, x.amount, x.name) }, '返す'))),
+        h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), title: 'そばにいなければ振り込み（返事はメッセージで）', onclick: () => repay(x.id, x.amount, x.name) }, '返す'))),
       L.in_debt ? h('div', { class: 'muted small' }, '借金のあいだは、食材・洗剤などの必需品しか買えません。') : '',
       (L.money_notes || []).length ? h('div', { class: 'muted small' }, ...L.money_notes.slice(-3).map((x) => h('div', {}, `${fmtTime(x.t)} ${x.text}`))) : ''),
     h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
       h('div', { class: 'earn' },
-        h('button', { class: 'cmd', disabled: S.busy || !(av.go_work || {}).ok, onclick: () => doAct('go_work'),
-          title: '「仕事に行ってくる」と告げて、実際にそばを離れます。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
+        h('button', { class: 'cmd', disabled: S.busy || !ok('work'), onclick: () => soloStart('work'),
+          title: '仕事に行きます（そばに誰かいれば告げてから）。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
           h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
-        h('button', { class: 'cmd', disabled: S.busy || !(av.side_job || {}).ok || !!v.side_job, onclick: openTask,
-          title: '家でパズル（マインスイーパ・数独・ピクロス・15パズル）を解いて稼ぎます。難しさ・速さ・ミスで稼ぎが決まります' },
+        h('button', { class: 'cmd', disabled: S.busy || !!v.side_job, onclick: openTask,
+          title: '家でパズルを解いて稼ぎます。難しさ・速さ・ミスで稼ぎが決まります' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
           h('small', { class: 'muted' }, v.side_job ? v.side_job.reason.replace(/^.*（(.*)）$/, '$1') : 'パズルを解く'))),
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
@@ -1223,7 +1321,7 @@ function renderMoney() {
 
 async function repay(to, owed, name) {
   if (S.busy) return;
-  const v = prompt(`${name}に返す額（円）`, String(Math.min(owed, (S.view.life || {}).my_money || 0)));
+  const v = prompt(`${name}に返す額（円）`, String(Math.min(owed, (S.view.you || {}).my_money || 0)));
   if (v === null) return;
   const amount = Math.trunc(+v);
   if (!(amount > 0)) return toast('返す額を入れてください', 'err');
@@ -1237,7 +1335,7 @@ async function trade(asset, qty) {
   if (!qty) return toast('株数を入れてください', 'err');
   if (S.busy) return;
   S.busy = true;
-  try { handleActResult(await api('/api/market/trade', { asset, qty })); } catch (e) { toast(e.message, 'err'); }
+  try { handleActResult(await api('/api/market/trade', withT({ asset, qty }))); } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
 
@@ -1295,7 +1393,7 @@ async function finishTask(gaveUp) {
   clearInterval(T.timer);
   document.removeEventListener('keydown', T.key);
   try {
-    const r = await api('/api/task/finish', { token: T.tk.token });
+    const r = await api('/api/task/finish', withT({ token: T.tk.token }));
     const k = r.task;
     T.view = k.view;
     renderTask(h('div', { class: 'task-result' },
@@ -1352,53 +1450,46 @@ function lookWord(p, val) {
 }
 function statMode() { return S.peek ? 'exact' : (S.ui.stats || 'exact'); }
 
-function renderStatus() {
-  const v = S.view;
-  const groups = [['physical', 'からだ'], ['mental', 'こころ']];
-  const others = S.boot.params.filter((p) => !['physical', 'mental'].includes(p.group));
-  const mode = statMode();
-  const rows = (list) => list.map((p) => {
-    const val = v.params[p.id] ?? 0;
+// 「誰かと」の「ようす」: 相手のからだ・こころ (表示設定に従う: 数値 / 見た感じ / 隠す) と, いまの気分の理由
+function paramRows(params, mode, flash) {
+  return (list) => list.map((p) => {
+    const val = params[p.id] ?? 0;
     if (mode === 'look') {
       const w = lookWord(p, val);
       return h('div', { class: 'prow look' }, h('span', {}, p.name), h('span', { class: w ? '' : 'muted' }, w || '？（見ただけではわからない）'));
     }
     const pct = ((val - (p.min ?? 0)) / ((p.max ?? 100) - (p.min ?? 0))) * 100;
-    const d = S.lastDeltas[p.id];
+    const d = flash ? S.lastDeltas[p.id] : null;
     return h('div', { class: 'prow' + (d ? ' flash' : ''), title: p.id },
       h('span', {}, p.name),
       h('div', { class: 'bar' }, h('i', { style: `width:${pct}%;background:${level(p, val)}` })),
       h('span', { class: 'pval' }, d ? `${d > 0 ? '+' : ''}${d}` : Math.round(val)));
   });
-  const sc = v.scene;
-  const hide = veiled();
-  const flags = [sc.asleep && '睡眠中', sc.away && '外出中', sc.busy && '手が離せない'].filter(Boolean).join('・');
-  const L = v.life || {};
-  // 離れている相手の機嫌の理由は, 本人から聞いたもの (told) だけ
-  const reasons = (L.reasons || []).filter((r) => !hide || r.told).map((r) => h('div', { class: 'reason ' + r.mood },
+}
+function renderStatus() {
+  const t = T();
+  const box = $('#tab-status');
+  if (!t) { box.replaceChildren(); return; }
+  const groups = [['physical', 'からだ'], ['mental', 'こころ']];
+  const others = S.boot.params.filter((p) => !['physical', 'mental'].includes(p.group));
+  const mode = statMode();
+  const rows = paramRows(t.params, mode, true);
+  const sc = t.scene;
+  const flags = [sc.asleep && '睡眠中', sc.busy && '手が離せない'].filter(Boolean).join('・');
+  const L = t.life || {};
+  const reasons = (L.reasons || []).map((r) => h('div', { class: 'reason ' + r.mood },
     h('span', {}, r.mood === 'good' ? '😊' : '😣'),
     h('span', {}, r.tell || '？（まだ聞いていない）'),
     h('span', { class: 'muted small' }, fmtTime(r.t))));
-  $('#tab-status').replaceChildren(
+  box.replaceChildren(
     h('div', { class: 'scene-box' },
-      h('div', {}, h('b', {}, '時間帯 '), v.phase.label),
-      h('div', {}, h('b', {}, 'いま '), hide ? '離れていて、様子はわからない' : `${sc.label}（${sc.location || '—'}）`, !hide && flags ? `　${flags}` : ''),
-      h('div', {}, h('b', {}, '最後のふれあい '), v.absent < 1 ? `${Math.round(v.absent * 60)}分前` : `${v.absent.toFixed(1)}時間前`),
-      h('div', {}, h('b', {}, 'あなた '), (v.presence || {}).label || '—')),
+      h('div', {}, h('b', {}, '時間帯 '), S.view.phase.label),
+      h('div', {}, h('b', {}, 'いま '), `${sc.label}（${sc.location || '—'}）`, flags ? `　${flags}` : ''),
+      h('div', {}, h('b', {}, '最後のふれあい '), t.absent < 1 ? `${Math.round(t.absent * 60)}分前` : `${t.absent.toFixed(1)}時間前`)),
     h('div', { class: 'pgroup' }, h('h4', {}, 'いまの気分の理由'),
       reasons.length ? reasons : h('div', { class: 'muted small' }, '特になし')),
-    h('div', { class: 'pgroup' }, h('h4', {}, 'あなた'),
-      h('div', { class: 'prow', title: '仕事・内職で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
-        h('span', {}, '体力'),
-        h('div', { class: 'bar' }, h('i', { style: `width:${L.stamina ?? 100}%;background:${(L.stamina ?? 100) >= 50 ? 'var(--good)' : (L.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
-        h('span', { class: 'pval' }, Math.floor(L.stamina ?? 100)))),
-    h('div', { class: 'pgroup' }, h('h4', {}, 'あなたのスキル'),
-      Object.entries(L.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
-        h('span', {}, SKILL_NAME[k] || k),
-        h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
-        h('span', { class: 'pval' }, Math.floor(val))))),
     (S.ui.stats || 'exact') !== 'exact' ? h('div', { class: 'peek row' },
-      h('span', { class: 'muted small' }, S.peek ? '一時的に正確な数値を表示中' : mode === 'look' ? `${v.name}の様子（見た感じ。正確とは限りません）` : `${v.name}のステータスは隠しています`),
+      h('span', { class: 'muted small' }, S.peek ? '一時的に正確な数値を表示中' : mode === 'look' ? `${t.name}の様子（見た感じ。正確とは限りません）` : `${t.name}のステータスは隠しています`),
       h('div', { class: 'spacer' }),
       h('button', { class: 'btn ghost small', onclick: () => {
         S.peek = !S.peek;
@@ -1406,37 +1497,93 @@ function renderStatus() {
         if (S.peek) S.peekTimer = setTimeout(() => { S.peek = false; renderStatus(); }, 60000);
         renderStatus();
       } }, S.peek ? '戻す' : '数値を見る（1分）')) : '',
-    hide ? h('p', { class: 'muted small' }, `${v.name}とは離れているので、からだやこころの様子はわかりません（会うか、本人から聞けば分かることも）。設定 → 表示 で「離れている相手の様子も見る」にすると見えます。`) : '',
-    ...(mode === 'hidden' || hide ? [] : [
-      ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}の${label}`), rows(S.boot.params.filter((p) => p.group === g)))),
-      others.length ? h('div', { class: 'pgroup' }, h('h4', {}, `${v.name}のその他`), rows(others)) : '']),
+    ...(mode === 'hidden' ? [] : [
+      ...groups.map(([g, label]) => h('div', { class: 'pgroup' }, h('h4', {}, `${t.name}の${label}`), rows(S.boot.params.filter((p) => p.group === g)))),
+      others.length ? h('div', { class: 'pgroup' }, h('h4', {}, `${t.name}のその他`), rows(others)) : '']),
   );
   setTimeout(() => { S.lastDeltas = {}; }, 4000);
 }
 
+/* ---------------------------------------------------------------- 関係性 tab */
+// 知っている人全員: 間柄の段階・最後に会った/連絡した日・あなたが知っていること (好きなもの・聞いた話)・貸し借り・見た目の印象
+const KNOWN_LABEL = { like: '好き', dislike: '苦手', heard: '聞いた話' };
+function ago(t) {
+  if (!t) return '—';
+  const d = Math.floor((Date.now() / 1000 - t) / 86400);
+  const dt = new Date(t * 1000);
+  return d <= 0 ? `今日 ${hhmm(t)}` : d === 1 ? '昨日' : `${d}日前（${dt.getMonth() + 1}/${dt.getDate()}）`;
+}
+function renderPeople() {
+  const ps = S.view.people || [];
+  const box = $('#tab-people');
+  const mode = statMode();
+  box.replaceChildren(
+    h('p', { class: 'hint' }, '知っている人との関係です。見た目の印象は、そばにいる人だけ分かります（離れている人は「？」）。好きなもの・聞いた話は、渡してみた・部屋で見た・本人から聞いたものだけです。'),
+    ...ps.map((p) => {
+      const near = !!p.mode;
+      const see = near || S.ui.showApart;
+      const face = h('div', { class: 'who-face small' });
+      if (p.face) face.style.backgroundImage = `url("${imgUrl(p.face)}")`; else face.textContent = p.name.slice(0, 1);
+      const look = see && mode !== 'hidden'
+        ? ['mood', 'energy', 'health', 'loneliness'].map((id) => S.boot.params.find((x) => x.id === id)).filter(Boolean)
+          .map((x) => (mode === 'look' || !near ? `${x.name}: ${lookWord(x, p.params[x.id] ?? 0) || '？'}` : `${x.name} ${Math.round(p.params[x.id] ?? 0)}`)).join('・')
+        : '？（いまは見えない）';
+      const likes = p.known.filter((k) => k.kind !== 'heard');
+      const heard = p.known.filter((k) => k.kind === 'heard');
+      const row = (label, val) => [h('span', { class: 'muted' }, label), h('span', {}, val)];
+      return h('div', { class: 'person' + (near ? ' near' : '') },
+        h('div', { class: 'person-head' }, face,
+          h('div', { style: 'flex:1;min-width:0' },
+            h('div', {}, h('b', {}, p.name), h('span', { class: 'tag bond' + (near ? '' : ' apart'), style: 'margin-left:6px' }, `${BOND_IC[p.stage] || ''}${p.stage_label}`),
+              near ? h('span', { class: 'tag', style: 'margin-left:4px' }, '👥 そばにいる') : '',
+              p.pending_msg ? h('span', { class: 'tag', style: 'margin-left:4px' }, '📱 返信待ち') : ''),
+            h('div', { class: 'muted small' }, p.label)),
+          p.stage !== 'known' && !near ? h('button', { class: 'btn small', title: 'スマホで連絡する', onclick: () => openChat(p.id) }, '📱') : '',
+          h('button', { class: 'btn small ghost', title: 'この人との記録をログで見る', onclick: () => { S.logWho = p.id; showTab('log'); renderLog(); } }, '📜')),
+        h('div', { class: 'person-grid small' },
+          row('最後に会った', near ? 'いま一緒' : ago(p.last_met)),
+          row('最後に連絡した', ago(p.last_contact)),
+          row('見た目の印象', look),
+          row('好きなもの', likes.length ? likes.map((k) => `${KNOWN_LABEL[k.kind]}: ${k.text}`).join('・') : '？（まだ知らない）'),
+          heard.length ? row('聞いた話', heard.slice(0, 4).map((k) => h('div', {}, `${ago(k.t)}　${k.text}`))) : '',
+          p.owed ? row('貸し借り', h('span', { class: 'down' }, `あなたが ${yen(p.owed)} 借りている`)) : '',
+          p.living_policy ? row('生活費', { split: '折半', me: 'あなたが払う', her: `${p.name}が払う` }[p.living_policy] || '') : ''));
+    }),
+    ps.length ? '' : h('p', { class: 'muted' }, 'まだ知っている人がいません。出かけると、偶然だれかに会うことがあります。'));
+}
+
 /* ---------------------------------------------------------------- log tab */
+// あなたの 1 本の時系列 (一人の時間・外出・連絡も同じ流れで). 人で絞り込める
 function logItem(e) {
   const th = h('div', { class: 'log-thumb' });
   if (e.image) th.style.backgroundImage = `url("${imgUrl(e.image)}")`;
   else th.textContent = e.job ? '⏳' : e.error ? '⚠' : (e.icon || '•');
-  return h('div', { class: 'log-item' + (S.current && S.current.id === e.id ? ' cur' : ''), 'data-id': e.id,
-    onclick: () => showEntry(e, false) },
+  return h('div', { class: 'log-item' + (S.current && S.current.id === e.id ? ' cur' : '') + (e.mine ? ' mine' : ''), 'data-id': e.id,
+    onclick: () => (e.who && (S.view.company || []).some((c) => c.id === e.who) ? showEntry(e, false)
+      : e.image ? openLightbox(e, { path: e.image, seed: e.seed, pos: e.pos, neg: e.neg, t: e.t }) : null) },
     th,
     h('div', { class: 'log-main' },
-      h('div', { class: 'log-head' }, h('span', {}, fmtTime(e.t)), h('span', {}, `${e.icon || ''}${e.action_name}`),
-        h('span', {}, e.scene || '')),
+      h('div', { class: 'log-head' }, h('span', {}, fmtTime(e.t)), h('span', { class: 'log-who' }, e.mine ? 'あなた' : e.who_name || ''),
+        h('span', {}, `${e.icon || ''}${e.action_name}`), h('span', {}, e.apart && e.action !== 'call' && !S.ui.showApart ? '' : e.scene || '')),
       h('div', { class: 'log-text' }, e.text || '—')));
 }
 
-function renderLog() {
+async function renderLog() {
   const v = S.view;
-  const items = [...v.log].reverse().map(logItem);
   const box = $('#tab-log');
-  box.replaceChildren(...items);
-  if (v.log_total > v.log.length) {
-    let offset = v.log.length;
+  const who = S.logWho || '';
+  const sel = h('select', { class: 'char-select', onchange: (ev) => { S.logWho = ev.target.value; renderLog(); } },
+    h('option', { value: '' }, 'みんな（あなたの記録すべて）'), h('option', { value: 'me', selected: who === 'me' }, '🧍 一人の時間だけ'),
+    (v.people || []).map((p) => h('option', { value: p.id, selected: who === p.id }, `${BOND_IC[p.stage] || ''} ${p.name}`)));
+  let items = v.log, total = v.log_total;
+  if (who) {
+    try { const r = await api(`/api/log?who=${encodeURIComponent(who)}&offset=0&limit=60`); items = r.items; total = r.total; } catch (e) { toast(e.message, 'err'); }
+  }
+  box.replaceChildren(h('div', { class: 'row log-filter' }, h('span', { class: 'muted small' }, '絞り込み'), sel), ...items.map(logItem));
+  if (total > items.length) {
+    let offset = items.length;
     const more = h('div', { class: 'center' }, h('button', { class: 'btn ghost', onclick: async () => {
-      const r = await api(`/api/log?offset=${offset}&limit=60`);
+      const r = await api(`/api/log?offset=${offset}&limit=60${who ? '&who=' + encodeURIComponent(who) : ''}`);
       offset += r.items.length;
       more.before(...r.items.map(logItem));
       if (offset >= r.total) more.remove();
@@ -1554,9 +1701,15 @@ Negative: ${im.neg}`;
 const SEC = {};
 let SE = {}; // 編集中のワーキングコピー
 
-function openSettings(sec) {
+// 設定で編集するキャラ: 前に選んだ人 → 「誰かと」の相手 → 最後に選んだ相手
+async function editChar() {
+  const id = S.editCid || tid() || S.boot.character.id;
+  if (id === S.boot.character.id) return clone(S.boot.character);
+  try { return clone((await api('/api/character?id=' + encodeURIComponent(id))).character); } catch (e) { return clone(S.boot.character); }
+}
+async function openSettings(sec) {
   SE = {
-    settings: clone(S.boot.settings), char: clone(S.boot.character), actions: clone(S.boot.actions),
+    settings: clone(S.boot.settings), char: await editChar(), actions: clone(S.boot.actions),
     params: clone(S.boot.params), world: clone(S.boot.world), selAction: SE.selAction || 0,
   };
   $('#settings-dlg').showModal();
@@ -1574,7 +1727,7 @@ function showSection(sec) {
 }
 async function reloadAll(sec) {
   await loadBoot();
-  SE.settings = clone(S.boot.settings); SE.char = clone(S.boot.character);
+  SE.settings = clone(S.boot.settings); SE.char = await editChar();
   SE.actions = clone(S.boot.actions); SE.params = clone(S.boot.params); SE.world = clone(S.boot.world);
   if (sec) showSection(sec);
   await refresh();
@@ -1936,10 +2089,8 @@ function othersSection() {
 }
 // 定義を編集する (このワールドにいない人も). いる人ならそのキャラを選ぶ
 async function editDefinition(id) {
-  if (S.boot.characters.some((x) => x.id === id)) {
-    await api('/api/character/select', { id }); S.current = null; await reloadAll('char'); return;
-  }
-  try { SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); showSection('char'); }
+  S.editCid = id;
+  try { SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); SE.rels = null; showSection(SE.sec === 'char' ? 'char' : SE.sec || 'char'); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function placeOther(c, stage) {
@@ -2010,7 +2161,7 @@ function personaPicker(c) {
 SEC.personas = () => {
   const ps = S.boot.personas || [];
   const box = h('div');
-  const pick = h('select', { value: SE.personaSel || S.boot.character.persona_id || (ps[0] || {}).id, onchange: (ev) => { SE.personaSel = ev.target.value; SE.personaData = null; showSection('personas'); } },
+  const pick = h('select', { value: SE.personaSel || SE.char.persona_id || (ps[0] || {}).id, onchange: (ev) => { SE.personaSel = ev.target.value; SE.personaData = null; showSection('personas'); } },
     ps.map((p) => h('option', { value: p.id }, p.name + (p._custom ? '（編集済み）' : ''))));
   const load = async () => {
     const id = pick.value;
@@ -2585,7 +2736,11 @@ SEC.llm = () => {
 
 /* ---- データ */
 SEC.data = () => {
-  const v = S.view;
+  const people = S.view.people || [];
+  SE.dbg = people.some((p) => p.id === SE.dbg) ? SE.dbg : (tid() || (people[0] || {}).id);
+  const dbgP = people.find((p) => p.id === SE.dbg) || { params: {}, name: '' };
+  const v = { params: dbgP.params, name: dbgP.name };
+  const C = { character: SE.dbg };
   const vals = {};
   const sliders = S.boot.params.map((p) => {
     const out = h('span', { class: 'pval' }, Math.round(v.params[p.id] ?? 0));
@@ -2598,27 +2753,29 @@ SEC.data = () => {
     h('p', { class: 'lead' }, 'デバッグや調整用です。データは kurashi/data/ に JSON と画像で保存されています（ワールドごとの分は data/worlds/ の下）。'),
     h('div', { class: 'sect' }, 'ワールド'),
     worldManager(),
-    h('div', { class: 'sect' }, `${v.name}の現在値を直接変更`),
+    h('div', { class: 'sect' }, '現在値を直接変更・出来事や働きかけを起こす（テスト用）'),
+    h('div', { class: 'row' }, h('span', {}, '対象'), h('select', { onchange: (ev) => { SE.dbg = ev.target.value; showSection('data'); } },
+      people.map((p) => h('option', { value: p.id, selected: p.id === SE.dbg }, p.name)))),
     ...sliders,
     h('div', { class: 'row', style: 'margin-top:10px' },
-      h('button', { class: 'btn primary', onclick: async () => { await api('/api/state/set', { values: vals }); toast('反映しました', 'ok'); await refresh(); } }, '反映'),
-      h('button', { class: 'btn', onclick: async () => { await api('/api/state/clear_override', {}); toast('一時シーンを解除しました', 'ok'); await refresh(); } }, '一時シーンを解除（予定に戻す）'),
+      h('button', { class: 'btn primary', onclick: async () => { await api('/api/state/set', Object.assign({ values: vals }, C)); toast('反映しました', 'ok'); await refresh(); } }, '反映'),
+      h('button', { class: 'btn', onclick: async () => { await api('/api/state/clear_override', C); toast('一時シーンを解除しました', 'ok'); await refresh(); } }, '一時シーンを解除（予定に戻す）'),
       h('button', { class: 'btn danger', onclick: async () => {
         if (!confirm('パラメータを初期値に戻しますか？（ログと画像は残ります）')) return;
-        await api('/api/state/reset', {}); toast('初期化しました', 'ok'); await refresh(); showSection('data');
+        await api('/api/state/reset', C); toast('初期化しました', 'ok'); await refresh(); showSection('data');
       } }, 'パラメータ初期化')),
     h('div', { class: 'sect' }, '出来事を起こす（テスト用）'),
     (() => {
       const sel = h('select', {}, (S.boot.events || []).map((e) => h('option', { value: e.id }, `${e.label}（${e.mood}）`)));
       return h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: async () => {
-        try { const r = await api('/api/events/force', { id: sel.value }); toast(`起こしました: ${r.event.label}`, 'ok'); await refresh(); } catch (e) { toast(e.message, 'err'); }
+        try { const r = await api('/api/events/force', Object.assign({ id: sel.value }, C)); toast(`起こしました: ${r.event.label}`, 'ok'); await refresh(); } catch (e) { toast(e.message, 'err'); }
       } }, '起こす'));
     })(),
     h('div', { class: 'sect' }, '働きかけを起こす（テスト用）'),
     (() => {
       const sel = h('select', {}, (S.boot.approaches || []).map((e) => h('option', { value: e.id }, `${e.icon || ''} ${e.label || e.id}`)));
       return h('div', { class: 'row' }, sel, h('button', { class: 'btn', onclick: async () => {
-        try { const r = await api('/api/approach/force', { id: sel.value }); $('#settings-dlg').close(); handleActResult(r); await refresh(); } catch (e) { toast(e.message, 'err'); }
+        try { const r = await api('/api/approach/force', Object.assign({ id: sel.value }, C)); $('#settings-dlg').close(); handleActResult(r); await refresh(); } catch (e) { toast(e.message, 'err'); }
       } }, '起こす'));
     })(),
     h('div', { class: 'sect' }, '偶然の出会いを起こす（テスト用）'),
@@ -2632,11 +2789,11 @@ SEC.data = () => {
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),
       h('button', { class: 'btn', onclick: () => downloadJson('params.json', S.boot.params) }, 'パラメータを保存'),
-      h('button', { class: 'btn', onclick: () => downloadJson(`character_${S.boot.character.id}.json`, S.boot.character) }, 'キャラクターを保存')),
+      h('button', { class: 'btn', onclick: () => downloadJson(`character_${SE.char.id}.json`, SE.char) }, 'キャラクターを保存')),
     h('div', { class: 'row', style: 'margin-top:8px' },
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/actions', { actions: j }); await reloadAll(); toast('コマンドを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'コマンドを読込'),
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/params', { params: j }); await reloadAll(); toast('パラメータを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'パラメータを読込'),
-      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); if (!S.boot.characters.some((x) => x.id === j.id)) await api('/api/character/place', { id: j.id, stage: 'contact' }); await api('/api/character/select', { id: j.id }); S.current = null; await reloadAll(); toast('キャラクターを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'キャラクターを読込')),
+      h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!j.id) throw new Error('id がありません'); await api('/api/character/save', { data: j }); if (!S.boot.characters.some((x) => x.id === j.id)) await api('/api/character/place', { id: j.id, stage: 'contact' }); S.editCid = j.id; await reloadAll(); toast('キャラクターを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'キャラクターを読込')),
   ];
 };
 
@@ -2675,22 +2832,13 @@ function worldManager() {
 
 /* ================================================================= events */
 function bind() {
-  $$('#tabs button').forEach((b) => b.addEventListener('click', () => {
-    $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-    for (const t of ['commands', 'dress', 'games', 'money', 'items', 'status', 'log']) $('#tab-' + t).hidden = t !== b.dataset.tab;
-  }));
+  $$('#tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $$('#subtabs button').forEach((b) => b.addEventListener('click', () => showSub(b.dataset.sub)));
+  $('#near-chip').addEventListener('click', () => showTab(T() ? 'with' : 'solo'));
   $('#dialogue').addEventListener('click', () => {
     if (S.typing) { clearInterval(S.typing); S.typing = null; $('#dtext').textContent = S.typingText; }
   });
   $('#world-select').addEventListener('change', (ev) => switchWorld(ev.target.value));
-  $('#char-select').addEventListener('change', async (ev) => {
-    await api('/api/character/select', { id: ev.target.value });
-    S.current = null;
-    const img = $('#stage-img'); img.removeAttribute('src'); delete img.dataset.rel; img.classList.remove('show');
-    $('#stage-bg').style.backgroundImage = '';
-    await loadBoot(); await refresh();
-    try { const r = await api('/api/visit', {}); if (r.result) handleActResult(r.result); } catch (e) { /* noop */ }
-  });
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
   $('#btn-chat').addEventListener('click', () => openChat());
@@ -2744,7 +2892,7 @@ function bind() {
     } catch (e) { toast(e.message, 'err'); }
   });
   $('#pd-load').addEventListener('click', async () => {
-    const r = await api('/api/prompt');
+    const r = await api('/api/prompt' + (tid() ? '?character=' + encodeURIComponent(tid()) : ''));
     $('#pd-pos').value = r.pos; $('#pd-neg').value = r.neg; renderParts(r.parts);
     $('#pd-src').textContent = '今の状態から組み立て';
   });
@@ -2764,7 +2912,7 @@ function bind() {
     } catch (e) { toast(e.message, 'err'); }
   });
   $('#btn-snap').addEventListener('click', async () => {
-    try { const r = await api('/api/generate', {}); showEntry(r.entry, false); trackJob(r.job); await refresh(); } catch (e) { toast(e.message, 'err'); }
+    try { const r = await api('/api/generate', withT({})); showEntry(r.entry, false); trackJob(r.job); await refresh(); } catch (e) { toast(e.message, 'err'); }
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 }
@@ -2773,6 +2921,7 @@ async function init() {
   bind();
   try { await loadBoot(); } catch (e) { toast('サーバに接続できません: ' + e.message, 'err'); return; }
   await refresh();
+  if (T()) showTab('with');
   try { const r = await api('/api/visit', {}); if (r.result) handleActResult(r.result); } catch (e) { toast(e.message, 'err'); }
   tickClock();
   setInterval(tickClock, 1000);

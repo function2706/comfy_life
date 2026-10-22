@@ -17,24 +17,24 @@
   </div>
   <span class="chip phase" id="phase-chip">—</span>
   <span class="chip weather" id="weather-chip" title="今日の天気（外の人の多さが変わる）"></span>
-  <span class="chip home" id="home-chip" title="誰と暮らしているか・いまそばに誰がいるか"></span>
+  <span class="chip home" id="home-chip" title="誰と暮らしているか・家の様子（クリックで家の様子）"></span>
+  <span class="chip near" id="near-chip" title="いまそばにいる人"></span>
   <div class="spacer"></div>
   <select id="world-select" class="char-select" title="ワールド切替（作成・名前変更・削除は 設定 → データ）"></select>
-  <select id="char-select" class="char-select" title="誰と（コマンド欄の「〇〇と」で選ぶ）"></select>
-  <button class="btn ghost" id="btn-chat" title="メッセージ">💬 <span class="lbl">メッセージ</span><span class="chat-badge" id="chat-badge" hidden></span></button>
+  <button class="btn ghost" id="btn-chat" title="スマホ（連絡先・メッセージ・電話）">📱 <span class="lbl">スマホ</span><span class="chat-badge" id="chat-badge" hidden></span></button>
   <button class="btn ghost" id="btn-manual" title="説明書">📖 <span class="lbl">説明書</span></button>
   <button class="btn ghost" id="btn-gallery" title="ギャラリー">🖼 <span class="lbl">ギャラリー</span></button>
   <button class="btn ghost" id="btn-settings" title="設定">⚙ <span class="lbl">設定</span></button>
 </header>
 
 <main class="layout">
-  <section class="stage" id="stage">
+  <section class="stage alone" id="stage">
     <div class="stage-bg" id="stage-bg"></div>
     <img class="stage-img" id="stage-img" alt="">
     <div class="stage-empty" id="stage-empty">
       <div class="empty-icon">🌙</div>
       <div>まだ画像がありません</div>
-      <small>コマンドを実行すると ComfyUI で生成します</small>
+      <small>「誰かと」のコマンドを実行すると ComfyUI で生成します</small>
     </div>
     <div class="stage-top">
       <span class="chip scene" id="scene-chip">—</span>
@@ -55,33 +55,37 @@
   </section>
 
   <aside class="side">
-    <div class="who">
-      <div class="who-face" id="who-face">🙂</div>
-      <div class="who-body">
-        <div class="who-name" id="who-name">—</div>
-        <div class="who-scene" id="who-scene"></div>
-        <div class="tags" id="who-tags"></div>
-      </div>
-    </div>
     <div class="approach-box" id="approach-box" hidden></div>
     <div class="request-box" id="request-box" hidden></div>
     <div class="request-box" id="encounter-box" hidden></div>
     <div class="request-box street-box" id="street-box" hidden></div>
     <nav class="tabs" id="tabs">
-      <button data-tab="commands" class="on">コマンド</button>
-      <button data-tab="dress">着せ替え</button>
-      <button data-tab="games">ゲーム</button>
-      <button data-tab="money">お金</button>
-      <button data-tab="items">持ち物</button>
-      <button data-tab="status">ステータス</button>
-      <button data-tab="log">ログ</button>
+      <button data-tab="solo" class="on" title="一人でできること・スマホ・あなたの体力とスキル">一人で</button>
+      <button data-tab="with" title="そばにいる人とすること（誰もいなければ出ません）">誰かと</button>
+      <button data-tab="money" title="あなたのお金（財布・仕事・内職・株）">お金</button>
+      <button data-tab="items" title="持ち物・買うものリスト">持ち物</button>
+      <button data-tab="people" title="知っている人との関係">関係性</button>
+      <button data-tab="log" title="あなたの記録（人で絞り込めます）">ログ</button>
     </nav>
-    <div class="tab-body" id="tab-commands"></div>
-    <div class="tab-body" id="tab-dress" hidden></div>
-    <div class="tab-body" id="tab-games" hidden></div>
+    <div class="tab-body" id="tab-solo"></div>
+    <div class="tab-body with-body" id="tab-with" hidden>
+      <div class="with-card" id="with-card"></div>
+      <nav class="subtabs" id="subtabs">
+        <button data-sub="commands" class="on">コマンド</button>
+        <button data-sub="dress">着せ替え</button>
+        <button data-sub="games">ゲーム</button>
+        <button data-sub="status">ようす</button>
+        <button data-sub="wmoney">お金のこと</button>
+      </nav>
+      <div class="sub-body" id="tab-commands"></div>
+      <div class="sub-body" id="tab-dress" hidden></div>
+      <div class="sub-body" id="tab-games" hidden></div>
+      <div class="sub-body" id="tab-status" hidden></div>
+      <div class="sub-body" id="tab-wmoney" hidden></div>
+    </div>
     <div class="tab-body" id="tab-money" hidden></div>
     <div class="tab-body" id="tab-items" hidden></div>
-    <div class="tab-body" id="tab-status" hidden></div>
+    <div class="tab-body" id="tab-people" hidden></div>
     <div class="tab-body" id="tab-log" hidden></div>
   </aside>
 </main>
