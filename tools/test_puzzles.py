@@ -47,13 +47,19 @@ def main():
             p = P.new("picross", lv, rng)
             assert P.picross_solve(p["rows"], p["cols"]) == p["sol"]
             assert p["rows"] == [P.clue(x) for x in p["sol"]]
+    # 塗る・消すは自由で, 一手ごとの答え合わせはしない (ミスにならない). 答えとぴったり一致したら完成
     empty = next((r, c) for r in range(p["n"]) for c in range(p["n"]) if not p["sol"][r][c])
-    assert P.move(p, {"r": empty[0], "c": empty[1]})["wrong"] and p["miss"] == 1 and [empty[0], empty[1]] in p["x"]
+    out = P.move(p, {"r": empty[0], "c": empty[1]})
+    assert not out.get("wrong") and p["miss"] == 0 and [empty[0], empty[1]] in p["filled"], "余計なマスも塗れる"
     for r in range(p["n"]):
         for c in range(p["n"]):
             if p["sol"][r][c]:
-                out = P.move(p, {"r": r, "c": c})
-    assert out["solved"]
+                out = P.move(p, {"r": r, "c": c, "op": "fill"})
+    assert not out["solved"], "余計に塗ったマスがあるうちは完成しない"
+    P.move(p, {"r": empty[0], "c": empty[1], "op": "fill"})          # すでに塗ってあれば何もしない
+    assert [empty[0], empty[1]] in p["filled"]
+    out = P.move(p, {"r": empty[0], "c": empty[1]})                 # op なし = 切り替え: 消す
+    assert out["solved"] and [empty[0], empty[1]] not in p["filled"]
     print("picross: OK")
 
     # ---- 3. マインスイーパ: 最初に開けたマスの周りに地雷は無い. 爆発はミス (続けられる)

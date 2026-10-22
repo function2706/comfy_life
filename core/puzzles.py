@@ -15,7 +15,7 @@ KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピ�
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
 DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
-        "picross": "数字は、その列に続けて塗るマスの数。全部塗れたらできあがり（右クリック・長押しで×）",
+        "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
         "sudoku": {"easy": 40, "mid": 32, "hard": 27},          # 最初から入っている数 (目安. 一意にならない分は残る)
@@ -292,25 +292,30 @@ def picross_new(level, rng=random):
 
 
 def picross_move(p, mv, rng=random):
+    """塗る・消すは自由 (普通のピクロスと同じく, 一手ごとの答え合わせはしない). op: fill / erase (無ければ切り替え).
+    塗ったマスが答えとぴったり一致したら完成."""
     r, c = int(mv["r"]), int(mv["c"])
     if not (0 <= r < p["n"] and 0 <= c < p["n"]):
         raise ValueError("盤の外です")
-    if [r, c] in p["filled"] or [r, c] in p["x"]:
-        return {}
-    if not p["sol"][r][c]:              # 塗るマスではなかった: ミス. ×が付く
-        p["x"].append([r, c])
-        p["miss"] += 1
-        return {"wrong": True}
-    p["filled"].append([r, c])
+    on = [r, c] in p["filled"]
+    op = mv.get("op") or ("erase" if on else "fill")
+    if op == "fill" and not on:
+        p["filled"].append([r, c])
+    elif op == "erase" and on:
+        p["filled"].remove([r, c])
     return {}
 
 
 def picross_solved(p):
-    return len(p["filled"]) == sum(map(sum, p["sol"]))
+    want = {(r, c) for r in range(p["n"]) for c in range(p["n"]) if p["sol"][r][c]}
+    return {tuple(x) for x in p["filled"]} == want
 
 
 def picross_progress(p):
-    return len(p["filled"]) / float(max(1, sum(map(sum, p["sol"]))))
+    """やめたときの進み具合: 正しく塗れたマスから, 余計に塗ったマスを引く."""
+    good = sum(1 for r, c in p["filled"] if p["sol"][r][c])
+    bad = len(p["filled"]) - good
+    return max(0.0, (good - bad) / float(max(1, sum(map(sum, p["sol"])))))
 
 
 def picross_view(p, reveal=False):

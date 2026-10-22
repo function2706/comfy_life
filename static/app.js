@@ -1773,7 +1773,7 @@ function taskStats() {
   let rest = '';
   if (v.kind === 'mines') rest = `残り地雷 ${v.n - T.flags.size}`;
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
-  else if (v.kind === 'picross') rest = `残り ${v.rows.flat().reduce((a, b) => a + b, 0) - v.filled.length} マス`;
+  else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
   else rest = `${v.moves} 手`;
   el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
 }
@@ -1803,30 +1803,33 @@ async function chord(r, c) {
   } catch (e) { toast(e.message, 'err'); }
   finally { T.busy = false; }
 }
-// ピクロス: タップで塗る / ×. ドラッグで同じ行・列をまとめて塗る・×を付ける (最初のマスで決まる. ×のマスから始めれば×を消す).
-// 長押し・右クリック・「×印」モードは×. 塗るのはサーバの答え合わせを一つずつ通す (指を離してから)
+// ピクロス: タップで塗る / 塗ったマスはもう一度で消す / ×. ドラッグで同じ行・列をまとめて (最初のマスで決まる:
+// 空きから始めれば塗る, 塗ったマスから始めれば消す, ×のマスから始めれば×を消す). 長押し・右クリック・「×印」モードは×.
+// 一手ごとの答え合わせはしない (普通のピクロスと同じ). 塗る・消すはサーバへ指を離してから送る
 function picrossDrag(grid) {
   const T = S.task;
   const cellAt = (ev) => { const el = document.elementFromPoint(ev.clientX, ev.clientY); return el && el.closest && el.closest('.pc'); };
   const rc = (el) => [+el.dataset.r, +el.dataset.c];
-  const state = (el) => (el.classList.contains('fill') || el.classList.contains('wrong') ? 'done' : T.xs.has(rc(el).join(',')) ? 'x' : 'empty');
+  const state = (el) => (el.classList.contains('fill') ? 'fill' : T.xs.has(rc(el).join(',')) ? 'x' : 'empty');
   let d = null;
-  const mark = (el) => {
-    if (d.seen.has(el)) return;
-    d.seen.add(el);
+  // D: いまのドラッグ. 指を離したとき (end) は d を先に空にするので, そこからは渡したものを使う
+  const mark = (el, D = d) => {
+    if (D.seen.has(el)) return;
+    D.seen.add(el);
     const s = state(el);
-    if (d.mode === 'fill' && s === 'empty') { el.classList.add('pending'); d.fill.push(rc(el)); }
-    else if (d.mode === 'x' && s === 'empty') { T.xs.add(rc(el).join(',')); el.textContent = '×'; }
-    else if (d.mode === 'unx' && s === 'x') { T.xs.delete(rc(el).join(',')); el.textContent = ''; }
+    if (D.mode === 'fill' && s === 'empty') { el.classList.add('pending'); D.fill.push([...rc(el), 'fill']); }
+    else if (D.mode === 'erase' && s === 'fill') { el.classList.remove('fill'); el.classList.add('pending-erase'); D.fill.push([...rc(el), 'erase']); }
+    else if (D.mode === 'x' && s === 'empty') { T.xs.add(rc(el).join(',')); el.textContent = '×'; }
+    else if (D.mode === 'unx' && s === 'x') { T.xs.delete(rc(el).join(',')); el.textContent = ''; }
   };
   grid.addEventListener('pointerdown', (ev) => {
     const el = cellAt(ev);
-    if (!el || T.done || state(el) === 'done') return;
+    if (!el || T.done) return;
     ev.preventDefault();
     const s = state(el);
     const xmode = ev.button === 2 || T.alt;
     d = { el, r0: rc(el), axis: null, seen: new Set(), fill: [], moved: false, long: false,
-      mode: s === 'x' ? (xmode ? 'unx' : null) : xmode ? 'x' : 'fill' };
+      mode: s === 'x' ? (xmode ? 'unx' : null) : s === 'fill' ? (xmode ? null : 'erase') : xmode ? 'x' : 'fill' };
     if (ev.pointerType === 'touch' && !xmode) {            // 長押し: そのマスに×
       d.timer = setTimeout(() => { if (d && !d.moved) { d.long = true; d.mode = s === 'x' ? 'unx' : 'x'; mark(el); } }, 450);
     }
@@ -1863,11 +1866,11 @@ function picrossDrag(grid) {
     const dd = d;
     d = null;
     clearTimeout(dd.timer);
-    if (!dd.moved && !dd.long && dd.mode) mark(dd.el);              // タップ
+    if (!dd.moved && !dd.long && dd.mode) mark(dd.el, dd);          // タップ
     if (!dd.mode && !dd.moved) { T.xs.delete(dd.r0.join(',')); }      // ×のマスをタップ: ×を外す
-    for (const [r, c] of dd.fill) {
+    for (const [r, c, op] of dd.fill) {
       if (T.done) break;
-      await taskMove({ r, c });
+      await taskMove({ r, c, op });
     }
     if (!T.done) renderTask();
   };
@@ -1974,16 +1977,17 @@ function renderTask(result) {
   } else if (v.kind === 'picross') {
     grid.style.gridTemplateColumns = `max-content repeat(${v.n}, var(--cell))`;
     const filled = new Set(v.filled.map(([r, c]) => key(r, c))), wrong = new Set(v.x.map(([r, c]) => key(r, c)));
-    // 塗ったマスはすべて正しい (誤りはサーバが入れない) ので, 塗った数がヒントの合計に達した行・列は済み
-    const rowN = Array(v.n).fill(0), colN = Array(v.n).fill(0);
-    v.filled.forEach(([r, c]) => { rowN[r]++; colN[c]++; });
-    const sum = (cl) => cl.reduce((a, b) => a + b, 0);
+    // 塗り方がヒントどおりになった行・列は済み (答えと合っているとは限らない. 一手ごとの答え合わせはしない)
+    const runs = (cells) => { const o = []; let k = 0; cells.forEach((x) => { if (x) k++; else if (k) { o.push(k); k = 0; } }); if (k) o.push(k); return o.join(','); };
+    const same = (cl, cells) => runs(cells) === cl.filter((x) => x).join(',');
+    const rowDone = (r) => same(v.rows[r], [...Array(v.n)].map((_, c) => filled.has(key(r, c))));
+    const colDone = (c) => same(v.cols[c], [...Array(v.n)].map((_, r) => filled.has(key(r, c))));
     const [hr, hc] = T.hover || [-1, -1];
     grid.append(h('div', {}));
-    v.cols.forEach((cl, c) => grid.append(h('div', { class: 'pz-clue col' + (colN[c] >= sum(cl) ? ' done' : '') + (c === hc ? ' cur' : '') },
+    v.cols.forEach((cl, c) => grid.append(h('div', { class: 'pz-clue col' + (colDone(c) ? ' done' : '') + (c === hc ? ' cur' : '') },
       cl.map((x) => h('span', {}, String(x))))));
     for (let r = 0; r < v.n; r++) {
-      grid.append(h('div', { class: 'pz-clue row' + (rowN[r] >= sum(v.rows[r]) ? ' done' : '') + (r === hr ? ' cur' : '') }, v.rows[r].join(' ')));
+      grid.append(h('div', { class: 'pz-clue row' + (rowDone(r) ? ' done' : '') + (r === hr ? ' cur' : '') }, v.rows[r].join(' ')));
       for (let c = 0; c < v.n; c++) {
         const k = key(r, c), f = filled.has(k), w = wrong.has(k), x = T.xs.has(k);
         grid.append(h('button', { class: 'pz-c pc' + (f ? ' fill' : '') + (w ? ' wrong' : '') + (r === hr || c === hc ? ' hl' : '')
