@@ -116,6 +116,36 @@ def main():
     assert P.move(p, {"r": 2, "c": 2})["solved"] and p["moves"] == 1
     print("slide: OK")
 
+    # ---- 4b. スリザーリンク: 答えが一つ (解く側で数え直す). 線だけで答え合わせ. ×・未定は区別しない. 一手ごとの正誤は出さない
+    from core import slither as SL
+    for lv in ("easy", "mid"):
+        for _ in range(3):
+            q = P.new("slither", lv, rng)
+            g = SL.Grid(q["h"], q["w"])
+            n, first = SL.solve(g, q["clues"], budget=10 ** 6)
+            assert n == 1 and [1 if x == 1 else -1 for x in first] == [1 if x == 1 else -1 for x in q["sol"]], (lv, n)
+            for i, cl in enumerate(q["clues"]):       # 数字はそのマスの周りの線の数
+                assert cl is None or cl == sum(1 for e in g.cedges[i] if q["sol"][e] == 1)
+            assert all(sum(1 for e in es if q["sol"][e] == 1) in (0, 2) for es in g.vedges), "線は点で 0 本か 2 本"
+    lines = [e for e, x in enumerate(q["sol"]) if x == 1]
+    assert not P.solved(q) and P.progress(q) == 0.0
+    out = P.move(q, {"edges": [[e, 1] for e in lines[:-1]]})
+    assert not out["solved"] and "wrong" not in out and 0 < P.progress(q) < 1
+    other = next(e for e, x in enumerate(q["sol"]) if x != 1)
+    P.move(q, {"edges": [[other, -1]]})                   # × は答えに関係ない
+    assert P.move(q, {"edges": [[lines[-1], 1]]})["solved"]
+    P.move(q, {"edges": [[other, 1]]})                    # 余計な線を引けば, 答えではなくなる
+    assert not P.solved(q)
+    P.move(q, {"edges": [[other, 0]]})
+    assert P.solved(q) and P.view(q, reveal=True)["st"].count(1) == len(lines)
+    for bad in ({"edges": [[10 ** 6, 1]]}, {"edges": [[0, 2]]}):
+        try:
+            P.move(q, bad)
+            raise AssertionError("引けない辺を受け付けた")
+        except ValueError:
+            pass
+    print("slither: OK")
+
     # ---- 5. 稼ぎ: 難しさ・速さ・ミス. 解けずにやめたら少しだけ
     def done(kind, level, miss=0):
         q = P.new(kind, level, rng)
@@ -126,6 +156,8 @@ def main():
             q["open"] = [[r, c] for r in range(q["h"]) for c in range(q["w"]) if [r, c] not in q["mines"]]
         elif kind == "picross":
             q["filled"] = [[r, c] for r in range(q["n"]) for c in range(q["n"]) if q["sol"][r][c]]
+        elif kind == "slither":
+            q["st"] = list(q["sol"])
         elif kind == "sudoku":
             q["cur"] = list(q["solution"])
         q["miss"] = miss

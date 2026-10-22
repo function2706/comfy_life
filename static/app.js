@@ -1283,6 +1283,7 @@ async function resumeTask() {
 }
 async function startTask(kind, level) {
   let tk;
+  $('#task-body').replaceChildren(h('p', { class: 'muted' }, '盤面を作っています…'));      // スリザーリンクの難などは数秒かかる
   try { tk = await api('/api/task/start', { kind, level }); } catch (e) { toast(e.message, 'err'); await refresh(); return; }
   beginTask(tk);
 }

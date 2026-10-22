@@ -663,6 +663,14 @@ a.btn { color: inherit; }
 .pz-slide .tile { background: var(--accent-d); border-radius: 6px; }
 .pz-slide .tile.home { background: var(--accent); }
 .pz-slide .blank { background: var(--panel); cursor: default; }
+.pz-slither { touch-action: none; user-select: none; -webkit-user-select: none; background: #f6f1e6; border-radius: 8px; line-height: 0; }
+.pz-slither-svg { display: block; cursor: crosshair; }
+.pz-slither .sl-dot { fill: #2b2633; }
+.pz-slither .sl-clue { fill: #2b2633; text-anchor: middle; dominant-baseline: central; font-weight: 700; font-family: system-ui, sans-serif; }
+.pz-slither .sl-line { stroke: #2b2633; stroke-linecap: round; }
+.pz-slither .sl-line.trial { stroke: #e0a23a; stroke-dasharray: 6 4; }
+.pz-slither .sl-x { stroke: #b04a4a; stroke-linecap: round; }
+.pz-slither .sl-x.trial { stroke: #e0a23a; }
 .pz-pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
 .pz-pad .btn { justify-content: center; padding: 8px 0 4px; flex-direction: column; gap: 0; line-height: 1.1; }
 .pz-pad .btn small { font-size: 10px; color: var(--muted); }

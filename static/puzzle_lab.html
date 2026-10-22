@@ -85,6 +85,7 @@ async function newBoard(seed) {
   stopBoard();
   const s = seed !== undefined ? seed : $('#seed').value;
   let tk;
+  $('#task-body').replaceChildren(h('p', { class: 'muted' }, '盤面を作っています…'));
   try { tk = await api('/api/task/start', { kind: S.kind, level: S.level, seed: s === '' ? null : s, skill: +$('#skill').value || 0 }); }
   catch (e) { toast(e.message, 'err'); return; }
   S.lastSeed = tk.seed;

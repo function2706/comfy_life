@@ -1699,7 +1699,11 @@ class App:
                 raise ValueError(why["reason"])
             if self.task_active():
                 raise ValueError("やりかけの内職があります（続きから）")
-            pz = puzzles.new(kind, level)
+        pz = puzzles.new(kind, level)            # 盤面づくり (スリザーリンクの難は数秒) の間は, ほかの操作を止めない
+        with self.lock:
+            if self.task_active():
+                raise ValueError("やりかけの内職があります（続きから）")
+            now = time.time()
             token = uuid.uuid4().hex[:10]
             tasks = self._task_store()
             tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "puzzle": pz}

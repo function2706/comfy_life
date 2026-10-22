@@ -11,18 +11,22 @@
 import random
 import time
 
-KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slide": "15パズル"}
+from . import slither as SL
+
+KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slither": "スリザーリンク", "slide": "15パズル"}
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
 DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
+        "slither": "点と点の間に線を引いて、全体で一つの輪を作る。数字はそのマスの周りに引く線の数（なぞって線、クリックで×。仮置き・元に戻すも）",
         "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
         "sudoku": {"easy": 40, "mid": 32, "hard": 27},          # 最初から入っている数 (目安. 一意にならない分は残る)
         "picross": {"easy": 5, "mid": 8, "hard": 10},
+        "slither": {"easy": (5, 5, 0.45), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限)
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)}}       # (一辺, 崩す手数)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
-       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
+       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 180, "mid": 480, "hard": 1200}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
@@ -369,6 +373,51 @@ def slide_view(p, reveal=False):
 
 
 # ====================================================================== まとめ
+# ====================================================================== スリザーリンク (core/slither.py)
+_GRIDS = {}
+
+
+def _sl_grid(p):
+    key = (p["h"], p["w"])
+    if key not in _GRIDS:
+        _GRIDS[key] = SL.Grid(*key)
+    return _GRIDS[key]
+
+
+def slither_new(level, rng=random):
+    h, w, keep = SIZE["slither"][level]
+    clues, sol = SL.generate(h, w, rng, keep, budget=1500)
+    return {"kind": "slither", "h": h, "w": w, "clues": clues, "sol": sol, "st": [0] * len(sol), "miss": 0}
+
+
+def slither_move(p, mv, rng=random):
+    """辺の状態をまとめて受け取る ({"edges": [[辺, 1 線 / 0 未定 / -1 ×], ...]}). 線も×も自由に引ける・消せる
+    (仮置き・元に戻すは画面の側. 一手ごとの正誤は出さない)."""
+    n = len(p["st"])
+    for e, v in mv.get("edges") or []:
+        e, v = int(e), int(v)
+        if not (0 <= e < n) or v not in (1, 0, -1):
+            raise ValueError("引けない辺です")
+        p["st"][e] = v
+    return {}
+
+
+def slither_solved(p):
+    return SL.is_solution(_sl_grid(p), p["clues"], p["st"])
+
+
+def slither_progress(p):
+    """やめたときの進み具合: 答えの線のうち引けた本数から, 余計な線を引く."""
+    good = sum(1 for a, b in zip(p["st"], p["sol"]) if a == 1 and b == 1)
+    bad = sum(1 for a, b in zip(p["st"], p["sol"]) if a == 1 and b != 1)
+    return max(0.0, (good - bad) / float(max(1, sum(1 for b in p["sol"] if b == 1))))
+
+
+def slither_view(p, reveal=False):
+    st = [1 if x == 1 else 0 for x in p["sol"]] if reveal else p["st"]
+    return {"h": p["h"], "w": p["w"], "clues": p["clues"], "st": st}
+
+
 _F = {k: {f: globals()["%s_%s" % (k, f)] for f in ("new", "move", "solved", "progress", "view")} for k in KINDS}
 
 
