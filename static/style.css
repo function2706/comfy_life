@@ -237,25 +237,40 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 .big-btn:disabled { opacity: .4; cursor: wait; }
 
 /* mahjong */
+.board { container-type: inline-size; width: 100%; box-sizing: border-box; }        /* 牌・札の大きさを盤の幅から決める (cqw) */
 .board.mj { padding: 12px 10px; }
-.tile { width: 22px; height: 31px; border-radius: 4px; background: linear-gradient(180deg, #fbf8ef, #e9e2cf); border: 1px solid #c9bfa6;
+/* 牌の大きさは盤の幅しだい (手牌 14 枚が 1 段に収まる大きさ. 狭ければ折り返す) */
+.tile { --tw: clamp(26px, calc((100cqw - 24px) / 14.4), 46px); width: var(--tw); height: calc(var(--tw) * 1.36); font-size: calc(var(--tw) * .5);
+  border-radius: calc(var(--tw) * .14); background: linear-gradient(180deg, #fbf8ef, #e9e2cf); border: 1px solid #c9bfa6; position: relative;
   box-shadow: 0 2px 0 #b9ae93; color: #222; display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
   line-height: 1; padding: 0; font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; font-weight: 700; flex: none; }
 button.tile { cursor: pointer; transition: transform .08s; }
 button.tile:hover:not(:disabled) { transform: translateY(-4px); }
 button.tile:disabled { cursor: default; }
-.tile .t-top { font-size: 13px; }
-.tile .t-bot { font-size: 9px; margin-top: 1px; }
+.tile .t-top { font-size: 1em; }
+.tile .t-bot { font-size: .72em; margin-top: .08em; }
 .tile.m .t-bot { color: #b8323f; }
-.tile.p .t-top, .tile.p .t-bot { color: #1f4f9a; }
-.tile.s .t-top, .tile.s .t-bot { color: #23774a; }
 .tile.m .t-top { color: #222; }
 .tile.z5 .t-top { color: #8a8fa0; }
 .tile.z6 .t-top { color: #23774a; }
 .tile.z7 .t-top { color: #b8323f; }
-.tile.small { width: 17px; height: 24px; box-shadow: 0 1px 0 #b9ae93; }
-.tile.small .t-top { font-size: 10px; }
-.tile.small .t-bot { font-size: 7px; }
+/* 筒子 = 青い丸, 索子 = 緑の竹. 角に小さく数字 */
+.tile .t-num { position: absolute; top: .12em; left: .18em; font-size: .42em; font-family: system-ui, sans-serif; color: #555; }
+.tile .t-pips { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 88%; height: 78%; margin-top: .3em;
+  place-items: center; gap: 1px; }
+.tile .t-pips i { display: block; }
+.tile.p .t-pips i.on { width: 96%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #fbf8ef 0 28%, #1f4f9a 31%); }
+.tile.p .t-pips i.on.red { background: radial-gradient(circle, #fbf8ef 0 28%, #c0303f 31%); }
+.tile.p .t-pips.n1 i.on { width: 250%; background: radial-gradient(circle, #c0303f 0 22%, #fbf8ef 25% 38%, #1f4f9a 41%); }
+.tile.s .t-pips i.on { width: 40%; height: 92%; border-radius: 2px; background: linear-gradient(180deg, #23774a 0 44%, #f2eee2 44% 50%, #23774a 50%); }
+.tile.s .t-pips i.on.red { background: linear-gradient(180deg, #c0303f 0 44%, #f2eee2 44% 50%, #c0303f 50%); }
+.tile.s .t-pips.n1 i.on { width: 70%; height: 260%; border-radius: 40% 40% 4px 4px; background: linear-gradient(180deg, #c0303f 0 30%, #23774a 30%); }
+.tile .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.tile.small { --tw: clamp(18px, calc((100cqw - 24px) / 20), 30px); box-shadow: 0 1px 0 #b9ae93; }
+/* 狭い盤 (スマホ) では, 手牌を 7 枚ずつ 2 段にして大きく見せる */
+@container (max-width: 440px) {
+  .board.mj .hand:not(.small-hand):not(.backs) .tile:not(.small) { --tw: clamp(30px, calc((100cqw - 26px) / 7.7), 46px); }
+}
 .tile.back { background: linear-gradient(180deg, #e78aa3, #b85a76); border-color: #9d4560; box-shadow: 0 1px 0 #7d3249; }
 .tile.hl { outline: 2px solid var(--accent2); outline-offset: 1px; }
 .tile.dim, button.tile:disabled:not(.hl) { filter: none; }
@@ -264,7 +279,7 @@ button.tile:disabled { cursor: default; }
 .hand { display: flex; flex-wrap: wrap; gap: 1px; align-items: flex-end; justify-content: center; }
 .hand .gap { width: 8px; }
 .hand.small-hand { gap: 1px; }
-.river { display: grid; grid-template-columns: repeat(10, 17px); gap: 2px; justify-content: center; min-height: 26px; margin: 4px 0; }
+.river { display: grid; grid-template-columns: repeat(10, auto); gap: 2px; justify-content: center; min-height: 26px; margin: 4px 0; }
 .mj-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
 .mj-row .hand { flex: 1; justify-content: flex-start; }
 .mj-center { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 6px 0; padding: 4px; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
@@ -378,12 +393,13 @@ button.pcard { cursor: pointer; }
 .cc-slot.mine { background: rgba(240,138,166,.15); }
 .cc-slot.hers { background: rgba(143,182,240,.15); }
 .cc-step { display: inline-flex; gap: 2px; align-items: center; margin: 0 6px; }
-.hcard { width: 36px; height: 54px; border-radius: 4px; background: #f6efe2; border: 2px solid #8c2b2b; color: #2a1d1d; padding: 1px 0;
+.hcard { --cw: clamp(38px, calc((100cqw - 24px) / 8.6), 64px); width: var(--cw); height: calc(var(--cw) * 1.5); font-size: calc(var(--cw) * .28);
+  border-radius: calc(var(--cw) * .1); background: #f6efe2; border: 2px solid #8c2b2b; color: #2a1d1d; padding: .15em 0;
   display: inline-flex; flex-direction: column; align-items: center; justify-content: space-between; flex: none;
   font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; transition: transform .1s; }
-.hcard .hc-m { font-size: 10px; font-weight: 700; line-height: 1; }
-.hcard .hc-pic { font-size: 17px; line-height: 1; }
-.hcard .hc-n { font-size: 8px; line-height: 1; max-width: 34px; overflow: hidden; white-space: nowrap; }
+.hcard .hc-m { font-size: 1em; font-weight: 700; line-height: 1; }
+.hcard .hc-pic { font-size: 1.75em; line-height: 1; }
+.hcard .hc-n { font-size: .8em; line-height: 1; max-width: 96%; overflow: hidden; white-space: nowrap; }
 .hcard.k-h { background: linear-gradient(180deg, #fff3c4, #f0d27a); }
 .hcard.k-n { background: linear-gradient(180deg, #eef6e2, #cfe3b5); }
 .hcard.k-t { background: linear-gradient(180deg, #f6e6e0, #e9c8bd); }
@@ -395,9 +411,11 @@ button.hcard:hover:not(:disabled) { transform: translateY(-4px); }
 button.hcard:disabled { cursor: default; }
 .hcard.hl { outline: 2px solid var(--accent2); outline-offset: 1px; }
 .hcard.dim { opacity: .4; }
-.hcard.small { width: 24px; height: 36px; border-width: 1px; }
-.hcard.small .hc-m { font-size: 7px; }
-.hcard.small .hc-pic { font-size: 11px; }
+.hcard.small { --cw: clamp(24px, calc((100cqw - 24px) / 16), 38px); border-width: 1px; }
+/* 狭い盤 (スマホ) では, 札を 1 段 5 枚ほどにして大きく見せる */
+@container (max-width: 440px) {
+  .hcard:not(.small) { --cw: clamp(40px, calc((100cqw - 34px) / 5.4), 64px); }
+}
 .hcard.small .hc-n { display: none; }
 .field { background: #1f3a2c; border-radius: 10px; padding: 6px; margin: 6px 0; }
 .caps { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; margin: 4px 0; min-height: 20px; }
@@ -613,7 +631,8 @@ a.btn { color: inherit; }
 .pz-sudoku .sel { outline: 2px solid var(--accent); outline-offset: -2px; }
 .pz-sudoku .peer { background: #2f2a3a; }
 .pz-sudoku .given.peer { background: #3a3446; }
-.pz-sudoku .same { background: #4a3d5e; color: #fff; }
+.pz-sudoku .same { outline: 2px solid #8e7bb5; outline-offset: -3px; }   /* 同じ数字: 枠だけ (数字の色は変えない. 入ったように見えないように) */
+.pz-sudoku .same.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
 .pz-sudoku .memo { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; font-size: calc(var(--cell) * .26); font-weight: 400;
   color: var(--muted); line-height: 1; align-items: center; justify-items: center; }
 .pz-sudoku .wrong { background: #6b2c2c; }

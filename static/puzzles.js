@@ -180,6 +180,7 @@ async function sudokuInput(d) {
   await taskMove({ r, c, v: d });
   if (T.view.cur[i] === d) {
     delete T.memo[i];
+    if (!autoMemo()) { renderTask(); return; }       // 同じ行・列・ブロックのメモからその数字を消すのは, 選んだときだけ
     for (const [j, m] of Object.entries(T.memo)) {
       const jr = Math.floor(j / 9), jc = j % 9;
       if (jr === r || jc === c || (Math.floor(jr / 3) === Math.floor(r / 3) && Math.floor(jc / 3) === Math.floor(c / 3))) {
@@ -190,6 +191,9 @@ async function sudokuInput(d) {
     renderTask();
   }
 }
+// 数独: 正しい数字が入ったら, 同じ行・列・ブロックのメモからその数字を自動で消すか (このブラウザで覚える. 既定は消さない)
+function autoMemo() { try { return localStorage.getItem('kurashi.sudokuAutoMemo') === '1'; } catch (e) { return false; } }
+function setAutoMemo(on) { try { localStorage.setItem('kurashi.sudokuAutoMemo', on ? '1' : '0'); } catch (e) { /* 覚えられなくても動く */ } }
 async function taskMove(mv) {
   const T = S.task;
   if (!T || T.done || T.busy) return;
@@ -291,6 +295,8 @@ function renderTask(result) {
     tools.push(h('div', { class: 'row', style: 'gap:6px' },
       h('button', { class: 'btn small' + (T.memoMode ? ' primary' : ''), onclick: () => { T.memoMode = !T.memoMode; renderTask(); } }, '✏ メモ'),
       h('button', { class: 'btn small', disabled: !T.sel, onclick: () => { if (T.sel) { delete T.memo[T.sel[0] * 9 + T.sel[1]]; renderTask(); } } }, 'メモを消す'),
+      h('label', { class: 'small muted', title: '正しい数字が入ったとき、同じ行・列・ブロックのメモからその数字を消す' },
+        h('input', { type: 'checkbox', checked: autoMemo(), onchange: (ev) => setAutoMemo(ev.target.checked) }), ' メモを自動で消す'),
       h('span', { class: 'muted small' }, T.memoMode ? 'メモ: 数字を押すと候補を書く・消す（M キーで切り替え）' : '矢印キーでマスを移動、1〜9 で入力')));
   }
   $('#task-body').replaceChildren(

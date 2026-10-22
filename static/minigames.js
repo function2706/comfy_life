@@ -82,14 +82,23 @@ function boardHead(cur, extra) {
 /* ---- 麻雀 */
 const MJ_NUM = '一二三四五六七八九';
 const MJ_HONOR = '東南西北白發中';
+// 筒子・索子は柄で見分ける: 筒子は丸 (●) の並び, 索子は竹 (棒) の並び. 本物の牌と同じく, 数は並びの数そのもの.
+// 3×3 のどこに置くか (0 が左上, 8 が右下). 角には小さく数字も添える (ひと目で数が読めるように)
+const MJ_PIPS = { 1: [4], 2: [1, 7], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8],
+  7: [0, 1, 2, 3, 5, 6, 8], 8: [0, 1, 2, 3, 5, 6, 7, 8], 9: [0, 1, 2, 3, 4, 5, 6, 7, 8] };
+const MJ_RED = { 1: [4], 5: [4], 7: [0, 1, 2], 9: [3, 4, 5] };          // 赤い粒 (本物の牌の配色にならう)
 function tileEl(t, o = {}) {
-  let top, bot, cls;
-  if (t >= 27) { top = MJ_HONOR[t - 27]; bot = ''; cls = 'z' + (t - 26); }
-  else { const n = t % 9 + 1, s = Math.floor(t / 9); top = s === 0 ? MJ_NUM[n - 1] : String(n); bot = '萬筒索'[s]; cls = 'mps'[s]; }
-  return h(o.onclick ? 'button' : 'div', {
-    class: `tile ${cls}${o.small ? ' small' : ''}${o.hl ? ' hl' : ''}${o.dim ? ' dim' : ''}${o.drawn ? ' drawn' : ''}`,
-    disabled: o.disabled, onclick: o.onclick, title: o.title || '',
-  }, h('span', { class: 't-top' }, top), bot ? h('span', { class: 't-bot' }, bot) : '');
+  const cls0 = `tile${o.small ? ' small' : ''}${o.hl ? ' hl' : ''}${o.dim ? ' dim' : ''}${o.drawn ? ' drawn' : ''}`;
+  const attrs = (cls) => ({ class: `${cls0} ${cls}`, disabled: o.disabled, onclick: o.onclick, title: o.title || '' });
+  const tag = o.onclick ? 'button' : 'div';
+  if (t >= 27) return h(tag, attrs('z' + (t - 26)), h('span', { class: 't-top' }, MJ_HONOR[t - 27]));
+  const n = t % 9 + 1, s = Math.floor(t / 9);
+  if (s === 0) return h(tag, attrs('m'), h('span', { class: 't-top' }, MJ_NUM[n - 1]), h('span', { class: 't-bot' }, '萬'));
+  const kind = s === 1 ? 'p' : 's';
+  const pos = MJ_PIPS[n], red = MJ_RED[n] || [];
+  return h(tag, attrs(kind), h('span', { class: 't-num' }, String(n)),
+    h('span', { class: `t-pips n${n}` }, Array.from({ length: 9 }, (_, i) => h('i', { class: pos.includes(i) ? (red.includes(i) ? 'on red' : 'on') : '' }))),
+    h('span', { class: 'sr' }, `${n}${kind === 'p' ? '筒' : '索'}`));
 }
 const tileBack = (small) => h('div', { class: 'tile back' + (small ? ' small' : '') });
 
