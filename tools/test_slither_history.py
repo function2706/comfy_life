@@ -4,6 +4,7 @@ slTrialBegin / slTrialEndSt / slTrialDepth) の確認. 画面の側の JS なの
 - 消して抜ける: 線と×は入る前に戻り, 通常の履歴 (やり直しの残りも) は入る前のまま
 - 確定して抜ける: まとめて一つの手として通常の履歴に積まれ, 元に戻すで仮置きごと取り消せる (やり直しの残りは消える)
 - 仮置きの中の仮置き (段ごとに別の履歴. 段の上限)
+- 線のかたまりの色 (slColorsFor): 増えても既存の色は変わらない, つながったら元の色, 分かれたら片方だけ新しい色, 元に戻すで色も戻る
 
     python tools/test_slither_history.py
 """
@@ -22,8 +23,8 @@ BROWSERS = [
 ]
 
 CHECKS = r"""
-function eq(a, b, msg) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(msg + ': ' + x + ' != ' + y); }
-function act(sl, pairs) { const ch = new Map(); for (const [e, v] of pairs) slSetSt(sl, e, v, ch); return slRecord(sl, ch); }
+function eq(a, b, msg) { const j = (o) => JSON.stringify(o, (k, val) => (val instanceof Map ? [...val] : val)), x = j(a), y = j(b); if (x !== y) throw new Error(msg + ': ' + x + ' != ' + y); }
+function act(sl, pairs, start) { const ch = new Map(); for (const [e, v] of pairs) slSetSt(sl, e, v, ch); return slRecord(sl, ch, start); }
 function run() {
   // 通常の手 2 つ, 1 つ戻してやり直しの残りを作る
   let sl = slState([0, 0, 0, 0, 0, 0]);
@@ -89,7 +90,60 @@ function run() {
   while (slTrialBegin(sl)) n++;
   eq(n, SL_TRIAL_PAL.length, '段の上限');
   eq(slTrialEndSt(slState([0]), true), [], '仮置きでないときに抜けても何もしない');
+  colors();
   return 'OK';
+}
+// 線のかたまりの色: 増えても既存の色は変わらない / つながったら元 (なぞり始め) の色にそろう / 分かれたら片方だけ新しい色 /
+// 元に戻す・やり直す・仮置きの取り消しで色も戻る. 盤 3×3: 横の辺 r*3+c (0..11), 縦の辺 12 + r*4 + c
+function colors() {
+  const v = { h: 3, w: 3 }, z = () => Array(24).fill(0);
+  const col = (sl, e) => sl.colors.get(e);
+  let sl = slState(z(), v);
+  act(sl, [[0, 1]], [0, 0]);                      // A: (0,0)-(0,1)
+  eq(col(sl, 0), 0, '最初のかたまりは墨');
+  act(sl, [[8, 1]], [2, 2]);                      // B: (2,2)-(2,3)
+  act(sl, [[4, 1]], [1, 1]);                      // C: (1,1)-(1,2)
+  eq([col(sl, 0), col(sl, 8), col(sl, 4)], [0, 1, 2], 'かたまりが増えても既存の色は変わらない');
+  act(sl, [[11, 1]], [3, 2]);                     // D: (3,2)-(3,3) 別のかたまり
+  eq([col(sl, 0), col(sl, 8), col(sl, 4), col(sl, 11)], [0, 1, 2, 3], 'さらに増えても');
+  // C の端 (1,1) から上へなぞって A とつなぐ → C の色にそろう
+  act(sl, [[13, 1]], [1, 1]);
+  eq([col(sl, 0), col(sl, 13), col(sl, 4), col(sl, 8)], [2, 2, 2, 1], 'つないだ元の色にそろう');
+  eq(slUndoSt(sl), [[13, 0]], '');
+  eq([col(sl, 0), col(sl, 4)], [0, 2], '元に戻すと色も戻る');
+  slRedoSt(sl);
+  eq([col(sl, 0), col(sl, 4)], [2, 2], 'やり直すとまた');
+  slUndoSt(sl);
+  // A の端 (0,1) から下へなぞって C とつなぐ → A の色
+  act(sl, [[13, 1]], [0, 1]);
+  eq([col(sl, 0), col(sl, 4)], [0, 0], '逆からつなげば A の色');
+  slUndoSt(sl);
+  // なぞり始めに線が無い (クリックなど) → 辺の多いほうの色: A を 2 本にしてからつなぐ
+  act(sl, [[1, 1]], [0, 1]);                      // A: (0,0)-(0,2)
+  act(sl, [[13, 1]], null);
+  eq([col(sl, 1), col(sl, 4)], [0, 0], '元が分からなければ大きいほうの色');
+  // 分かれる: 間の辺を消すと, 大きいほう (A 側 3 本) が色を残し, C (1 本) は使っていない色
+  act(sl, [[13, 0]], null);
+  eq(col(sl, 0), 0, '分かれても大きいほうは元の色');
+  const c4 = col(sl, 4);
+  eq([1, 3, 0].includes(c4), false, '分かれた小さいほうは使っていない色');
+  eq([col(sl, 8), col(sl, 11)], [1, 3], 'ほかのかたまりの色は変わらない');
+  // 仮置き: つないでから消して抜けると色も戻る. 確定して抜けたあと元に戻すと色も戻る
+  const before = sl.colors;
+  slTrialBegin(sl);
+  act(sl, [[23, 1]], [2, 3]);                     // B と D をつなぐ縦の辺 (2,3)-(3,3)
+  eq(col(sl, 11), 1, '仮置きでつないだら B の色');
+  slTrialEndSt(sl, false);
+  eq(sl.colors, before, '消して抜けたら色も入る前');
+  slTrialBegin(sl);
+  act(sl, [[23, 1]], [3, 3]);
+  eq(col(sl, 8), 3, 'D の端から → D の色');
+  slTrialEndSt(sl, true);
+  eq(col(sl, 8), 3, '確定しても色はそのまま');
+  slUndoSt(sl);
+  eq([col(sl, 8), col(sl, 11)], [1, 3], '確定した仮置きを元に戻すと色も戻る');
+  // 盤の大きさを知らないとき (古い呼び方) は色を覚えないだけ
+  eq(slState([0, 0]).colors.size, 0, '');
 }
 """
 

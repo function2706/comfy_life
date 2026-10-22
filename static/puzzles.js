@@ -227,9 +227,11 @@ const SL_PAL = ['#9c6ade', '#d24b8f', '#3fa6c9', '#4caf6f', '#c9a227', '#e0784a'
 function slColor() { try { return localStorage.getItem('kurashi.slitherColor') !== '0'; } catch (e) { return true; } }
 function setSlColor(on) { try { localStorage.setItem('kurashi.slitherColor', on ? '1' : '0'); } catch (e) { /* 覚えられなくても動く */ } }
 const SL_TRIAL_PAL = ['#e0a23a', '#2f9fd0', '#3fae6a', '#c4577f', '#8a6fd1'];      // 仮置きの段ごとの色 (段の上限もこの数)
-function slInit(T) { T.sl = slState(T.view.st); }
+function slInit(T) { T.sl = slState(T.view.st, T.view); }
 // ---- 盤の状態と履歴 (画面にもサーバにも触れない. tools/test_slither_history.py が確かめる)
-function slState(st) { return { st: st.slice(), base: { hist: [], redo: [] }, trials: [] }; }
+function slState(st, v) {      // v: 盤の大きさ {h, w} (あれば線のかたまりの色も覚える)
+  return { st: st.slice(), base: { hist: [], redo: [] }, trials: [], v: v ? { h: v.h, w: v.w } : null, colors: v ? slColorsFor(v, st, new Map(), null) : new Map() };
+}
 function slLevel(sl) { return sl.trials.length ? sl.trials[sl.trials.length - 1] : sl.base; }
 function slSetSt(sl, e, val, changes) {
   const from = sl.st[e];
@@ -238,19 +240,27 @@ function slSetSt(sl, e, val, changes) {
   for (const tr of sl.trials) if (!tr.orig.has(e)) tr.orig.set(e, from);      // 段ごとに, 入ったときの値
   sl.st[e] = val;
 }
-// ひとまとまりの操作 (なぞり 1 回・クリック 1 回) を今の段の履歴に積む. 変わった辺 [{e, from, to}] (無ければ null)
-function slRecord(sl, changes) {
+// ひとまとまりの操作 (なぞり 1 回・クリック 1 回) を今の段の履歴に積む. 変わった辺 [{e, from, to}] (無ければ null).
+// startV: なぞり始めた点 [r, c] (線のかたまりがつながったとき, その点の線の色にそろえる)
+function slRecord(sl, changes, startV) {
   const list = [...changes].filter(([e, from]) => sl.st[e] !== from).map(([e, from]) => ({ e, from, to: sl.st[e] }));
   if (!list.length) return null;
+  slRecolor(sl, list, sl.colors, startV);
   const lv = slLevel(sl);
   lv.hist.push(list);
   lv.redo = [];
   return list;
 }
+function slRecolor(sl, list, before, startV) {      // 一手の前後の色を覚える (元に戻す・やり直すで戻す)
+  list.colBefore = before;
+  if (sl.v) sl.colors = slColorsFor(sl.v, sl.st, before, startV);
+  list.colAfter = sl.colors;
+}
 function slUndoSt(sl) {      // 戻した辺 [[e, 値]] (戻すものが無ければ null)
   const lv = slLevel(sl), a = lv.hist.pop();
   if (!a) return null;
   for (const x of a) sl.st[x.e] = x.from;
+  if (a.colBefore) sl.colors = a.colBefore;
   lv.redo.push(a);
   return a.map((x) => [x.e, x.from]);
 }
@@ -258,12 +268,13 @@ function slRedoSt(sl) {
   const lv = slLevel(sl), a = lv.redo.pop();
   if (!a) return null;
   for (const x of a) sl.st[x.e] = x.to;
+  if (a.colAfter) sl.colors = a.colAfter;
   lv.hist.push(a);
   return a.map((x) => [x.e, x.to]);
 }
 function slTrialBegin(sl) {
   if (sl.trials.length >= SL_TRIAL_PAL.length) return false;
-  sl.trials.push({ orig: new Map(), hist: [], redo: [] });
+  sl.trials.push({ orig: new Map(), hist: [], redo: [], colors: sl.colors });
   return true;
 }
 function slTrialEndSt(sl, keep) {      // 変わった辺 [[e, 値]] (サーバに送る)
@@ -271,11 +282,12 @@ function slTrialEndSt(sl, keep) {      // 変わった辺 [[e, 値]] (サーバ�
   if (!tr) return [];
   if (keep) {
     const list = [...tr.orig].filter(([e, o]) => sl.st[e] !== o).map(([e, o]) => ({ e, from: o, to: sl.st[e] }));
-    if (list.length) { const lv = slLevel(sl); lv.hist.push(list); lv.redo = []; }
+    if (list.length) { list.colBefore = tr.colors; list.colAfter = sl.colors; const lv = slLevel(sl); lv.hist.push(list); lv.redo = []; }
     return [];
   }
   const out = [];
   for (const [e, o] of tr.orig) if (sl.st[e] !== o) { sl.st[e] = o; out.push([e, o]); }
+  sl.colors = tr.colors;
   return out;
 }
 function slTrialDepth(sl, e) {      // その辺を変えた, いちばん深い仮置きの段 (1 から. 変えていなければ 0)
@@ -297,20 +309,64 @@ function slEdgeBetween(v, a, b) {      // 隣り合う 2 点の間の辺 (隣で
   if (c1 === c2 && Math.abs(r1 - r2) === 1) return (v.h + 1) * v.w + Math.min(r1, r2) * (v.w + 1) + c1;
   return null;
 }
-// 線のかたまり: いちばん大きいもの以外に色を付ける (つながっていない線)
-function slComponents(v, st) {
+// 線のかたまりの色 (つながっていない線の色分け). 色はかたまりごとに覚えておき (辺 → 色番号の Map. 0 = 墨, 1.. = SL_PAL),
+// 描くたびに付け直さない:
+//   - どの色も持たない新しいかたまり → まだ使っていない色 (最初のかたまりは墨)
+//   - いくつかの色のかたまりがつながった → つないだ元の色にそろえる (元 = なぞり始めた点に来ていた線の色.
+//     無ければ (離れた所から引いた線が 2 つをつないだなど) 辺の多いほうの色)
+//   - 一つの色のかたまりが分かれた → その色の辺がいちばん多いほうが色を残し, ほかは新しい色
+// 色の割り当ては履歴の一手ごとに前後を持つので, 元に戻す・やり直す・仮置きの取り消しで色も戻る.
+function slColorsFor(v, st, prev, startV) {
   const nv = (v.h + 1) * (v.w + 1), par = Array.from({ length: nv }, (_, i) => i);
   const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
   const id = ([r, c]) => r * (v.w + 1) + c;
   st.forEach((s, e) => { if (s === 1) { const [a, b] = slEnds(v, e); par[find(id(a))] = find(id(b)); } });
-  const size = {};
-  st.forEach((s, e) => { if (s === 1) { const k = find(id(slEnds(v, e)[0])); size[k] = (size[k] || 0) + 1; } });
-  const main = Object.keys(size).sort((a, b) => size[b] - size[a])[0];
-  const others = Object.keys(size).filter((k) => k !== main);
-  const color = {};
-  others.forEach((k, i) => { color[k] = SL_PAL[i % SL_PAL.length]; });
-  return (e) => color[find(id(slEnds(v, e)[0]))] || null;
+  const comps = new Map();      // 根 → 辺
+  st.forEach((s, e) => { if (s === 1) { const k = find(id(slEnds(v, e)[0])); if (!comps.has(k)) comps.set(k, []); comps.get(k).push(e); } });
+  const start = startV ? id(startV) : null;
+  // かたまりごとの望む色と, その色の辺の数
+  const want = [];
+  for (const edges of comps.values()) {
+    const cnt = new Map();
+    let origin = null;
+    for (const e of edges) {
+      if (!prev.has(e)) continue;
+      const c = prev.get(e);
+      cnt.set(c, (cnt.get(c) || 0) + 1);
+      if (start !== null && slEnds(v, e).some((p) => id(p) === start)) origin = c;
+    }
+    let c = null;
+    if (cnt.size === 1) c = [...cnt.keys()][0];
+    else if (cnt.size > 1) c = origin !== null && cnt.has(origin) ? origin : [...cnt].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    want.push({ edges, c, n: c === null ? 0 : cnt.get(c) });
+  }
+  // 同じ色を望むかたまりが二つ以上 (分かれた): その色の辺の多いほう (同じなら大きいほう) が残す
+  const keep = new Map();
+  for (const w of want) {
+    if (w.c === null) continue;
+    const k = keep.get(w.c);
+    if (!k || w.n > k.n || (w.n === k.n && w.edges.length > k.edges.length)) keep.set(w.c, w);
+  }
+  const used = new Map();
+  for (const [c] of keep) used.set(c, 1);
+  const K = SL_PAL.length + 1;
+  const fresh = () => {      // まだ使っていない色 (全部使っていれば, 使っている数の少ない色)
+    let best = 0;
+    for (let c = 0; c < K; c++) {
+      if (!used.has(c)) { best = c; break; }
+      if (used.get(c) < used.get(best)) best = c;
+    }
+    used.set(best, (used.get(best) || 0) + 1);
+    return best;
+  };
+  const out = new Map();
+  for (const w of want) {
+    const c = w.c !== null && keep.get(w.c) === w ? w.c : fresh();
+    for (const e of w.edges) out.set(e, c);
+  }
+  return out;
 }
+function slColorOf(colors, e) { const c = colors.get(e); return c ? SL_PAL[(c - 1) % SL_PAL.length] : null; }
 function slBoard(T, v, cs, result) {
   const pad = Math.max(10, cs * 0.4), W = v.w * cs + pad * 2, Hh = v.h * cs + pad * 2;
   const NS = 'http://www.w3.org/2000/svg';
@@ -327,9 +383,11 @@ function slBoard(T, v, cs, result) {
   const layer = mk('g', {});
   svg.append(layer);
   for (let r = 0; r <= v.h; r++) for (let c = 0; c <= v.w; c++) svg.append(mk('circle', { cx: X(c), cy: Y(r), r: Math.max(2, cs * 0.06), class: 'sl-dot' }));
+  let d = null;      // なぞっている途中 (下の pointerdown から)
   const draw = () => {
     layer.replaceChildren();
-    const s = st(), col = !result && slColor() ? slComponents(v, s) : () => null;
+    const s = st(), cols = !result && slColor() ? slColorsFor(v, s, T.sl.colors, d && d.moved ? d.start : null) : null;      // なぞっている間も, 引き終えたときと同じ色
+    const col = (e) => (cols ? slColorOf(cols, e) : null);
     s.forEach((x, e) => {
       if (!x) return;
       const [[r1, c1], [r2, c2]] = slEnds(v, e);
@@ -363,12 +421,12 @@ function slBoard(T, v, cs, result) {
     cands.sort((a, b) => a[0] - b[0]);
     return cands.length && cands[0][0] <= 0.35 ? cands[0][1] : null;
   };
-  let d = null;
   svg.addEventListener('pointerdown', (ev) => {
     if (T.done) return;
     ev.preventDefault();
     const p = pos(ev);
     d = { p, last: nearV(p, 0.45), moved: false, mode: null, changes: new Map() };
+    d.start = d.last;
     try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* 取れなくても動く */ }
   });
   svg.addEventListener('pointermove', (ev) => {
@@ -406,7 +464,7 @@ function slBoard(T, v, cs, result) {
       slSet(T, e, s === 0 ? -1 : 0, dd.changes);
       draw();
     }
-    slCommit(T, dd.changes);
+    slCommit(T, dd.changes, dd.moved ? dd.start : null);
   };
   svg.addEventListener('pointerup', end);
   svg.addEventListener('pointercancel', end);
@@ -415,8 +473,8 @@ function slBoard(T, v, cs, result) {
   return svg;
 }
 function slSet(T, e, val, changes) { slSetSt(T.sl, e, val, changes); }
-async function slCommit(T, changes) {
-  const list = slRecord(T.sl, changes);
+async function slCommit(T, changes, startV) {
+  const list = slRecord(T.sl, changes, startV);
   if (list) await slSend(T, list.map((x) => [x.e, x.to]));
 }
 async function slSend(T, edges) {
