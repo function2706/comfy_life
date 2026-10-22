@@ -923,6 +923,7 @@ function openChat(cid) {
     document.body.append(S.chatDlg);
   }
   S.chatCid = cid || null;
+  S.chatSeen = {};                    // 開いたときは一番下から
   if (!S.chatDlg.open) S.chatDlg.showModal();
   drawChat();
 }
@@ -948,9 +949,11 @@ async function drawChat() {
   $('#chat-badge').hidden = !total;
   $('#chat-badge').textContent = String(total || '');
   const keepScroll = dlg.querySelector('.chat-body');
+  const listTop = (dlg.querySelector('.chat-list') || {}).scrollTop || 0;
+  const prevTop = keepScroll ? keepScroll.scrollTop : 0;      // 描き直す前に (外した要素の位置は 0 になる)
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
-    h('div', { class: 'chat-head' }, h('b', {}, '📱 スマホ'), h('span', { class: 'muted small', style: 'margin-left:8px' }, '相手を選んで、メッセージか電話'), h('div', { class: 'spacer' }),
+    h('div', { class: 'chat-head' }, h('b', { title: '相手を選んで、メッセージか電話' }, '📱 スマホ'), h('div', { class: 'spacer' }),
       h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
     list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; drawChat(); } },
       avatar(c.face, c.name),
@@ -999,8 +1002,16 @@ async function drawChat() {
   }
   dlg.classList.toggle('thread-open', !!th);
   dlg.replaceChildren(h('div', { class: 'chat-wrap' }, listEl, threadEl));
+  // 開いたとき・新しく届いた/送ったときは一番下へ (読み返している途中で何も増えていなければ, その位置のまま)
+  const lastT = th && th.items.length ? th.items[th.items.length - 1].t : 0;
+  const fresh = th && (S.chatSeen || {})[th.id] !== lastT;
+  if (th) (S.chatSeen = S.chatSeen || {})[th.id] = lastT;
+  const nl = dlg.querySelector('.chat-list');
+  if (nl) nl.scrollTop = listTop;                 // トーク一覧の位置も保つ
   const nb = dlg.querySelector('.chat-body');
-  if (nb && (atBottom || S.chatJump)) nb.scrollTop = nb.scrollHeight;
+  if (nb && (atBottom || S.chatJump || fresh)) nb.scrollTop = nb.scrollHeight;
+  else if (nb && keepScroll && S.chatDrawn === (th && th.id)) nb.scrollTop = prevTop;    // 描き直しても, 読んでいた位置のまま
+  S.chatDrawn = th ? th.id : null;
   S.chatJump = false;
   clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
   if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(); }, 8000);

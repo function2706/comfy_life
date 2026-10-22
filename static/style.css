@@ -751,3 +751,9 @@ a.btn { color: inherit; }
   .topbar .btn.ghost { padding-left: 6px; padding-right: 6px; }
   .topbar .chip { padding: 3px 7px; }
 }
+/* メッセージ: 一覧と履歴は, ダイアログの高さに収めてそれぞれスクロールする (送る種類のボタンは下に固定) */
+.chat-wrap { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.chat-list, .chat-thread { min-height: 0; }
+.chat-list, .chat-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.chat-body { min-height: 0; }
+.chat-head, .chat-send { flex: none; }
