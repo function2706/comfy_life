@@ -185,11 +185,13 @@ class Life:
                     st["history"].append([t, round(st["price"], 2)])
                     del st["history"][:-168]
             mode = self.app.presence.at(t)
+            self.app.body.step(t, step / 3600.0, mode)          # お腹と栄養 (あなた)
             if mode != "work":
                 rec = float(e.get("stamina_recover_sleep" if mode == "sleep" else "stamina_recover", 12 if mode == "sleep" else 5))
                 sl = self.app.presence.rec().get("solo") or {}
                 if mode == "busy" and sl.get("kind") == "rest":      # 一人で休んでいる: 寝るほどではないが早く戻る
                     rec = float(e.get("stamina_recover_rest", 9))
+                rec *= self.app.body.stamina_mult()                  # お腹がすいている・体調が悪いと戻りにくい
                 ps["stamina"] = min(100.0, float(ps.get("stamina", 100)) + rec * step / 3600.0)
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:

@@ -1,7 +1,8 @@
 """行き先の表 (一人の外出・誰かとのお出かけ・偶然会った相手との合流・訪問・行動パターン・買い物が, すべてここを参照する).
 
 - 公共の行き先 (PLACES): 人の多さ (時間帯ごと)・屋外か・そこで何ができるか (does) と, 何として分類するか (group).
-  does: walk (ぶらぶら歩く) / shop (買い物. 品ぞろえは items.CATALOG の places) / tea (お茶) / see (見て回る・遊ぶ) / work (仕事)
+  does: walk (ぶらぶら歩く) / shop (買い物. 品ぞろえは items.CATALOG の places) / tea (お茶) / see (見て回る・遊ぶ) / work (仕事) /
+        eat (食べる. メニューは core/body.py の MENUS) / clinic (診てもらう)
 - 家 (HOME_ME = あなたの家, "home:<id>" = 知っている相手の家): 表に加わるのは, あなたの家と, 家に行ける仲 (visit) の相手の家.
   家では偶然の出会いは起きない. 外出の行き先として相手の家を選ぶと, 訪ねてみる (在宅か・迎えてくれるかは状況・関係・性格しだい).
 - 営業時間 (HOURS): 開く・閉まる時刻と, 定休日・季節. 載っていない行き先 (公園・河川敷・駅前・街・コンビニ・丘・家) は
@@ -26,6 +27,8 @@ _CROWD = {
     "leisure": {"dawn": 0.0, "morning": 0.8, "noon": 1.4, "evening": 1.0, "night": 0.2, "midnight": 0.0},
     "far": {"dawn": 0.2, "morning": 0.6, "noon": 0.7, "evening": 0.5, "night": 0.2, "midnight": 0.02},
     "hill": {"dawn": 0.1, "morning": 0.3, "noon": 0.3, "evening": 0.4, "night": 0.5, "midnight": 0.1},
+    "meal": {"dawn": 0.05, "morning": 0.4, "noon": 1.5, "evening": 1.3, "night": 0.7, "midnight": 0.1},
+    "clinic": {"dawn": 0.0, "morning": 1.0, "noon": 0.6, "evening": 0.8, "night": 0.0, "midnight": 0.0},
 }
 
 
@@ -52,6 +55,12 @@ PLACES = {
     "beach": _p("海", "🏖", "fun", True, "far", ["walk"]),
     "mountain": _p("山", "⛰", "fun", True, "far", ["walk"]),
     "hill": _p("星空の見える丘", "🌌", "fun", True, "hill", ["walk"]),
+    "teishoku": _p("定食屋", "🍱", "eat", False, "meal", ["eat"]),
+    "ramen": _p("ラーメン屋", "🍜", "eat", False, "meal", ["eat"]),
+    "fastfood": _p("ファストフード", "🍔", "eat", False, "meal", ["eat"]),
+    "family": _p("ファミレス", "🍽", "eat", False, "meal", ["eat"]),
+    "restaurant": _p("レストラン", "🍝", "eat", False, "meal", ["eat"]),
+    "clinic": _p("病院", "🏥", "near", False, "clinic", ["clinic"]),
     "office": _p("職場", "💼", "work", False, "office", ["work"]),
 }
 # 営業時間: open / close ("HH:MM". close は当日中), closed_days (定休日. 0=月 ... 6=日), months (行ける月. 無ければ通年)
@@ -68,6 +77,12 @@ HOURS = {
     "beach": {"open": "06:00", "close": "19:00", "months": [4, 5, 6, 7, 8, 9, 10]},
     "mountain": {"open": "06:00", "close": "16:00", "months": [3, 4, 5, 6, 7, 8, 9, 10, 11]},
     "office": {"open": "06:00", "close": "23:00"},
+    "teishoku": {"open": "11:00", "close": "21:00", "closed_days": [6]},
+    "ramen": {"open": "11:00", "close": "23:30"},
+    "fastfood": {"open": "07:00", "close": "23:00"},
+    "family": {"open": "07:00", "close": "24:00"},
+    "restaurant": {"open": "11:00", "close": "22:00", "closed_days": [1]},
+    "clinic": {"open": "09:00", "close": "18:00", "closed_days": [6]},
 }
 DAY_JA = "月火水木金土日"
 
@@ -123,8 +138,9 @@ def open_at(pid, t):
     return open_state(pid, datetime.fromtimestamp(t))["open"]
 
 
-GROUP_LABEL = {"near": "近所", "shop": "お店", "fun": "遊びに", "home": "家", "work": "仕事"}
-DO_LABEL = {"walk": "ぶらぶら歩く", "shop": "買い物", "tea": "お茶", "see": "見て回る", "visit": "訪ねる", "work": "仕事"}
+GROUP_LABEL = {"near": "近所", "shop": "お店", "eat": "食べに", "fun": "遊びに", "home": "家", "work": "仕事"}
+DO_LABEL = {"walk": "ぶらぶら歩く", "shop": "買い物", "tea": "お茶", "see": "見て回る", "visit": "訪ねる", "work": "仕事",
+            "eat": "食べる", "clinic": "診てもらう"}
 HOME_ME = "home:me"
 # 一人の外出で選べる行き先 (職場は「仕事に行く」から)
 OUT_PLACES = [k for k, v in PLACES.items() if v["group"] != "work"]
@@ -135,7 +151,8 @@ LOCATION_PLACE = {"公園": "park", "商店街": "shopping_street", "河川敷":
                   "ショッピングモール": "mall", "モール": "mall", "街": "town", "近所": "park", "海辺": "beach", "海": "beach",
                   "遊園地": "amusement", "水族館": "aquarium", "丘の上": "hill", "山道": "mountain", "山": "mountain",
                   "スーパー": "supermarket", "コンビニ": "convenience", "ドラッグストア": "drugstore", "本屋": "bookstore",
-                  "家電量販店": "electronics", "星空の見える丘": "hill"}
+                  "家電量販店": "electronics", "星空の見える丘": "hill", "定食屋": "teishoku", "ラーメン屋": "ramen",
+                  "ファストフード": "fastfood", "ファミレス": "family", "レストラン": "restaurant", "病院": "clinic"}
 # 一人の時間・行動パターンの「散歩・買い物・カフェ」→ 外出の既定の行き先
 LEGACY_DO = {"walk": "park", "shopping": "shopping_street", "cafe": "cafe"}
 
@@ -169,8 +186,9 @@ def main_do(pid):
 
 
 def solo_kind(pid):
-    """一人の外出の結果の種類 (solo.result): walk / shopping / cafe / see / visit."""
-    return {"walk": "walk", "shop": "shopping", "tea": "cafe", "see": "see", "visit": "visit"}.get(main_do(pid), "walk")
+    """一人の外出の結果の種類 (solo.result): walk / shopping / cafe / see / visit / eat / clinic."""
+    return {"walk": "walk", "shop": "shopping", "tea": "cafe", "see": "see", "visit": "visit", "eat": "eat",
+            "clinic": "clinic"}.get(main_do(pid), "walk")
 
 
 # 相手の家を訪ねたときに見える暮らしぶり (好みの印 → 部屋のようす)

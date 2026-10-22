@@ -90,7 +90,7 @@ class Stats:
 
 SOCIAL_W = {"会話": 5, "ふれあい": 3, "お世話": 3, "あそび": 2, "見る": 1, "おでかけ": 1.5, "お金": 0.3, "会う": 1, "連絡": 1}
 SKIP = {"move_out", "side_job", "gift", "expensive_gift", "end_activity", "go_home", "leave_visit"}
-SHOP_LIST = {"veggies": 2, "meat_fish": 1, "tea_leaves": 1, "detergent": 1, "cookies": 1}
+SHOP_LIST = {"rice": 1, "veggies": 4, "meat_fish": 2, "eggs_tofu": 2, "cup_noodle": 2, "tea_leaves": 1, "detergent": 1, "cookies": 1}
 
 
 class Player:
@@ -182,6 +182,27 @@ class Player:
                 except (ValueError, KeyError):
                     pass
 
+    def eat(self):
+        """お腹がすいていたら食べる (家なら自炊 → 買い置き, 出先ならそこのメニュー). 食べられたら True."""
+        app = self.app
+        m = app.body.view()
+        if not m["satiety_low"] and self.rng.random() < 0.85:
+            return False
+        try:
+            if m["menu"]:
+                app.body.eat("out", self.rng.choice(m["menu"][:2])["id"])
+            elif m["home"] and any(d["ok"] for d in m["dishes"]):
+                best = app.body.best_dish([d for d in m["dishes"] if d["ok"]])
+                app.body.eat("cook", best["id"])
+            elif m["home"] and m["items"]:
+                app.body.eat("item", m["items"][0]["id"])
+            else:
+                return False
+            self.S.n["meals_open"] += 1
+            return True
+        except (ValueError, KeyError):
+            return False
+
     def solo_out(self):
         kind = self.rng.choice(["out", "out", "out", "practice", "chores", "rest"])
         place = self.rng.choice(self.app.places.out_choices()) if kind == "out" else None
@@ -199,7 +220,11 @@ def snapshot(app, day):
     row = {"day": day.isoformat(), "money": int(ps["money"]), "stamina": round(float(ps.get("stamina", 0)), 1),
            "invest": app.life.portfolio_value(), "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
            "items": sum(ps.get("items", {}).values()), "debt": int(ps.get("debt", 0)),
-           "loans": sum((ps.get("loans") or {}).values()), "home": app.home.score(), "chars": {}}
+           "loans": sum((ps.get("loans") or {}).values()), "home": app.home.score(), "chars": {},
+           "satiety": round(app.body.rec()["satiety"], 1), "nutri": {k: round(v, 1) for k, v in app.body.rec()["nutri"].items()},
+           "health": int((app.life.player_state().get("body") or {}).get("health", {}).get("level", 0)),
+           "spent": {c: -sum(x["a"] for x in app.kakeibo.rec()["raw"] if x["c"] == c and x["a"] < 0 and _REAL_DATE.fromtimestamp(x["t"]) == day)
+                     for c in ("food", "eatout", "shopping", "social", "fun", "medical")}}
     for cid, c in app.chars.items():
         app.tick(cid)
         p = app.state(cid)["params"]
@@ -323,6 +348,10 @@ def session(app, P, S, rng, t0, t1):
         if p.get("mode") not in ("none", None):
             if rng.random() < 0.5:
                 P.answer_pending()       # 出先でも, ばったりやメッセージには反応する
+            if p.get("mode") == "out" and rng.random() < 0.3:
+                P.eat()
+            continue
+        if rng.random() < 0.08 and P.eat():
             continue
         if rng.random() > 0.18:
             continue
@@ -372,6 +401,20 @@ def report(S, app, args):
     w("[体力] 23:59 時点 平均 %.0f / 最小 %.0f / 20 未満の日 %d" % (sum(st) / len(st), min(st), sum(1 for x in st if x < 20)))
     w("[スキル] " + ", ".join("%s %.1f→%.1f" % (k, first["skills"][k], last["skills"][k]) for k in first["skills"]))
     w("[持ち物] 合計 %d 個 / 閉じていた間に買った %d 回" % (last["items"], S.n["offline_bought"]))
+    days_n = max(1, len(d) - 1)
+    sp = {c: sum(x["spent"].get(c, 0) for x in d[1:]) for c in d[-1]["spent"]}
+    meals = app.body.rec()["meals"]
+    w("[食事] 食費 %s 円・外食 %s 円 (1 日あたり %s 円) / 買い物 %s・交際費 %s・娯楽 %s・医療 %s 円" % (
+        f(sp["food"]), f(sp["eatout"]), f((sp["food"] + sp["eatout"]) / days_n), f(sp["shopping"]), f(sp["social"]), f(sp["fun"]),
+        f(sp["medical"])))
+    sa = [x["satiety"] for x in d[1:]]
+    nu = [min(x["nutri"].values()) for x in d[1:]]
+    nav = {k: sum(x["nutri"][k] for x in d[1:]) / len(d[1:]) for k in d[-1]["nutri"]}
+    w("  お腹 23:59 時点 平均 %.0f / 30 未満の日 %d / 栄養 平均 %s・いちばん少ないものの最小 %.0f / 画面で食べた %d 回 / 直近の食事: %s" % (
+        sum(sa) / len(sa), sum(1 for x in sa if x < 30), "・".join("%s %.0f" % (k, v) for k, v in nav.items()), min(nu), S.n["meals_open"],
+        "、".join("%s %s" % (_REAL_DT.fromtimestamp(m["t"]).strftime("%m/%d %H:%M"), m["label"]) for m in meals[-4:])))
+    hl = [x["health"] for x in d[1:]]
+    w("[体調] 不調の日 %d (軽い %d・風邪 %d・寝込む %d)" % (sum(1 for x in hl if x), hl.count(1), hl.count(2), hl.count(3)))
     hs = [x["home"] for x in d]
     w("[家の散らかり] 23:59 時点 平均 %.0f / 最小 %.0f / 最大 %.0f / 最後 %.0f (0 = 片付いている)" % (sum(hs) / len(hs), min(hs), max(hs), hs[-1]))
     w("\n[キャラ] (日ごとの 23:59 時点)")

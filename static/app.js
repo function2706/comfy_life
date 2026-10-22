@@ -288,6 +288,8 @@ function renderSoloTab() {
     h('div', { class: 'cat solo' },
       h('div', { class: 'cat-title' }, near ? `一人で（${near.name}には告げてから）` : '一人で'),
       h('div', { class: 'cmds' }, ...kinds,
+        h('button', { class: 'cmd', disabled: S.busy, title: '自炊・外食・買って食べる・買ってきたものを食べる', onclick: openMeal },
+          h('span', { class: 'ic' }, '🍚'), h('span', {}, '食べる'), (v.meal || {}).satiety_low ? h('small', { class: 'muted' }, (v.meal || {}).hunger) : null),
         h('button', { class: 'cmd', disabled: S.busy, title: '今日の出来事から日記をつける（読み返しもここから）', onclick: openDiary },
           h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
         // 作業する・仕事に行く・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
@@ -311,6 +313,8 @@ function renderSoloTab() {
         h('span', { class: 'ic' }, '📱'), h('span', {}, 'スマホを見る'), v.chat_unread ? h('small', { class: 'muted' }, `未読 ${v.chat_unread}`) : null))),
     h('div', { class: 'pgroup' }, h('h4', {}, 'あなた'),
       h('div', { class: 'muted small', style: 'margin-bottom:4px' }, `いま: ${(v.presence || {}).label || '—'}${near ? `（そばに${(v.company || []).map((c) => c.name).join('・')}）` : '（一人）'}`),
+      v.meal ? h('div', { class: 'small', style: 'margin-bottom:4px' }, `🍚 ${v.meal.hunger}`, ...(v.meal.nutri || []).map((x) => h('span', { class: 'muted' }, `・${x}`)),
+        v.meal.last ? h('span', { class: 'muted' }, `（最後に食べたのは ${fmtTime(v.meal.last.t)} の${v.meal.last.label}）`) : '') : '',
       h('div', { class: 'prow', title: '仕事・内職・外出・家事で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
         h('span', {}, '体力'),
         h('div', { class: 'bar' }, h('i', { style: `width:${Y.stamina ?? 100}%;background:${(Y.stamina ?? 100) >= 50 ? 'var(--good)' : (Y.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
@@ -358,6 +362,37 @@ async function soloStart(kind, skill, place) {
     if (r.act) handleActResult(r.act); else toast(r.done || `${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
+}
+
+// 食べる: 自炊 (持ち物の食材・料理スキルで作れる献立) / 買ってきたもの / いる行き先で外食・買って食べる
+function openMeal() {
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(560px,94vw);height:auto;max-height:88vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  const eat = async (how, id) => {
+    if (S.busy) return;
+    S.busy = true;
+    try { const r = await api('/api/meal', { how, id }); toast(r.meal.text, 'ok'); close(); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  const M = S.view.meal || {};
+  const NU = { staple: '主食', protein: 'たんぱく質', veg: '野菜' };
+  const row = (label, sub, btn) => h('div', { class: 'row item-row' }, h('div', { style: 'flex:1' }, label, sub ? h('div', { class: 'muted small' }, sub) : ''), btn);
+  dlg.append(h('div', { style: 'padding:16px' },
+    h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, '🍚 食べる'), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
+    h('p', { class: 'muted small' }, `${M.hunger || ''}${(M.nutri || []).length ? '。' + M.nutri.join('。') : ''}`),
+    M.place ? h('div', { class: 'pgroup' }, h('h4', {}, `${M.place_label}で`),
+      (M.menu || []).length ? M.menu.map((m) => row(`${m.name}　${yen(m.price)}前後`, Object.entries(m.nutri).filter(([, v]) => v >= 6).map(([k]) => NU[k]).join('・') || '軽め',
+        h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => eat('out', m.id) }, '食べる')))
+        : h('p', { class: 'muted small' }, 'ここでは食べられません（閉まっているか、食べるところがない）')) : '',
+    M.home ? h('div', { class: 'pgroup' }, h('h4', {}, '自炊（持ち物の食材を使う）'),
+      (M.dishes || []).map((d) => row(d.name, `${d.need.join('・')}${d.ok ? '' : '　— ' + d.why}`,
+        h('button', { class: 'btn small', disabled: S.busy || !d.ok, onclick: () => eat('cook', d.id) }, '作って食べる'))),
+      h('p', { class: 'hint' }, '料理スキルが上がると作れる献立が増え、主食・たんぱく質・野菜がそろいやすくなります。食材は買い物（買うものリスト）で。')) : '',
+    M.home && (M.items || []).length ? h('div', { class: 'pgroup' }, h('h4', {}, '買ってきたもの'),
+      M.items.map((x) => row(`${x.name} ×${x.count}`, '', h('button', { class: 'btn small', disabled: S.busy, onclick: () => eat('item', x.id) }, '食べる')))) : '',
+    !M.home && !M.place ? h('p', { class: 'muted' }, 'いまは食べられるところにいません。') : ''));
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 // 自宅の様子: 散らかり・洗い物・洗濯物・ゴミ. 招く前に確かめて片付けられるように
@@ -887,7 +922,7 @@ function renderItems() {
   box.replaceChildren(
     h('div', { class: 'pgroup' }, h('h4', {}, '🎒 持ち物'),
       iv.items.length ? iv.items.map((it) => h('div', { class: 'row item-row' },
-        h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}`),
+        h('span', { style: 'flex:1' }, `${it.icon} ${it.name} ×${it.count}${it.nut ? '回分' : ''}`),
         it.giftable && canGive ? h('button', { class: 'btn small', disabled: S.busy, title: `${t.name}に渡す`,
           onclick: () => giveItem(it.id, t.character) }, `🎁 ${t.name}に渡す`) : ''))
         : h('p', { class: 'muted small' }, 'なにも持っていない。買うものリストに入れておくと、買い物のときに買ってくる。'),
@@ -895,7 +930,7 @@ function renderItems() {
     h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
       h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。リストにない物をつい買うこともあります。'),
       cat.map((it) => h('div', { class: 'row item-row' },
-        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後・${it.places.map(PLACE_LABEL).join(' ')}`),
+        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後${it.servings > 1 ? `（${it.servings}回分）` : ''}・${it.places.map(PLACE_LABEL).join(' ')}`),
           iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
         h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => setWant(it.id, (want[it.id] || 0) - 1) }, '−'),
         h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
@@ -1938,6 +1973,7 @@ function routineEditor(days) {
   const ch = Object.assign({}, od0.choices || {}, { out: od0.routine_choices || (od0.choices || {}).out || [] });   // 人の家は行動パターンには入れない
   const pl = od0.places || {};
   const skills = ((S.view || {}).solo || {}).skills || {};
+  const MH = (S.boot.routine || {}).meal_how || {}, MP = (S.boot.routine || {}).meal_places || {};
   const cur = S.routineDay || 'mon';
   const list = days[cur] = days[cur] || [];
   const redraw = () => showSection('player');
@@ -1952,7 +1988,11 @@ function routineEditor(days) {
       sel(b, 'do', Object.entries(L), () => {
         if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
         if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
+        if (b.do === 'meal') b.how = b.how || 'cook'; else delete b.how;
       }),
+      // 食事: 自炊 (食材があれば) / 外食 (行き先. 営業時間に従う) / 買って食べる
+      b.do === 'meal' ? sel(b, 'how', Object.entries(MH), () => { const ps = MP[b.how]; if (ps) b.place = ps.includes(b.place) ? b.place : ps[0]; else delete b.place; }) : '',
+      b.do === 'meal' && MP[b.how] ? sel(b, 'place', MP[b.how].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       b.do === 'practice' ? sel(b, 'skill', Object.entries(skills)) : '',
       h('button', { class: 'btn small danger', onclick: () => { list.splice(i, 1); redraw(); } }, '×'))),

@@ -13,8 +13,13 @@ import random
 
 # id: (名前, 印, 種類, 値段, 売っている行き先, 好みの印, プレゼントにできるか)
 _C = [
-    ("veggies", "野菜と米", "🥕", "food", 1200, ["supermarket", "shopping_street", "mall"], ["food"], False),
-    ("meat_fish", "肉と魚", "🍖", "food", 1500, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("rice", "お米", "🍚", "food", 1800, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("bread", "パン", "🍞", "food", 320, ["convenience", "supermarket", "station", "shopping_street"], ["food"], False),
+    ("veggies", "野菜", "🥬", "food", 450, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("meat_fish", "肉と魚", "🍖", "food", 900, ["supermarket", "shopping_street", "mall"], ["food"], False),
+    ("eggs_tofu", "卵と豆腐", "🥚", "food", 350, ["supermarket", "convenience", "shopping_street"], ["food"], False),
+    ("bento", "お弁当", "🍱", "meal", 550, ["convenience", "supermarket", "station"], ["food"], False),
+    ("cup_noodle", "カップ麺", "🍜", "meal", 220, ["convenience", "supermarket"], ["food"], False),
     ("tea_leaves", "お茶っ葉", "🍵", "tea", 800, ["supermarket", "shopping_street", "mall", "cafe"], ["tea"], True),
     ("coffee_beans", "コーヒー豆", "☕", "tea", 1000, ["cafe", "supermarket", "mall"], ["tea"], True),
     ("cookies", "クッキー", "🍪", "sweets", 400, ["convenience", "supermarket", "shopping_street", "mall", "station", "cafe"], ["sweets"], True),
@@ -32,11 +37,15 @@ _C = [
     ("game", "ゲームソフト", "🎮", "goods", 6000, ["electronics", "mall"], ["games"], True),
     ("necklace", "ネックレス", "💎", "goods", 30000, ["mall"], ["accessories"], True),
 ]
-ESSENTIAL_KINDS = ("food", "detergent")
-FOOD_KINDS = ("food", "meal", "tea", "sweets")             # 家計簿で「食費」にするもの      # 必需品 (借金のあいだも買える)
+ESSENTIAL_KINDS = ("food", "meal", "detergent", "medicine")      # 必需品 (借金のあいだも買える)
+# 食材の栄養 (自炊で使う. core/body.py) と, 1 個で何回分か (買うと回数ぶん持ち物に入る)
+NUT = {"rice": ("staple", 10), "bread": ("staple", 3), "veggies": ("veg", 3), "meat_fish": ("protein", 3), "eggs_tofu": ("protein", 4)}
+FOOD_KINDS = ("food", "meal", "tea", "sweets")             # 家計簿で「食費」にするもの
 CATALOG = {i: {"id": i, "name": n, "icon": ic, "kind": k, "price": p, "places": pl, "tags": tg, "giftable": gf,
                "essential": k in ESSENTIAL_KINDS}
            for i, n, ic, k, p, pl, tg, gf in _C}
+for _i, (_n, _s) in NUT.items():
+    CATALOG[_i].update(nut=_n, servings=_s)
 TAG_LABEL = {"food": "食べ物", "tea": "お茶", "sweets": "甘いもの", "practical": "実用品", "books": "本", "flowers": "花",
              "cute": "かわいいもの", "accessories": "アクセサリー", "fashion": "服", "games": "ゲーム"}
 # 性格プリセットごとの, 好き・苦手の既定 (キャラクターの定義の likes / dislikes で上書きできる)
@@ -84,6 +93,23 @@ class Items:
             inv.pop(iid)
         self.save()
 
+    def count_nut(self, nut):
+        """その栄養の食材が何回分あるか (自炊)."""
+        return sum(n for i, n in self.ps()["items"].items() if CATALOG.get(i, {}).get("nut") == nut)
+
+    def use_nut(self, nut):
+        """その栄養の食材を 1 回分使う (安いものから). 使えたら品物の id."""
+        ids = sorted((i for i, n in self.ps()["items"].items() if n > 0 and CATALOG.get(i, {}).get("nut") == nut),
+                     key=lambda i: CATALOG[i]["price"] / float(CATALOG[i].get("servings", 1)))
+        if ids:
+            self.add(ids[0], -1)
+            return ids[0]
+        return None
+
+    @staticmethod
+    def catalog_name(iid):
+        return CATALOG.get(iid, {}).get("name", iid)
+
     def use_kind(self, kind):
         """その種類の品を 1 つ使う. 使えたら品物の id, 無ければ None."""
         iid = self.has_kind(kind)
@@ -126,7 +152,7 @@ class Items:
                     break
                 ps["money"] -= price
                 self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
-                self.add(iid, 1)
+                self.add(iid, it.get("servings", 1))
                 bought.append({"id": iid, "name": it["name"], "icon": it["icon"], "price": price})
                 ps["shop_list"][iid] = ps["shop_list"].get(iid, 0) - 1
                 if ps["shop_list"][iid] <= 0:
@@ -139,7 +165,7 @@ class Items:
             if ps["money"] >= price + 3000:
                 ps["money"] -= price
                 self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
-                self.add(it["id"], 1)
+                self.add(it["id"], it.get("servings", 1))
                 bought.append({"id": it["id"], "name": it["name"], "icon": it["icon"], "price": price, "impulse": True})
         self.save()
         return bought, missed

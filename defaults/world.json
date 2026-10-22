@@ -5,7 +5,7 @@
   "start_money_her": 20000,
   "player_daily_income": 1000,
   "her_daily_income": 2500,
-  "living_cost_per_day": 3000,
+  "living_cost_per_day": 1200,
   "her_living_cost_per_day": 1500,
   "home_cost_per_month": 60000,
   "event_rate_per_hour": 0.08,

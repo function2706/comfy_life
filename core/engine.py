@@ -30,6 +30,7 @@ from . import home as home_mod
 from . import places as places_mod
 from . import appoint as appoint_mod
 from . import kakeibo as kakeibo_mod
+from . import body as body_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
@@ -45,10 +46,10 @@ SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: 
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
-                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "busy": "作業", "work": "仕事",
+                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "meal": "食事", "busy": "作業", "work": "仕事",
                  "sleep": "寝る", "leave": "席を外す", "back": "戻る", "side_job": "内職", "invest": "株", "offline": "閉じていた間"}
 MY_KIND_ICON = {"rest": "🛋", "chores": "🧹", "practice": "📚", "out": "🚶", "walk": "🚶", "shopping": "🛍", "cafe": "☕", "see": "👀",
-                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
+                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "meal": "🍚", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
                 "back": "🏠", "side_job": "🧵", "invest": "📈", "offline": "🌙"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
                  "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
@@ -134,6 +135,7 @@ class App:
         self.places = places_mod.Places(self)
         self.appoint = appoint_mod.Appoint(self)
         self.kakeibo = kakeibo_mod.Kakeibo(self)
+        self.body = body_mod.Body(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
@@ -160,6 +162,7 @@ class App:
 
     def _migrate(self):
         """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
+        self._migrate_living_cost()
         self._sync_defaults("actions", self.actions, "actions.json")
         self._sync_defaults("minigames", self.minigames, "minigames.json")
         self._sync_defaults("events", self.events, "events.json")
@@ -182,6 +185,23 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["wardrobe"] = d.get("wardrobe", [])
                 store.save_character(c)
+
+    def _migrate_living_cost(self):
+        """食事 (自炊・外食・買って食べる) を足したので, 以前の既定の生活費 (食費込みの 3,000 円) を食費抜きの既定に直す.
+        自分で変えていた額はそのまま. 一度だけ (economy.living_cost_no_food)."""
+        f = store.wpath("world.json")
+        w = store.load(f, {}) or {}
+        eco = w.get("economy") or {}
+        if eco.get("living_cost_no_food"):
+            return
+        new = (store.load(os.path.join(store.DEFAULTS, "world.json"), {}) or {}).get("economy", {}).get("living_cost_per_day", 1200)
+        if int(eco.get("living_cost_per_day", 3000)) == 3000:
+            store.backup("生活費から食費を外す (食事を足したため)")
+            eco["living_cost_per_day"] = new
+        eco["living_cost_no_food"] = True
+        w["economy"] = eco
+        store.save(f, w)
+        self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}), w)
 
     def _sync_defaults(self, kind, items, fname):
         """data/ の項目を既定に追従させる.
@@ -1699,7 +1719,7 @@ class App:
                 "now": now, "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
                 "company": [self._company_item(c) for c in company], "target": tid,
                 "with": self.person_view(tid, dt) if tid else None,
-                "you": self.life.player_view(), "kakeibo": self.kakeibo.view(now),
+                "you": self.life.player_view(), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(),
@@ -2006,7 +2026,7 @@ class App:
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
                 "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
-                "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL}, "actions": self.actions, "world": self.world,
+                "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL, "meal_how": offline_mod.MEAL_HOW, "meal_places": offline_mod.MEAL_PLACES}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
                 "has_workflow": os.path.exists(store.dpath("workflow.json")), "minigames": self.minigames,

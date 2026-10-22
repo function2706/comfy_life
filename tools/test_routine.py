@@ -30,23 +30,24 @@ def main():
         ps = L.player_state()
         ps["money"] = 100000
 
-        # ---- 1. 既定の流れ: 平日は 起床 → 仕事 → 買い物 → 休む → 寝る. 休日は別
+        # ---- 1. 既定の流れ: 平日は 起床 → 朝食 → 仕事 (昼食を挟む) → 買い物 → 夕食 → 休む → 寝る. 休日は別
         mon = [b["do"] for b in O.cfg()["days"]["mon"]]
         sun = [b["do"] for b in O.cfg()["days"]["sun"]]
-        assert mon == ["sleep", "rest", "work", "out", "rest", "sleep"] and "work" not in sun, (mon, sun)
+        assert mon == ["sleep", "meal", "rest", "work", "meal", "work", "out", "meal", "rest", "sleep"] and "work" not in sun, (mon, sun)
         bl = O.blocks(ts("2026-10-12 06:00"), ts("2026-10-12 20:00"))
         assert [(datetime.fromtimestamp(s).strftime("%H:%M"), b["do"]) for s, e, b in bl] == [
-            ("06:00", "sleep"), ("07:00", "rest"), ("09:00", "work"), ("18:00", "out"), ("19:00", "rest")], bl
+            ("06:00", "sleep"), ("07:00", "meal"), ("07:30", "rest"), ("09:00", "work"), ("12:00", "meal"), ("12:45", "work"),
+            ("18:00", "out"), ("19:00", "meal"), ("19:45", "rest")], bl
 
         # ---- 2. 閉じていた間を, 流れに沿って過ごす: 仕事の給料, 買い物で買うものリストの品を買う, 時系列のまとめ
         I.set_list("veggies", 1)
         L.player_state()["work_log"] = {}
         rep = O.simulate(ts("2026-10-12 06:00"), ts("2026-10-12 22:00"))
         dos = [x["do"] for x in rep["timeline"]]
-        assert dos[:4] == ["sleep", "rest", "work", "out"], dos
+        assert dos[:7] == ["sleep", "meal", "rest", "work", "meal", "work", "out"], dos
         shop = next(x for x in rep["timeline"] if x["do"] == "out")
         assert shop["place"] == "supermarket" and "スーパー" in shop["label"], shop
-        assert I.count("veggies") == 1 or "品切れ" in shop["text"] or shop["skipped"], shop
+        assert I.count("veggies") >= 1 or "品切れ" in shop["text"] or shop["skipped"], shop     # 野菜は 1 個 3 回分 (夕食の自炊で使う)
         assert rep["works"] and rep["works"][0]["pay"] > 0
         print("timeline:", [(datetime.fromtimestamp(x["t"]).strftime("%H:%M"), x["text"][:24]) for x in rep["timeline"]])
 

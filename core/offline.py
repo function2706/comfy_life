@@ -26,12 +26,18 @@ from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事（片付け）",
-            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽"}
-WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "rest"}, {"at": "09:00", "do": "work"},
-           {"at": "18:00", "do": "out", "place": "supermarket"}, {"at": "19:00", "do": "rest"}, {"at": "23:00", "do": "sleep"}]
-WEEKEND = [{"at": "00:00", "do": "sleep"}, {"at": "09:00", "do": "rest"}, {"at": "11:00", "do": "chores"},
-           {"at": "13:00", "do": "out", "place": "park"}, {"at": "15:00", "do": "home"},
-           {"at": "17:00", "do": "out", "place": "mall"}, {"at": "18:30", "do": "rest"}, {"at": "23:30", "do": "sleep"}]
+            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽", "meal": "食事"}
+MEAL_HOW = {"cook": "自炊", "out": "外食", "buy": "買って食べる"}
+MEAL_PLACES = {"out": ["teishoku", "ramen", "fastfood", "family", "restaurant", "cafe"], "buy": ["convenience", "supermarket", "station"]}
+WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "meal", "how": "cook"}, {"at": "07:30", "do": "rest"},
+           {"at": "09:00", "do": "work"}, {"at": "12:00", "do": "meal", "how": "buy", "place": "convenience"}, {"at": "12:45", "do": "work"},
+           {"at": "18:00", "do": "out", "place": "supermarket"}, {"at": "19:00", "do": "meal", "how": "cook"}, {"at": "19:45", "do": "rest"},
+           {"at": "23:00", "do": "sleep"}]
+WEEKEND = [{"at": "00:00", "do": "sleep"}, {"at": "09:00", "do": "meal", "how": "cook"}, {"at": "09:45", "do": "rest"},
+           {"at": "11:00", "do": "chores"}, {"at": "12:30", "do": "meal", "how": "out", "place": "teishoku"},
+           {"at": "13:30", "do": "out", "place": "park"}, {"at": "15:00", "do": "home"},
+           {"at": "17:00", "do": "out", "place": "mall"}, {"at": "18:30", "do": "meal", "how": "cook"}, {"at": "19:15", "do": "rest"},
+           {"at": "23:30", "do": "sleep"}]
 
 
 def normalize(b):
@@ -42,6 +48,14 @@ def normalize(b):
         b["do"] = "out"
     if b.get("do") == "out" and b.get("place") not in OUT_PLACES:
         b["place"] = "park"
+    if b.get("do") == "meal":                 # 食事: 自炊 / 外食 (食べに行く店) / 買って食べる (コンビニなど)
+        b["how"] = b.get("how") if b.get("how") in MEAL_HOW else "cook"
+        if b["how"] == "cook":
+            b.pop("place", None)
+        elif b.get("place") not in MEAL_PLACES[b["how"]]:
+            b["place"] = MEAL_PLACES[b["how"]][0]
+        return b
+    b.pop("how", None)
     if b.get("do") != "out":
         b.pop("place", None)
     return b
@@ -122,8 +136,8 @@ class Offline:
         per_h = float(econ.get("stamina_per_work_hour", 9))
         stamina = float(ps.get("stamina", 100))
         s0 = stamina
-        L.tick_world(t1)                       # 市場・定期収入など (体力はこのあと, 過ごし方に合わせて決め直す)
         money0 = int(ps["money"])
+        # 市場・定期収入・お腹と栄養などは, 行動の順に時間を進めながら (食事の前に空腹になる. 体力はこのあと, 過ごし方に合わせて決め直す)
         works, meets, timeline = [], [], []
         t = t0
 
@@ -140,11 +154,21 @@ class Offline:
             s = max(s, t)                          # 残業などで, 前の行動が延びたぶんは後ろへ
             if e - s < 60:
                 continue
+            L.tick_world(s)
             do, h = b["do"], (e - s) / 3600.0
             ent = {"t": s, "end": e, "do": do, "label": DO_LABEL[do], "text": "", "skipped": False}
             if do == "out":
                 ent["place"] = b.get("place")
                 ent["label"] = "外出（%s）" % app.places.label(b.get("place"))
+            if do == "meal":
+                how = b.get("how") or "cook"
+                ent["label"] = "%s（%s%s）" % (self._meal_name(s), MEAL_HOW[how], "・" + app.places.label(b["place"]) if b.get("place") else "")
+                text, ok = app.body.routine_meal(b, s)
+                ent.update(text=text, skipped=not ok)
+                recover(s, e, None)
+                t = max(t, e)
+                timeline.append(ent)
+                continue
             if do == "sleep":
                 recover(s, e, rec_night)
                 ent["text"] = "寝ていた"
@@ -192,6 +216,7 @@ class Offline:
                         ent["meets"] = m
             t = max(t, e)
             timeline.append(ent)
+        L.tick_world(t1)
         ps["stamina"] = round(stamina, 1)
         L.save_player()
         msgs = self._messages(t0, t1)
@@ -202,6 +227,11 @@ class Offline:
         L.save_player()
         app.solo.note("offline", self._summary(rep), t1)
         return rep
+
+    @staticmethod
+    def _meal_name(t):
+        h = datetime.fromtimestamp(t).hour
+        return "朝食" if 4 <= h < 10 else "昼食" if 10 <= h < 15 else "夕食" if 15 <= h < 22 else "夜食"
 
     def _skip(self, do, b, s, stamina):
         """予定どおりにいかないこと: 雨・雪で散歩をやめる, 疲れて家事・研鑽を飛ばす, 疲れきって出かけない. やめた理由 or None."""

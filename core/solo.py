@@ -184,9 +184,10 @@ class Solo:
         sl = ll.get("solo")
         if not sl:
             return None
-        return self.result(sl["kind"], max(0.0, float(ll.get("h", 0))), ll.get("back", time.time()), sl.get("skill"), ll.get("place"))
+        return self.result(sl["kind"], max(0.0, float(ll.get("h", 0))), ll.get("back", time.time()), sl.get("skill"), ll.get("place"),
+                           ate=bool(sl.get("ate")))
 
-    def result(self, kind, h, now, skill=None, place=None):
+    def result(self, kind, h, now, skill=None, place=None, ate=False):
         """一人の時間を h 時間過ごした結果 (画面を開いての一人の時間と, オフラインの行動パターンの両方で使う)."""
         app, L = self.app, self.app.life
         jit = random.uniform(0.6, 1.2)          # 同じ時間でも, はかどる日とそうでない日がある
@@ -218,6 +219,18 @@ class Solo:
         elif kind == "walk":
             L.tire(2 * h)
             text = "%s%s一人でぶらぶらした" % (_dur(h), where + "を" if where else "")
+        elif kind == "eat":                     # 食べに行った: そこで食べていなければ, 帰る前に何か食べる
+            L.tire(1 * h)
+            if ate:
+                text = "%s%sで食事をした" % (_dur(h), where)
+            else:
+                menu = [m for m in app.body.menu(place, now) if m["price"] <= L.player_state()["money"]]
+                if menu:
+                    r = app.body.eat_at(min(menu, key=lambda m: m["price"])["id"], place, now, log=False)
+                    text = "%s%sで%s" % (_dur(h), where, r["text"])
+                    out["money"] = -r["price"]
+                else:
+                    text = "%s%sに行ったが、何も食べなかった" % (_dur(h), where)
         elif kind == "see":
             L.tire(2 * h)
             ps = L.player_state()
