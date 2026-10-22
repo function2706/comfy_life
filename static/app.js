@@ -316,7 +316,7 @@ function renderSoloTab() {
         h('div', { class: 'bar' }, h('i', { style: `width:${Y.stamina ?? 100}%;background:${(Y.stamina ?? 100) >= 50 ? 'var(--good)' : (Y.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
         h('span', { class: 'pval' }, Math.floor(Y.stamina ?? 100))),
       Object.entries(Y.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
-        h('span', {}, `${SKILL_NAME[k] || k}スキル`),
+        h('span', { title: (Y.rusty || []).includes(k) ? 'しばらく使っていないので、鈍ってきた（使えば元の高さまでは戻りやすい）' : '' }, `${SKILL_NAME[k] || k}スキル${(Y.rusty || []).includes(k) ? '（鈍り）' : ''}`),
         h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
         h('span', { class: 'pval' }, Math.floor(val)))))].filter(Boolean));
 }

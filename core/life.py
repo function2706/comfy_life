@@ -25,6 +25,10 @@ WHO = {"p": "あなた", "a": "キャラ"}
 SKILLS = ("talk", "touch", "cook", "work")     # あなたのスキル: 会話・スキンシップ・料理・仕事
 SKILL_RATE = 0.4         # 経験のうち身につく割合
 SKILL_DAY_SOFT = 2.0     # その日に伸びた量がこれだけあると, 次の経験は半分しか身につかない
+RUST_AFTER_DAYS = 10     # これだけ使わないスキルは, 少しずつ鈍る
+RUST_RATE = 0.02         # 鈍る速さ (1 日あたり, 最高値の半分 との差のうち). 使わない日が続くほど (10 日かけて) この速さに
+RUST_FLOOR = 0.5         # 鈍っても, これまでの最高値のこの割合までしか下がらない
+RELEARN = 2.5            # 鈍ったあと, 元の高さ (最高値) までは戻りやすい
 
 
 def skill_mult_of(v):
@@ -95,11 +99,43 @@ class Life:
             sd["f"][k] = round(0.1 if random.random() < 0.15 else random.uniform(0.5, 1.3), 2)     # 伸びない日もある
         got = float(sd["got"].get(k, 0.0))
         g = float(gain) * SKILL_RATE * apt[k] * sd["f"][k] * max(0.0, 1.0 - old / 100.0) ** 1.5 / (1.0 + got / SKILL_DAY_SOFT)
+        g *= self.app.body.train_mult() if hasattr(self.app, "body") else 1.0     # 体調が悪いと伸びにくい
+        peak = float(ps.setdefault("skill_peak", {}).get(k, old))
+        if old < peak and g > 0:        # 鈍ったぶんは戻りやすい (元の高さまで)
+            back = min(peak - old, g * RELEARN)
+            g = back + max(0.0, g - back / RELEARN)
+        ps.setdefault("skill_used", {})[k] = time.time()
         new = min(100.0, old + g)
+        ps["skill_peak"][k] = round(max(peak, new), 2)
         sd["got"][k] = round(got + new - old, 3)
         sk[k] = round(new, 2)
         self.save_player()
         return round(new - old, 2)
+
+    def rust(self, t):
+        """日付が変わったとき: しばらく使わないスキルは少しずつ鈍る (最高値の半分までで止まる. 完全には消えない)."""
+        ps = self.player_state()
+        used = ps.setdefault("skill_used", {})
+        peak = ps.setdefault("skill_peak", {})
+        for k in SKILLS:
+            v = float(ps["skills"].get(k, 10.0))
+            peak[k] = max(float(peak.get(k, v)), v)
+            if k not in used:
+                used[k] = t                         # 以前のデータ: いまから数える
+                continue
+            idle = (t - used[k]) / 86400.0 - RUST_AFTER_DAYS
+            floor = max(min(v, 10.0), peak[k] * RUST_FLOOR)
+            if idle <= 0 or v <= floor:
+                continue
+            v -= (v - floor) * RUST_RATE * min(1.0, idle / 10.0)
+            ps["skills"][k] = round(v, 2)
+
+    def rusty(self, now=None):
+        """鈍ってきているスキル (しばらく使っていなくて, 最高値より下がっている)."""
+        ps = self.player_state()
+        now = now or time.time()
+        return [k for k in SKILLS if now - float((ps.get("skill_used") or {}).get(k, now)) > RUST_AFTER_DAYS * 86400
+                and float((ps.get("skill_peak") or {}).get(k, 0)) - float(ps["skills"].get(k, 10)) >= 0.5]
 
     # ---------------------------------------------------------- 市場 (銘柄・ニュース)
     def assets(self):
@@ -157,6 +193,7 @@ class Life:
                 ps["stamina"] = min(100.0, float(ps.get("stamina", 100)) + rec * step / 3600.0)
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:
+                self.rust(t)
                 ps["money"] += int(e.get("player_daily_income", 1000))
                 self.ledger(t, int(e.get("player_daily_income", 1000)), "income", "日々の収入")
                 live = self.app.bonds.living()
@@ -729,7 +766,7 @@ class Life:
                 "my_money": ps["money"],
                 "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},
                 "market": self.market_view(),
-                "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
+                "skills": {k: round(v, 1) for k, v in ps["skills"].items()}, "rusty": self.rusty(),
                 "stamina": round(float(ps.get("stamina", 100)), 1), "work_today": round((ps.get("work_log") or {}).get(
                     datetime.now().strftime("%Y-%m-%d"), 0), 2)}
 
