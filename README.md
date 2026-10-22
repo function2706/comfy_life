@@ -11,6 +11,7 @@ python server.py --port 9000 --no-browser
 ```
 
 `start.bat` をダブルクリックしても起動できます。
+内職パズルとミニゲームを本体のデータに触れずに続けて試す単独版は、`puzzle_lab.bat`（ポート 8790）と `minigame_lab.bat`（ポート 8791）で起動できます（`python tools/puzzle_lab.py` / `python tools/minigame_lab.py` と同じ）。
 必要なのは Python 3.8 以上だけです（追加パッケージは不要）。
 
 最初に **設定 → 画像生成 (ComfyUI)** を開き、次の順で設定してください。
