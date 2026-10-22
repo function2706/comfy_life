@@ -1771,6 +1771,30 @@
   ],
   "go_her_home.decline_shy": [
    "……うちは、まだ。もう少し時間をちょうだい。"
+  ],
+  "eat_out.default": [
+   "いいよ。何にする？ ……{fp}はもう決めた。"
+  ],
+  "eat_out.satiety_lt_30": [
+   "お腹空いてた。……助かる。"
+  ],
+  "eat_out.payer_her": [
+   "今日は{fp}が出す。たまには、ね。"
+  ],
+  "eat_out.player_sick_ge_1": [
+   "……顔色、悪い。ちゃんと食べて、今日は早く寝て。"
+  ],
+  "ap.worry_you.call": [
+   "{call}。……顔色、悪くない？"
+  ],
+  "ap.worry_you.accept": [
+   "やっぱり。今日はもう休んで。……お粥くらいなら、{fp}が作る。"
+  ],
+  "ap.worry_you.later": [
+   "そう。……ならいい。無理はしないで。"
+  ],
+  "ap.worry_you.ignore": [
+   "（{name}は表情を変えないまま、じっとこちらを見ていた）"
   ]
  }
 }
