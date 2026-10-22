@@ -27,13 +27,28 @@ python server.py --port 9000 --no-browser
 本体では内職は 1 回ごとに 30 分休憩になるので、パズルだけを続けて試すときは単独版を使います（本体とは別の小さなサーバ）。
 
 ```
-python tools/puzzle_lab.py            # http://127.0.0.1:8790/ がブラウザで開く
+python tools/minigame_lab.py  ミニゲームの単独版（セリフ・画像なしで、条件に関係なく続けて遊ぶ）
+tools/test_minigame_lab.py  ミニゲームの単独版のテスト（全ゲームを始められる・セリフを返さない・data/ に書かない・画面の共通化）
+tools/puzzle_lab.py            # http://127.0.0.1:8790/ がブラウザで開く
 python tools/puzzle_lab.py --port 8791 --no-browser
 ```
 
 - 種類（マインスイーパ・数独・ピクロス・15パズル）と難しさを選んで、何度でも続けて遊べます。すぐ新しい盤面、答えを表示、同じ seed で同じ盤面を出し直せます。
 - 終えると、かかった時間・ミスと、本体ならいくら稼げたか（入れた仕事スキルで試算）を出します。履歴も残ります（ページを閉じるまで）。
 - 盤面の生成と答え合わせは本体と同じ `core/puzzles.py`、画面は本体の内職と同じ `static/puzzles.js` です（ページは `static/puzzle_lab.html`）。ゲームの状態（お金・体力・休憩・スキル・ワールド）には一切触れず、`data/` にも書きません。
+
+### ミニゲームを単独で遊ぶ
+
+本体ではミニゲームは相手の機嫌や間柄・時間帯しだいで遊べないことがあるので、遊び心地や画面だけを確かめるときは単独版を使います（セリフ・画像なしで、ミニゲームをするだけ）。
+
+```
+python tools/minigame_lab.py          # http://127.0.0.1:8791/ がブラウザで開く
+python tools/minigame_lab.py --port 8792 --no-browser
+```
+
+- 12 種類のミニゲームを、条件やクールダウンに関係なく何度でも続けて遊べます。相手は「相手」と表示し、セリフ・画像・相手の様子のヒントは出しません。
+- ゲームの中身（ルール・相手の打ち方）は本体と同じ `core/games.py`、画面は本体のゲームタブと同じ `static/minigames.js` です（ページは `static/minigame_lab.html`）。
+- 本体のデータには触れません。起動のたびに一時フォルダに使い捨ての世界を作り、終わったら消します（`data/` には書きません）。
 
 会話欄が画像に被るときは、💬 ボタン・H キー・画像のクリックで一時的に隠せます。位置（上・下・画像の下に分ける）、濃さ、文字の大きさ、自動で隠す設定は **設定 → 表示** で変えられます（ブラウザごとに保存）。
 
@@ -400,7 +415,7 @@ core/comfy.py      ComfyUI クライアント
 core/llm.py        LLM クライアント
 defaults/          初期データ（初回起動時に data/ へコピーされる）
 data/              設定・生成画像と、ワールドごとの状態・ログ（data/worlds/。初期状態に戻すには削除）
-static/            UI（内職のパズルの画面は static/puzzles.js。本体と単独版 static/puzzle_lab.html で共通）
+static/            UI（内職のパズルの画面は static/puzzles.js、ミニゲームの画面は static/minigames.js。どちらも本体と単独版で共通）
 tools/mock_comfy.py  動作確認用の ComfyUI もどき
 tools/smoke_test.py  バックエンドの簡易テスト
 tools/test_reuse_dress.py  画像の再利用と着せ替えのテスト
@@ -417,6 +432,8 @@ tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記
 tools/test_join.py  出先での合流（誘う・誘われる・断られる）と互いの家へ（暮らしぶり・家の様子）のテスト
 tools/test_hours.py  行き先の営業時間（定休日・季節・閉まっていれば行けない・閉店で出される・約束・行動パターン）のテスト
 tools/test_api_errors.py  API のお断り（400 とログ 1 行）・想定外の例外（トレースバック）・内職を始められない理由の表示のテスト
+tools/minigame_lab.py  ミニゲームの単独版（セリフ・画像なしで、条件に関係なく続けて遊ぶ）
+tools/test_minigame_lab.py  ミニゲームの単独版のテスト（全ゲームを始められる・セリフを返さない・data/ に書かない・画面の共通化）
 tools/puzzle_lab.py   内職のパズルの単独版（本体のデータに触れずに続けて遊んで試す）
 tools/test_puzzle_lab.py  単独版のテスト（同じ seed で同じ盤面・答え合わせ・試算・data/ に書かない・画面の共通化）
 tools/test_puzzles.py  内職のパズル（盤面の生成と一意解・答え合わせ・稼ぎ・流れ・セリフのキーの移し替え）のテスト

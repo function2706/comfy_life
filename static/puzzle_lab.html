@@ -38,6 +38,7 @@
   <div class="lab-panel" style="padding:12px"><b class="small">これまで</b><div class="lab-hist" id="hist"><span class="muted small">まだありません</span></div></div>
 </div>
 <div id="toasts"></div>
+<script src="/static/puzzles.js"></script>  <!-- 関数だけなので先に読む (下の道具は呼ぶときに使う) -->
 <script>
 'use strict';
 // static/puzzles.js が使う道具 (本体の app.js と同じ形)
@@ -135,6 +136,5 @@ $('#answer').onclick = async () => {
   newBoard();
 })();
 </script>
-<script src="/static/puzzles.js"></script>
 </body>
 </html>
