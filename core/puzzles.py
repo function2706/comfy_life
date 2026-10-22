@@ -21,12 +21,12 @@ DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開け�
         "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
-        "sudoku": {"easy": 40, "mid": 32, "hard": 27},          # 最初から入っている数 (目安. 一意にならない分は残る)
+        "sudoku": {"easy": 38, "mid": 30, "hard": 23},          # 最初から入っている数の目安 (その難しさの解き方で解けなくなる分は残る)
         "picross": {"easy": 5, "mid": 8, "hard": 10},
-        "slither": {"easy": (5, 5, 0.45), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限)
+        "slither": {"easy": (5, 5, 0.55), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py)
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)}}       # (一辺, 崩す手数)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
-       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 180, "mid": 480, "hard": 1200}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
+       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
@@ -162,6 +162,134 @@ def sudoku_count(g, limit=2):
     return count[0]
 
 
+# 人の解き方 (難しさを決める). 易: 一つに決まるマス (候補が一つ・その数が入れるのはそこだけ) だけ.
+# 中: 易 + 候補の消し込み (ブロックの中で一列に並ぶ候補・列の中で一つのブロックに収まる候補, 2 つ組 (ペア)).
+# 難: 中 + 3 つ組 (トリプル)・X-wing. 当てずっぽう (仮置き) は要らない. どれも正しい推理だけなので, 解き切れれば答えは一つ.
+SD_LEVELS = ("easy", "mid", "hard")
+_SD_UNITS = ([[r * 9 + c for c in range(9)] for r in range(9)] + [[r * 9 + c for r in range(9)] for c in range(9)] +
+             [[(br + a) * 9 + bc + b for a in range(3) for b in range(3)] for br in (0, 3, 6) for bc in (0, 3, 6)])
+_SD_PEERS = [sorted({j for u in _SD_UNITS if i in u for j in u} - {i}) for i in range(81)]
+
+
+def _sd_place(g, cand, i, v):
+    g[i] = v
+    cand[i] = set()
+    for j in _SD_PEERS[i]:
+        cand[j].discard(v)
+
+
+def _sd_singles(g, cand):
+    """一つに決まるマスを一つ埋める. 埋めたら True."""
+    for i in range(81):
+        if not g[i] and len(cand[i]) == 1:
+            _sd_place(g, cand, i, next(iter(cand[i])))
+            return True
+    for u in _SD_UNITS:
+        for v in range(1, 10):
+            if any(g[i] == v for i in u):
+                continue
+            where = [i for i in u if not g[i] and v in cand[i]]
+            if len(where) == 1:
+                _sd_place(g, cand, where[0], v)
+                return True
+    return False
+
+
+def _sd_drop(cand, cells, vals):
+    hit = False
+    for i in cells:
+        if cand[i] & vals:
+            cand[i] -= vals
+            hit = True
+    return hit
+
+
+def _sd_locked(g, cand):
+    """ブロックと行・列の重なり: 一方の中で候補がもう一方に収まれば, もう一方の残りから消す."""
+    boxes, lines = _SD_UNITS[18:], _SD_UNITS[:18]
+    for b in boxes:
+        for ln in lines:
+            inter = set(b) & set(ln)
+            if len(inter) != 3:
+                continue
+            for v in range(1, 10):
+                in_b = {i for i in b if v in cand[i]}
+                in_l = {i for i in ln if v in cand[i]}
+                if in_b and in_b <= inter and _sd_drop(cand, in_l - inter, {v}):
+                    return True
+                if in_l and in_l <= inter and _sd_drop(cand, in_b - inter, {v}):
+                    return True
+    return False
+
+
+def _sd_subsets(g, cand, k):
+    """k 個のマスに k 個の候補だけ (naked) / k 個の候補が k 個のマスにだけ (hidden)."""
+    from itertools import combinations
+    for u in _SD_UNITS:
+        empty = [i for i in u if not g[i]]
+        if len(empty) <= k:
+            continue
+        for cs in combinations(empty, k):
+            vals = set().union(*(cand[i] for i in cs))
+            if len(vals) == k and _sd_drop(cand, [i for i in empty if i not in cs], vals):
+                return True
+        missing = [v for v in range(1, 10) if not any(g[i] == v for i in u)]
+        for vs in combinations(missing, k):
+            cells = [i for i in empty if cand[i] & set(vs)]
+            if len(cells) == k:
+                hit = False
+                for i in cells:
+                    if cand[i] - set(vs):
+                        cand[i] &= set(vs)
+                        hit = True
+                if hit:
+                    return True
+    return False
+
+
+def _sd_xwing(g, cand):
+    from itertools import combinations
+    for rows_first in (True, False):
+        for v in range(1, 10):
+            pos = {}
+            for a in range(9):
+                cells = [(a * 9 + b if rows_first else b * 9 + a) for b in range(9)]
+                bs = tuple(b for b, i in zip(range(9), cells) if v in cand[i])
+                if len(bs) == 2:
+                    pos[a] = bs
+            for a1, a2 in combinations(sorted(pos), 2):
+                if pos[a1] == pos[a2]:
+                    others = [(a * 9 + b if rows_first else b * 9 + a) for b in pos[a1] for a in range(9) if a not in (a1, a2)]
+                    if _sd_drop(cand, others, {v}):
+                        return True
+    return False
+
+
+def sudoku_human(puz, level="hard"):
+    """その難しさの解き方だけで解き切れれば答え, だめなら None."""
+    g = list(puz)
+    cand = [set() if g[i] else set(_sd_cands(g, i)) for i in range(81)]
+    lv = SD_LEVELS.index(level)
+    steps = [_sd_singles]
+    if lv >= 1:
+        steps += [_sd_locked, lambda g, c: _sd_subsets(g, c, 2)]
+    if lv >= 2:
+        steps += [lambda g, c: _sd_subsets(g, c, 3), _sd_xwing]
+    while not all(g):
+        if any(not g[i] and not cand[i] for i in range(81)):
+            return None
+        if not any(f(g, cand) for f in steps):
+            return None
+    return g
+
+
+def sudoku_grade(puz):
+    for lv in SD_LEVELS:
+        if sudoku_human(puz, lv):
+            return lv
+    return None
+
+
 def _sd_full(rng):
     g = [0] * 81
 
@@ -180,21 +308,28 @@ def _sd_full(rng):
     return g
 
 
-def sudoku_new(level, rng=random):
-    sol = _sd_full(rng)
-    puz = list(sol)
+def sudoku_new(level, rng=random, tries=None):
+    """その難しさの解き方 (sudoku_human) で解き切れるあいだ, 数字を抜く (目安の数まで). 中・難は易の解き方 (一つに決まるマス)
+    だけでは解けない盤にする (目安まで抜いてもまだ易で解けるなら 4 つまで多めに抜く. tries 回作って見つからなければ最後のもの).
+    難の解き方 (トリプル・X-wing) が要る盤は作ってみてもまれなので, 難は数字の少なさと中の解き方で難しくなる."""
     target = SIZE["sudoku"][level]
-    cells = list(range(81))
-    rng.shuffle(cells)
-    givens = 81
-    for i in cells:
-        if givens <= target:
+    tries = tries or {"easy": 1, "mid": 12, "hard": 8}[level]
+    for _ in range(tries):
+        sol = _sd_full(rng)
+        puz = list(sol)
+        cells = list(range(81))
+        rng.shuffle(cells)
+        givens = 81
+        for i in cells:
+            if givens <= target and (level == "easy" or givens <= target - 4 or not sudoku_human(puz, "easy")):
+                break
+            v, puz[i] = puz[i], 0
+            if sudoku_human(puz, level):
+                givens -= 1
+            else:
+                puz[i] = v
+        if level == "easy" or not sudoku_human(puz, "easy"):
             break
-        v, puz[i] = puz[i], 0
-        if sudoku_count(puz) != 1:
-            puz[i] = v
-        else:
-            givens -= 1
     return {"kind": "sudoku", "puzzle": puz, "solution": sol, "cur": list(puz), "miss": 0}
 
 
@@ -386,7 +521,7 @@ def _sl_grid(p):
 
 def slither_new(level, rng=random):
     h, w, keep = SIZE["slither"][level]
-    clues, sol = SL.generate(h, w, rng, keep, budget=1500)
+    clues, sol = SL.generate(h, w, rng, keep, level)
     return {"kind": "slither", "h": h, "w": w, "clues": clues, "sol": sol, "st": [0] * len(sol), "miss": 0}
 
 

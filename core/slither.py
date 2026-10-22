@@ -6,8 +6,9 @@
 辺の状態: 1 = 線, 0 = 未定, -1 = × (線を引かない印).
 
 - 生成: マスの連結な集まり (穴がなく, 角だけで接しない) を広げて, その境目を輪にする. 数字は輪から数え,
-  解く側 (solve) で答えが一つに決まるあいだ, 数字を減らしていく.
-- 解く側: 数字・点 (線は 0 本か 2 本)・輪が一つ の決まりで埋めていき (伝播), 決まらなければ分岐して, 解の数を数える (2 つで打ち切り).
+  その難しさの人の解き方 (human_solve: 易は基本の定石, 中は近くの数手の行き詰まりまで, 難は 1 段の仮置きまで) で
+  解き切れるあいだ, 数字を減らしていく (正しい推理だけで解き切れるので答えは一つ).
+- 解く側 (solve, 確かめ用): 数字・点 (線は 0 本か 2 本)・輪が一つ の決まりで埋めていき (伝播), 決まらなければ分岐して, 解の数を数える (2 つで打ち切り).
 - 答え合わせはサーバ: 引いた線 (1) が答えの輪とぴったり同じならできあがり. 一手ごとの正誤は出さない (ミスは数えない).
 """
 import random
@@ -244,17 +245,18 @@ def _loop_edges(g, region):
     return st
 
 
-def generate(h, w, rng=random, keep=0.0, budget=60000):
-    """答えが一つのスリザーリンク. (数字 [マスごと, 無ければ None], 答えの辺の状態). keep: 残す数字の割合の下限 (易しくする)."""
+def generate(h, w, rng=random, keep=0.0, level="hard", tries=12):
+    """その難しさの解き方 (human_solve) で解き切れるスリザーリンク. (数字 [マスごと, 無ければ None], 答えの辺の状態).
+    数字は, その解き方で解き切れるあいだ減らす (解き切れれば答えは一つ). keep: 残す数字の割合の下限 (易しくする).
+    中・難は, 一つ易しい解き方では解けない盤を選ぶ (tries 回作って見つからなければ, いちばん近いもの)."""
     g = Grid(h, w)
-    for _ in range(30):
+    best = None
+    for _ in range(tries):
         region = _loop_region(h, w, rng, rng.uniform(0.45, 0.6))
         sol = _loop_edges(g, region)
-        full = [sum(1 for e in g.cedges[i] if sol[e] == 1) for i in range(h * w)]
-        n, _ = solve(g, full, budget=budget)
-        if n != 1:
+        clues = [sum(1 for e in g.cedges[i] if sol[e] == 1) for i in range(h * w)]
+        if not human_solve(g, clues, level):
             continue
-        clues = list(full)
         order = list(range(h * w))
         rng.shuffle(order)
         floor = int(h * w * keep)
@@ -262,10 +264,15 @@ def generate(h, w, rng=random, keep=0.0, budget=60000):
             if sum(1 for x in clues if x is not None) <= floor:
                 break
             v, clues[i] = clues[i], None
-            n, _ = solve(g, clues, budget=budget)
-            if n != 1:
-                clues[i] = v                    # 一意でなくなる (か数え切れない) なら戻す
-        return clues, sol
+            if not human_solve(g, clues, level):
+                clues[i] = v                    # その解き方で解き切れなくなるなら戻す
+        lv = LEVELS.index(level)
+        if lv == 0 or not human_solve(g, clues, LEVELS[lv - 1]):
+            return clues, sol
+        if best is None:
+            best = (clues, sol)
+    if best:
+        return best
     raise RuntimeError("スリザーリンクの盤面が作れませんでした")
 
 
@@ -273,3 +280,232 @@ def is_solution(g, clues, st):
     """線 (1) だけを見て, 数字どおりの一つの輪になっているか (× と未定は区別しない)."""
     s = [1 if x == 1 else -1 for x in st]
     return _done(g, clues, s)
+
+
+# ====================================================================== 人の解き方 (難しさを決める)
+# 易: 基本の定石だけ = 数字の数 (0 の周りなど)・各点で線は 0 本か 2 本 (行き止まり・分岐なし)・輪を早く閉じない・
+#     角の定石 (点に残る辺が 1 つのマスの角の 2 本だけなら, そのマスが 1 なら両方×, 3 なら両方線.
+#     線が 1 本来ている点で残りがマスの角の 2 本なら, 1 ならそのマスの残り 2 本は×, 3 なら残り 2 本は線. 盤の角の 1・3 もこれ)
+# 中: 易 + 近くの数手で行き詰まる形 (隣り合う 3 と 3, 斜めの 3, 2 の絡む形など. ある辺を決めると数手以内に矛盾 → 逆に決まる)
+# 難: 中 + 1 段の仮置き (ある辺を決めて最後まで進めると矛盾 → 逆に決まる)
+# どの推理も正しい推理だけなので, 解き切れれば答えは一つ.
+LEVELS = ("easy", "mid", "hard")
+LOCAL_STEPS = 10             # 中の「近くの数手」: 決まる辺の数の上限
+
+
+class _Ctx:
+    def __init__(self, g, clues):
+        self.g, self.clues = g, clues
+        self.pair_cell = {}          # 角をなす 2 辺 → そのマス
+        for i, es in enumerate(g.cedges):
+            for a in es:
+                for b in es:
+                    if a < b and set(g.ends[a]) & set(g.ends[b]):
+                        self.pair_cell[(a, b)] = i
+        self.vpair = {}              # 隣り合う 2 点 → 辺
+        for e, (a, b) in enumerate(g.ends):
+            self.vpair[(a, b)] = self.vpair[(b, a)] = e
+        self.clued = [i for i, c in enumerate(clues) if c is not None]
+
+
+class _Stop(Exception):
+    pass
+
+
+def _other(g, e, x):
+    a, b = g.ends[e]
+    return b if a == x else a
+
+
+def _walk(g, st, x, prev, stop):
+    """線をたどって端へ. (端の点, 辺の数). stop に戻ったら (None, 辺の数) = 閉じた輪."""
+    n = 0
+    while n <= len(st):
+        nxt = None
+        for f in g.vedges[x]:
+            if f != prev and st[f] == 1:
+                nxt = f
+                break
+        if nxt is None:
+            return x, n
+        y = _other(g, nxt, x)
+        n += 1
+        if y == stop:
+            return None, n
+        x, prev = y, nxt
+    return x, n
+
+
+def _clues_ok(ctx, st, extra=None):
+    g = ctx.g
+    for i in ctx.clued:
+        if sum(1 for e in g.cedges[i] if st[e] == 1 or e == extra) != ctx.clues[i]:
+            return False
+    return True
+
+
+def _prop(ctx, st, first, limit=None):
+    """first: [(辺, 値)] を置いて, 易の定石で進める. 矛盾なら False. limit: 決める辺の数の上限 (超えたら打ち切って True)."""
+    g, clues = ctx.g, ctx.clues
+    qv, qc = set(), set()
+    cnt = [0, sum(1 for x in st if x == 1)]       # 決めた数, 線の数
+
+    def put(e, v):
+        if st[e] == v:
+            return True
+        if st[e] != 0:
+            return False
+        if limit is not None and cnt[0] >= limit:
+            raise _Stop
+        st[e] = v
+        cnt[0] += 1
+        a, b = g.ends[e]
+        qv.add(a)
+        qv.add(b)
+        for i in g.ecells[e]:
+            if clues[i] is not None:
+                qc.add(i)
+        if v == 1:
+            cnt[1] += 1
+            return close_check(e)
+        return True
+
+    def close_check(e):
+        a, b = g.ends[e]
+        p, n1 = _walk(g, st, a, e, b)
+        if p is None:                                  # 輪が閉じた: ほかに線が無く, 数字が全部合っていること
+            if cnt[1] != n1 + 1 or not _clues_ok(ctx, st):
+                return False
+            for f in range(g.n):
+                if st[f] == 0:
+                    st[f] = -1
+            return True
+        q, n2 = _walk(g, st, b, e, a)
+        f = ctx.vpair.get((p, q))
+        if f is not None and st[f] == 0:
+            if cnt[1] > n1 + n2 + 1 or not _clues_ok(ctx, st, f):
+                return put(f, -1)
+        return True
+
+    try:
+        for e, v in first:
+            if not put(e, v):
+                return False
+        if not first:
+            qv.update(range(len(g.vedges)))
+            qc.update(ctx.clued)
+        while qv or qc:
+            while qc:
+                i = qc.pop()
+                cl = clues[i]
+                es = g.cedges[i]
+                on = sum(1 for e in es if st[e] == 1)
+                unk = [e for e in es if st[e] == 0]
+                if on > cl or on + len(unk) < cl:
+                    return False
+                if unk and (on == cl or on + len(unk) == cl):
+                    v = -1 if on == cl else 1
+                    for e in unk:
+                        if not put(e, v):
+                            return False
+            while qv and not qc:
+                x = qv.pop()
+                on = sum(1 for e in g.vedges[x] if st[e] == 1)
+                unk = [e for e in g.vedges[x] if st[e] == 0]
+                if on > 2 or (on == 1 and not unk):
+                    return False
+                todo = []
+                if unk and on == 2:
+                    todo = [(e, -1) for e in unk]
+                elif on == 1 and len(unk) == 1:
+                    todo = [(unk[0], 1)]
+                elif on == 0 and len(unk) == 1:
+                    todo = [(unk[0], -1)]
+                elif len(unk) == 2 and on < 2:              # 角の定石
+                    c = ctx.pair_cell.get((min(unk), max(unk)))
+                    cl = clues[c] if c is not None else None
+                    if cl in (1, 3):
+                        if on == 0:
+                            todo = [(e, -1 if cl == 1 else 1) for e in unk]
+                        else:
+                            todo = [(e, -1 if cl == 1 else 1) for e in g.cedges[c] if e not in unk]
+                for e, v in todo:
+                    if not put(e, v):
+                        return False
+    except _Stop:
+        return True
+    return True
+
+
+def _loop_scan(ctx, st):
+    """線のかたまりの両端をつなぐ辺: ほかに線が残るか, 数字が合わないなら×. 矛盾なら False."""
+    g = ctx.g
+    seen = set()
+    total = sum(1 for x in st if x == 1)
+    out = []
+    for x in range(len(g.vedges)):
+        if x in seen or sum(1 for e in g.vedges[x] if st[e] == 1) != 1:
+            continue
+        y, n = _walk(g, st, x, None, None)
+        seen.add(x)
+        seen.add(y)
+        f = ctx.vpair.get((x, y))
+        if f is not None and st[f] == 0 and (total > n or not _clues_ok(ctx, st, f)):
+            out.append(f)
+    for f in out:
+        if st[f] == 0 and not _prop(ctx, st, [(f, -1)]):
+            return False
+    return True
+
+
+def _try_edges(ctx, st):
+    """仮に決めてみる辺の候補: 線の来ている点か, 数字のマスに接する未定の辺."""
+    g = ctx.g
+    out = []
+    for e in range(g.n):
+        if st[e] != 0:
+            continue
+        a, b = g.ends[e]
+        if any(st[f] == 1 for f in g.vedges[a] + g.vedges[b]) or any(ctx.clues[i] is not None for i in g.ecells[e]):
+            out.append(e)
+    return out
+
+
+def human_solve(g, clues, level="hard"):
+    """その難しさの解き方だけで解き切れれば答えの辺の状態 (1 線 / -1), だめなら None."""
+    ctx = _Ctx(g, clues)
+    lv = LEVELS.index(level)
+    st = [0] * g.n
+    if not _prop(ctx, st, []) or not _loop_scan(ctx, st):
+        return None
+    limits = {0: (), 1: (LOCAL_STEPS,), 2: (LOCAL_STEPS, None)}[lv]
+    while any(x == 0 for x in st):
+        hit = None
+        for limit in limits:
+            for e in _try_edges(ctx, st):
+                for v in (1, -1):
+                    s2 = list(st)
+                    ok = _prop(ctx, s2, [(e, v)], limit)
+                    if ok and limit is None:
+                        ok = _loop_scan(ctx, s2)
+                    if not ok:                      # 矛盾 → 逆に決まる
+                        hit = (e, -v)
+                        break
+                if hit:
+                    break
+            if hit:
+                break
+        if not hit:
+            return None
+        if not _prop(ctx, st, [hit]) or not _loop_scan(ctx, st):
+            return None
+    st = [1 if x == 1 else -1 for x in st]
+    return st if _done(g, clues, st) else None
+
+
+def grade(g, clues):
+    """解ける いちばん易しい難しさ (どれでも解けなければ None)."""
+    for lv in LEVELS:
+        if human_solve(g, clues, lv):
+            return lv
+    return None

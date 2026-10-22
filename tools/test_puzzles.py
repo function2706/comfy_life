@@ -29,6 +29,10 @@ def main():
             p = P.new("sudoku", lv, rng)
             assert P.sudoku_count(p["puzzle"]) == 1 and all(p["solution"]) and sum(1 for x in p["puzzle"] if x) <= 45
             assert all(a == b for a, b in zip(p["puzzle"], p["solution"]) if a)
+            # その難しさの解き方だけで解き切れる (当てずっぽうは要らない). 中・難は易の解き方 (一つに決まるマス) だけでは解けない
+            assert P.sudoku_human(p["puzzle"], lv) == p["solution"], lv
+            assert lv == "easy" or P.sudoku_human(p["puzzle"], "easy") is None, lv
+            assert P.sudoku_grade(p["puzzle"]) in (("easy",) if lv == "easy" else ("mid", "hard"))
     i = p["puzzle"].index(0)
     r, c = divmod(i, 9)
     bad = next(v for v in range(1, 10) if v != p["solution"][i])
@@ -116,14 +120,20 @@ def main():
     assert P.move(p, {"r": 2, "c": 2})["solved"] and p["moves"] == 1
     print("slide: OK")
 
-    # ---- 4b. スリザーリンク: 答えが一つ (解く側で数え直す). 線だけで答え合わせ. ×・未定は区別しない. 一手ごとの正誤は出さない
+    # ---- 4b. スリザーリンク: 答えが一つ (解く側で数え直す). 難しさは解き方の段: その段の解き方だけで解き切れて,
+    #          一つ易しい段では解けない (易は基本の定石, 中は近くの数手の行き詰まり, 難は 1 段の仮置き).
+    #          線だけで答え合わせ. ×・未定は区別しない. 一手ごとの正誤は出さない
     from core import slither as SL
-    for lv in ("easy", "mid"):
-        for _ in range(3):
+    for lv, k in (("easy", 4), ("mid", 3), ("hard", 1)):
+        for _ in range(k):
             q = P.new("slither", lv, rng)
             g = SL.Grid(q["h"], q["w"])
-            n, first = SL.solve(g, q["clues"], budget=10 ** 6)
+            n, first = SL.solve(g, q["clues"], budget=10 ** 6) if lv != "hard" else (1, q["sol"])   # 難の 10×10 は数え直すと遅い (解き切れる = 一つ)
             assert n == 1 and [1 if x == 1 else -1 for x in first] == [1 if x == 1 else -1 for x in q["sol"]], (lv, n)
+            assert SL.human_solve(g, q["clues"], lv) == [1 if x == 1 else -1 for x in q["sol"]], lv
+            assert SL.grade(g, q["clues"]) == lv, (lv, SL.grade(g, q["clues"]))
+            if lv == "easy":
+                assert sum(1 for x in q["clues"] if x is not None) >= int(q["h"] * q["w"] * P.SIZE["slither"]["easy"][2])
             for i, cl in enumerate(q["clues"]):       # 数字はそのマスの周りの線の数
                 assert cl is None or cl == sum(1 for e in g.cedges[i] if q["sol"][e] == 1)
             assert all(sum(1 for e in es if q["sol"][e] == 1) in (0, 2) for es in g.vedges), "線は点で 0 本か 2 本"
@@ -144,6 +154,21 @@ def main():
             raise AssertionError("引けない辺を受け付けた")
         except ValueError:
             pass
+    # 定石の確かめ: 盤の角の 1 は角の 2 辺が×, 角の 3 は角の 2 辺が線 (易). 隣り合う 3 と 3 は間の辺が線 (中で分かる)
+    g = SL.Grid(3, 3)
+    ctx = SL._Ctx(g, [1, None, 3] + [None] * 6)
+    st = [0] * g.n
+    assert SL._prop(ctx, st, [])
+    corner = lambda i, vtx: [e for e in g.cedges[i] if vtx in g.ends[e]]
+    assert all(st[e] == -1 for e in corner(0, 0)) and all(st[e] == 1 for e in corner(2, 3))
+    g = SL.Grid(3, 5)
+    clues = [None] * 15
+    clues[6], clues[7], clues[14] = 3, 3, 2           # 2 があるので, 3 と 3 だけの小さな輪は答えにならない
+    shared = g.cedges[6][3]
+    ctx = SL._Ctx(g, clues)
+    st = [0] * g.n
+    assert SL._prop(ctx, st, []) and st[shared] == 0, "易の定石だけでは決まらない"
+    assert not SL._prop(SL._Ctx(g, clues), list(st), [(shared, -1)], SL.LOCAL_STEPS), "間を×にすると数手で行き詰まる"
     print("slither: OK")
 
     # ---- 5. 稼ぎ: 難しさ・速さ・ミス. 解けずにやめたら少しだけ
