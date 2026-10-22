@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>内職パズル（単独版）</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body { margin: 0; padding: 12px; background: var(--bg); color: var(--text); }
+  .lab { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  .lab h1 { font-size: 18px; margin: 0; }
+  .lab-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .lab-bar input { width: 7.5em; padding: 4px 6px; }
+  .lab-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  .lab-panel .task-body { padding: 12px; }
+  .lab-sub { padding: 8px 12px 0; }
+  .lab-hist { font-size: 12px; }
+  .lab-hist div { padding: 2px 0; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  #toasts { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 9; }
+</style>
+</head>
+<body>
+<div class="lab">
+  <div class="row"><h1>🧵 内職パズル（単独版）</h1><div class="spacer"></div><span class="muted small">本体のお金・体力・休憩には触れません</span></div>
+  <div class="lab-bar" id="kinds"></div>
+  <div class="lab-bar" id="levels"></div>
+  <div class="lab-bar">
+    <label class="small">seed <input id="seed" type="number" placeholder="空なら毎回ちがう"></label>
+    <label class="small">仕事スキル <input id="skill" type="number" min="0" max="100" value="10"></label>
+    <button class="btn small primary" id="new">新しい盤面</button>
+    <button class="btn small" id="again">同じ seed でもう一度</button>
+    <button class="btn small" id="answer">答えを表示</button>
+  </div>
+  <div class="lab-panel">
+    <div class="lab-sub muted small" id="task-sub"></div>
+    <div class="task-body" id="task-body"></div>
+  </div>
+  <div class="lab-panel" style="padding:12px"><b class="small">これまで</b><div class="lab-hist" id="hist"><span class="muted small">まだありません</span></div></div>
+</div>
+<div id="toasts"></div>
+<script>
+'use strict';
+// static/puzzles.js が使う道具 (本体の app.js と同じ形)
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'disabled' || k === 'checked') el[k] = !!v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return el;
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+function toast(msg, kind = '') {
+  const t = h('div', { class: 'toast ' + kind }, msg);
+  $('#toasts').append(t);
+  setTimeout(() => t.remove(), kind === 'err' ? 6000 : 2500);
+}
+const yen = (n) => `${Math.round(n).toLocaleString()}円`;
+const S = { kind: 'mines', level: 'easy', hist: [] };
+let CAT = null;
+
+function drawPicker() {
+  $('#kinds').replaceChildren(...CAT.kinds.map((k) => h('button', { class: 'btn small' + (S.kind === k.id ? ' primary' : ''), title: k.desc,
+    onclick: () => { S.kind = k.id; drawPicker(); newBoard(); } }, k.name)));
+  $('#levels').replaceChildren(h('span', { class: 'muted small' }, '難しさ'), ...CAT.levels.map((l) => h('button', { class: 'btn small' + (S.level === l.id ? ' primary' : ''),
+    onclick: () => { S.level = l.id; drawPicker(); newBoard(); } }, l.name)));
+}
+function stopBoard() {
+  const T = S.task;
+  if (T) { clearInterval(T.timer); document.removeEventListener('keydown', T.key); T.done = true; }
+}
+async function newBoard(seed) {
+  stopBoard();
+  const s = seed !== undefined ? seed : $('#seed').value;
+  let tk;
+  try { tk = await api('/api/task/start', { kind: S.kind, level: S.level, seed: s === '' ? null : s, skill: +$('#skill').value || 0 }); }
+  catch (e) { toast(e.message, 'err'); return; }
+  S.lastSeed = tk.seed;
+  tk.level_name += `・seed ${tk.seed}`;        // 見出しに seed も出す (同じ盤面を出し直すとき用)
+  beginTask(tk);
+}
+// できあがった・やめた: 本体ならいくら稼げたかを出して, 次へ (puzzles.js から呼ばれる)
+async function finishTask() {
+  const T = S.task;
+  if (!T || T.done) return;
+  stopBoard();
+  let k;
+  try { k = (await api('/api/task/finish', { token: T.tk.token })).task; } catch (e) { toast(e.message, 'err'); return; }
+  T.view = k.view;
+  S.hist.unshift(k);
+  S.hist = S.hist.slice(0, 20);
+  drawHist();
+  renderTask(h('div', { class: 'task-result' },
+    h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}／目安 ${fmtSec(k.par)}${k.fast ? '・速い' : ''}・ミス ${k.miss}）` : `やめた（${fmtSec(k.sec)}・ミス ${k.miss}）`),
+    h('div', { class: 'big' }, yen(k.pay)), h('div', { class: 'muted small' }, `本体ならこの額（仕事スキル ${+$('#skill').value || 0} で試算）`),
+    h('div', { class: 'row', style: 'gap:6px;justify-content:center' },
+      h('button', { class: 'btn primary', onclick: () => newBoard() }, '次の盤面'),
+      h('button', { class: 'btn', onclick: () => newBoard(k.seed) }, '同じ盤面をもう一度'))));
+}
+function closeTask() { finishTask(); }
+function drawHist() {
+  const name = (id) => (CAT.kinds.find((k) => k.id === id) || {}).name || id;
+  const lv = (id) => (CAT.levels.find((l) => l.id === id) || {}).name || id;
+  $('#hist').replaceChildren(...S.hist.map((k) => h('div', {},
+    `${k.solved ? '✨' : '・'} ${name(k.kind)}（${lv(k.level)}） ${fmtSec(k.sec)}／目安 ${fmtSec(k.par)}　ミス ${k.miss}　${yen(k.pay)}　seed ${k.seed}`)));
+}
+
+$('#new').onclick = () => newBoard();
+$('#again').onclick = () => { if (S.lastSeed) newBoard(S.lastSeed); };
+$('#answer').onclick = async () => {
+  const T = S.task;
+  if (!T) return;
+  const tk = T.tk;
+  stopBoard();
+  try { T.view = (await api('/api/task/answer', { token: tk.token })).view; } catch (e) { toast(e.message, 'err'); return; }
+  renderTask(h('div', { class: 'task-result' }, h('div', {}, '答え（この盤面はおしまい）'),
+    h('div', { class: 'row', style: 'gap:6px;justify-content:center' },
+      h('button', { class: 'btn primary', onclick: () => newBoard() }, '次の盤面'),
+      h('button', { class: 'btn', onclick: () => newBoard(tk.seed) }, '同じ盤面をもう一度'))));
+};
+(async () => {
+  CAT = await api('/api/catalog');
+  drawPicker();
+  newBoard();
+})();
+</script>
+<script src="/static/puzzles.js"></script>
+</body>
+</html>

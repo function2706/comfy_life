@@ -27,6 +27,11 @@ SKILL_RATE = 0.4         # 経験のうち身につく割合
 SKILL_DAY_SOFT = 2.0     # その日に伸びた量がこれだけあると, 次の経験は半分しか身につかない
 
 
+def skill_mult_of(v):
+    """スキルの値 (0〜100) による効き目の倍率 (0.6〜1.4). 内職の単独版 (tools/puzzle_lab.py) の試算にも使う."""
+    return 0.6 + float(v) / 100.0 * 0.8
+
+
 def _amount(v):
     if isinstance(v, (list, tuple)) and len(v) == 2:
         return int(random.randint(int(v[0]) // 100, int(v[1]) // 100) * 100)
@@ -68,7 +73,7 @@ class Life:
 
     def skill_mult(self, k):
         """スキルによる効き目の倍率 (0.6〜1.4)."""
-        return 0.6 + self.skill(k) / 100.0 * 0.8
+        return skill_mult_of(self.skill(k))
 
     def train(self, k, gain):
         """スキルを伸ばす. gain は経験の量 (1 回の会話で 1.2, 仕事 1 時間で 0.5 など). 伸びた量を返す.
