@@ -71,12 +71,10 @@ class Solo:
         return p.get("solo") if p.get("mode") in ("busy", "out") else None
 
     # ------------------------------------------------------------------ 始める
-    def near(self):
-        """いまそばにいる人 (同居して家にいる / 会っている). 選んでいるキャラを優先. いなければ None."""
-        app = self.app
-        cur = app.settings.get("active_character")
-        cids = ([cur] if cur in app.chars else []) + [c for c in app.chars if c != cur]
-        return next((c for c in cids if app.bonds.together(c)), None)
+    def near(self, cid=None):
+        """告げる相手: いまそばにいる人 (家にいる同居相手 / 会っている / 来ている) のうち,「誰かと」で選んでいる相手.
+        いなければ None (一人)."""
+        return self.app.target(cid)
 
     def _plain_ok(self, go, cid):
         """告げる相手がいなくても, その予定の条件 (時刻・あなたの体力・在席) を満たすか."""
@@ -85,12 +83,10 @@ class Solo:
             a = app.action(go)
         except KeyError:
             return False
-        cid = cid or app.settings.get("active_character")
+        if not cid:                   # 告げる相手がいない: あなた一人の条件 (時刻・在席・体力)
+            return cond.check(a.get("when", ""), app.you_context())
         char, st = app.char(cid), app.state(cid)
-        ctx = app.context(char, st, datetime.now())
-        if not app.bonds.together(cid):
-            ctx["outing"] = False     # 相手の外出は関係ない (あなたの予定)
-        return cond.check(a.get("when", ""), ctx)
+        return cond.check(a.get("when", ""), app.context(char, st, datetime.now()))
 
     def _place(self, kind, place):
         if kind != "out":
@@ -102,10 +98,11 @@ class Solo:
             raise ValueError("%sは閉まっています（%s）" % (self.app.places.label(place), o["note"]))
         return place
 
-    def start(self, kind, skill=None, place=None):
+    def start(self, kind, skill=None, place=None, cid=None):
+        """cid: 告げる相手 (そばにいる人の中から. 無ければ「誰かと」で選んでいる相手)."""
         app = self.app
         if kind in PLAIN:
-            return self.start_plain(kind, place)
+            return self.start_plain(kind, place, cid)
         if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
             place = place or places_mod.LEGACY_DO[kind]
             kind = "out"
@@ -123,7 +120,7 @@ class Solo:
             raise ValueError("いまは始められません（%s）" % app.presence.view(time.time())["label"])
         now = time.time()
         res = None
-        cid = self.near()
+        cid = self.near(cid)
         if cid:
             # 一緒にいる相手には声をかけていく (既存の「ちょっと作業するね」「ちょっと出かけてくる」と同じ)
             try:
@@ -141,14 +138,14 @@ class Solo:
                   .replace("{place}", app.places.label(place) if place else ""), now)
         return {"started": kind, "label": k["doing"], "act": res}
 
-    def start_plain(self, kind, place=None):
+    def start_plain(self, kind, place=None, cid=None):
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
         app = self.app
         k = PLAIN[kind]
         if kind == "busy" and not app.bonds.living():
             raise ValueError("一人暮らしでは「作業する」はありません（同居している相手に、作業中と伝えるためのものです）")
         place = self._place(kind, place)
-        cid = self.near()
+        cid = self.near(cid)
         if kind == "leave" and not cid:
             raise ValueError("一人のときは「席を外す」はありません（そばにいる相手に告げて離れるためのものです。一人なら画面を閉じれば、オフライン時の過ごし方どおりに過ごします）")
         if cid:

@@ -184,11 +184,16 @@ GLIMPSE_TAGS = {"books": "本棚に本がぎっしり並んでいる", "cute": "
 def home_glimpse(app, char, st):
     """相手の家の暮らしぶり (きれい好きか・好きなもの・懐具合が, 部屋ににじむ). ナレーションを返す. 毎回少し違う."""
     import random
+    import time
     neat = float(app.traits(char).get("neat", 0))
     r = random.gauss(neat / 10.0, 0.35)
     tidy = "きれいに片付いていた" if r > 0.35 else "ほどよく生活感があった" if r > -0.35 else "少し散らかっていた"
     likes = [t for t in app.items.likes(char)[0] if t in GLIMPSE_TAGS]
-    seen = [GLIMPSE_TAGS[t] for t in random.sample(likes, min(len(likes), random.choice((1, 2))))] if likes else []
+    picked = random.sample(likes, min(len(likes), random.choice((1, 2)))) if likes else []
+    seen = [GLIMPSE_TAGS[t] for t in picked]
+    from .items import TAG_LABEL
+    for t in picked:                    # 部屋を見て分かった好きなもの (関係性)
+        app.bonds.learn(st, "like", TAG_LABEL.get(t, t), time.time())
     money = app.life.her_money(st)["a"]
     if money < 5000:
         seen.append("家具は少なく、質素な暮らしぶりだ")

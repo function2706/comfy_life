@@ -296,7 +296,7 @@ class Life:
     def money_ctx(self, st):
         ps = self.player_state()
         value = self.portfolio_value()
-        ctx = {"my_money": ps["money"], "her_money": self.her_money(st)["a"], "invest_value": value,
+        ctx = {"my_money": ps["money"], "her_money": self.her_money(st)["a"] if st is not None else 0, "invest_value": value,
                "profit": value - self.portfolio_cost() if value else 0}
         ctx.update({"sk_" + k: round(v, 1) for k, v in ps["skills"].items()})
         ctx["my_stamina"] = round(float(ps.get("stamina", 100)), 1)
@@ -305,9 +305,10 @@ class Life:
 
     def move(self, st, dp=0, da=0):
         """お金を動かす (マイナス可). 実際に動いた額を返す."""
-        ps, hm = self.player_state(), self.her_money(st)
+        ps = self.player_state()
         ps["money"] += int(dp)
-        hm["a"] += int(da)
+        if da:                                  # st なしで呼べるのは, あなたのお金だけ動かすとき
+            self.her_money(st)["a"] += int(da)
         self.save_player()
         out = {}
         if dp:
@@ -701,30 +702,38 @@ class Life:
             ("{call}と「%s」" % a.get("name", a.get("id", "")))
         return self.add_reason(st, "player", mood, tell.replace("{call}", call), now, told=True, delta=d, action=a.get("id"))
 
-    def view(self, char, st):
+    def player_view(self):
+        """あなたのお金・体力・スキル (誰がそばにいても同じ. お金タブ)."""
         ps = self.player_state()
-        now = time.time()
-        rs = self.reasons(st, now)
-        untold = [r for r in rs if not r["told"]]
-        call = self.app.pronouns(char)[2]
-        fmt = lambda s: (s or "").replace("{call}", call)   # noqa: E731
-        req = dict(st["request"], text=fmt(st["request"].get("text")), label=fmt(st["request"].get("label"))) \
-            if st.get("request") else None
         return {
                 "debt": int(ps.get("debt", 0)), "in_debt": self.in_debt(),
                 "loans": [{"id": k, "name": (self.app.chars.get(k) or {}).get("name", k), "amount": v}
                           for k, v in (ps.get("loans") or {}).items() if v],
                 "money_notes": (ps.get("money_notes") or [])[-5:],
-                "living": self.app.bonds.living() == char["id"],
-                "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
-                             "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],
                 # 相手の所持金は出さない (分かるのは, 貸し借り・取り決め・本人が口にしたことだけ)
                 "my_money": ps["money"],
                 "invest": {"value": self.portfolio_value(), "invested": self.portfolio_cost()},
                 "market": self.market_view(),
                 "skills": {k: round(v, 1) for k, v in ps["skills"].items()},
                 "stamina": round(float(ps.get("stamina", 100)), 1), "work_today": round((ps.get("work_log") or {}).get(
-                    datetime.now().strftime("%Y-%m-%d"), 0), 2),
+                    datetime.now().strftime("%Y-%m-%d"), 0), 2)}
+
+    def partner_view(self, char, st):
+        """相手のこと (あなたが知りうることだけ): 機嫌の理由 (聞いたもの)・お願い・お金の取り決め・あなたが借りている額."""
+        ps = self.player_state()
+        now = time.time()
+        rs = self.reasons(st, now)
+        untold = [r for r in rs if not r["told"]]
+        call = self.app.pronouns(char)[2]
+        fmt = lambda s: (s or "").replace("{call}", call)   # noqa: E731
+        req = dict(st["request"], text=fmt(st["request"].get("text")), label=fmt(st["request"].get("label")))             if st.get("request") else None
+        return {"living": self.app.bonds.living() == char["id"],
+                "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
+                             "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],
                 "pay_policy": char.get("pay_policy") or "auto", "living_policy": char.get("living_policy") or "split",
+                "owed": int((ps.get("loans") or {}).get(char["id"], 0)),
                 "request": req,
                 "hint": bool(untold), "hint_mood": untold[0]["mood"] if untold else None}
+
+    def view(self, char, st):
+        return dict(self.player_view(), **self.partner_view(char, st))

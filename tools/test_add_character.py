@@ -11,6 +11,9 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)     # 同居相手が家にいる時刻に (平日の昼は出かけていて, そばにいない)
 
 
 def main():
@@ -25,11 +28,11 @@ def main():
 
         # ---- 1. 連絡先 / 知り合い: このワールドに現れ, 選んだ間柄で始まる (外見・性格も入る)
         c = app.new_character("みお", stage="contact", pos="1girl, solo, black hair", persona_id="cool")
-        assert c["id"] in app.chars and B.stage(c["id"]) == "contact" and app.settings["active_character"] == c["id"]
+        assert c["id"] in app.chars and B.stage(c["id"]) == "contact"  # 追加しても「誰かと」の相手は変えない (そばにいないので)
         assert app.chars[c["id"]]["pos"] == "1girl, solo, black hair" and app.chars[c["id"]]["persona_id"] == "cool"
         k = app.new_character("ゆかり", stage="known")
         assert B.stage(k["id"]) == "known"
-        assert not app.state_view(k["id"])["available"]["message"]["ok"], "知り合いには連絡できない"
+        assert not app.person_view(k["id"])["available"]["message"]["ok"], "知り合いには連絡できない"
         assert B.stage("hina") == "live", "もとの同居はそのまま"
         try:
             app.new_character("x", stage="live")

@@ -45,7 +45,7 @@ def main():
             raise AssertionError("約束なしにお出かけできる")
         except ValueError as e:
             assert "約束" in str(e)
-        assert not app.state_view(cid)["available"]["aquarium"]["ok"]
+        assert not app.person_view(cid)["available"]["aquarium"]["ok"]
         for bad in ((now + 600, "aquarium", "aquarium"), (now + 15 * 86400, "aquarium", "aquarium"),
                     (now + 7200, "park", "aquarium"), (now + 7200, "home:" + cid, "visit_home")):
             try:

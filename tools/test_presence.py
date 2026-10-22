@@ -48,7 +48,7 @@ def main():
         st["cooldowns"] = {}
         r = app.act("go_out")
         assert P.rec()["mode"] == "out" and app.state_view()["presence"]["state"] == "out"
-        av = app.state_view()["available"]
+        av = app.person_view()["available"]
         assert not av["go_out"]["ok"] and not av["talk"]["ok"] or True
         P.rec()["since"] -= 7 * 3600
         assert app.visit() is None and P.rec()["mode"] == "out", "開き直しただけなら外出は続く (閉じていたら家に帰っている)"
@@ -95,7 +95,7 @@ def main():
         free()
         st["approach"] = None
         r = app.force_approach("chat")
-        assert st["approach"] and app.state_view()["approach"]["id"] == "chat"
+        assert st["approach"] and app.person_view()["approach"]["id"] == "chat"
         print("働きかけ:", r["entry"]["text"])
         t0 = L.skill("talk")
         r = app.answer_approach("accept")
@@ -227,7 +227,7 @@ def main():
         P.rec()["mode"] = "none"
         st["override"] = None
         st["override"] = {"activity": "date", "label": "デート", "location": "街", "outing": True, "until": time.time() + 3600}
-        av = app.state_view()["available"]
+        av = app.person_view()["available"]
         bad = [k for k in ("cook", "tea", "bath", "clean", "movie", "game", "side_job", "walk") if av[k]["ok"]]
         print("お出かけ中に出せてしまう家のコマンド:", bad)
         assert not bad and av["go_home"]["ok"] and av["talk"]["ok"]

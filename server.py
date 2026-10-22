@@ -62,7 +62,7 @@ def route(method, path, q, body):
         if path == "/api/jobs":
             return a.jobs_view()
         if path == "/api/log":
-            return a.log_page(cid, int(_q(q, "offset", 0)), int(_q(q, "limit", 60)), _q(q, "images") == "1")
+            return a.log_page(_q(q, "who") or None, int(_q(q, "offset", 0)), int(_q(q, "limit", 60)), _q(q, "images") == "1")
         if path == "/api/album":
             return a.album(cid, _q(q, "key"))
         if path == "/api/prompt":
@@ -112,7 +112,7 @@ def route(method, path, q, body):
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid)
         if path == "/api/solo/start":
-            return a.solo.start(b["kind"], b.get("skill"), b.get("place"))
+            return a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid)
         if path == "/api/diary/write":
             return {"diary": a.solo.write_diary()}
         if path == "/api/items/list":
@@ -180,6 +180,9 @@ def route(method, path, q, body):
             return a.delete_character(b["id"])
         if path == "/api/character/select":
             a.select_character(b["id"])
+            return {"ok": True}
+        if path == "/api/target":
+            a.set_target(b["id"])
             return {"ok": True}
         if path == "/api/world/create":
             return a.create_world(b.get("name"), b.get("copy_from") or None)

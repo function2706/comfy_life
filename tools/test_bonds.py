@@ -28,7 +28,7 @@ def main():
         B = app.bonds
         # ---- 1. 最初のワールド (以前からの続き) は, 選んでいたキャラと暮らしている
         assert B.stage("hina") == "live" and B.mode("hina") == "home", B.rec()
-        assert app.state_view()["bond"]["label"] == "一緒に暮らしている"
+        assert app.person_view()["bond"]["label"] == "家で一緒"
 
         # ---- 2. 新しいワールドは, 誰とも暮らしていない
         app.create_world("ひとり暮らし")
@@ -39,7 +39,7 @@ def main():
         free = lambda: st.update(override={"activity": "relax", "label": "くつろぎ", "location": "ひなの部屋", "until": 9e12})  # noqa: E731
         free()
         app.set_params({"affection": 40, "trust": 40, "mood": 60, "sleepiness": 0, "energy": 80, "health": 90})
-        av = app.state_view()["available"]
+        av = app.person_view()["available"]
         assert not av["talk"]["ok"] and not av["hug"]["ok"] and not av["cook"]["ok"], "離れていると話しかけ・ふれあいはできない"
         assert av["message"]["ok"] and av["call"]["ok"] and not av["cafe"]["ok"], "連絡はできる. お出かけは約束してから"
         assert not av["visit_home"]["ok"] and not av["ask_visit"]["ok"]
@@ -132,7 +132,7 @@ def main():
         app.set_params({"affection": 50})
         st["cooldowns"] = {}
         app.act("cafe", opts=APPT)
-        assert B.mode("hina") == "meet" and app.state_view()["available"]["talk"]["ok"], "外で会っている間は話せる"
+        assert B.mode("hina") == "meet" and app.person_view()["available"]["talk"]["ok"], "外で会っている間は話せる"
         app.act("go_home")
         assert B.mode("hina") is None, "家に帰ると別れる"
         print("meet: OK")
@@ -143,7 +143,7 @@ def main():
         app.act("ask_visit")
         assert B.stage("hina") == "visit"
         app.act("visit_home", opts=APPT)
-        assert B.mode("hina") == "visit" and app.state_view()["available"]["cook"]["ok"], "相手の家では家のこともできる"
+        assert B.mode("hina") == "visit" and app.person_view()["available"]["cook"]["ok"], "相手の家では家のこともできる"
         app.act("leave_visit")
         assert B.mode("hina") is None
         st["cooldowns"] = {}
@@ -168,7 +168,7 @@ def main():
         app.select_character(mio["id"])
         app.act("visit_home", mio["id"], opts=APPT)
         assert B.mode(mio["id"]) == "visit" and B.mode("hina") is None, "みおの家にいる間, ひなとは離れている"
-        assert not app.state_view(mio["id"])["available"]["ask_live"]["ok"], "同居は一人だけ"
+        assert not app.person_view(mio["id"])["available"]["ask_live"]["ok"], "同居は一人だけ"
         try:
             B.set_stage(mio["id"], "live")
             raise AssertionError("二人目と同居できてしまう")

@@ -64,7 +64,7 @@ def main():
         v = app.state_view(cid)
         assert v["outdoor"]["places"]["amusement"]["open"] is False and v["outdoor"]["places"]["amusement"]["note"]
         assert v["outdoor"]["places"]["park"]["open"]
-        assert v["available"]["aquarium"]["closed"] and not v["available"]["aquarium"]["ok"]
+        assert app.person_view(cid)["available"]["aquarium"]["closed"] and not app.person_view(cid)["available"]["aquarium"]["ok"]
         st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": time.time() + 9e6}
         app.set_params({"affection": 70, "mood": 70, "energy": 80, "sleepiness": 0}, cid)
         try:

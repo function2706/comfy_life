@@ -62,6 +62,7 @@ def main():
         assert len(logs) == 1 and "[INFO]" in logs[0] and "Traceback" not in logs[0] and "\n" not in logs[0], logs
         # 体力が足りないときも, 先に理由が出る
         app.state(cid)["cooldowns"] = {}
+        app.life.player_state()["side_job_t"] = 0           # 内職の休憩はあなたの記録
         app.life.player_state()["stamina"] = 3
         assert "体力" in app.state_view(cid)["side_job"]["reason"]
         app.life.player_state()["stamina"] = 100

@@ -223,7 +223,19 @@ class Chat:
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
                 "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
                 "appoint_choices": app.appoint.choices(cid) if app.bonds.stage(cid) in ("contact", "visit") else [],
-                "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()]}
+                "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
+                "actions": self.phone_actions(cid)}
+
+    def phone_actions(self, cid):
+        """スマホからできる, メッセージ以外のこと (電話・「家に行ってもいい？」など. 離れている相手だけ)."""
+        app = self.app
+        if app.bonds.together(cid) or app.bonds.stage(cid) == "known":
+            return []
+        av = app.person_view(cid)["available"]
+        return [{"id": a["id"], "name": a.get("name", a["id"]), "icon": a.get("icon", ""), "ok": True}
+                for a in app.actions if a["id"] in av and av[a["id"]]["ok"] and a["id"] != "message" and a.get("category") in ("連絡", "会う")
+                and not (a.get("override") or {}).get("outing") and not a.get("bond", "").endswith(("_start", "_end"))
+                and app.bonds.allowed_apart(a, cid) and not app.appoint.needs(a, cid)]
 
     def unread_total(self):
         return sum(x["unread"] for x in self.list_view())

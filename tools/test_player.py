@@ -10,6 +10,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)     # 同居相手が家にいる時刻に (平日の昼は出かけていて, そばにいない)
 
 
 def main():

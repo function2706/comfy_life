@@ -41,7 +41,7 @@ def main():
 
         # ---- 1. 相手が寝ていても, メッセージは送れるし電話もかけられる (出ないだけ)
         scene(activity="sleep", label="睡眠中", asleep=True)
-        av = app.state_view()["available"]
+        av = app.person_view()["available"]
         assert av["message"]["ok"] and av["call"]["ok"], av["call"]
         e = app.act("message")["entry"]
         assert e.get("sent") and st.get("msg_pending")
@@ -69,9 +69,9 @@ def main():
             r = app.act("call")
             if not r.get("missed"):
                 break
-        assert not r.get("missed") and app.state_view()["peek"]
+        assert not r.get("missed") and app.person_view()["peek"]
         st["peek_until"] = 0
-        assert not app.state_view()["peek"]
+        assert not app.person_view()["peek"]
 
         # ---- 3. 連絡しすぎは引かれる (許容は性格と間柄しだい). 夜中の電話は迷惑がられる
         char = app.char(cid)
@@ -127,7 +127,7 @@ def main():
 
         # ---- 6. 連絡先を知らない相手には連絡できない. スマホの連絡先はそばにいない人だけ
         B.set_stage(cid, "known")
-        assert not app.state_view()["available"]["message"]["ok"]
+        assert not app.person_view()["available"]["message"]["ok"]
         assert app.state_view()["contacts"] == []
         B.set_stage(cid, "contact")
         assert [c["id"] for c in app.state_view()["contacts"]] == [cid]

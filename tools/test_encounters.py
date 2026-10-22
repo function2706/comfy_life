@@ -71,7 +71,7 @@ def main():
         assert len(st_) == 3 and st_.count("contact") == 1 and st_.count("known") == 2, "最低一人は連絡先を知っている"
         kid = next(c for c in app.chars if app.bonds.stage(c) == "known")
         app.select_character(kid)
-        av = app.state_view(kid)["available"]
+        av = app.person_view(kid)["available"]
         assert not av["message"]["ok"] and not av["call"]["ok"] and not av["cafe"]["ok"], "知り合いには連絡も誘いもできない"
         # 偶然会っても, 連絡先を交換するとは限らない. 話のうまさ・相手の機嫌で変わる
         B, L, kst = app.bonds, app.life, app.state(kid)
@@ -104,7 +104,7 @@ def main():
         if app.bonds.stage(kid) == "known":
             app.bonds.set_stage(kid, "contact")
 
-        assert app.state_view(kid)["available"]["message"]["ok"]
+        assert app.person_view(kid)["available"]["message"]["ok"]
         print("new world cast: OK")
 
         # ---- 4. まだ知らない人は「知らない人」の候補になる (ほかのワールドで登録済みの人)

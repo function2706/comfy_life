@@ -42,6 +42,13 @@ FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_flo
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+# 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
+MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
+                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "busy": "作業", "work": "仕事",
+                 "sleep": "寝る", "leave": "席を外す", "back": "戻る", "side_job": "内職", "invest": "株", "offline": "閉じていた間"}
+MY_KIND_ICON = {"rest": "🛋", "chores": "🧹", "practice": "📚", "out": "🚶", "walk": "🚶", "shopping": "🛍", "cafe": "☕", "see": "👀",
+                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
+                "back": "🏠", "side_job": "🧵", "invest": "📈", "offline": "🌙"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
                  "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
 
@@ -219,6 +226,49 @@ class App:
             raise KeyError("キャラクターが見つかりません: %s" % cid)
         return c
 
+    def target(self, cid=None):
+        """「誰かと」の相手: いまそばにいる人 (bonds.company) の中から. cid がそばにいればそれ, いなければ最後に選んだ相手,
+        それもいなければそばにいる最初の人. 誰もそばにいなければ None (一人)."""
+        comp = self.bonds.company()
+        if cid in comp:
+            return cid
+        cur = self.settings.get("active_character")
+        return cur if cur in comp else (comp[0] if comp else None)
+
+    def set_target(self, cid):
+        """「誰かと」の相手を選ぶ (そばにいる人だけ). 選んだ相手はワールドごとに覚える (local.json の active_character)."""
+        if cid not in self.bonds.company():
+            raise ValueError("%sはいまそばにいません" % (self.chars.get(cid) or {}).get("name", cid))
+        return self.save_settings({"active_character": cid})
+
+    def you_context(self, dt=None):
+        """あなた一人の条件式の値 (誰とも関係しない予定・一人の行動の条件用): 時刻・在席・お金・体力・あなたの情報."""
+        dt = dt or datetime.now()
+        ctx = {"phase": self.phase_at(dt).get("id", ""), "hour": dt.hour, "time": dt.hour * 60 + dt.minute,
+               "weekday": dt.weekday(), "day": DAY_KEYS[dt.weekday()], "weekend": dt.weekday() >= 5,
+               "month": dt.month, "season": SEASONS[dt.month], "outing": False, "overriding": False,
+               "away": False, "asleep": False, "busy": False, "free": True, "apart": True, "company": len(self.bonds.company())}
+        ctx.update(self.life.money_ctx(None))
+        ctx.update(self.presence.ctx(dt.timestamp()))
+        ctx.update(self.player_ctx())
+        ctx["roll"] = random.randint(0, 99)
+        return ctx
+
+    def my_entry(self, kind, name, icon, text, now=None, money=None, skill=None):
+        """あなた一人の記録 (誰もそばにいないときの行動の結果). 一人の時間の記録 (mylog) に残し, 画面に出す形で返す."""
+        now = now or time.time()
+        e = self.solo.note(kind, text.strip("（）"), now, id=uuid.uuid4().hex[:12], icon=icon, name=name,
+                           **({"money": money} if money else {}), **({"skill": skill} if skill else {}))
+        return {"entry": self._my_view(e), "job": None, "llm_error": None}
+
+    @staticmethod
+    def _my_view(e):
+        """一人の時間の記録を, ログの 1 件の形に (あなたの 1 本の時系列に並べる)."""
+        return {"id": e.get("id") or "m%d" % int(e["t"] * 1000), "t": e["t"], "who": None, "who_name": "",
+                "action": "_my_" + e.get("kind", ""), "action_name": e.get("name") or MY_KIND_LABEL.get(e.get("kind"), "一人の時間"),
+                "icon": e.get("icon") or MY_KIND_ICON.get(e.get("kind"), "🧍"), "text": "（%s）" % e.get("text", ""),
+                "deltas": {}, "money": e.get("money") or {}, "skill": e.get("skill") or {}, "image": None, "images": [], "mine": True}
+
     def action(self, aid):
         for a in self.actions:
             if a.get("id") == aid:
@@ -345,7 +395,7 @@ class App:
         ctx.update(self.life.money_ctx(st))                    # my_money / her_money / invest_value / profit
         ctx.update(self.life.mood_ctx(st, dt.timestamp()))     # cause / knows / reason / untold / request / away_events
         ctx.update(self.presence.ctx(dt.timestamp()))          # presence / said / left_mode / left_h
-        ctx.update(self.bonds.ctx(char["id"], st))             # stage / apart / with_mode / living_other / rivals
+        ctx.update(self.bonds.ctx(char["id"], st, dt.timestamp()))   # stage / apart / with_mode / company / living_other / rivals
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx["roll"] = random.randint(0, 99)
@@ -363,8 +413,11 @@ class App:
         ctx = self.context(char, st, dt, scene, view=False)     # 本人の過ごし方で動く (あなたから見えるかとは別)
         vals = st["params"]
         floor = float(self.bonds.cfg()["cool_floor"])
-        pres = self.presence.effects(dt.timestamp()) \
-            if char["id"] == self.settings.get("active_character") and not scene["away"] and self.bonds.together(char["id"]) else {}
+        t = dt.timestamp()
+        pres = self.presence.effects(t) if not scene["away"] and self.bonds.together(char["id"], t) else {}
+        if pres and not self.bonds.alone_with(char["id"], t):
+            # そばにいる効果 (寂しさが紛れる) は, あなたとその人の二人きりのときだけ. ほかの人もいる中では, あなたへの寂しさは紛れない
+            pres = {k: v for k, v in pres.items() if not (k == "loneliness" and float(v) < 0)}
         tr = self.traits(char)
         t_rate, t_drift, t_speed = tr.get("rate") or {}, tr.get("drift") or {}, tr.get("drift_speed") or {}
         if pres and self.presence.at(dt.timestamp()) == "gone":     # 黙っていなくなった: 性格しだいで堪える
@@ -800,6 +853,9 @@ class App:
             if cd:
                 st["cooldowns"][aid] = hist + [now]
             st["last_interaction"] = now
+            if a.get("category") != "system" or aid in ("_req_yes", "_req_no", "_dress", "_back", "work", "_return"):
+                if not narrate and not opts.get("deliver"):
+                    self.bonds.met(st, now, contact=apart)       # 関係性: 最後に会った / 連絡した
             scene2 = self.scene_at(char, st, dt)
             rs = a.get("reactions") or []
             pkey = "%s.%s" % (aid, line_keys(rs)[rs.index(r)]) if r in rs else None
@@ -869,7 +925,16 @@ class App:
         char = self.char(cid)
         aid = "expensive_gift" if it["price"] >= 10000 else "gift"
         feel = self.items.feel(char, iid)
-        return self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
+        r = self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
+        if feel["liked"] or feel["disliked"]:           # 渡してみて分かった, 好きなもの・苦手なもの (関係性)
+            lk, dk = self.items.likes(char)
+            tags = [t for t in it["tags"] if t in (lk if feel["liked"] else dk)]
+            with self.lock:
+                st = self.state(char["id"])
+                for t in tags:
+                    self.bonds.learn(st, "like" if feel["liked"] else "dislike", items_mod.TAG_LABEL.get(t, t), time.time())
+                self.save_state(char["id"])
+        return r
 
     def _when(self, a, ctx):
         """コマンドの条件. 離れている相手には apart_when があればそれ (例: メッセージは相手が寝ていても送れる)."""
@@ -899,6 +964,7 @@ class App:
                 return None
             callback = (random.uniform(10, 60) * 60) if random.random() < 0.3 else None
         cid = char["id"]
+        self.bonds.met(st, now, contact=True)
         if callback and not st.get("msg_pending"):
             st["msg_pending"] = {"aid": "message", "t": now, "due": now + callback, "reply": True, "count": 1, "callback": True}
         cd = float(a.get("cooldown", 0)) * 60
@@ -918,6 +984,7 @@ class App:
         cid = char["id"]
         p = st["params"]
         pend = st.get("msg_pending")
+        self.bonds.met(st, now, contact=True)
         if st.get("approach"):
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
         self.chat.add(cid, "me", chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）", kind=kind, t=now)
@@ -984,6 +1051,7 @@ class App:
                 key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
             self.bonds.touch(st, now)
+            self.bonds.met(st, now, contact=True)
             st["last_interaction"] = now
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
             text = self.chat.line(char, key, extra)
@@ -1011,9 +1079,60 @@ class App:
         return {"cid": cid, "name": char.get("name", ""), "text": text, "late": now - pend["t"] > 3600}
 
     def _contacts_view(self):
-        """スマホの連絡先 (連絡先を知っていて, いまそばにいない人)."""
+        """スマホの連絡先 (連絡先を知っていて, いまそばにいない人. 出かけている同居相手も)."""
         return [{"id": cid, "name": c.get("name", ""), "stage": self.bonds.stage(cid)} for cid, c in self.chars.items()
                 if self.bonds.stage(cid) != "known" and not self.bonds.together(cid)]
+
+    # ------------------------------------------------------------------ あなたの 1 本の時系列・関係性
+    def timeline(self, who=None, offset=0, limit=60, images_only=False):
+        """あなたの 1 本の時系列: 誰かとの記録 (各キャラのログ) と一人の時間の記録 (mylog) を時刻順に. 新しい順の
+        (items, total). who: キャラの id ならその人との記録だけ, "me" なら一人の時間だけ, None なら全部."""
+        items = []
+        if who in (None, "", "me") and not images_only:
+            items += [self._my_view(e) for e in self.solo.mylog()]
+        if who != "me":
+            for c in ([who] if who in self.chars else list(self.chars) if not who else []):
+                name = self.chars[c].get("name", "")
+                for e in self.log(c):
+                    if images_only and not e.get("images"):
+                        continue
+                    x = dict(e, who=c, who_name=name)
+                    x.pop("parts", None)
+                    items.append(x)
+        items.sort(key=lambda x: -x["t"])
+        return items[offset:offset + limit], len(items)
+
+    def log_entry(self, eid, cid=None):
+        """記録を id で探す (誰との記録か分からなければ全員から). (cid, 記録) か (None, None)."""
+        for c in ([cid] if cid in self.chars else []) + [c for c in self.chars if c != cid]:
+            e = self.find_entry(c, eid)
+            if e:
+                return c, e
+        return None, None
+
+    def people_view(self, now=None):
+        """関係性: このワールドで知っている人全員. 間柄・最後に会った日 / 連絡した日・あなたが知っていること
+        (好きなもの・聞いた話)・貸し借り・取り決め. 様子 (params) は見た目の印象用 (そばにいない人は画面で「？」)."""
+        now = now or time.time()
+        ps = self.life.player_state()
+        out = []
+        for cid, c in self.chars.items():
+            st = self.state(cid)
+            b = self.bonds.view(cid)
+            self.bonds.remember(c, st, now)
+            out.append({"id": cid, "name": c.get("name", ""), "stage": b["stage"], "stage_label": b["stage_label"],
+                        "mode": b["mode"], "label": b["label"], "face": self.chat.face(cid),
+                        "last_met": st.get("last_met") or (st.get("last_touch") if b["stage"] == "live" else None),
+                        "last_contact": st.get("last_contact"), "last_touch": st.get("last_touch"),
+                        "known": list(reversed(st.get("known") or []))[:12],
+                        "owed": int((ps.get("loans") or {}).get(cid, 0)),
+                        "living_policy": c.get("living_policy") or "split" if b["stage"] == "live" else None,
+                        "pay_policy": c.get("pay_policy") or "auto",
+                        "params": {k: round(v, 1) for k, v in st["params"].items()},
+                        "pending_msg": bool(st.get("msg_pending"))})
+        rank = {"live": 0, "visit": 1, "contact": 2, "known": 3}
+        out.sort(key=lambda x: (not x["mode"], rank.get(x["stage"], 9), -(x["last_touch"] or 0)))
+        return out
 
     def deliver_due(self, now=None):
         """時間差の返信: 期限が来て, 相手が寝ていない・手が離せないなら返信が届く (来ないと決まっていれば読むだけ).
@@ -1181,10 +1300,10 @@ class App:
     def reroll(self, entry_id, cid=None):
         """同じプロンプトの既存画像から別の 1 枚を選び直す."""
         with self.lock:
-            char = self.char(cid)
-            e = self.find_entry(char["id"], entry_id)
+            cid, e = self.log_entry(entry_id, cid)
             if not e:
                 raise KeyError("記録が見つかりません")
+            char = self.chars[cid]
             have = self.existing_images(e["pos"], e["neg"])
             if not have:
                 raise ValueError("このプロンプトの画像はまだありません")
@@ -1272,16 +1391,14 @@ class App:
              "icon": a.get("icon", ""), "text": text, "deltas": deltas, "scene": scene["label"],
              "location": scene["location"], "phase": self.phase_at(dt).get("label", ""),
              "pos": pos, "neg": neg, "parts": parts, "images": [], "image": None, "seed": None}
+        if not self.bonds.together(cid):
+            e["apart"] = True           # 離れていたときの記録 (相手がそのとき何をしていたかは, ログにも出さない)
         self.log(cid).append(e)
         return e
 
     def visit(self, cid=None):
         """開いたときの「おかえり」. 告げて離れていたなら, その戻り (仕事なら稼ぎも). 黙って閉じていたら一定時間で."""
-        char = self.char(cid)
         with self.lock:
-            self.tick(char["id"])
-            st = self.state(char["id"])
-            absent = (time.time() - st.get("last_interaction", time.time())) / 3600.0
             p = self.presence.rec()
             if p["mode"] in ("out", "work"):
                 # 外出・仕事は画面を開いているあいだ続く. 開き直しただけ (心拍が途絶えていない) なら続き.
@@ -1292,9 +1409,15 @@ class App:
             else:
                 declared = False
         if declared:
-            return self.come_back(char["id"])
-        if self.bonds.mode(char["id"]) != "home":     # 「おかえり」は一緒に暮らしている相手だけ
+            return self.come_back()
+        live = self.bonds.living()
+        if not live or self.bonds.mode(live) != "home":     # 「おかえり」は家にいる同居相手だけ
             return None
+        char = self.chars[live]
+        with self.lock:
+            self.tick(live)
+            st = self.state(live)
+            absent = (time.time() - st.get("last_interaction", time.time())) / 3600.0
         pc = self.presence.ctx(time.time())
         silent = pc["left_mode"] == "gone" and not pc["said"]
         if absent < float(self.world.get("absent_greet_hours", 3)) and not (silent and absent >= 1):
@@ -1320,13 +1443,15 @@ class App:
     def snapshot(self, cid=None, pos=None, neg=None, seed=None, entry_id=None):
         """手動生成. entry_id 指定ならその記録で再生成, 無ければ現在の様子を新規記録."""
         with self.lock:
-            char = self.char(cid)
-            cid = char["id"]
             if entry_id:
-                e = self.find_entry(cid, entry_id)
+                cid, e = self.log_entry(entry_id, cid)
                 if not e:
                     raise KeyError("記録が見つかりません")
             else:
+                cid = self.target(cid)
+                if not cid:
+                    raise ValueError("いまはそばに誰もいません（画像は、そばにいる人の様子だけを撮ります）")
+                char = self.chars[cid]
                 self.tick(cid)
                 st = self.state(cid)
                 now = time.time()
@@ -1529,64 +1654,95 @@ class App:
 
     # ------------------------------------------------------------------ views
     def state_view(self, cid=None, beat=False, idle=None):
+        """画面の 1 回の更新. あなたが中心: あなたの在席・一人の時間・お金・持ち物・スマホ, いまそばにいる人たち (company),
+        「誰かと」の相手 (target. cid がそばにいればその人) の様子 (with), あなたの 1 本の時系列のログ.
+        誰もそばにいなければ target / with は None."""
         replies = self.deliver_due()
         appoint_events = self.appoint.live()            # 約束 (キャンセル・遅れて来た・すっぽかし・相手からの誘い)
         # 画面を閉じていた (心拍が途絶えた) なら, 外出はその時点で終わっていた: 家で静かに過ごしていた
         gap = self.outdoor.check_gap() if beat else None
         with self.lock:
-            char = self.char(cid)
-            cid = char["id"]
-            self.tick(cid)                  # 先に, 心拍が途絶えていた間を「いない」として進める
+            now = time.time()
+            for oid in self.bonds.company() or ([self.settings.get("active_character")] if self.settings.get("active_character") in self.chars else []):
+                self.tick(oid, now)         # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
             closed = self.outdoor.closing() if beat else None       # いる行き先が閉まったら出される
             street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
-            st = self.state(cid)
             now = time.time()
-            if beat and cid == self.settings.get("active_character") and self.presence.live(char, st, now):
-                self.save_state(cid)
+            company = self.bonds.company(now)
             if beat:
-                # 離れている連絡先の人も, それぞれ自分の予定どおりに過ごしていて, ときどきメッセージを送ってくる (選んでいる相手に限らない)
+                # そばにいる人は話しかけてくる. 離れている連絡先の人も, それぞれ自分の予定どおりに過ごしていて,
+                # ときどきメッセージを送ってくる (「誰かと」で選んでいる相手に限らない)
                 for oid in list(self.chars):
-                    if oid == cid or self.bonds.together(oid) or self.bonds.stage(oid) == "known":
+                    if oid not in company and self.bonds.stage(oid) == "known":
                         continue
                     self.tick(oid, now)
                     ost = self.state(oid)
                     if self.presence.live(self.chars[oid], ost, now):
                         self.save_state(oid)
+            company = self.bonds.company(now)
+            tid = self.target(cid)
             dt = datetime.fromtimestamp(now)
-            scene = self.scene_at(char, st, dt)
-            ctx = self.context(char, st, dt, scene)
             phase = self.phase_at(dt)
-            log = self.log(cid)
+            log, log_total = self.timeline(limit=LOG_KEEP_IN_VIEW)
             pending = [self.job_view(j["id"]) for j in self.jobs.values()
-                       if j["cid"] == cid and j.get("wid") == store.WORLD and j["status"] in ("queued", "running")]
-            return {
-                "now": now, "character": cid, "name": char.get("name", ""),
+                       if j.get("wid") == store.WORLD and j["status"] in ("queued", "running")]
+            autos = [self.state(c).get("last_auto") for c in company if self.state(c).get("last_auto")]
+            out = {
+                "now": now, "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
+                "company": [self._company_item(c) for c in company], "target": tid,
+                "with": self.person_view(tid, dt) if tid else None,
+                "you": self.life.player_view(),
+                "log": log, "log_total": log_total, "jobs": pending,
+                "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
+                "street": street, "items": self.items.view(),
+                "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
+                "side_job": self.task_ready(now), "task_active": self.task_active(),
+                "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
+                "offline_report": self.offline.report(),
+                "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(),
+                "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
+                "presence": self.presence.view(now),
+                "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],
+                "auto": max(autos, key=lambda x: x["t"]) if autos else None,
+            }
+            return out
+
+    def _company_item(self, cid):
+        b = self.bonds.view(cid)
+        return {"id": cid, "name": self.chars[cid].get("name", ""), "mode": b["mode"], "label": b["label"],
+                "stage": b["stage"], "stage_label": b["stage_label"], "face": self.chat.face(cid)}
+
+    def _approach_item(self, cid):
+        """話しかけられている・メッセージが来て返事を待たれている (誰から)."""
+        v = self.presence.pending_view(self.chars[cid], self.state(cid))
+        if v:
+            v.update(cid=cid, name=self.chars[cid].get("name", ""))
+        return v
+
+    def person_view(self, cid=None, dt=None):
+        """「誰かと」の相手の様子 (そばにいるので見える): 場面・状態・できること・着せ替え・ゲーム・お金のやりとり."""
+        char = self.char(cid)
+        cid = char["id"]
+        st = self.state(cid)
+        dt = dt or datetime.now()
+        now = dt.timestamp()
+        scene = self.scene_at(char, st, dt)
+        ctx = self.context(char, st, dt, scene)
+        return {"character": cid, "name": char.get("name", ""),
                 "params": {k: round(v, 1) for k, v in st["params"].items()},
                 "scene": {k: scene[k] for k in ("activity", "label", "location", "away", "asleep", "busy", "source")},
                 "override_until": scene.get("until"),
-                "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
                 "tags": [{"param": t["param"], "label": t["label"]} for t in self.active_tags(ctx)],
-                "available": self.available(char, st, dt),
-                "absent": ctx["absent"], "log": log[-LOG_KEEP_IN_VIEW:], "log_total": len(log),
-                "jobs": pending,
-                "dress": self._dress_view(char, st, scene, ctx),
-                "games": self.games.view(char, st, ctx),
-                "life": self.life.view(char, st),
-                "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap, "street": street, "items": self.items.view(),
-                "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
-                "side_job": self.task_ready(char, st, now), "task_active": self.task_active(),
-                "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto, "offline_report": self.offline.report(),
-                "pending_msg": bool(st.get("msg_pending")), "peek": st.get("peek_until", 0) > now,
-                "chat_unread": self.chat.unread_total(),
-                "contacts": self._contacts_view(),
-                "bond": self.bonds.view(cid), "bonds": self.bonds.list_view(), "encounter": self.encounters.view(),
-                "presence": self.presence.view(now),
+                "available": self.available(char, st, dt), "absent": ctx["absent"],
+                "dress": self._dress_view(char, st, scene, ctx), "wardrobe": char.get("wardrobe") or [],
+                "dress_reset_on_sleep": char.get("dress_reset_on_sleep", True),
+                "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
+                "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
                 "approach": self.presence.pending_view(char, st),
-                "auto": st.get("last_auto"),
-            }
+                "peek": st.get("peek_until", 0) > now}
 
     def _dress_view(self, char, st, scene, ctx):
         try:
@@ -1604,17 +1760,20 @@ class App:
         at: 戻った時刻 (心拍が途絶えていたときは最後の心拍). quiet: 誰の反応もなく, 結果だけ (画面を閉じていたとき).
         偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない."""
         with self.lock:
-            char = self.char(cid)
-            st = self.state(char["id"])
             wc = self.presence.rec().pop("work_contacts", 0)
             ll = self.presence.back(at)
             if not ll:
                 raise ValueError("いまは離れていません")
+            near = None if quiet else self.solo.near(cid)       # 戻った先にいる人 (家にいる同居相手・来ている人)
             if ll["mode"] != "work":
                 solo = self.solo.finish(ll)          # 一人の時間 (休む・家事・研鑽・散歩・買い物) の結果
                 if quiet:
                     return {"text": ((solo or {}).get("text") or "").strip("（）") or "出かけ先から帰った", "solo": solo}
-                r = self.act("_back", char["id"])
+                if not near:                         # 誰もいない: 出迎えはない. 一人の時間の結果だけ
+                    r = self.my_entry("back", "戻る", "🏠", (solo or {}).get("text") or "（戻ってきた）")
+                    r["solo"] = solo
+                    return r
+                r = self.act("_back", near)
                 r["solo"] = solo
                 return r
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
@@ -1622,13 +1781,18 @@ class App:
             if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
                 pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
                 work_note = "仕事中の連絡が多く、はかどらなかった" + ("（注意された）" if wc >= 5 else "")
-            mv = self.life.move(st, dp=pay) if pay else {}
+            mv = self.life.move(None, dp=pay) if pay else {}
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
-            if quiet:
-                self.save_state(char["id"])
-                return {"text": "仕事を終えて帰った（%s円）%s" % (format(pay, ","), "。" + work_note if work_note else ""), "pay": pay}
-        r = self.act("work", char["id"], opts={"money": mv, "extra": {"amount": format(pay, ",")},
+            if quiet or not near:
+                text = "仕事を終えて帰った（%s円）%s" % (format(pay, ","), "。" + work_note if work_note else "")
+                if quiet:
+                    return {"text": text, "pay": pay}
+                r = self.my_entry("work", "仕事から帰った", "💼", text, money=mv, skill={"work": gain} if gain else None)
+                if work_note:
+                    r["work_note"] = work_note
+                return r
+        r = self.act("work", near, opts={"money": mv, "extra": {"amount": format(pay, ",")},
                                                "ctx": {"work_h": round(raw, 2), "paid_h": round(h, 2), "pay": pay},
                                                "skill": {"work": gain}})
         if work_note:
@@ -1684,17 +1848,21 @@ class App:
         with self.lock:
             mv, amt, profit = self.life.trade(asset, qty)
         name = next((a.get("name", asset) for a in self.life.assets() if a["id"] == asset), asset)
-        return self.act("invest_buy" if int(qty) > 0 else "invest_sell", cid, opts={
+        near = self.target(cid)
+        if not near:            # 一人で: あなたの記録だけ
+            text = "%sを%s株、%s円で%s" % (name, format(abs(int(qty)), ","), format(amt, ","), "買った" if int(qty) > 0 else "売った")
+            if int(qty) < 0 and profit:
+                text += "（%s%s円）" % ("+" if profit > 0 else "−", format(abs(profit), ","))
+            return self.my_entry("invest", "株を買う" if int(qty) > 0 else "株を売る", "📈", text, money=mv)
+        return self.act("invest_buy" if int(qty) > 0 else "invest_sell", near, opts={
             "money": mv, "ctx": {"profit": profit},
             "extra": {"amount": format(amt, ","), "profit": format(abs(profit), ","), "asset": name, "qty": format(abs(int(qty)), ",")}})
 
     def task_start(self, kind, level="easy", cid=None):
         """内職 (パズル) を始める. 連続ではできない (コマンド side_job のクールダウン). 盤面はサーバで作る."""
         with self.lock:
-            char = self.char(cid)
-            st = self.state(char["id"])
             now = time.time()
-            why = self.task_ready(char, st, now)
+            why = self.task_ready(now)
             if why:
                 raise ValueError(why["reason"])
             if self.task_active():
@@ -1706,7 +1874,7 @@ class App:
             now = time.time()
             token = uuid.uuid4().hex[:10]
             tasks = self._task_store()
-            tasks[token] = {"t0": now, "kind": kind, "cid": char["id"], "puzzle": pz}
+            tasks[token] = {"t0": now, "kind": kind, "puzzle": pz}
             self._task_save()
             self.presence.declare("busy", now)
             return self._task_info(token)
@@ -1746,19 +1914,26 @@ class App:
             self.presence.declare("busy", time.time())
             return self._task_info(token)
 
-    def task_ready(self, char, st, now=None):
-        """内職を始められないなら理由 {reason, wait (休憩の残り秒)}. 始められるなら None. 画面にも先に出す."""
+    def side_job_last(self):
+        """最後に内職を終えた時刻 (あなたの記録. 以前はキャラの状態に残していたので, そちらも見る)."""
+        ps = self.life.player_state()
+        old = [max(self.state(c)["cooldowns"].get("side_job", [0]) or [0]) for c in self.chars]
+        return max([float(ps.get("side_job_t", 0))] + old)
+
+    def task_ready(self, now=None):
+        """内職を始められないなら理由 {reason, wait (休憩の残り秒)}. 始められるなら None. 画面にも先に出す.
+        内職はあなたのこと (誰がそばにいるかは関係ない. 家にいるかどうかと, 休憩・体力)."""
         now = now or time.time()
         if self.task_active():
             return None                      # やりかけがあれば, 続きから
         a = self.action("side_job")
-        ctx = self.context(char, st, datetime.fromtimestamp(now))
-        if self.presence.rec().get("mode") not in ("none", "busy") or ctx["outing"] or self.bonds.mode(char["id"]) in ("meet", "visit"):
+        w = self.bonds.with_rec()
+        if self.presence.rec().get("mode") not in ("none", "busy") or self.outdoor.current(now) or (w and w["mode"] in ("meet", "visit")):
             return {"reason": "いまは家にいないので内職できません", "wait": 0}
-        if not cond.check(a.get("when", ""), ctx):
+        if not cond.check(a.get("when", ""), self.you_context(datetime.fromtimestamp(now))):
             return {"reason": "今は内職できません", "wait": 0}
         cd = float(a.get("cooldown", 0)) * 60
-        last = max(st["cooldowns"].get("side_job", [0]) or [0])
+        last = self.side_job_last()
         if cd and now - last < cd:
             return {"reason": "まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60), "wait": int(last + cd - now)}
         need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
@@ -1786,10 +1961,10 @@ class App:
             self._task_save()
             pz = t["puzzle"]
             sec = time.time() - t["t0"]
-            st = self.state(t["cid"])
             e = self.world.get("economy", {})
             pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_rate_per_min"))
-            mv = self.life.move(st, dp=pay) if pay else {}
+            mv = self.life.move(None, dp=pay) if pay else {}
+            self.life.player_state()["side_job_t"] = time.time()
             solved = puzzles.solved(pz)
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
             self.life.tire(float(e.get("stamina_per_side_job", 10)))
@@ -1797,17 +1972,28 @@ class App:
             if p["mode"] == "busy":
                 p["mode"] = "none"
         fast = puzzles.fast(pz, sec)
-        r = self.act("side_job", t["cid"], opts={
+        near = self.target(cid)
+        task = {"solved": solved, "fast": fast, "miss": pz["miss"], "sec": round(sec), "pay": pay, "kind": pz["kind"],
+                "level": pz["level"], "view": puzzles.view(pz, reveal=not solved)}
+        if not near:                # 一人で: 黙々と. あなたの記録だけ
+            r = self.my_entry("side_job", "内職", "🧵", "%sの内職を%s。%s円になった" % (
+                puzzles.KINDS[pz["kind"]], "仕上げた" if solved else "途中でやめた", format(pay, ",")),
+                money=mv, skill={"work": gain} if gain else None)
+            r["task"] = task
+            return r
+        r = self.act("side_job", near, opts={
             "money": mv, "extra": {"amount": format(pay, ","), "ng": pz["miss"], "puzzle": puzzles.KINDS[pz["kind"]]},
             "ctx": {"task_solved": solved, "task_fast": fast, "task_miss": pz["miss"], "task_level": pz["level"], "pay": pay},
             "skill": {"work": gain}})
-        r["task"] = {"solved": solved, "fast": fast, "miss": pz["miss"], "sec": round(sec), "pay": pay, "kind": pz["kind"],
-                     "level": pz["level"], "view": puzzles.view(pz, reveal=not solved)}
+        r["task"] = task
         return r
 
     def prompt_preview(self, cid=None):
         with self.lock:
-            char = self.char(cid)
+            cid = self.target(cid)
+            if not cid:
+                raise ValueError("いまはそばに誰もいません")
+            char = self.chars[cid]
             self.tick(char["id"])
             pos, neg, parts = self.build_prompt(char, self.state(char["id"]), datetime.now())
             return {"pos": pos, "neg": neg, "parts": parts}
@@ -1914,7 +2100,6 @@ class App:
             if stage == "absent":
                 return dict(c, _stage="absent")
             self.place_character(cid, stage)
-            self.select_character(cid)
             return dict(c, _stage=stage)
 
     # ---- キャラの定義は全体で 1 つ. ワールドには, そのうち現れている人 (顔ぶれ) の個体 (状態・ログ・間柄・関係) がある
@@ -2246,9 +2431,8 @@ class App:
 
     def album(self, cid=None, key=None):
         """アルバム: シチュエーション (= 合成後のプロンプト) ごとのまとまり. key を指定すればその中の画像."""
-        char = self.char(cid)
         groups = {}
-        for e in self.log(char["id"]):
+        for e in (e for c in ([cid] if cid in self.chars else list(self.chars)) for e in self.log(c)):   # 全員分 (cid で絞れる)
             for im in e.get("images") or []:
                 if not os.path.exists(store.dpath("images", *im["path"].split("/"))):
                     continue
@@ -2304,10 +2488,7 @@ class App:
                     self.save_log(cid) if here else store.save(f, log)
             return {"ok": True}
 
-    def log_page(self, cid=None, offset=0, limit=60, images_only=False):
-        char = self.char(cid)
-        items = self.log(char["id"])
-        if images_only:
-            items = [e for e in items if e.get("images")]
-        items = list(reversed(items))
-        return {"total": len(items), "items": items[offset:offset + limit]}
+    def log_page(self, who=None, offset=0, limit=60, images_only=False):
+        """あなたの時系列のページ (who で人を絞る. "me" は一人の時間だけ)."""
+        items, total = self.timeline(who, offset, limit, images_only)
+        return {"total": total, "items": items}

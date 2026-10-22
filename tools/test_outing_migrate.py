@@ -87,12 +87,12 @@ def main():
         st["override"] = None
         r = app.act("walk")
         if st.get("override"):      # 夜など散歩できない時間帯は条件で弾かれる
-            assert app.state_view()["available"]["go_home"]["ok"]
+            assert app.person_view()["available"]["go_home"]["ok"]
             r = app.act("go_home")
             assert st.get("override") is None, st.get("override")
             print("go_home:", r["entry"]["text"])
         r = app.act("game")
-        assert app.state_view()["available"]["end_activity"]["ok"]
+        assert app.person_view()["available"]["end_activity"]["ok"]
         app.act("end_activity")
         assert st.get("override") is None
         print("end_activity: OK")

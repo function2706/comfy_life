@@ -12,6 +12,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)     # 同居相手が家にいる時刻に (平日の昼は出かけていて, そばにいない)
 
 
 def wait(app, jid):
@@ -78,11 +81,11 @@ def main():
 
         # 着せ替え
         r = app.act("_dress", dress="maid")
-        print("dress maid:", r["entry"]["text"], "|", app.state_view()["dress"]["wearing"])
+        print("dress maid:", r["entry"]["text"], "|", app.person_view()["dress"]["wearing"])
         assert "maid" in r["entry"]["pos"]
         app.set_params({"affection": 10})
         r = app.act("_dress", dress="swimsuit")
-        print("dress swimsuit (affection 10):", r["entry"]["text"], "| wearing:", app.state_view()["dress"]["wearing"])
+        print("dress swimsuit (affection 10):", r["entry"]["text"], "| wearing:", app.person_view()["dress"]["wearing"])
         assert app.state("hina")["dress"]["id"] == "maid", "拒否されたら着替えない"
         try:
             app.act("_dress", dress="maid")   # maid は affection>=40 が必要

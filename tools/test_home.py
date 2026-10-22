@@ -86,7 +86,7 @@ def main():
             H.last_key = None
             e = app.act("invite_home", g, opts={"appointment": "test"})["entry"]
             e["home_key"] = H.last_key
-            assert B.mode(g) == "guest" and app.state_view(g)["bond"]["label"] == "あなたの家に来ている", app.state_view(g)["bond"]
+            assert B.mode(g) == "guest" and app.person_view(g)["bond"]["label"] == "あなたの家に来ている", app.person_view(g)["bond"]
             return e
 
         def seen(e, key):

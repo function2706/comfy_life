@@ -228,6 +228,7 @@ def main():
 
         def run(miss, fast=True):
             st["cooldowns"] = {}
+            app.life.player_state()["side_job_t"] = 0
             L.player_state()["stamina"] = 100
             tk = app.task_start("slide", "mid")
             pz = app.tasks[tk["token"]]["puzzle"]
@@ -250,6 +251,7 @@ def main():
         except ValueError:
             pass
         st["cooldowns"] = {}
+        app.life.player_state()["side_job_t"] = 0
         tk = app.task_start("mines", "easy")
         try:
             app.task_move("nope", {"r": 0, "c": 0})
@@ -262,6 +264,7 @@ def main():
 
         # サーバを再起動しても, やりかけの内職は続きから (盤面・経過時間). やりかけがあるうちは新しく始めない
         st["cooldowns"] = {}
+        app.life.player_state()["side_job_t"] = 0
         L.player_state()["stamina"] = 100
         tk = app.task_start("sudoku", "easy")
         pz = app.tasks[tk["token"]]["puzzle"]

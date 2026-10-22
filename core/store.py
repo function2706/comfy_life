@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import shutil
+import threading
 import time
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -48,7 +49,7 @@ def load(p, default=None):
 
 def save(p, obj):
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    tmp = p + ".tmp"
+    tmp = "%s.%d.%d.tmp" % (p, os.getpid(), threading.get_ident())     # 同時に保存しても一時ファイルがぶつからないように
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=1)
     # Windows ではウイルス対策ソフトなどが直前のファイルを一瞬つかんでいて置き換えに失敗することがある

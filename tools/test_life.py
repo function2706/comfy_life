@@ -140,7 +140,7 @@ def main():
         assert any(w in r["entry"]["text"] for w in ("猫", "久しぶり", "留守", "いない間")), r["entry"]["text"]
         rent = int(L.econ().get("home_cost_per_month", 0)) // 2             if __import__("datetime").date.fromtimestamp(now - 30 * 3600).month != __import__("datetime").date.fromtimestamp(now).month else 0
         assert me() - m0 >= 1000 - 3000 - rent, "日をまたいだ収入 (日給 - 生活費の折半. 月をまたげば家賃の折半も)"
-        v = app.state_view()["life"]
+        v = dict(app.state_view()["you"], **app.person_view("hina")["life"])
         print("view:", {k: v[k] for k in ("my_money", "pay_policy", "hint")}, [x["tell"] for x in v["reasons"]])
         for e in app.log("hina"):
             assert "{" not in e["text"], e["text"]

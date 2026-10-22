@@ -7,10 +7,15 @@
 - live:    一緒に暮らしている (一人だけ. 「一緒に住まない？」を受けてもらった)
 
 いまどこで誰といるか (with):
-- None:                      自分の家 (同居している相手がいればその人と一緒)
+- None:                      自分の家 (同居している相手が家にいればその人と一緒. あなたが外出・仕事中か,
+                             相手が自分の予定で出かけているあいだは, 同居していても離れている)
 - {"cid", "mode": "meet"}:   外で会っている (お出かけの一時シーンが終われば別れる)
 - {"cid", "mode": "visit"}:  相手の家に遊びに来ている (until まで)
-- {"cid", "mode": "guest"}:  相手をあなたの家に招いている (until まで. 来たときの家の様子に反応する: core/home.py)
+- {"cid", "mode": "guest"}:  相手をあなたの家に招いている (until まで. 来たときの家の様子に反応する: core/home.py).
+                             同居相手が家にいれば, その人もそばにいる (そばにいるのが二人になる)
+
+いまそばにいる人たち (company): 上の形で一緒にいる人全員. 画面の「誰かと」の相手はこの中から選ぶ.
+そばにいる効果 (寂しさが紛れる) がかかるのは, あなたとその人の二人きりのときだけ (engine._step).
 
 一緒にいない相手には, 体に触れる・家の中のことなどはできず, 連絡・誘う・あなたの予定だけ (apart).
 本命は各キャラが自分の視点で持つ: あなたと仲が深いキャラは, あなたがほかの人とも深い仲だと知ると嫉妬する.
@@ -95,15 +100,45 @@ class Bonds:
             return None
         return w
 
-    def mode(self, cid):
-        """cid と一緒にいる形: home (同居して家にいる) / meet / visit / guest (招いている) / None (離れている)."""
+    def mode(self, cid, t=None):
+        """cid と一緒にいる形: home (同居して家にいる) / meet / visit / guest (招いている) / None (離れている).
+        同居相手は, あなたも相手も家にいるときだけ home (あなたが外出・仕事中, 相手が自分の予定で出かけている間は離れている).
+        t: その時刻での形 (時間経過のまとめ計算用. 間柄と with はいまのまま)."""
         w = self.with_rec()
-        if w:
-            return w["mode"] if w["cid"] == cid else None
-        return "home" if self.living() == cid else None
+        if w and w["cid"] == cid:
+            return w["mode"]
+        if w and w["mode"] != "guest":         # 外で会っている・相手の家にいる: 同居相手は家
+            return None
+        if self.living() == cid and self.home_together(cid, t):
+            return "home"
+        return None
 
-    def together(self, cid):
-        return self.mode(cid) is not None
+    def home_together(self, cid, t=None):
+        """同居相手とあなたが, どちらも家にいるか (時刻 t)."""
+        app = self.app
+        t = t or time.time()
+        if app.presence.at(t) in ("out", "work"):
+            return False
+        char = app.chars.get(cid)
+        if not char:
+            return False
+        return not app.scene_at(char, app.state(cid), _dt.datetime.fromtimestamp(t))["away"]
+
+    def together(self, cid, t=None):
+        return self.mode(cid, t) is not None
+
+    def company(self, t=None):
+        """いまそばにいる人たち (外で会っている人・招いた人・家にいる同居相手). 会っている人, 同居相手の順."""
+        w = self.with_rec()
+        out = [w["cid"]] if w and self.mode(w["cid"], t) else []
+        live = self.living()
+        if live and live not in out and self.mode(live, t):
+            out.append(live)
+        return out
+
+    def alone_with(self, cid, t=None):
+        """あなたと cid の二人きりか."""
+        return self.company(t) == [cid]
 
     # ------------------------------------------------------------------ 会う・別れる
     def start(self, cid, mode, now=None):
@@ -170,14 +205,14 @@ class Bonds:
     def rivals(self, cid):
         return [o for o in self.app.chars if o != cid and self.deep(o)]
 
-    def ctx(self, cid, st):
-        m = self.mode(cid)
+    def ctx(self, cid, st, t=None):
+        m = self.mode(cid, t)
         known = st.get("jealous") or {}
         rv = self.rivals(cid)
         live = self.living()
         now = time.time()
         char = self.app.chars.get(cid) or {"id": cid}
-        return {"stage": self.stage(cid), "apart": m is None, "with_mode": m or "none",
+        return {"stage": self.stage(cid), "apart": m is None, "with_mode": m or "none", "company": len(self.company(t)),
                 "living_other": bool(live and live != cid), "rivals": len(rv),
                 "rivals_known": sum(1 for o in rv if o in known),
                 # 現実的な深まり方: 最近の交流日数 / ご無沙汰の日数 / 提案を受ける気持ち / 贈り物・お金の受け止め方
@@ -198,10 +233,10 @@ class Bonds:
     def view(self, cid):
         m = self.mode(cid)
         w = self.with_rec()
-        label = {"home": "一緒に暮らしている", "meet": "外で会っている", "visit": "%sの家に来ている" % self.app.chars[cid].get("name", ""),
+        label = {"home": "家で一緒", "meet": "外で会っている", "visit": "%sの家に来ている" % self.app.chars[cid].get("name", ""),
                  "guest": "あなたの家に来ている", None: "離れている"}[m]
-        if m is None and w:
-            label += "（%sと一緒）" % self.app.chars[w["cid"]].get("name", "")
+        if m is None and self.living() == cid:
+            label = "一緒に暮らしている（いまは離れている）"
         return {"stage": self.stage(cid), "stage_label": STAGE_LABEL[self.stage(cid)], "mode": m, "label": label,
                 "living": self.living(), "until": (w or {}).get("until") if m in ("visit", "guest") else None}
 
@@ -225,6 +260,31 @@ class Bonds:
         if d not in days:
             days.append(d)
             del days[:-30]
+
+    def met(self, st, now, contact=False):
+        """会った (contact=False) / スマホで連絡した (contact=True) 日時を覚える (関係性の「最後に会った・連絡した」)."""
+        st["last_contact" if contact else "last_met"] = now
+
+    @staticmethod
+    def learn(st, kind, text, now):
+        """あなたが知ったこと (like = 好きなもの / dislike = 苦手なもの / heard = 聞いた話). 同じことは一つに."""
+        if not text:
+            return
+        known = st.setdefault("known", [])
+        for k in known:
+            if k["kind"] == kind and k["text"] == text:
+                k["t"] = now
+                return
+        known.append({"kind": kind, "text": text, "t": now})
+        del known[:-30]
+
+    def remember(self, char, st, now):
+        """本人から聞いた出来事 (機嫌の理由のうち, 話してもらったもの) を「聞いた話」として覚える."""
+        call = self.app.pronouns(char)[2]
+        for r in st.get("reasons") or []:
+            if r.get("kind") == "event" and r.get("told") and r.get("tell") and not r.get("_heard"):
+                r["_heard"] = True
+                self.learn(st, "heard", r["tell"].replace("{call}", call), r.get("t", now))
 
     def freq(self, st, now, days=14):
         """最近 days 日のうち, 交流した日数."""

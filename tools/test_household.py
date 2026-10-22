@@ -126,7 +126,7 @@ def main():
         ps["last_tick"] = ts("2026-12-31 23:50")
         L.tick_world(ts("2027-01-01 00:10"))
         assert ps["debt"] == rent and ps["money"] == 0, (ps["debt"], ps["money"])
-        v = app.state_view(cid)["life"]
+        v = app.state_view(cid)["you"]
         assert v["debt"] == ps["debt"] and v["loans"] and v["money_notes"], v
         print("借金:", v["debt"], v["money_notes"][-1]["text"])
 
