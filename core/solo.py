@@ -22,7 +22,7 @@ from . import places as places_mod
 
 KINDS = {
     "rest": {"label": "休む", "icon": "🛋", "mode": "busy", "doing": "休憩中", "go": "go_busy"},
-    "chores": {"label": "家事をする", "icon": "🧹", "mode": "busy", "doing": "家事中", "go": "go_busy"},
+    "chores": {"label": "家事をする", "icon": "🧹", "mode": "busy", "doing": "片付け中", "go": "go_busy"},
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
     "out": {"label": "外出", "icon": "🚶", "mode": "out", "doing": "外出中", "go": "go_out"},
 }
@@ -103,6 +103,8 @@ class Solo:
         app = self.app
         if kind in PLAIN:
             return self.start_plain(kind, place, cid)
+        if kind == "kakeibo":
+            return self.kakeibo()
         if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
             place = place or places_mod.LEGACY_DO[kind]
             kind = "out"
@@ -137,6 +139,18 @@ class Solo:
         self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", ""))
                   .replace("{place}", app.places.label(place) if place else ""), now)
         return {"started": kind, "label": k["doing"], "act": res}
+
+    def kakeibo(self, now=None):
+        """家事の「家計簿をつける」(15 分ほど. その場で済む): 前につけたときから今までの出入りを書き込む (日を空けるほど, うろ覚え)."""
+        app = self.app
+        now = now or time.time()
+        p = app.presence.rec()
+        if p.get("mode") not in ("none", "busy") or app.outdoor.current(now) or                 ((app.bonds.with_rec() or {}).get("mode") in ("meet", "visit")):
+            raise ValueError("家計簿は家でつけます")
+        r = app.kakeibo.write(now)
+        app.life.tire(1)
+        self.note("kakeibo", r["text"], now, id="k%d" % int(now * 1000), icon="📒", name="家計簿")
+        return {"started": None, "label": "家計簿", "done": r["text"], "kakeibo": r}
 
     def start_plain(self, kind, place=None, cid=None):
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
@@ -210,6 +224,7 @@ class Solo:
             fee = min(int(ps["money"]), int(places_mod.PLACES[place].get("fee", 0)))
             if fee > 0:
                 ps["money"] -= fee
+                L.ledger(now, -fee, "fun", "%sの入場料" % where)
                 L.save_player()
             out["money"] = -fee
             text = "%s一人で%sを見て回った（%s円）" % (_dur(h), where, format(fee, ",")) if fee else "%s一人で%sを見て回った" % (_dur(h), where)
@@ -218,8 +233,9 @@ class Solo:
             spend = min(int(ps["money"]), int(random.randint(5, 12) * 100 * (1 + min(h, 3) * 0.3)))
             if spend > 0:
                 ps["money"] -= spend
+                L.ledger(now, -spend, "eatout", "カフェ")
                 L.save_player()
-            bought, missed = app.items.shop(place or "cafe", h)       # 買うものリストの品がカフェにあれば
+            bought, missed = app.items.shop(place or "cafe", h, now)       # 買うものリストの品がカフェにあれば
             out["money"] = -spend - sum(b["price"] for b in bought)
             out["bought"] = bought
             text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
@@ -228,7 +244,7 @@ class Solo:
         else:   # shopping
             L.tire(2 * h)
             # 買うものリストの品が, この店にあれば買う (品切れ・値段の上下・お金しだい. 衝動買いも少し)
-            bought, missed = app.items.shop(place or "shopping_street", h)
+            bought, missed = app.items.shop(place or "shopping_street", h, now)
             out["money"] = -sum(b["price"] for b in bought)
             out["bought"] = bought
             text = "%s%s一人で買い物をした。%s" % (_dur(h), where + "で" if where else "",

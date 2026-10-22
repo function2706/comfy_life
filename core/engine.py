@@ -29,6 +29,7 @@ from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
 from . import appoint as appoint_mod
+from . import kakeibo as kakeibo_mod
 from . import presence as presence_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
@@ -44,10 +45,10 @@ SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: 
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
-                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "busy": "作業", "work": "仕事",
+                 "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "busy": "作業", "work": "仕事",
                  "sleep": "寝る", "leave": "席を外す", "back": "戻る", "side_job": "内職", "invest": "株", "offline": "閉じていた間"}
 MY_KIND_ICON = {"rest": "🛋", "chores": "🧹", "practice": "📚", "out": "🚶", "walk": "🚶", "shopping": "🛍", "cafe": "☕", "see": "👀",
-                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
+                "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
                 "back": "🏠", "side_job": "🧵", "invest": "📈", "offline": "🌙"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
                  "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
@@ -132,6 +133,7 @@ class App:
         self.home = home_mod.Home(self)
         self.places = places_mod.Places(self)
         self.appoint = appoint_mod.Appoint(self)
+        self.kakeibo = kakeibo_mod.Kakeibo(self)
         self.presence = presence_mod.Presence(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
@@ -1190,12 +1192,14 @@ class App:
                 st["request"] = None
             return money
         L = self.life
-        if plan:
-            add(L.move(st, plan["p"], plan["a"]))
+        name = char.get("name", "")
+        if plan:        # 費用 (お出かけ・料理の材料・プレゼントなど): 家計簿では, 誰かと使ったお金は交際費, 食べ物は食費
+            cat = a.get("ledger") or ("food" if a.get("category") == "お世話" else "social")
+            add(L.move(st, plan["p"], plan["a"], cat=cat, note="%s（%s）" % (a.get("name", ""), name)))
         if a.get("earn"):
             for who, rng in a["earn"].items():
                 amt = life._amount(rng)
-                add(L.move(st, dp=amt) if who == "p" else L.move(st, da=amt))
+                add(L.move(st, dp=amt, cat="income", note=a.get("name", "")) if who == "p" else L.move(st, da=amt))
                 extra["amount"] = format(amt, ",")
         tr = a.get("transfer")
         if tr:
@@ -1203,16 +1207,17 @@ class App:
             if tr.get("from") == "a":
                 amt = min(amt, max(L.her_money(st)["a"], 0))
             if amt:
-                add(L.move(st, dp=-amt, da=amt) if tr.get("from") == "p" else L.move(st, dp=amt, da=-amt))
+                add(L.move(st, dp=-amt, da=amt, cat="social", note="%sに%s" % (name, a.get("name", ""))) if tr.get("from") == "p"
+                    else L.move(st, dp=amt, da=-amt, cat="borrow", note="%sから" % name))
             extra["amount"] = format(amt, ",")
         ans = a.get("request_answer")
         if ans and req:
             amt = int(req.get("amount", 0))
             if ans == "yes":
                 if req["kind"] == "money":
-                    add(L.move(st, dp=-amt, da=amt))
+                    add(L.move(st, dp=-amt, da=amt, cat="social", note="%sに貸した" % name))
                 elif req["kind"] == "gift":
-                    add(L.move(st, dp=-amt))
+                    add(L.move(st, dp=-amt, cat="social", note="%sに買ってあげた" % name))
                 elif req["kind"] == "treat":
                     add(L.move(st, da=-min(amt, max(L.her_money(st)["a"], 0))))
             st["request"] = None
@@ -1694,7 +1699,7 @@ class App:
                 "now": now, "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
                 "company": [self._company_item(c) for c in company], "target": tid,
                 "with": self.person_view(tid, dt) if tid else None,
-                "you": self.life.player_view(),
+                "you": self.life.player_view(), "kakeibo": self.kakeibo.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(),
@@ -1781,7 +1786,7 @@ class App:
             if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
                 pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
                 work_note = "仕事中の連絡が多く、はかどらなかった" + ("（注意された）" if wc >= 5 else "")
-            mv = self.life.move(None, dp=pay) if pay else {}
+            mv = self.life.move(None, dp=pay, cat="income", note="給料") if pay else {}
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
             if quiet or not near:
@@ -1963,7 +1968,7 @@ class App:
             sec = time.time() - t["t0"]
             e = self.world.get("economy", {})
             pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_rate_per_min"))
-            mv = self.life.move(None, dp=pay) if pay else {}
+            mv = self.life.move(None, dp=pay, cat="income", note="内職") if pay else {}
             self.life.player_state()["side_job_t"] = time.time()
             solved = puzzles.solved(pz)
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))

@@ -269,7 +269,9 @@ function renderSoloTab() {
   const free = (v.presence || {}).mode === 'none';
   const btn = (icon, label, onclick, tip, dis) => h('button', { class: 'cmd', disabled: !free || S.busy || dis, title: tip || '', onclick },
     h('span', { class: 'ic' }, icon), h('span', {}, label));
-  const kinds = (so.kinds || []).map((k) => k.id === 'practice'
+  const kinds = (so.kinds || []).map((k) => k.id === 'chores'
+    ? btn(k.icon, k.label, () => { S.choresOpen = !S.choresOpen; renderSoloTab(); }, '片付け（戻るまで）か、家計簿をつける（15分ほど）を選ぶ')
+    : k.id === 'practice'
     ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderSoloTab(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
     : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderSoloTab(); },
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
@@ -299,6 +301,9 @@ function renderSoloTab() {
         if (P.open === false) return h('button', { class: 'cmd', disabled: true, title: `${P.label}は閉まっています（${P.hours}）` },
           h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
         return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }, placeTip(pl)); })) : null,
+    S.choresOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
+      btn('🧹', '片付け', () => { S.choresOpen = false; soloStart('chores'); }, '散らかり・洗い物・洗濯物・ゴミを片付ける（戻るまで。洗剤があるとはかどる）'),
+      btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null,
     h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, 'スマホ'),
@@ -350,7 +355,7 @@ async function soloStart(kind, skill, place) {
   S.busy = true;
   try {
     const r = await api('/api/solo/start', withT({ kind, skill, place }));
-    if (r.act) handleActResult(r.act); else toast(`${r.label}…`, 'ok');
+    if (r.act) handleActResult(r.act); else toast(r.done || `${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
@@ -1310,6 +1315,7 @@ function renderMoney() {
         h('button', { class: 'btn small', disabled: S.busy || !(L.my_money > 0), title: 'そばにいなければ振り込み（返事はメッセージで）', onclick: () => repay(x.id, x.amount, x.name) }, '返す'))),
       L.in_debt ? h('div', { class: 'muted small' }, '借金のあいだは、食材・洗剤などの必需品しか買えません。') : '',
       (L.money_notes || []).length ? h('div', { class: 'muted small' }, ...L.money_notes.slice(-3).map((x) => h('div', {}, `${fmtTime(x.t)} ${x.text}`))) : ''),
+    kakeiboPanel(),
     h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
       h('div', { class: 'earn' },
         h('button', { class: 'cmd', disabled: S.busy || !ok('work'), onclick: () => soloStart('work'),
@@ -1328,6 +1334,31 @@ function renderMoney() {
       M.news.length ? M.news.map((n) => h('div', { class: 'news' },
         h('span', { class: n.dir > 0 ? 'up' : 'down' }, n.dir > 0 ? '▲' : '▼'), h('span', {}, n.text),
         h('span', { class: 'muted small' }, fmtTime(n.t)))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
+}
+
+// 家計簿: 見えるのは, つけた分だけ (記録した日ごとの出入り・分類ごとの合計) と, 1日にどれくらい稼げばいいかの見積もり
+function kakeiboPanel() {
+  const K = S.view.kakeibo;
+  if (!K) return '';
+  const E = K.estimate || {};
+  const F = E.fixed || {};
+  const sign = (n) => `${n > 0 ? '+' : ''}${yen(n)}`;
+  const open = S.kbOpen || {};
+  return h('div', { class: 'pgroup kakeibo' }, h('h4', {}, '📒 家計簿'),
+    h('div', { class: 'muted small' }, K.last_written ? `最後につけたのは ${K.since_days === 0 ? '今日' : K.since_days + '日前'}（${fmtTime(K.last_written)}）`
+      : 'まだつけていません（家事 → 家計簿をつける）'),
+    h('div', { class: 'kb-est' },
+      h('div', {}, h('b', {}, '1日あたり稼げばいい額: '), E.need ? `${yen(E.need[0])}〜${yen(E.need[1])}くらい` : `固定費だけで ${yen(Math.max(0, (F.total || 0) - (E.passive || 0)))} ほど`,
+        h('span', { class: 'muted small' }, `（${E.note || ''}）`)),
+      h('div', { class: 'muted small' }, `決まっている出費（1日あたり）: 家賃・光熱費・通信費 ${yen(F.rent || 0)}・生活費 ${yen(F.living || 0)}${F.interest ? `・借金の利息 ${yen(F.interest)}` : ''}`
+        + (E.variable ? `／記録からの食費・買い物など ${yen(E.variable[0])}〜${yen(E.variable[1])}` : '') + `／毎日のわずかな収入 ${yen(E.passive || 0)}`)),
+    (K.cats || []).length ? h('div', { class: 'kb-cats' }, h('div', { class: 'muted small' }, 'この30日の記録（分類ごと）'),
+      K.cats.map((c) => h('div', { class: 'money-row small' }, h('span', {}, c.label), h('b', { class: c.total >= 0 ? 'up' : 'down' }, sign(c.total))))) : '',
+    (K.days || []).map((d) => h('div', { class: 'kb-day' },
+      h('div', { class: 'row', style: 'cursor:pointer', onclick: () => { S.kbOpen = Object.assign({}, open, { [d.day]: !open[d.day] }); renderMoney(); } },
+        h('span', {}, `${open[d.day] ? '▾' : '▸'} ${d.day.slice(5).replace('-', '/')}`), d.fuzzy ? h('span', { class: 'muted small' }, 'うろ覚え') : '',
+        h('div', { class: 'spacer' }), d.in ? h('span', { class: 'up small' }, sign(d.in)) : '', h('span', { class: 'down small' }, sign(d.out))),
+      open[d.day] ? d.items.map((x) => h('div', { class: 'money-row small muted' }, h('span', {}, `${x.label}${x.n ? '・' + x.n : ''}${x.approx ? '（約）' : ''}`), h('span', {}, sign(x.a)))) : '')));
 }
 
 async function repay(to, owed, name) {

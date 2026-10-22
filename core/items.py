@@ -32,7 +32,8 @@ _C = [
     ("game", "ゲームソフト", "🎮", "goods", 6000, ["electronics", "mall"], ["games"], True),
     ("necklace", "ネックレス", "💎", "goods", 30000, ["mall"], ["accessories"], True),
 ]
-ESSENTIAL_KINDS = ("food", "detergent")      # 必需品 (借金のあいだも買える)
+ESSENTIAL_KINDS = ("food", "detergent")
+FOOD_KINDS = ("food", "meal", "tea", "sweets")             # 家計簿で「食費」にするもの      # 必需品 (借金のあいだも買える)
 CATALOG = {i: {"id": i, "name": n, "icon": ic, "kind": k, "price": p, "places": pl, "tags": tg, "giftable": gf,
                "essential": k in ESSENTIAL_KINDS}
            for i, n, ic, k, p, pl, tg, gf in _C}
@@ -102,7 +103,7 @@ class Items:
         return self.view()
 
     # ------------------------------------------------------------------ 買い物
-    def shop(self, place, hours=1.0):
+    def shop(self, place, hours=1.0, t=None):
         """行き先 place での買い物. 買うものリストの品がここで売っていれば買う (品切れ・値段の上下・お金しだい).
         リスト以外の衝動買いも少し. 買ったもの [{id, name, price}] と, 買えなかった理由 [str] を返す."""
         ps = self.ps()
@@ -124,6 +125,7 @@ class Items:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
                 ps["money"] -= price
+                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
                 self.add(iid, 1)
                 bought.append({"id": iid, "name": it["name"], "icon": it["icon"], "price": price})
                 ps["shop_list"][iid] = ps["shop_list"].get(iid, 0) - 1
@@ -136,6 +138,7 @@ class Items:
             price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
             if ps["money"] >= price + 3000:
                 ps["money"] -= price
+                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "shopping", it["name"])
                 self.add(it["id"], 1)
                 bought.append({"id": it["id"], "name": it["name"], "icon": it["icon"], "price": price, "impulse": True})
         self.save()

@@ -25,8 +25,8 @@ from datetime import datetime, timedelta
 from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
-            "practice": "研鑽"}
+DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事（片付け）",
+            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽"}
 WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "rest"}, {"at": "09:00", "do": "work"},
            {"at": "18:00", "do": "out", "place": "supermarket"}, {"at": "19:00", "do": "rest"}, {"at": "23:00", "do": "sleep"}]
 WEEKEND = [{"at": "00:00", "do": "sleep"}, {"at": "09:00", "do": "rest"}, {"at": "11:00", "do": "chores"},
@@ -148,6 +148,13 @@ class Offline:
             if do == "sleep":
                 recover(s, e, rec_night)
                 ent["text"] = "寝ていた"
+            elif do == "kakeibo":                 # 家計簿: 15 分ほどで書いて, あとは家で過ごす
+                ps["stamina"] = stamina
+                recover(s, e, None)
+                if stamina < 15 and random.random() < 0.5:
+                    ent.update(text="疲れていて、家計簿は明日にした", skipped=True)
+                else:
+                    ent["text"] = app.kakeibo.write(min(e, s + 900))["text"]
             elif do in ("rest", "home"):
                 recover(s, e, rec_rest if do == "rest" else None)
                 ent["text"] = "家で休んでいた" if do == "rest" else "家で静かに過ごしていた"
@@ -245,6 +252,7 @@ class Offline:
             notes.append("仕事がうまくいかず、叱られた")
         if pay:
             L.player_state()["money"] += pay
+            L.ledger(end, pay, "income", "給料")
         gain = L.train("work", 0.5 * h) if h >= 0.25 else 0
         return {"start": s, "end": end, "hours": round(raw, 2), "paid_h": round(h, 2), "pay": pay, "skill": gain, "notes": notes}
 

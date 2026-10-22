@@ -158,6 +158,7 @@ class Life:
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:
                 ps["money"] += int(e.get("player_daily_income", 1000))
+                self.ledger(t, int(e.get("player_daily_income", 1000)), "income", "日々の収入")
                 live = self.app.bonds.living()
                 self.pay_home(int(e.get("living_cost_per_day", 3000)) // (1 if live else 2), t, "生活費")
                 if d0.month != d1.month:
@@ -204,6 +205,7 @@ class Life:
                 raise ValueError("お金が足りません（%s円必要）" % format(amt, ","))
             hold = m["holdings"].setdefault(asset, {"qty": 0, "cost": 0})
             ps["money"] -= amt
+            self.ledger(time.time(), -amt, "invest", "%sを買った" % a.get("name", asset))
             hold["qty"] = int(hold["qty"]) + qty
             hold["cost"] = int(hold.get("cost", 0)) + amt
             self.save_player()
@@ -219,6 +221,7 @@ class Life:
         if hold["qty"] <= 0:
             m["holdings"].pop(asset, None)
         ps["money"] += amt
+        self.ledger(time.time(), amt, "invest", "%sを売った" % a.get("name", asset))
         self.save_player()
         return {"p": amt}, amt, amt - cost
 
@@ -303,10 +306,16 @@ class Life:
         ctx["work_3d"] = self.recent_work(3)            # ここ 3 日で働いた時間
         return ctx
 
-    def move(self, st, dp=0, da=0):
-        """お金を動かす (マイナス可). 実際に動いた額を返す."""
+    def ledger(self, t, amount, cat, note=""):
+        """財布のお金の出入りを, 裏の記録に残す (見えるのは家計簿につけた分だけ. core/kakeibo.py)."""
+        self.app.kakeibo.add(t, amount, cat, note)
+
+    def move(self, st, dp=0, da=0, cat="other", note=""):
+        """お金を動かす (マイナス可). 実際に動いた額を返す. cat / note: あなたのお金の出入りの記録 (家計簿の元)."""
         ps = self.player_state()
         ps["money"] += int(dp)
+        if dp:
+            self.ledger(time.time(), dp, cat, note)
         if da:                                  # st なしで呼べるのは, あなたのお金だけ動かすとき
             self.her_money(st)["a"] += int(da)
         self.save_player()
@@ -386,15 +395,19 @@ class Life:
         amount = int(amount)
         if amount <= 0:
             return
+        cat = "living" if what == "生活費" else "fixed"
         have = max(int(ps["money"]), 0)
         if have >= amount:
             ps["money"] -= amount
+            self.ledger(t, -amount, cat, what)
             self.save_player()
             return
         ps["money"] -= have
         short = amount - have
         got = self.borrow(short, t, what)
         ps["money"] -= got                      # 借りた分は, そのまま支払いに
+        if have + got:
+            self.ledger(t, -(have + got), cat, what + ("（足りない分は借りた）" if got else "（払いきれなかった）"))
         short -= got
         if short > 0:
             if not int(ps.get("debt", 0)):
@@ -437,6 +450,7 @@ class Life:
             if random.random() < self.lend_chance(char, st, amount, t):
                 self.her_money(st)["a"] -= amount
                 self.player_state()["money"] += amount
+                self.ledger(t, amount, "borrow", "%sに借りた" % char.get("name", ""))
                 st.setdefault("lent", []).append({"t": t, "amount": amount, "what": what})
                 del st["lent"][:-20]
                 loans = self.player_state().setdefault("loans", {})
@@ -539,6 +553,7 @@ class Life:
         if ps["money"] < amount:
             raise ValueError("お金が足りません（手元 %s円）" % format(ps["money"], ","))
         ps["money"] -= amount
+        self.ledger(t, -amount, "repay", "借金の返済" if to == "debt" else "%sに返した" % self.app.chars[to].get("name", ""))
         left = owed - amount
         if to == "debt":
             ps["debt"] = left
@@ -604,7 +619,7 @@ class Life:
         if amt:
             self.her_money(st)["a"] += amt
         if money.get("p"):
-            self.move(st, dp=_amount(money["p"]))
+            self.move(st, dp=_amount(money["p"]), cat="other", note=ev.get("label", ""))
         rec = {"id": ev["id"], "t": t, "label": ev.get("label", ev["id"]), "tell": ev.get("tell", ""),
                "mood": ev.get("mood", "neutral"), "told": False}
         st.setdefault("events", []).append(rec)

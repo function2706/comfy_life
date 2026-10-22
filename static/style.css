@@ -757,3 +757,9 @@ a.btn { color: inherit; }
 .chat-list, .chat-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .chat-body { min-height: 0; }
 .chat-head, .chat-send { flex: none; }
+
+/* 家計簿 */
+.kakeibo .kb-est { margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: var(--panel3); }
+.kakeibo .kb-cats { margin: 6px 0; }
+.kakeibo .kb-day { border-top: 1px solid var(--line); padding: 4px 0; }
+.money-row.small { font-size: 12px; }
