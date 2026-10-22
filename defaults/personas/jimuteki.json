@@ -1806,6 +1806,9 @@
   ],
   "ap.worry_you.ignore": [
    "（{name}は、手帳を閉じてこちらの様子を見ていた）"
+  ],
+  "chat.appoint_counter": [
+   "📱『その時間は都合がつかないわ。代案: {when}、{place}。検討して』"
   ]
  }
 }

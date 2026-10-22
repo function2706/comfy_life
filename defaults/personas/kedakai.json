@@ -1793,6 +1793,9 @@
   ],
   "ap.worry_you.ignore": [
    "（{name}は何も言わず、静かにこちらを見つめていた）"
+  ],
+  "chat.appoint_counter": [
+   "📱『その時間は都合がつかないの。{when}なら{place}に付き合ってあげてもよくてよ』"
   ]
  }
 }

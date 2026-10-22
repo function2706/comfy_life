@@ -1801,6 +1801,9 @@
   ],
   "ap.worry_you.ignore": [
    "（{name}は落ち着かない様子で、こちらを気にしていた）"
+  ],
+  "chat.appoint_counter": [
+   "📱『その時間はムリ！ {when}なら{place}行けるけど、どう？』"
   ]
  }
 }

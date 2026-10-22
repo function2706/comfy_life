@@ -1808,6 +1808,9 @@
   ],
   "ap.worry_you.ignore": [
    "（{name}は腕を組んだまま、こちらを気にかけているようだった）"
+  ],
+  "chat.appoint_counter": [
+   "📱『その時間は厳しいな。{when}なら{place}に行ける。どうだ？』"
   ]
  }
 }

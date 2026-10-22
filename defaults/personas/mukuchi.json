@@ -1807,6 +1807,9 @@
   ],
   "ap.worry_you.ignore": [
    "（{name}は何も言わず、心配そうにこちらを見ていた）"
+  ],
+  "chat.appoint_counter": [
+   "📱『……その時間、むり。{when}なら、{place}。……いける』"
   ]
  }
 }
