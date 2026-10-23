@@ -1,4 +1,4 @@
-"""稼ぎ方: 本業の昇給・賞与, アルバイト.
+"""稼ぎ方: 本業の昇給・賞与, アルバイト, 副業, 頼まれごと, フリマ, 宝くじ.
 
 本業 (仕事に行く):
 - 時給はあなたのもの (player.json の career.wage. 始めは economy.work_wage_per_hour). 月が替わると, 前の月の勤務を見直す:
@@ -13,9 +13,12 @@
 - シフトを休むと (その日の働いた時間がシフトの半分未満) 注意され, 30 日で 3 回休むと辞めさせられる.
 - 店ではその店で働いている知り合いに会うことがある (相手の予定の勤め先が同じ店なら, 一緒に働く: knowsched.at_workplace).
 """
+import math
 import random
 import time
 from datetime import datetime, timedelta
+
+from . import items as items_mod
 
 
 JOBS = [
@@ -45,6 +48,14 @@ GIGS = {
 # 頼まれごと (知り合いから): (名前, 時間, 疲れ)
 FAVORS = [("引っ越しの手伝い", 4.0, 30), ("大掃除の手伝い", 3.0, 20), ("家具の組み立て", 2.0, 12), ("留守中の植木の水やり", 0.5, 2),
           ("パソコンの設定", 1.0, 4), ("荷物運び", 1.5, 14)]
+# フリマ: 売れない種類 (食べ物・消耗品). 送料 (種類ごと). 手数料 10%
+FLEA_NG = ("food", "meal", "tea", "sweets", "medicine", "detergent")
+FLEA_SHIP = {"books": 230, "clothes": 450}         # 本は安い送り方で. ほかは 350
+FLEA_FEE = 0.10
+# 宝くじ: 1 枚 300 円. 1 枚あたりの当せん (確率, 金額). 期待値はおよそ 4 割 (現実の宝くじと同じくらい)
+LOTTO_PRICE = 300
+LOTTO = [(1e-7, 300000000), (5e-7, 10000000), (2e-5, 1000000), (1e-3, 10000), (0.01, 3000), (0.1, 300)]
+LOTTO_PLACES = ("station", "shopping_street", "mall")       # 売り場のある行き先
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 DAYS_JA = dict(zip(DAYS, "月火水木金土日"))
 
@@ -423,7 +434,149 @@ class Earn:
         app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
         return amt, "%sの%sを終えた。%s" % (name, f["label"], how)
 
+    # ================================================================== フリマ
+    def flea(self):
+        return self.ps().setdefault("flea", [])
+
+    @staticmethod
+    def fair(iid):
+        """中古の相場 (定価の 45%)."""
+        return max(100, int(items_mod.CATALOG[iid]["price"] * 0.45 / 10) * 10)
+
+    @staticmethod
+    def ship(iid):
+        it = items_mod.CATALOG[iid]
+        return FLEA_SHIP["books"] if "books" in it["tags"] else FLEA_SHIP.get(it["kind"], 350)
+
+    def flea_list(self, iid, price, now=None):
+        """持ち物を出品する (1 個. 30 日で売れなければ手元に戻る)."""
+        now = now or time.time()
+        it = items_mod.CATALOG.get(iid)
+        if not it or it["kind"] in FLEA_NG:
+            raise ValueError("その品は出品できません（食べ物・消耗品は出せません）")
+        if self.app.items.count(iid) < 1:
+            raise ValueError("%sを持っていません" % it["name"])
+        price = int(price)
+        lo = int((self.ship(iid) + 100) / (1 - FLEA_FEE) / 10) * 10        # 送料と手数料で赤字にならない値段から
+        if not lo <= price <= it["price"] * 2:
+            raise ValueError("値段は %s円〜%s円で（送料と手数料を引いて手元に残るように）" % (format(lo, ","), format(it["price"] * 2, ",")))
+        if len(self.flea()) >= 10:
+            raise ValueError("出品は 10 個まで")
+        self.app.items.add(iid, -1)
+        x = {"id": "x%d" % int(now * 1000), "iid": iid, "name": it["name"], "icon": it["icon"], "price": price, "t": now,
+             "until": now + 30 * 86400}
+        self.flea().append(x)
+        self.L.save_player()
+        return x
+
+    def flea_cancel(self, xid):
+        fl = self.flea()
+        x = next((y for y in fl if y["id"] == xid), None)
+        if not x:
+            raise KeyError("出品が見つかりません")
+        fl.remove(x)
+        self.app.items.add(x["iid"], 1)
+        self.L.save_player()
+        return x
+
+    def flea_demand(self, iid, t):
+        """季節の売れやすさ (服は衣替えの春秋, マフラーは秋冬, ゲームは年末)."""
+        m = datetime.fromtimestamp(t).month
+        it = items_mod.CATALOG[iid]
+        if iid == "scarf":
+            return 1.6 if m in (10, 11, 12, 1) else 0.4 if m in (5, 6, 7, 8) else 1.0
+        if it["kind"] == "clothes":
+            return 1.3 if m in (3, 4, 9, 10) else 0.9
+        if iid == "game":
+            return 1.4 if m in (12, 1) else 1.0
+        if iid == "necklace":
+            return 0.6
+        return 1.0
+
+    def flea_rate(self, x, t):
+        """1 時間あたりに売れる見込み: 相場より安いほど売れやすい. やりくりスキルで少し (出品の写真や説明が上手い)."""
+        r = x["price"] / float(self.fair(x["iid"]))
+        return 0.012 * min(3.0, math.exp(-2.5 * (r - 1))) * self.flea_demand(x["iid"], t) * (1 + 0.25 * self.L.skill_soft("budget"))
+
+    def flea_step(self, t, step):
+        fl = self.flea()
+        for x in list(fl):
+            if random.random() < 1 - math.exp(-self.flea_rate(x, t) * step / 3600.0):
+                fl.remove(x)
+                net = int(x["price"] * (1 - FLEA_FEE)) - self.ship(x["iid"])
+                self.ps()["money"] += net
+                self.L.ledger(t, net, "income", "フリマ（%s）" % x["name"])
+                self.app.solo.note("money", "フリマで%sが %s円で売れた（手数料・送料を引いて %s円）" % (
+                    x["name"], format(x["price"], ","), format(net, ",")), t, icon="📦", name="フリマ", money={"p": net})
+            elif t >= x["until"]:
+                fl.remove(x)
+                self.app.items.add(x["iid"], 1)
+                self.app.solo.note("money", "フリマに出していた%sは、売れないまま期限が来たので取り下げた" % x["name"], t, icon="📦", name="フリマ")
+
+    # ================================================================== 宝くじ
+    def lotto(self):
+        return self.ps().setdefault("lotto", {"tickets": [], "results": []})
+
+    @staticmethod
+    def next_draw(t):
+        """次の抽せん (金曜 18:00)."""
+        d = datetime.fromtimestamp(t)
+        x = d.replace(hour=18, minute=0, second=0, microsecond=0) + timedelta(days=(4 - d.weekday()) % 7)
+        if x <= d:
+            x += timedelta(days=7)
+        return x.timestamp()
+
+    def lotto_buy(self, n, now=None):
+        """売り場のある行き先 (駅前・商店街・モール) にいるときに買える."""
+        now = now or time.time()
+        p = self.app.presence.rec()
+        if p.get("mode") != "out" or p.get("place") not in LOTTO_PLACES:
+            raise ValueError("宝くじは、売り場のある駅前・商店街・ショッピングモールで買えます")
+        n = int(n)
+        if not 1 <= n <= 100:
+            raise ValueError("1〜100枚で")
+        cost = LOTTO_PRICE * n
+        if self.ps()["money"] < cost:
+            raise ValueError("お金が足りません（%s円）" % format(cost, ","))
+        self.ps()["money"] -= cost
+        self.L.ledger(now, -cost, "fun", "宝くじ %d枚" % n)
+        L = self.lotto()
+        tk = {"t": now, "n": n, "draw": self.next_draw(now)}
+        L["tickets"].append(tk)
+        self.L.save_player()
+        self.app.solo.note("money", "宝くじを%d枚買った（%s円。%sに抽せん）" % (n, format(cost, ","), datetime.fromtimestamp(tk["draw"]).strftime("%m/%d %H:%M")),
+                           now, icon="🎫", name="宝くじ", money={"p": -cost})
+        return tk
+
+    def lotto_step(self, t):
+        L = self.lotto()
+        for tk in [x for x in L["tickets"] if x["draw"] <= t]:
+            L["tickets"].remove(tk)
+            won = 0
+            for _ in range(tk["n"]):
+                r = random.random()
+                acc = 0.0
+                for p, amt in LOTTO:
+                    acc += p
+                    if r < acc:
+                        won += amt
+                        break
+            if won:
+                self.ps()["money"] += won
+                self.L.ledger(tk["draw"], won, "income", "宝くじの当せん")
+            text = "宝くじ%d枚の抽せん: %s" % (tk["n"], "%s円当たった" % format(won, ",") if won else "はずれ")
+            L["results"].append({"t": tk["draw"], "n": tk["n"], "won": won})
+            del L["results"][:-10]
+            self.app.solo.note("money", text, tk["draw"], icon="🎫", name="宝くじ", **({"money": {"p": won}} if won else {}))
+
     # ================================================================== 時間の経過
+    def step(self, t, step):
+        """5 分ごと (life.tick_world から): フリマの売れ行き, 宝くじの抽せん."""
+        if self.ps().get("flea"):
+            self.flea_step(t, step)
+        if (self.ps().get("lotto") or {}).get("tickets"):
+            self.lotto_step(t)
+
     def daily(self, t, month_changed):
         """日付が替わったとき (life.tick_world から)."""
         if month_changed:
@@ -444,6 +597,15 @@ class Earn:
                        "rep": {k: round(v) for k, v in g["rep"].items()},
                        "kinds": [{"id": k, "label": G["label"], "skill": G["skill"], "min": G["min"], "open": self.L.skill(G["skill"]) >= G["min"]}
                                  for k, G in GIGS.items()]}
+        out["flea"] = [dict(x, fair=self.fair(x["iid"]), net=int(x["price"] * (1 - FLEA_FEE)) - self.ship(x["iid"])) for x in self.flea()]
+        out["flea_items"] = [{"id": i, "name": items_mod.CATALOG[i]["name"], "icon": items_mod.CATALOG[i]["icon"], "n": n,
+                              "price": items_mod.CATALOG[i]["price"], "fair": self.fair(i), "ship": self.ship(i)}
+                             for i, n in sorted((self.ps().get("items") or {}).items())
+                             if n > 0 and i in items_mod.CATALOG and items_mod.CATALOG[i]["kind"] not in FLEA_NG]
+        lt = self.lotto()
+        p = self.app.presence.rec()
+        out["lotto"] = {"price": LOTTO_PRICE, "tickets": lt["tickets"], "results": list(reversed(lt["results"][-3:])),
+                        "can": p.get("mode") == "out" and p.get("place") in LOTTO_PLACES}
         out["favors"] = [dict(f, name=(self.app.chars.get(f["cid"]) or {}).get("name", "")) for f in self.favors() if f["until"] > now]
         mo = self.career()["months"].get(datetime.fromtimestamp(now).strftime("%Y-%m")) or {}
         out["month_h"] = round(float(mo.get("h", 0)), 1)

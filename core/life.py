@@ -175,6 +175,7 @@ class Life:
             t += step
             changed = True
             self.app.market.step(t)          # 株: 値動きは取引時間だけ. 注文・積立 (core/market.py)
+            self.app.earn.step(t, step)          # フリマの売れ行き・宝くじの抽せん (core/earn.py)
             mode = self.app.presence.at(t)
             self.app.body.step(t, step / 3600.0, mode)          # お腹と栄養 (あなた)
             if mode != "work":

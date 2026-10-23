@@ -1483,7 +1483,7 @@ function renderMoney() {
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, `本業の時給 ${yen(EA.wage || 0)}${EA.wage !== EA.base_wage ? `（始め ${yen(EA.base_wage || 0)}）` : ''}・今月の本業 ${EA.month_h || 0}時間。月ごとの勤務で時給が見直され、6月・12月の10日に賞与が出ます（休みが多いと下がる・出ない）`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います'),
-      partTimePanel(EA, v), sideWorkPanel(EA, v)),
+      partTimePanel(EA, v), sideWorkPanel(EA, v), fleaPanel(EA), lottoPanel(EA)),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
       h('div', { class: 'row', style: 'margin-bottom:4px' }, h('span', { class: 'tag' + (M.open ? ' bond' : '') }, M.open ? `📈 取引中（${M.until}まで）` : `🌙 取引時間外（次は ${M.next}）`),
         h('span', { class: 'muted small' }, `買付余力 ${yen(M.buy_power ?? L.my_money ?? 0)}`)),
@@ -1551,6 +1551,34 @@ function sideWorkPanel(EA, v) {
       h('div', { class: 'row' },
         h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => earnApi('/api/earn/favor', withT({ id: f.id, yes: true }), '手伝いに行った') }, '引き受ける'),
         h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => earnApi('/api/earn/favor', { id: f.id, yes: false }) }, '断る')))));
+}
+// フリマ: 使わない持ち物を出品 (売れるかと値段は, 品物と時期しだい)
+function fleaPanel(EA) {
+  const fl = EA.flea || [], its = EA.flea_items || [];
+  const open = S.fleaOpen;
+  return h('div', { class: 'kb-cats' },
+    h('button', { class: 'btn small', onclick: () => { S.fleaOpen = !open; renderMoney(); } }, `${open ? '▾' : '▸'} 📦 フリマ${fl.length ? `（出品中 ${fl.length}）` : ''}`),
+    open ? [
+      h('div', { class: 'muted small' }, '使わない持ち物を出品します（食べ物・消耗品は出せません）。相場（定価の半分くらい）より安いほど早く売れ、季節でも売れ行きが変わります（服は衣替えの時期、マフラーは秋冬）。売れると手数料 10% と送料が引かれます。30日で売れなければ手元に戻ります。'),
+      ...fl.map((x) => h('div', { class: 'money-row small' }, h('span', {}, `${x.icon} ${x.name} ${yen(x.price)}（手取り ${yen(x.net)}・相場 ${yen(x.fair)}・${fmtTime(x.until)}まで）`),
+        h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => earnApi('/api/earn/flea_cancel', { id: x.id }) }, '取り下げる'))),
+      its.length ? its.map((it) => {
+        const pr = h('input', { type: 'number', min: 100, step: 100, value: it.fair, class: 'qty', title: '値段（円）' });
+        return h('div', { class: 'money-row small' }, h('span', {}, `${it.icon} ${it.name}（${it.n}個・定価 ${yen(it.price)}・送料 ${yen(it.ship)}）`),
+          h('div', { class: 'row' }, pr, h('span', { class: 'muted small' }, '円'),
+            h('button', { class: 'btn small', disabled: S.busy, onclick: () => earnApi('/api/earn/flea', { item: it.id, price: +pr.value }) }, '出品')));
+      }) : h('div', { class: 'muted small' }, '出品できる持ち物がありません')] : '');
+}
+// 宝くじ: 売り場のある行き先で買い, 金曜の 18 時に抽せん (ほぼ当たらない)
+function lottoPanel(EA) {
+  const L = EA.lotto || { tickets: [], results: [] };
+  const n = h('input', { type: 'number', min: 1, max: 100, step: 1, value: 10, class: 'qty' });
+  return h('div', { class: 'kb-cats' },
+    h('div', { class: 'row' }, h('span', { class: 'small' }, `🎫 宝くじ（1枚${yen(L.price || 300)}・金曜18時に抽せん）`),
+      L.can ? [n, h('span', { class: 'muted small' }, '枚'), h('button', { class: 'btn small', disabled: S.busy, onclick: () => earnApi('/api/earn/lotto', { n: +n.value }) }, '買う')]
+        : h('span', { class: 'muted small' }, '駅前・商店街・モールの売り場で買えます')),
+    L.tickets.length ? h('div', { class: 'muted small' }, '抽せん待ち: ' + L.tickets.map((t) => `${t.n}枚（${fmtTime(t.draw)}）`).join('・')) : '',
+    L.results.length ? h('div', { class: 'muted small' }, '結果: ' + L.results.map((r) => `${fmtTime(r.t)} ${r.n}枚 ${r.won ? yen(r.won) : 'はずれ'}`).join('・')) : '');
 }
 async function earnApi(path, body, okMsg) {
   if (S.busy) return;

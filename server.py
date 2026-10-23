@@ -167,6 +167,8 @@ def route(method, path, q, body):
             return a.earn_api("apply", b)
         if path == "/api/earn/parttime/quit":
             return a.earn_api("quit", b)
+        if path in ("/api/earn/flea", "/api/earn/flea_cancel", "/api/earn/lotto"):
+            return a.earn_api(path.rsplit("/", 1)[1], b)
         if path == "/api/earn/gig":
             return a.earn_api("gig", b)
         if path == "/api/earn/favor":

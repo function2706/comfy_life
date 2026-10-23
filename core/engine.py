@@ -2070,6 +2070,15 @@ class App:
                 r = self.earn.apply(b.get("job"), b.get("shifts"))
             elif op == "quit":
                 r = self.earn.quit()
+            elif op == "flea":
+                x = self.earn.flea_list(b.get("item"), b.get("price") or 0)
+                r = {"text": "%sを %s円で出品した" % (x["name"], format(x["price"], ","))}
+            elif op == "flea_cancel":
+                x = self.earn.flea_cancel(b.get("id"))
+                r = {"text": "%sの出品を取り下げた" % x["name"]}
+            elif op == "lotto":
+                tk = self.earn.lotto_buy(b.get("n") or 1)
+                r = {"text": "宝くじを%d枚買った" % tk["n"]}
             elif op == "gig":
                 o = self.earn.gig_take(b.get("id"))
                 r = self._go_task("gig", o, "%s（%s）に取りかかった" % (o["label"], o["client"]))
