@@ -105,6 +105,7 @@ async function refresh() {
   if (v.street_auto) toast(v.street_auto.text.split('\n')[0], 'ok');
   for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
   if (v.closed) toast(v.closed.text, 'ok');
+  if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
   const who = (v.company || []).map((c) => c.id).join(',');
@@ -1279,6 +1280,7 @@ function renderAway() {
     h('div', { class: 'away-title' }, p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
+    shopCard(p),
     streetCard() || '',
     joinCard() || '',
     ...(S.view.appoints || []).filter((x) => (x.status === 'set' || x.status === 'waiting') && x.remain < 6 * 3600 && x.remain > -2700)
@@ -1303,7 +1305,53 @@ function renderAway() {
     h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
 }
 
+// 店での買い物: 品を選んでいる間は「買い物中」, 済んだら目立つ知らせ (読んだら閉じる. 帰る・ほかの店へ)
+function shopCard(p) {
+  if (p.mode !== 'out') return '';
+  const sh = p.shop;
+  if (!sh) {
+    return p.shop_wait != null ? h('div', { class: 'shop-card wait' }, `🛒 買い物中…（品を選んでいる。${p.shop_wait > 60 ? `あと${Math.ceil(p.shop_wait / 60)}分くらい` : 'もうすぐ'}）`) : '';
+  }
+  if (sh.seen) return h('div', { class: 'shop-card done small' }, `🛍 ${sh.label}での買い物は済んだ（${yen(sh.total)}）`);
+  const bought = sh.bought || [];
+  return h('div', { class: 'shop-card done' },
+    h('div', { class: 'shop-head' }, h('b', {}, sh.nothing ? `🛍 ${sh.label}で買うものはなかった` : `🛍 ${sh.label}で買い物を終えた`),
+      h('span', { class: 'shop-total' }, `合計 ${yen(sh.total)}`)),
+    sh.nothing ? h('div', { class: 'small' }, sh.nothing) : '',
+    bought.filter((b) => !b.impulse).length ? h('div', { class: 'small' }, '買えた: ' + bought.filter((b) => !b.impulse).map((b) => `${b.icon || ''}${b.name}（${yen(b.price)}）`).join('、')) : '',
+    bought.filter((b) => b.impulse).length ? h('div', { class: 'small' }, 'ついでに買った: ' + bought.filter((b) => b.impulse).map((b) => `${b.icon || ''}${b.name}（${yen(b.price)}）`).join('、')) : '',
+    (sh.missed || []).length ? h('div', { class: 'small down' }, '買えなかった: ' + sh.missed.join('。')) : '',
+    (sh.elsewhere || []).length ? h('div', { class: 'small muted' }, `この店には売っていない: ${sh.elsewhere.join('、')}（ほかの店で）`) : '',
+    h('div', { class: 'row', style: 'gap:6px;justify-content:center;margin-top:6px' },
+      h('button', { class: 'btn small primary', disabled: S.busy, onclick: comeBack }, '帰る'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: pickNextShop }, 'ほかの店へ'),
+      h('button', { class: 'btn small ghost', disabled: S.busy, onclick: async () => { await api('/api/shop/ack', {}); await refresh(); } }, '閉じる（ここにいる）')));
+}
+// 出かけている先から, ほかの行き先へ (いまの外出の結果を出して, そのまま向かう)
+function pickNextShop() {
+  const od = (S.view || {}).outdoor || {};
+  const ids = (OD_CHOICES().out || []).filter((id) => id !== ((S.view.presence || {}).solo ? (od.current || {}).place : null));
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto;max-height:86vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { style: 'padding:14px' },
+    h('div', { class: 'row' }, h('b', {}, 'ほかの行き先へ'), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
+    h('div', { class: 'cmds', style: 'margin-top:8px' }, ...placeGroups(ids, (id) => {
+      const P = (od.places || {})[id] || {};
+      return h('button', { class: 'cmd', disabled: P.open === false || S.busy, title: placeTip(id), onclick: async () => {
+        close();
+        if (S.busy) return;
+        S.busy = true;
+        try { const r = await api('/api/solo/move', { place: id }); if (r.solo) toast(r.solo.text, 'ok'); toast(`${P.label}へ向かった`, 'ok'); }
+        catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
+      } }, h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || id), P.open === false ? h('small', { class: 'muted' }, P.note) : null);
+    }))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 async function comeBack() {
+  const p = (S.view || {}).presence || {};
+  if (p.mode === 'out' && p.shop_wait != null && !p.shop && !confirm('まだ買い物の途中です（品を選んでいる）。何も買わずに帰りますか？')) return;
   if (S.busy) return;
   S.busy = true;
   try { handleActResult(await api('/api/presence/back', withT({}))); } catch (e) { toast(e.message, 'err'); }

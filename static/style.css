@@ -771,3 +771,11 @@ a.btn { color: inherit; }
 .appoint-line { padding: 4px 0; display: flex; flex-direction: column; gap: 4px; }
 .away-appoint { margin: 6px 0; padding: 6px 10px; border-radius: 10px; background: #2a2540; font-size: 13px; }
 .away-appoint.here { background: #263028; }
+
+/* 店での買い物の知らせ */
+.shop-card { margin: 8px 0; padding: 10px 12px; border-radius: 12px; text-align: left; }
+.shop-card.wait { background: var(--panel3); color: var(--muted); font-size: 13px; text-align: center; }
+.shop-card.done { background: #263028; border: 1px solid #4f8a5b; color: #d9f0dc; }
+.shop-card.done.small { padding: 6px 10px; font-size: 12.5px; border: none; }
+.shop-head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+.shop-total { font-weight: 700; }

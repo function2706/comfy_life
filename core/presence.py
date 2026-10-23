@@ -130,6 +130,10 @@ class Presence:
             if p["mode"] == "out" and p.get("place"):
                 doing = "%s（%s）" % (doing, self.app.places.label(p["place"]))
             out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": doing, "icon": k.get("icon", "")}
+            if sl.get("shop_done"):
+                out["shop"] = sl["shop_done"]                 # 店での買い物が済んだ (知らせる)
+            elif sl.get("shop_need"):
+                out["shop_wait"] = max(0, int(sl["t"] + sl["shop_need"] * 60 - now))
             out["label"] = doing or out["label"]
         if p["mode"] == "work":
             pay, h, raw = self.app.life.work_pay(p.get("since", now), now)

@@ -1708,6 +1708,7 @@ class App:
             closed = self.outdoor.closing() if beat else None       # いる行き先が閉まったら出される
             street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
+            shop_done = self.solo.shop_tick() if beat else None  # 店にいて品を選び終えた: その場で買い物が済む
             now = time.time()
             company = self.bonds.company(now)
             if beat:
@@ -1735,7 +1736,7 @@ class App:
                 "you": self.life.player_view(), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
-                "street": street, "items": self.items.view(),
+                "street": street, "items": self.items.view(), "shop_done": shop_done,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
                 "side_job": self.task_ready(now), "task_active": self.task_active(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,

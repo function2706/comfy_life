@@ -4,6 +4,8 @@
 - 休む / 家事 / 研鑽: 在席状態は「作業中」(busy) と同じ扱い (家にいる)
 - 外出:             行き先 (core/places.py の表) を選ぶ. 行き先しだいですることが決まる (公園・河川敷ならぶらぶら歩く,
                     カフェならお茶, 店なら買い物, 水族館などは見て回る, 相手の家なら訪ねる). 在席状態は「外出中」(out).
+                    店では, しばらくいると (品を選び終えたら) その場で買い物が済み, 済んだことが分かる (shop_tick).
+                    済む前に店を出れば「まだ買い物の途中だった」. 済んだあともその場にいてよい. 行動パターンの買い物は今どおりまとめて
                     出かけている間 (画面を開いている間だけ) に偶然の出会いが起こりうる (補正はしない)
                     以前の「一人で散歩・一人で買い物・カフェで過ごす」(walk / shopping / cafe) は, 外出 + 行き先に読み替える
 - 日記:              その場で書く. その日のログ (全キャラ + 一人の時間) から. LLM が有効なら LLM, 無ければ定型
@@ -137,6 +139,8 @@ class Solo:
         p["solo"] = {"kind": kind, "skill": skill, "t": now}
         if place:
             p["place"] = place
+            if not places_mod.is_home(place) and places_mod.solo_kind(place) == "shopping":    # 店: 品を選び終えるまでの時間
+                p["solo"]["shop_need"] = round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1)
         app.presence.save()
         self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", ""))
                   .replace("{place}", app.places.label(place) if place else ""), now)
@@ -153,6 +157,77 @@ class Solo:
         app.life.tire(1)
         self.note("kakeibo", r["text"], now, id="k%d" % int(now * 1000), icon="📒", name="家計簿")
         return {"started": None, "label": "家計簿", "done": r["text"], "kakeibo": r}
+
+    # ------------------------------------------------------------------ 店での買い物 (画面を開いている外出)
+    @staticmethod
+    def shop_minutes(n_items):
+        """品を選び終えるまでの時間 (分). 買うものリストが多いほど長い. 日によって少し揺れる."""
+        return random.uniform(8, 15) + 2.5 * min(n_items, 10)
+
+    def shop_tick(self, now=None):
+        """店に出かけていて, 品を選び終える時間がたったら, その場で買い物を済ませる (心拍のたび). 済んだら結果を返す."""
+        app = self.app
+        now = now or time.time()
+        p = app.presence.rec()
+        sl = p.get("solo") or {}
+        place = p.get("place")
+        if p.get("mode") != "out" or sl.get("kind") != "out" or sl.get("shop_done") \
+                or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping":
+            return None
+        need = sl.setdefault("shop_need", round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1))
+        if now - sl.get("t", now) < need * 60:
+            return None
+        res = self._shop_now(place, (now - sl["t"]) / 3600.0, now)
+        sl["shop_done"] = res
+        app.presence.save()
+        self.note("shopping", "%sで買い物を終えた。%s" % (res["label"], res["text"]), now, place=place)
+        return res
+
+    def _shop_now(self, place, h, now):
+        """店で買い物を済ませる. 買うものがなかったとき (リストが空・この店に売っていない・全部品切れ) も, そうと分かる結果に."""
+        from .items import CATALOG
+        app = self.app
+        want = dict(app.items.ps()["shop_list"])
+        here = [i for i in want if place in (CATALOG.get(i) or {}).get("places", [])]
+        bought, missed = app.items.shop(place, h, now)
+        listed = [b for b in bought if not b.get("impulse")]
+        nothing = None
+        if not listed:
+            if not want:
+                nothing = "買うものリストは空だった"
+            elif not here:
+                nothing = "リストの品（%s）は、この店には売っていなかった" % "、".join(CATALOG[i]["name"] for i in want if i in CATALOG)
+            else:
+                nothing = "リストの品は、品切れやお金が足りなくて買えなかった"
+        text = app.items.describe(bought, missed)
+        if nothing:
+            text = "この店で買うものはなかった（%s）" % nothing + ("。" + text if text else "")
+        elsewhere = [CATALOG[i]["name"] for i in want if i in CATALOG and i not in here] if listed or here else []
+        return {"t": now, "place": place, "label": app.places.label(place), "bought": bought, "missed": missed,
+                "total": sum(b["price"] for b in bought), "nothing": nothing, "text": text, "seen": False,
+                "elsewhere": elsewhere}
+
+    def shop_ack(self):
+        """買い物を終えた知らせを読んだ (閉じる)."""
+        sl = self.app.presence.rec().get("solo") or {}
+        if sl.get("shop_done"):
+            sl["shop_done"]["seen"] = True
+            self.app.presence.save()
+        return {"ok": True}
+
+    def move(self, place, now=None):
+        """出かけている先から, ほかの行き先へ (いまの外出の結果を出して, そのまま出かける)."""
+        app = self.app
+        now = now or time.time()
+        p = app.presence.rec()
+        if p.get("mode") != "out":
+            raise ValueError("いまは出かけていません")
+        self._place("out", place)
+        ll = app.presence.back(now)
+        res = self.finish(ll) if ll else None
+        r = self.start("out", place=place)
+        r["solo"] = res
+        return r
 
     def start_plain(self, kind, place=None, cid=None):
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
@@ -188,10 +263,17 @@ class Solo:
         sl = ll.get("solo")
         if not sl:
             return None
-        return self.result(sl["kind"], max(0.0, float(ll.get("h", 0))), ll.get("back", time.time()), sl.get("skill"), ll.get("place"),
-                           ate=bool(sl.get("ate")))
+        h = max(0.0, float(ll.get("h", 0)))
+        shop = sl.get("shop_done")
+        if not shop and sl.get("shop_need") and h * 60 >= sl["shop_need"]:
+            # 品を選び終える時間は店にいた (心拍の間に済んでいた / 画面を閉じた時点で済んでいた): そこで買い物は済んでいる
+            shop = self._shop_now(ll.get("place"), h, ll.get("back", time.time()))
+        return self.result(sl["kind"], h, ll.get("back", time.time()), sl.get("skill"), ll.get("place"),
+                           ate=bool(sl.get("ate")), shop=shop or "pending")
 
-    def result(self, kind, h, now, skill=None, place=None, ate=False):
+    def result(self, kind, h, now, skill=None, place=None, ate=False, shop=None):
+        """shop: 店での買い物の済み具合 (画面を開いての外出から). None = その場で買う (行動パターン) / "pending" = 済む前に店を出た /
+        辞書 = 店にいる間に済んだ結果 (shop_tick)."""
         """一人の時間を h 時間過ごした結果 (画面を開いての一人の時間と, オフラインの行動パターンの両方で使う)."""
         app, L = self.app, self.app.life
         jit = random.uniform(0.6, 1.2)          # 同じ時間でも, はかどる日とそうでない日がある
@@ -262,7 +344,18 @@ class Solo:
             text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
             if bought or missed:
                 text += "。" + app.items.describe(bought, missed)
-        else:   # shopping
+        elif shop == "pending":     # 品を選び終える前に店を出た
+            L.tire(2 * h)
+            out["money"] = 0
+            out["bought"] = []
+            out["shop_pending"] = True
+            text = "%s%sにいたが、まだ買い物の途中だった（何も買わずに出た）" % (_dur(h), where)
+        elif isinstance(shop, dict):    # 店にいる間に買い物が済んでいた
+            L.tire(2 * h)
+            out["money"] = -shop["total"]
+            out["bought"] = shop["bought"]
+            text = "%s%s一人で買い物をした。%s" % (_dur(h), where + "で" if where else "", shop["text"])
+        else:   # shopping (行動パターン: その場で買う)
             L.tire(2 * h)
             # 買うものリストの品が, この店にあれば買う (品切れ・値段の上下・お金しだい. 衝動買いも少し)
             bought, missed = app.items.shop(place or "shopping_street", h, now)

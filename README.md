@@ -272,6 +272,8 @@ python tools/minigame_lab.py --port 8792 --no-browser
 
 ### 持ち物と買い物
 
+- 店での買い物（画面を開いての外出）: 店に出かけると、品を選び終えるまでの時間（`solo.shop_minutes`: 8〜15 分 + リストの品 1 つにつき 2.5 分）がたったところで、心拍のたびの `solo.shop_tick` がその場で買い物を済ませる（`presence.solo.shop_done`。`state_view.shop_done` で知らせ、外出中の画面に結果のカード。`POST /api/shop/ack` で閉じる）。帰ったときは買い直さない（心拍の間に時間が過ぎていれば、帰ったときに済ませる）。済む前に店を出れば「まだ買い物の途中だった」（何も買わない）。「ほかの店へ」は `POST /api/solo/move {place}`（いまの外出の結果を出して、そのまま向かう）。行動パターンの買い物は今どおり、その場で買う（`solo.result` の `shop=None`）。
+
 `core/items.py`。品物のカタログ（`CATALOG`: 値段・売っている行き先・種類・好みの印・プレゼント可否）、持ち物（`player.json` の `items`）と買うものリスト（`shop_list`）はワールドごと。
 
 - 買い物（`solo.finish` の shopping / cafe、オフラインの流れの買い物）で `items.shop(行き先)`: リストの品がその店にあれば買う（品切れ 12%・値段 ±15%・お金が足りなければ買えない・安い物の衝動買い）。

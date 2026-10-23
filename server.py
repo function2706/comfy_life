@@ -119,6 +119,11 @@ def route(method, path, q, body):
         if path == "/api/meal":
             with a.lock:
                 return {"meal": a.body.eat(b["how"], b["id"])}
+        if path == "/api/shop/ack":
+            return a.solo.shop_ack()
+        if path == "/api/solo/move":
+            with a.lock:
+                return a.solo.move(b["place"])
         if path == "/api/diary/write":
             return {"diary": a.solo.write_diary()}
         if path == "/api/items/list":
