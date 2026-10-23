@@ -44,6 +44,9 @@ FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_flo
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+# あなた一人の行動 (コマンド) → 一人の時間の記録の種類
+MY_ACTION_KIND = {"work": "work", "_back": "back", "_return": "back", "go_work": "work", "go_out": "out", "go_sleep": "sleep",
+                  "go_leave": "leave", "go_busy": "busy"}
 CARE_ACTIONS = ("look", "peek_face", "watch_quietly", "ask_mood", "comfort", "leave_alone")     # 気配りが伸びるコマンド
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
@@ -164,6 +167,7 @@ class App:
     def _migrate(self):
         """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
         self._migrate_living_cost()
+        self._migrate_my_entries()
         self._sync_defaults("actions", self.actions, "actions.json")
         self._sync_defaults("minigames", self.minigames, "minigames.json")
         self._sync_defaults("events", self.events, "events.json")
@@ -186,6 +190,47 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["wardrobe"] = d.get("wardrobe", [])
                 store.save_character(c)
+
+    def _migrate_my_entries(self):
+        """以前の「選んでいるキャラ」のログに書かれていた, あなた一人の行動の記録 (離れている相手のログの「（仕事から帰ってきた。…）」
+        など) を, あなたの記録 (mylog) へ移す. 外で会っていた相手と別れたところ (「〇〇と別れて、…」) は, その人との記録として残す.
+        一度だけ (player.json の migrated.my_entries). 移す前に自動バックアップ."""
+        pf = store.wpath("player.json")
+        ps = store.load(pf, None)
+        if ps is None or (ps.get("migrated") or {}).get("my_entries"):
+            return
+        mine_ids = set(bonds_mod.APART_TEXT) | {a["id"] for a in self.actions if a.get("category") == "あなたの予定"}
+        moved = []
+        for cid in self.chars:
+            f = store.wpath("log", cid + ".json")
+            log = store.load(f, None)
+            if not log:
+                continue
+            keep = []
+            for e in log:
+                t = e.get("text") or ""
+                if e.get("action") in mine_ids and t.startswith("（") and t.endswith("）") and "と別れて" not in t \
+                        and not e.get("deltas") and not e.get("images"):
+                    moved.append(e)
+                else:
+                    keep.append(e)
+            if len(keep) != len(log):
+                store.backup("あなた一人の行動の記録を, キャラのログからあなたの記録へ移す")     # 一回の起動で一度だけ
+                store.save(f, keep)
+                self.logs.pop(cid, None)
+        if moved:
+            mylog = store.load(store.wpath("mylog.json"), []) or []
+            for e in moved:
+                mylog.append({"t": e["t"], "kind": MY_ACTION_KIND.get(e.get("action"), "home"), "text": e["text"].strip("（）"),
+                              "id": "m" + e["id"], "icon": e.get("icon") or "🧍", "name": e.get("action_name") or "",
+                              **({"money": {"p": e["money"]["p"]}} if (e.get("money") or {}).get("p") else {}),
+                              **({"skill": e["skill"]} if e.get("skill") else {}), "migrated": True})
+            mylog.sort(key=lambda x: x["t"])
+            store.save(store.wpath("mylog.json"), mylog[-500:])
+        ps.setdefault("migrated", {})["my_entries"] = len(moved)
+        store.save(pf, ps)
+        if getattr(self, "life", None) is not None and self.life.player is not None:
+            self.life.player.setdefault("migrated", {})["my_entries"] = len(moved)
 
     def _migrate_living_cost(self):
         """食事 (自炊・外食・買って食べる) を足したので, 以前の既定の生活費 (食費込みの 3,000 円) を食費抜きの既定に直す.
@@ -823,8 +868,18 @@ class App:
             mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
             # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
             parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit", "guest")                 and a.get("presence_set") in ("work", "out", "left", "sleep")
-            narrate = (apart and mine) or parting
-            if narrate:     # 離れている相手は見送りも出迎えもしない. あなたの行動だけを書く
+            if apart and mine and not parting:
+                # その場にいない相手にかかわらない, あなた一人の行動 (仕事から帰った・出かけた など): あなたの記録にだけ残す
+                # (以前は「選んでいるキャラ」のログに書いていた名残. キャラのログには, その人がその場にいて関わった出来事だけ)
+                what = a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid)
+                for k, v in extra.items():
+                    what = what.replace("{%s}" % k, str(v))
+                if a.get("presence_set"):
+                    self.presence.declare(a["presence_set"], now)
+                return self.my_entry(MY_ACTION_KIND.get(aid, "home"), a.get("name", aid), a.get("icon", "🧍"), what, now,
+                                     money=opts.get("money"), skill={k: v for k, v in (opts.get("skill") or {}).items() if v} or None)
+            narrate = parting
+            if narrate:     # 外で会っていた相手と別れて行く: 別れるところまでは, その人との記録
                 what = a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid)
                 r = {"text": "（%s%s）" % ("{name}と別れて、" if parting else "", what)}
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
