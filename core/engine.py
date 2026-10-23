@@ -32,6 +32,7 @@ from . import appoint as appoint_mod
 from . import kakeibo as kakeibo_mod
 from . import body as body_mod
 from . import presence as presence_mod
+from . import knowsched as knowsched_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
 from .keys import line_keys
@@ -47,6 +48,8 @@ SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: 
 # あなた一人の行動 (コマンド) → 一人の時間の記録の種類
 MY_ACTION_KIND = {"work": "work", "_back": "back", "_return": "back", "go_work": "work", "go_out": "out", "go_sleep": "sleep",
                   "go_leave": "leave", "go_busy": "busy"}
+# 話しているうちに, 相手の予定をぽろっと聞くことがあるコマンド (knowsched.from_talk)
+SCHED_TALK = ("talk", "greet", "ask_mood", "call", "walk", "cafe", "eat_out", "date", "tea", "picnic")
 CARE_ACTIONS = ("look", "peek_face", "watch_quietly", "ask_mood", "comfort", "leave_alone")     # 気配りが伸びるコマンド
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
@@ -131,6 +134,7 @@ class App:
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
+        self.knowsched = knowsched_mod.KnowSched(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
@@ -1031,6 +1035,10 @@ class App:
             text += "\n" + self.format_text(real_note, char, scene, dt)
         if item_note:
             text += "\n" + self.format_text(item_note, char, scene, dt)
+        if aid in SCHED_TALK and not r.get("override") and not narrate:
+            sched_note = self.knowsched.from_talk(char, st, now)      # 話のついでに, 予定を聞くことがある
+            if sched_note:
+                text += "\n" + sched_note
         if home_note:
             text += "\n" + self.format_text(home_note, char, scene, dt)
         if meal_note:
@@ -1262,7 +1270,8 @@ class App:
                         "mode": b["mode"], "label": b["label"], "face": self.chat.face(cid),
                         "last_met": st.get("last_met") or (st.get("last_touch") if b["stage"] == "live" else None),
                         "last_contact": st.get("last_contact"), "last_touch": st.get("last_touch"),
-                        "known": list(reversed(st.get("known") or []))[:12],
+                        "known": list(reversed([k for k in st.get("known") or [] if k.get("kind") != "schedule"]))[:12],
+                        "sched": list(reversed(self.knowsched.view(c, st, now))),
                         "owed": int((ps.get("loans") or {}).get(cid, 0)),
                         "living_policy": c.get("living_policy") or "split" if b["stage"] == "live" else None,
                         "pay_policy": c.get("pay_policy") or "auto",
@@ -1813,6 +1822,7 @@ class App:
             street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
             shop_done = self.solo.shop_tick() if beat else None  # 店にいて品を選び終えた: その場で買い物が済む
+            workplace = self.knowsched.at_workplace() if beat else []   # 行き先で, 知り合いが店員として働いていた
             now = time.time()
             company = self.bonds.company(now)
             if beat:
@@ -1840,7 +1850,7 @@ class App:
                 "you": dict(self.life.player_view(), care=round(self.life.skill_soft("care"), 2)), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
-                "street": street, "items": self.items.view(), "shop_done": shop_done,
+                "street": street, "items": self.items.view(), "shop_done": shop_done, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
                 "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,

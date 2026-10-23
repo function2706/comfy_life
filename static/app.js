@@ -105,6 +105,7 @@ async function refresh() {
   if (v.street_auto) toast(v.street_auto.text.split('\n')[0], 'ok');
   for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
   if (v.closed) toast(v.closed.text, 'ok');
+  for (const w of v.workplace || []) toast(`🏪 ${w}`, 'ok');
   if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
@@ -1696,12 +1697,13 @@ function ago(t) {
   const dt = new Date(t * 1000);
   return d <= 0 ? `今日 ${hhmm(t)}` : d === 1 ? '昨日' : `${d}日前（${dt.getMonth() + 1}/${dt.getDate()}）`;
 }
+const SCHED_VIA = { talk: '本人から', secondhand: '人づてに', workplace: '職場で見かけた', message: 'メッセージで' };
 function renderPeople() {
   const ps = S.view.people || [];
   const box = $('#tab-people');
   const mode = statMode();
   box.replaceChildren(
-    h('p', { class: 'hint' }, '知っている人との関係です。見た目の印象は、そばにいる人だけ分かります（離れている人は「？」）。好きなもの・聞いた話は、渡してみた・部屋で見た・本人から聞いたものだけです。'),
+    h('p', { class: 'hint' }, '知っている人との関係です。見た目の印象は、そばにいる人だけ分かります（離れている人は「？」）。好きなもの・聞いた話・予定は、渡してみた・部屋で見た・本人や人づてに聞いた・見かけたものだけです（予定は変わることもあります）。'),
     ...ps.map((p) => {
       const near = !!p.mode;
       const see = near || S.ui.showApart;
@@ -1729,6 +1731,8 @@ function renderPeople() {
           row('見た目の印象', look),
           row('好きなもの', likes.length ? likes.map((k) => `${KNOWN_LABEL[k.kind]}: ${k.text}`).join('・') : '？（まだ知らない）'),
           heard.length ? row('聞いた話', heard.slice(0, 4).map((k) => h('div', {}, `${ago(k.t)}　${k.text}`))) : '',
+          (p.sched || []).length ? row('予定について', p.sched.slice(0, 6).map((k) => h('div', { class: k.stale || k.old ? 'muted' : '' },
+            `${k.text}（${SCHED_VIA[k.via] || '聞いた'}・${ago(k.t)}）`, k.stale ? h('span', { class: 'tag', style: 'margin-left:4px' }, 'もう違うかも') : k.old ? h('span', { class: 'tag', style: 'margin-left:4px' }, '前に聞いた話') : ''))) : '',
           p.owed ? row('貸し借り', h('span', { class: 'down' }, `あなたが ${yen(p.owed)} 借りている`)) : '',
           p.living_policy ? row('生活費', { split: '折半', me: 'あなたが払う', her: `${p.name}が払う` }[p.living_policy] || '') : ''));
     }),
@@ -2423,6 +2427,9 @@ function sceneFields(e, opts = {}) {
     fld('表示名', inp(e, 'label', { ph: '朝ごはん' })),
     fld('activity id', inp(e, 'activity', { ph: 'breakfast' }), null),
     fld('場所', inp(e, 'location', { ph: 'ダイニング' })),
+    opts.days ? fld('勤め先（行き先）', inp(e, 'workplace', { type: 'select', options: [['', 'なし'],
+      ...Object.entries((S.view && S.view.outdoor && S.view.outdoor.places) || {}).map(([id, p]) => [id, p.label || id])] }),
+      'この時間にあなたがこの行き先へ行くと、店員として働いているのに出会います（予定を知るきっかけになります）') : null,
     h('div', { class: 'fld' }, h('span', { class: 'fl' }, '状態'),
       h('div', { class: 'row' }, chk(e, 'away', '外出'), chk(e, 'asleep', '睡眠'), chk(e, 'busy', '手が離せない'),
         h('label', { class: 'check', title: 'あなたと一緒のお出かけ。お出かけ着になり、「家に帰る」が出る' },
@@ -2437,6 +2444,12 @@ function sceneFields(e, opts = {}) {
 }
 SEC.schedule = () => {
   const c = SE.char;
+  if (!SE.schedOk) {      // 遊んでいる画面では相手の予定は分からないもの. 作る人の画面なので, 開く前に一言
+    return [h('div', { class: 'card' },
+      h('p', {}, '⚠ ここは作る人のための画面です。遊ぶときに見ると、相手の予定が分かってしまいます。'),
+      h('p', { class: 'muted small' }, '遊んでいるあいだの相手の予定は、話のついで・人づて・職場で見かける・メッセージなどで、少しずつ「関係性」に分かっていきます。'),
+      h('button', { class: 'btn', onclick: () => { SE.schedOk = true; showSection('schedule'); } }, '分かったうえで開く'))];
+  }
   c.schedule = c.schedule || [];
   c.default_activity = c.default_activity || {};
   const list = h('div');

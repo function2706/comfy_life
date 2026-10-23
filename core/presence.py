@@ -215,6 +215,9 @@ class Presence:
         e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
             self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now)
+            told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
+            if told:
+                self.app.chat.add(char["id"], "sys", told, kind="sched", t=now + 0.0005)
             self.app.picked_up_phone(char, st, now)
         st["approach"]["entry"] = e["id"]
         return e
