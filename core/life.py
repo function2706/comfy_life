@@ -23,7 +23,7 @@ from . import cond, store
 
 WHO = {"p": "あなた", "a": "キャラ"}
 # あなたのスキル: 会話・スキンシップ・料理・仕事・家事・気配り・身だしなみ・やりくり (後の 4 つは, 以前のデータには初期値で補う)
-SKILLS = ("talk", "touch", "cook", "work", "house", "care", "groom", "budget")
+SKILLS = ("talk", "touch", "cook", "work", "house", "care", "groom", "budget", "write")
 SKILL_RATE = 0.4         # 経験のうち身につく割合
 SKILL_DAY_SOFT = 2.0     # その日に伸びた量がこれだけあると, 次の経験は半分しか身につかない
 RUST_AFTER_DAYS = 10     # これだけ使わないスキルは, 少しずつ鈍る

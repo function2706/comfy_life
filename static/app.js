@@ -877,7 +877,7 @@ function level(p, v) {
 
 const yen = (n) => `${Math.round(n).toLocaleString()}円`;
 
-const SKILL_NAME = { talk: '会話', touch: 'スキンシップ', cook: '料理', work: '仕事', house: '家事', care: '気配り', groom: '身だしなみ', budget: 'やりくり' };
+const SKILL_NAME = { talk: '会話', touch: 'スキンシップ', cook: '料理', work: '仕事', house: '家事', care: '気配り', groom: '身だしなみ', budget: 'やりくり', write: '文章' };
 function sparkline(vals, title) {
   const w = 300, hgt = 36, mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn || 1;
   const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${hgt - ((v - mn) / span) * (hgt - 4) - 2}`).join(' ');
@@ -1483,7 +1483,7 @@ function renderMoney() {
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, `本業の時給 ${yen(EA.wage || 0)}${EA.wage !== EA.base_wage ? `（始め ${yen(EA.base_wage || 0)}）` : ''}・今月の本業 ${EA.month_h || 0}時間。月ごとの勤務で時給が見直され、6月・12月の10日に賞与が出ます（休みが多いと下がる・出ない）`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います'),
-      partTimePanel(EA, v)),
+      partTimePanel(EA, v), sideWorkPanel(EA, v)),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
       h('div', { class: 'row', style: 'margin-bottom:4px' }, h('span', { class: 'tag' + (M.open ? ' bond' : '') }, M.open ? `📈 取引中（${M.until}まで）` : `🌙 取引時間外（次は ${M.next}）`),
         h('span', { class: 'muted small' }, `買付余力 ${yen(M.buy_power ?? L.my_money ?? 0)}`)),
@@ -1533,6 +1533,24 @@ function partTimePanel(EA, v) {
           h('button', { class: 'btn small', disabled: S.busy || !!ng, title: '面接があります（身だしなみ・会話で受かりやすく）',
             onclick: () => earnApi('/api/earn/parttime/apply', { job: j.id, shifts: [{ days: f.days.join(','), from: f.from, to: f.to }] }) }, ng ? '少し待つ' : '応募する')));
     }) : '');
+}
+// 副業 (スキルを生かす依頼) と, 知り合いからの頼まれごと
+function sideWorkPanel(EA, v) {
+  const G = EA.gigs || { offers: [], kinds: [], rep: {} };
+  const free = (v.presence || {}).mode === 'none';
+  const until = (t) => `${fmtTime(t)}まで`;
+  return h('div', { class: 'kb-cats' },
+    h('div', { class: 'muted small' }, '💡 副業の依頼（スキルと評判しだいで、ときどき来ます）: ' + G.kinds.map((k) => `${k.label}${k.open ? `（評判 ${G.rep[k.id] ?? 30}）` : `（${SKILL_NAME[k.skill]} ${k.min} から）`}`).join('・')),
+    ...G.offers.map((o) => h('div', { class: 'money-row small' },
+      h('span', {}, `${o.icon} ${o.label}・${o.client}（${o.h}時間ほど・${yen(o.pay)}くらい・${until(o.until)}）`),
+      h('button', { class: 'btn small', disabled: S.busy || !free, title: '取りかかります（終わったら戻る）。時間と出来ばえで報酬と評判が決まります',
+        onclick: () => earnApi('/api/earn/gig', withT({ id: o.id }), '取りかかった') }, '取りかかる'))),
+    (EA.favors || []).length ? h('div', { class: 'muted small', style: 'margin-top:4px' }, '🤝 頼まれごと（お礼をもらえるかは仲しだい）') : '',
+    ...(EA.favors || []).map((f) => h('div', { class: 'money-row small' },
+      h('span', {}, `${f.name}から: ${f.label}（${f.h}時間ほど・${until(f.until)}）`),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => earnApi('/api/earn/favor', withT({ id: f.id, yes: true }), '手伝いに行った') }, '引き受ける'),
+        h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => earnApi('/api/earn/favor', { id: f.id, yes: false }) }, '断る')))));
 }
 async function earnApi(path, body, okMsg) {
   if (S.busy) return;
@@ -1689,6 +1707,7 @@ const SKILL_HINT = {
   care: '相手の様子の見え方（見た目の印象のずれが小さい・何かあったことに気づきやすい）。様子を見る・何かあった？・相談にのる・研鑽で伸びる',
   groom: '出先で会った人との知り合いやすさ（少しだけ）。出かける・服を買う・研鑽で伸びる',
   budget: '家計簿の覚えのよさ（丸め・書き漏らしが減り、見積もりの幅が狭い）、買い物で少し安く買え衝動買いが減り、品切れのとき代わりの品を選べる。家計簿・買い物・研鑽で伸びる',
+  write: '文章の仕事（副業）の依頼の来やすさと出来ばえ。研鑽（文章の書き方の本があると伸びやすい）と文章の仕事で伸びる',
 };
 /* ---- 見た目でわかること: 数値は出さず, 様子から受ける印象だけ (少しずれることもある) */
 const LOOK = {
@@ -2763,7 +2782,7 @@ SEC.actions = () => {
         fld('実行できる条件', inp(a, 'when', { ph: 'free=true' }), null, 'span2'),
         fld('クールダウン（分）', inp(a, 'cooldown', { type: 'number' }), 'この間の連続実行は repeat が増え効果減'),
         fld('連続時の効果倍率', inp(a, 'repeat_scale', { type: 'number', step: '0.1', ph: '0.5' })),
-        fld('あなたのスキル', inp(a, 'skill', { type: 'select', options: [['', 'なし'], ['talk', '会話'], ['touch', 'スキンシップ'], ['cook', '料理'], ['work', '仕事'], ['house', '家事'], ['care', '気配り'], ['groom', '身だしなみ'], ['budget', 'やりくり']] })),
+        fld('あなたのスキル', inp(a, 'skill', { type: 'select', options: [['', 'なし'], ['talk', '会話'], ['touch', 'スキンシップ'], ['cook', '料理'], ['work', '仕事'], ['house', '家事'], ['care', '気配り'], ['groom', '身だしなみ'], ['budget', 'やりくり'], ['write', '文章']] })),
         fld('効果', inp(a, 'effects', { fmt: fmtEff, parse: parseEff, ph: 'mood:+5, loneliness:-10' }), null, 'spanall'),
         fld('Positive（行動）', inp(a, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative（行動）', inp(a, 'neg', { type: 'textarea', rows: 2 }), null, 'span2'),

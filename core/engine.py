@@ -1958,6 +1958,8 @@ class App:
                 return r
             if ll.get("job") == "parttime":
                 return self._back_parttime(ll, near, quiet, wc)
+            if ll.get("job") in ("gig", "favor"):
+                return self._back_task(ll, near, quiet)
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
             work_note = ""
             if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
@@ -2002,6 +2004,40 @@ class App:
                                              "ctx": {"work_h": round(ll.get("h", 0), 2), "paid_h": round(h, 2), "pay": pay},
                                              "skill": gain})
 
+    def _back_task(self, ll, near, quiet):
+        """副業・頼まれごとから戻った (結果はあなたの記録. 誰かいれば「おかえり」)."""
+        h = float(ll.get("h", 0))
+        task = ll.get("task") or {}
+        if ll["job"] == "gig":
+            pay, text, gain = self.earn.gig_done(task, h, ll["back"])
+            icon, name = "💡", "副業"
+        else:
+            pay, text = self.earn.favor_done(task, h, ll["back"])
+            gain, icon, name = {}, "🤝", "頼まれごと"
+        self.life.save_player()
+        if quiet:
+            return {"text": text, "pay": pay}
+        r = self.my_entry("work", name, icon, text, money={"p": pay} if pay else None, skill={k: v for k, v in gain.items() if v} or None)
+        if near:
+            r["back"] = self.act("_back", near)
+        return r
+
+    def _go_task(self, job, task, text):
+        now = time.time()
+        if self.body.level() >= 3:
+            raise ValueError("寝込むほどつらくて、出かけられそうにない（休むか、病院へ）")
+        for oid in list(self.bonds.company()):        # そばにいる人には告げて (外で会っていたなら, そこで別れる)
+            if self.bonds.mode(oid) not in ("home", "guest"):
+                self.bonds.end()
+                break
+        self.presence.declare("work", now)
+        p = self.presence.rec()
+        p["job"], p["task"] = job, task
+        self.presence.save()
+        self.solo.note("work", text, now)
+        self.life.save_player()
+        return {"started": job, "label": text}
+
     def go_parttime(self, cid=None):
         """シフトの時間 (前後 30 分から) に, バイトに行く. 行き先はバイト先の店."""
         with self.lock:
@@ -2034,6 +2070,16 @@ class App:
                 r = self.earn.apply(b.get("job"), b.get("shifts"))
             elif op == "quit":
                 r = self.earn.quit()
+            elif op == "gig":
+                o = self.earn.gig_take(b.get("id"))
+                r = self._go_task("gig", o, "%s（%s）に取りかかった" % (o["label"], o["client"]))
+            elif op == "favor":
+                f, said = self.earn.favor_answer(b.get("id"), bool(b.get("yes")))
+                if said:
+                    self.life.save_player()
+                    r = {"text": said}
+                else:
+                    r = self._go_task("favor", f, "%sの%sに行った" % (self.chars[f["cid"]].get("name", ""), f["label"]))
             else:
                 raise KeyError(op)
             return dict(r, earn=self.earn.view())

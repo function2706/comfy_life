@@ -33,6 +33,18 @@ def hm(s):
     return int(h) * 60 + int(m)
 
 
+# 副業 (スキルを生かす): 依頼が来るかは運と評判しだい. 時給の目安 rate. min: このスキルに届くと依頼が来はじめる
+GIGS = {
+    "house": {"label": "家事代行", "skill": "house", "min": 15, "h": (2, 3), "rate": 1500, "icon": "🧹",
+              "clients": ["近所の高齢の方", "共働きの家庭", "引っ越してきたばかりの人", "忙しい一人暮らしの人"]},
+    "cook": {"label": "作り置きの代行", "skill": "cook", "min": 20, "h": (2, 3), "rate": 1450, "icon": "🍳",
+             "clients": ["子育て中の家庭", "一人暮らしの高齢の方", "共働きの家庭", "食事を気にしている人"]},
+    "write": {"label": "文章の仕事", "skill": "write", "min": 20, "h": (1, 3), "rate": 1300, "icon": "✍",
+              "clients": ["地域の情報サイト", "小さな会社のブログ", "お店の紹介ページ", "町内会の会報"]},
+}
+# 頼まれごと (知り合いから): (名前, 時間, 疲れ)
+FAVORS = [("引っ越しの手伝い", 4.0, 30), ("大掃除の手伝い", 3.0, 20), ("家具の組み立て", 2.0, 12), ("留守中の植木の水やり", 0.5, 2),
+          ("パソコンの設定", 1.0, 4), ("荷物運び", 1.5, 14)]
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 DAYS_JA = dict(zip(DAYS, "月火水木金土日"))
 
@@ -254,6 +266,163 @@ class Earn:
         self.app.solo.note("work", text, t, icon="🧑‍💼", name="アルバイト")
         return text
 
+    # ================================================================== 副業 (スキルを生かす)
+    def gigs(self):
+        ps = self.ps()
+        g = ps.get("gigs")
+        if g is None:
+            g = ps["gigs"] = {"rep": {k: 30.0 for k in GIGS}, "offers": []}
+        return g
+
+    def gig_offers(self, t):
+        """日付が替わった: スキルと評判しだいで, 副業の依頼が来る (運しだい. 3 件まで). 来た依頼を返す."""
+        g = self.gigs()
+        g["offers"] = [o for o in g["offers"] if o["until"] > t]
+        out = []
+        for k, G in GIGS.items():
+            sk = self.L.skill(G["skill"])
+            if sk < G["min"] or len(g["offers"]) >= 3 or any(o["kind"] == k for o in g["offers"]):
+                continue
+            rep = float(g["rep"].get(k, 30))
+            p = max(0.01, min(0.35, 0.04 + 0.12 * self.L.skill_soft(G["skill"]) + 0.12 * (rep - 30) / 70.0))
+            if random.random() >= p:
+                continue
+            h = round(random.uniform(*G["h"]) * 2) / 2.0
+            pay = int(G["rate"] * h * random.uniform(0.9, 1.2) * (0.9 + 0.2 * rep / 100.0) / 100) * 100
+            o = {"id": "g%d%s" % (int(t * 1000), k), "kind": k, "label": G["label"], "client": random.choice(G["clients"]),
+                 "h": h, "pay": pay, "t": t, "until": t + 2 * 86400}
+            g["offers"].append(o)
+            out.append(o)
+        return out
+
+    def gig_take(self, gid, now=None):
+        """依頼を受けて, 取りかかる (在席は work. 家事代行・作り置きは依頼先へ, 文章は家で)."""
+        now = now or time.time()
+        g = self.gigs()
+        o = next((x for x in g["offers"] if x["id"] == gid), None)
+        if not o:
+            raise KeyError("依頼が見つかりません（期限が過ぎたかもしれません）")
+        if self.app.presence.rec().get("mode") != "none":
+            raise ValueError("いまは取りかかれません（先に戻ってください）")
+        if self.L.stamina() < 15:
+            raise ValueError("疲れていて、いまは取りかかれません（体力15以上）")
+        g["offers"].remove(o)
+        return o
+
+    def gig_done(self, o, h, t):
+        """副業から戻った: 時間と出来ばえで, 報酬と評判が決まる. (稼ぎ, 文, スキルの伸び)."""
+        G = GIGS[o["kind"]]
+        g = self.gigs()
+        if h < 0.25:
+            g["rep"][o["kind"]] = max(0.0, g["rep"].get(o["kind"], 30) - 5)
+            return 0, "%sの依頼（%s）に取りかかったが、すぐにやめてしまった。依頼は取り消しになった" % (G["label"], o["client"]), {}
+        done = min(1.0, h / o["h"])
+        q = max(0.0, min(1.0, 0.25 + 0.6 * self.L.skill_soft(G["skill"]) + random.gauss(0, 0.15)))
+        if done < 0.8:
+            pay = int(o["pay"] * done * 0.8 / 100) * 100
+            dr = -6.0
+            how = "時間が足りず、途中までになった"
+        else:
+            pay = int(o["pay"] * (0.85 + 0.3 * q) / 100) * 100
+            dr = (q - 0.5) * 16
+            how = "とても喜ばれ、また頼みたいと言われた" if q > 0.7 else "お礼を言われた" if q > 0.4 else "少し不満そうだった"
+        g["rep"][o["kind"]] = max(0.0, min(100.0, g["rep"].get(o["kind"], 30) + dr))
+        gain = {G["skill"]: self.L.train(G["skill"], 0.4 * min(h, o["h"] * 1.5))}
+        self.L.tire(7 * min(h, o["h"] * 1.5))
+        if pay:
+            self.ps()["money"] += pay
+            self.L.ledger(t, pay, "income", "副業（%s）" % G["label"])
+        return pay, "%s（%s）を終えた。%s（%s円）" % (G["label"], o["client"], how, format(pay, ",")), gain
+
+    # ================================================================== 頼まれごと (知り合いから)
+    def favors(self):
+        return self.ps().setdefault("favors", [])
+
+    def favor_offers(self, t):
+        """日付が替わった: 知り合い (連絡先を知っている・家に行ける仲) から, ときどき頼まれごとが来る (2 件まで). 古いものは流れる."""
+        app = self.app
+        fs = self.favors()
+        keep = []
+        for f in fs:
+            if f["until"] > t:
+                keep.append(f)
+            elif f["cid"] in app.chars:          # 返事をしないまま流れた: 少しがっかり
+                st = app.state(f["cid"])
+                app.apply_effects(st, {"trust": -1})
+                app.save_state(f["cid"])
+        fs[:] = keep
+        out = []
+        for cid, char in app.chars.items():
+            if len(fs) >= 2 or app.bonds.stage(cid) not in ("contact", "visit") or any(f["cid"] == cid for f in fs):
+                continue
+            st = app.state(cid)
+            if random.random() >= 0.012 + float(st["params"].get("affection", 50)) / 5000.0:
+                continue
+            name, h, tire = random.choice(FAVORS)
+            f = {"id": "f%d%s" % (int(t * 1000), cid), "cid": cid, "label": name, "h": h, "tire": tire, "t": t, "until": t + 3 * 86400}
+            fs.append(f)
+            out.append(f)
+            app.chat.add(cid, "sys", "（%sから、%sを頼まれた）" % (char.get("name", ""), name), kind="favor", t=t)
+        return out
+
+    def favor_answer(self, fid, yes, now=None):
+        """頼まれごとに答える. 引き受けたら, 取りかかる (在席は work). 断ったら少しがっかりされる."""
+        now = now or time.time()
+        app = self.app
+        fs = self.favors()
+        f = next((x for x in fs if x["id"] == fid), None)
+        if not f:
+            raise KeyError("頼まれごとが見つかりません（期限が過ぎたかもしれません）")
+        char = app.chars.get(f["cid"]) or {}
+        if yes:
+            if app.presence.rec().get("mode") != "none":
+                raise ValueError("いまは手伝いに行けません（先に戻ってください）")
+            if self.L.stamina() < f["tire"] * 0.5:
+                raise ValueError("疲れていて、いまは手伝えそうにない")
+        fs.remove(f)
+        if not yes:
+            st = app.state(f["cid"])
+            app.apply_effects(st, {"mood": -1})
+            app.save_state(f["cid"])
+            app.chat.add(f["cid"], "me", "（%sは断った）" % f["label"], kind="favor", t=now)
+            return f, "%sの%sは断った" % (char.get("name", ""), f["label"])
+        app.chat.add(f["cid"], "me", "（%sを引き受けた）" % f["label"], kind="favor", t=now)
+        return f, None
+
+    def favor_done(self, f, h, t):
+        """手伝いから戻った: 終わっていれば, お礼 (お金をもらえることも, もらえないことも. 仲しだい). (お礼の額, 文)."""
+        app = self.app
+        cid = f["cid"]
+        char = app.chars.get(cid) or {}
+        name = char.get("name", "")
+        st = app.state(cid)
+        self.L.tire(f["tire"] * min(1.0, h / max(0.25, f["h"])))
+        if h < f["h"] * 0.6:
+            app.apply_effects(st, {"trust": -1, "mood": -1})
+            app.save_state(cid)
+            return 0, "%sの%sに行ったが、途中で帰ってきてしまった" % (name, f["label"])
+        stage = app.bonds.stage(cid)
+        aff = float(st["params"].get("affection", 50))
+        app.apply_effects(st, app.trait_effects(char, {"affection": 2, "trust": 3, "mood": 3}))
+        app.bonds.met(st, t)
+        app.bonds.touch(st, t)
+        p_money = (0.6 if stage == "contact" else 0.35) - (aff - 50) / 250.0       # 仲がいいほど, お金よりほかの形で
+        her = self.L.her_money(st)
+        amt = 0
+        if random.random() < p_money and her["a"] > 3000:
+            amt = min(int(her["a"] * 0.3), int(1000 * f["h"] * random.uniform(0.8, 1.5) / 500) * 500)
+        if amt > 0:
+            her["a"] -= amt
+            self.ps()["money"] += amt
+            self.L.ledger(t, amt, "income", "%sからのお礼" % name)
+            how = "お礼にと、%s円を渡された" % format(amt, ",")
+        else:
+            how = random.choice(("お礼に、ご飯をごちそうしてくれた", "何度もお礼を言われた", "今度何かお返しするね、と言われた",
+                                 "お礼に、お菓子を持たせてくれた"))
+        app.save_state(cid)
+        app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
+        return amt, "%sの%sを終えた。%s" % (name, f["label"], how)
+
     # ================================================================== 時間の経過
     def daily(self, t, month_changed):
         """日付が替わったとき (life.tick_world から)."""
@@ -261,6 +430,8 @@ class Earn:
             self.review(t)
         self.bonus(t)
         self.check_absence(t)
+        self.gig_offers(t)
+        self.favor_offers(t)
 
     def view(self, now=None):
         now = now or time.time()
@@ -268,6 +439,12 @@ class Earn:
         out = {"wage": self.wage(), "base_wage": int(self.L.econ().get("work_wage_per_hour", 1200)),
                "jobs": [dict(j, place_label=self.app.places.label(j["place"])) for j in self.jobs()],
                "rejected": {k: v for k, v in (self.ps().get("pt_rejected") or {}).items() if v > now}}
+        g = self.gigs()
+        out["gigs"] = {"offers": [dict(o, icon=GIGS[o["kind"]]["icon"]) for o in g["offers"] if o["until"] > now],
+                       "rep": {k: round(v) for k, v in g["rep"].items()},
+                       "kinds": [{"id": k, "label": G["label"], "skill": G["skill"], "min": G["min"], "open": self.L.skill(G["skill"]) >= G["min"]}
+                                 for k, G in GIGS.items()]}
+        out["favors"] = [dict(f, name=(self.app.chars.get(f["cid"]) or {}).get("name", "")) for f in self.favors() if f["until"] > now]
         mo = self.career()["months"].get(datetime.fromtimestamp(now).strftime("%Y-%m")) or {}
         out["month_h"] = round(float(mo.get("h", 0)), 1)
         if pt:

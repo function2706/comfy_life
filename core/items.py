@@ -34,6 +34,7 @@ _C = [
     ("book_care", "人の気持ちの本", "📕", "book_care", 1500, ["bookstore", "station"], ["books"], True),
     ("book_groom", "身だしなみの本", "📙", "book_groom", 1400, ["bookstore", "mall", "drugstore"], ["books", "fashion"], True),
     ("book_budget", "家計の本", "📘", "book_budget", 1500, ["bookstore", "station", "mall"], ["books", "practical"], True),
+    ("book_write", "文章の書き方の本", "📒", "book_write", 1400, ["bookstore", "station", "mall"], ["books"], True),
     ("clothes", "自分の服", "👕", "clothes", 4000, ["mall", "shopping_street"], ["fashion"], False),
     ("novel", "小説", "📖", "goods", 1200, ["bookstore", "station", "mall", "convenience"], ["books"], True),
     ("flowers", "花束", "💐", "goods", 2500, ["shopping_street", "station"], ["flowers"], True),
@@ -71,7 +72,8 @@ USES = {"cook": "food", "tea": "tea", "snack": "sweets", "clean": "detergent"}
 MISSING = {"cook": "（食材がなくて、ありあわせで簡単なものしか作れなかった）", "tea": "（お茶っ葉を切らしていて、白湯を出した）",
            "snack": "（お菓子がなくて、残っていたものを少しだけ出した）", "clean": "（洗剤が切れていて、思うようにははかどらなかった）"}
 PRACTICE_BOOK = {"talk": "book_talk", "touch": "book_touch", "cook": "book_cook", "work": "book_work",
-                 "house": "book_house", "care": "book_care", "groom": "book_groom", "budget": "book_budget"}
+                 "house": "book_house", "care": "book_care", "groom": "book_groom", "budget": "book_budget",
+                 "write": "book_write"}
 
 
 class Items:

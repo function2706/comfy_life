@@ -97,7 +97,8 @@ class Presence:
         p.pop("solo", None)          # 一人の時間の中身は, solo.start がこのあと入れる
         p.pop("place", None)         # 外出の行き先も (solo.start で)
         p.pop("work_contacts", None)
-        p.pop("job", None)           # アルバイト (earn) のときは, このあと入れる
+        p.pop("job", None)           # アルバイト・副業・頼まれごと (earn) のときは, このあと入れる
+        p.pop("task", None)
         p["street_log"], p["enc_check"] = [], now
         self.save()
 
@@ -109,7 +110,7 @@ class Presence:
             return None
         ll = {"t": p.get("since", now), "said": True, "mode": p["mode"], "back": now,
               "h": round((now - p.get("since", now)) / 3600, 2), "solo": p.pop("solo", None), "place": p.get("place"),
-              "job": p.pop("job", None)}
+              "job": p.pop("job", None), "task": p.pop("task", None)}
         p["last_left"] = ll
         p["mode"] = "none"
         p["input"] = p["beat"] = now

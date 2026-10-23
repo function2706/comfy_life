@@ -50,11 +50,11 @@ START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を�
               "out": "{place}へ出かけた", "jog": "{place}へ走りに出た"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事",
-               "house": "家事", "care": "気配り", "groom": "身だしなみ", "budget": "やりくり"}
+               "house": "家事", "care": "気配り", "groom": "身だしなみ", "budget": "やりくり", "write": "文章"}
 PRACTICE_TEXT = {"talk": "話し方の本を読んだ", "touch": "マッサージのやり方を調べた", "cook": "料理の練習をした",
                  "work": "仕事の勉強をした",
                  "house": "家事の段取りを考えた", "care": "人の気持ちについての本を読んだ", "groom": "身だしなみを整える練習をした",
-                 "budget": "家計の組み立て方を調べた"}
+                 "budget": "家計の組み立て方を調べた", "write": "文章を書く練習をした"}
 
 
 class Solo:
