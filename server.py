@@ -1,4 +1,4 @@
-"""くらし — ComfyUI 連携の疑似生活アプリ (ローカルサーバ).
+"""Comfy LIFE — ComfyUI 連携の疑似生活アプリ (ローカルサーバ).
 
     python server.py [--host 127.0.0.1] [--port 8765] [--no-browser]
 """
@@ -299,7 +299,7 @@ def main():
     APP = engine.App()
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     url = "http://%s:%d/" % ("127.0.0.1" if args.host in ("0.0.0.0", "") else args.host, args.port)
-    print("くらし: %s で起動しました (Ctrl+C で終了)" % url)
+    print("Comfy LIFE: %s で起動しました (Ctrl+C で終了)" % url)
     if not args.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

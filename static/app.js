@@ -1,5 +1,5 @@
 'use strict';
-/* くらし — フロントエンド (依存なし) */
+/* Comfy LIFE — フロントエンド (依存なし) */
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1206,9 +1206,9 @@ function renderStreet() {
     toast(`💬 ${sp.where}で、${sp.name}に声をかけられた`, 'ok');
     if (S.ui.callSound !== false) chime();
   }
-  document.title = sp && document.hidden ? (sp.type === 'call' ? '💬 声をかけられた - くらし' : '・くらし') : 'くらし';
+  document.title = sp && document.hidden ? (sp.type === 'call' ? '💬 声をかけられた - Comfy LIFE' : '・Comfy LIFE') : 'Comfy LIFE';
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'くらし'; });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Comfy LIFE'; });
 // 声をかけられたときの, 控えめな 2 音
 function chime() {
   try {

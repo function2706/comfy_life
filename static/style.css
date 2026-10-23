@@ -47,7 +47,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 
 /* ---------- topbar ---------- */
 .topbar { height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.brand { font-weight: 700; font-size: 18px; letter-spacing: .15em; color: var(--accent); }
+.brand { font-weight: 700; font-size: 18px; letter-spacing: .04em; color: var(--accent); }
 .clock { display: flex; flex-direction: column; line-height: 1.05; }
 .clock-main { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .clock-s { font-size: 13px; color: var(--muted); margin-left: 2px; }
