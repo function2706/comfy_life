@@ -79,6 +79,7 @@ def main():
 
         # ---- 機嫌の理由: 理由も知らずに謝ると悪化 → 聞く → 謝ると和らぐ / 相談で解決
         app.set_params({"mood": 40})
+        L.player_state()["skills"]["care"] = 100.0      # 気づくかは出来事の時刻しだいなので, 気配りを高くして必ず気づくように
         L.happen(char, st, time.time(), app.context(char, st, __import__("datetime").datetime.now()), force="argument")
         assert app.life.view(char, st)["hint"], "何かあったみたい のヒント"
         mood0 = st["params"]["mood"]

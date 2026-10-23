@@ -327,7 +327,7 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 外出（presence の out / work、誰かとの outing の一時シーン）は画面を開いている間だけ。心拍が途絶えたら `outdoor.check_gap()` が最後の心拍の時点で切り上げ（`come_back(at, quiet=True)`、給料もそこまで、お出かけは解散）、家で静かに過ごしていた扱い。
 - 出会いは外出中に心拍のたび `outdoor.live()` で判定: 1時間あたり `outdoor.rate_*` × 行き先の人の多さ（`PLACES[...].crowd[時間帯]`）× 天気（屋外/屋内の係数）。補正なし。天気はリアル日付から（`outdoor.weather`）。
 - 行き先は外出で選ぶ（`POST /api/solo/start {kind: "out", place}`。以前の `walk` / `shopping` / `cafe` も受け付ける）。誰かとのお出かけはコマンドの行き先（`override.place`）から。
-- 誰に会うか: 人ごとの「よく行く場所と時間帯」（`street.haunts_of`、名前と外見から決まる）で重み付け。仕事中は同僚だけ。初めての顔はほかのワールドの登録キャラ、いなければ生成し、`W/people.json` に記録（ここに来る習慣も付く）。
+- 誰に会うか: 人ごとの「よく行く場所と時間帯」（`street.haunts_of`、名前と外見から決まる）で重み付け。仕事中は同僚だけ。初めての顔は、このワールドにまだ現れていない登録キャラ n 人と新しく生成する人が 1/(n+1) ずつ（`encounters.pick_new_face`。登録キャラが残っていても新しい人に会うことがある）。`W/people.json` に記録（ここに来る習慣も付く）。
 - 段階: まだ知らない → 見かけた → 会釈する仲 → 立ち話する仲 → 知り合い（ここで登録を尋ねる）。進むかはこちらの反応 × 相手の `caution` × 偶然。
 - 声をかけられた / 見かけた: `presence.street_pending` に入り、`POST /api/street {choice}` で反応（chat / nod / decline、見かけたなら talk / nod / pass）。`street.TIMEOUT` 秒たつと、声をかけられたなら会釈して流し、見かけただけなら通り過ぎる。セリフは性格プリセットの `enc.call.first` / `enc.call.again` / `enc.call.known` / `enc.chat` / `enc.decline`。
 - **出先での合流**（`street._join_chance` / `join`）: 一人で出かけていて、連絡先・家に行ける仲の相手と立ち話（chat / talk）をしたら、そのまま一緒に過ごす話になる（`presence.street_join`、10 分のうちに決める。`state_view.street_join`、`POST /api/street/join {yes}`）。相手から誘われる（好感度 40 以上で、好感度・寂しさ × 性格の `approach`。`enc.join.invite`）か、こちらから誘う（好感度・機嫌・家に行ける仲・慎重さしだいで断られる。`enc.join.yes` / `enc.join.no`）。合流すると一人の外出はそこまで（`solo.finish` で結果は残る）で、相手は同じ行き先の一時シーン（`override.place`、90 分）、`with.mode = meet`。好感度などは `bonds.realize` を通す。

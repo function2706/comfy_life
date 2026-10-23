@@ -1,7 +1,7 @@
 """出先でのばったり (外出中の偶然の出会いの中身).
 
 - 誰に会うか: 人にはそれぞれ「よく行く場所と時間帯」(顔なじみの理由) がある. 同じ場所・同じ時間帯に通えば, 同じ人にまた会いやすい.
-  仕事中に会うのは同僚だけ. 初めて見る顔 (このワールドにまだ現れていない定義の人, いなければ新しく作った人) もいる.
+  仕事中に会うのは同僚だけ. 初めて見る顔もいる: このワールドにまだ現れていない定義の人 n 人と, 新しく作った人が 1/(n+1) ずつ.
 - 段階的に知り合う: まだ知らない → 見かけたことがある → 会釈する仲 → 立ち話する仲 → 知り合い (ここで登録するかを尋ねる).
   何度か会ううちに進むかどうかは, こちらの反応・相手の性格 (慎重さ)・偶然しだいで, 進まないこともある.
 - 相手から声をかけられたら, こちらも反応を選ぶ (応じる / 会釈だけ / 急いでいると断る). 気づかずに時間が過ぎたら,
@@ -99,7 +99,10 @@ class Street:
         for pid, pr in ppl.items():
             if pr.get("cid") or (pr.get("src") or {}).get("id") in app.chars:
                 continue                    # このワールドに現れた人は, キャラとして上で数える
-            w = self._weight(pr.get("haunts") or haunts_of(pr["char"]), place, phase, work)
+            hs = pr.get("haunts") or haunts_of(pr["char"])
+            if pr.get("coworker") and not any(h[0] == "office" for h in hs):
+                hs = hs + [["office", None]]            # 職場で知り合った同僚は, 職場にいる (以前の記録には習慣が無かった)
+            w = self._weight(hs, place, phase, work)
             if w:
                 pool.append((w, "person", pid))
         coworkers = sum(1 for pr in ppl.values() if pr.get("coworker"))
@@ -119,15 +122,12 @@ class Street:
         enc = self.app.encounters
         seen = {(pr["char"].get("name"), pr["char"].get("pos")) for pr in ppl.values()}
         cands = [(wid, c) for wid, c in enc.candidates() if (c.get("name"), c.get("pos")) not in seen]
-        if cands:
-            _, c = random.choice(cands)
-            src = {"type": "def", "id": c["id"]}       # すでにある定義の人 (このワールドでは初対面)
-            c = {k: v for k, v in json.loads(json.dumps(c)).items() if k not in ("prompt_history", "met", "id")}
-        else:
-            c, src = enc.generate(), {"type": "new"}
+        c, src = enc.pick_new_face(cands)        # まだ現れていない定義の人 n 人と新しく作る人が, 1/(n+1) ずつ
         pid = "p" + uuid.uuid4().hex[:8]
         hs = haunts_of(c)
-        if not work and [place, phase] not in hs:
+        if work and not any(h[0] == "office" for h in hs):
+            hs.append(["office", None])      # 職場で会ったのは, 同じ職場だから
+        elif not work and [place, phase] not in hs:
             hs.append([place, phase])        # ここで会ったのは, ここに来る習慣があるから
         ppl[pid] = {"char": c, "stage": 0, "meets": 0, "last": 0, "haunts": hs, "coworker": work or any(h[0] == "office" for h in hs),
                     "src": src, "first": now}

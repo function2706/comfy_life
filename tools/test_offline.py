@@ -47,6 +47,7 @@ def main():
             for _ in range(n):
                 L.player_state()["stamina"] = stamina
                 L.player_state()["work_log"] = {}
+                L.player_state()["skills"]["work"] = 10.0     # 続けて働くと仕事スキルが伸びて, 叱られにくくなるので
                 L.player_state()["last_tick"] = mon8
                 rep = O.simulate(mon8, mon20)
                 w = rep["works"][0]
@@ -54,7 +55,7 @@ def main():
                     notes[x] += 1
             return notes, rep
         tired, rep = run(10)
-        fresh, rep2 = run(100)
+        fresh, rep2 = run(100, 80)       # 叱られるのは 1 割弱なので, 回数を多めに
         assert tired["体調がすぐれず、早退した"] > fresh["体調がすぐれず、早退した"] + 5, (tired, fresh)
         assert fresh["残業になった"] > 0 and fresh["仕事がうまくいかず、叱られた"] > 0, fresh
         w = rep2["works"][0]

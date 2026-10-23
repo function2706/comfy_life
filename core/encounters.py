@@ -2,7 +2,8 @@
 
 - このワールドに登録済みのキャラには「偶然会う」: そのキャラのログに残り, 少しうれしい.
   誰かと一緒にいたなら, その二人は互いを知る (紹介した).
-- 登録していない人と知り合うこともある. 候補は「このワールドにまだ現れていないキャラの定義」, いなければ新しく作る.
+- 登録していない人と知り合うこともある. 候補は「このワールドにまだ現れていないキャラの定義」n 人と「新しく作る人」で,
+  それぞれ 1/(n+1) ずつ (定義が残っていても, 新しい人に会うことがある. pick_new_face).
   知り合ったら, 登録する (連絡先を交換する) かどうかをあなたに尋ねる. ランダムなキャラが登録されるのはここだけ.
   定義は全体に 1 つなので, ほかのワールドでも (そこに現れていなければ) 出会いの候補になる.
 """
@@ -166,6 +167,16 @@ class Encounters:
         """このワールドにはまだ現れていない定義 [(None, 定義)]."""
         return [(None, c) for cid, c in store.all_characters().items() if cid not in self.app.chars]
 
+    def pick_new_face(self, cands):
+        """初めて見る顔を選ぶ. cands: まだ現れていない定義 [(None, 定義)] n 人. 定義の一人一人と「新しく作る人」が 1/(n+1) ずつ.
+        (定義 (id なし・履歴なし), 出どころ {type: def / new}) を返す."""
+        k = random.randrange(len(cands) + 1)
+        if k == len(cands):
+            return self.generate(), {"type": "new"}
+        c = cands[k][1]
+        return {k2: v for k2, v in json.loads(json.dumps(c)).items() if k2 not in ("prompt_history", "met", "id")}, \
+            {"type": "def", "id": c["id"]}
+
     def generate(self):
         """新しい人を作る (名前・外見・性格をくじで)."""
         app = self.app
@@ -183,14 +194,7 @@ class Encounters:
                 "default_activity": copy.deepcopy(tmpl.get("default_activity") or {}), "prompt_history": []}
 
     def meet_stranger(self, kind, with_cid, where, now):
-        cands = self.candidates()
-        if cands:
-            _, c = random.choice(cands)
-            src = {"type": "def", "id": c["id"]}          # すでにある定義の人 (このワールドでは初対面)
-            c = {k: v for k, v in c.items() if k != "prompt_history"}
-        else:
-            c, src = self.generate(), {"type": "new"}
-        c.pop("id", None)
+        c, src = self.pick_new_face(self.candidates())     # すでにある定義の人 (このワールドでは初対面) か, 新しく作る人
         p = (self.app.personas.get(c.get("persona_id") or "") or {})
         enc = {"t": now, "kind": kind, "where": where, "with": with_cid, "char": c, "src": src,
                "persona_name": p.get("name", "")}
