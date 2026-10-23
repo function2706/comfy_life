@@ -35,6 +35,7 @@ from . import presence as presence_mod
 from . import knowsched as knowsched_mod
 from . import market as market_mod
 from . import earn as earn_mod
+from . import rumor as rumor_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
 from .keys import line_keys
@@ -139,6 +140,7 @@ class App:
         self.knowsched = knowsched_mod.KnowSched(self)
         self.market = market_mod.Market(self)
         self.earn = earn_mod.Earn(self)
+        self.rumors = rumor_mod.Rumors(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
@@ -1066,6 +1068,9 @@ class App:
             sched_note = self.knowsched.from_talk(char, st, now)      # 話のついでに, 予定を聞くことがある
             if sched_note:
                 text += "\n" + sched_note
+            rumor_note = self.rumors.from_talk(char, st, now)        # 会社や店の噂 (会話・気配りのスキルで頻度と確かさ)
+            if rumor_note:
+                text += "\n" + rumor_note
         if home_note:
             text += "\n" + self.format_text(home_note, char, scene, dt)
         if meal_note:

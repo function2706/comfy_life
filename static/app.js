@@ -1495,6 +1495,11 @@ function renderMoney() {
           h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => marketApi('/api/market/cancel', { id: o.id }, '注文を取り消しました') }, '取消')))) : '',
       (M.fills || []).length ? h('div', { class: 'kb-cats' }, h('div', { class: 'muted small' }, '注文・積立の結果'),
         M.fills.map((x) => h('div', { class: 'muted small' }, `${fmtTime(x.t)} ${x.text}`))) : ''),
+    (M.rumors || []).length ? h('div', { class: 'pgroup' }, h('h4', {}, '聞いた噂'),
+      h('div', { class: 'muted small' }, '知り合いから聞いた話です。当たるとは限りません（会話と気配りのスキルが高いほど、よく聞けて、確かな話が多くなります）。'),
+      M.rumors.map((r) => h('div', { class: 'news' },
+        h('span', { class: r.dir > 0 ? 'up' : 'down' }, r.dir > 0 ? '△' : '▽'), h('span', {}, `${r.text}`),
+        h('span', { class: 'muted small' }, `${fmtTime(r.t)}・${r.via === 'secondhand' ? `${r.src_name}のことを人づてに` : `${r.src_name}から`}`)))) : '',
     h('div', { class: 'pgroup' }, h('h4', {}, 'ニュース'),
       M.news.length ? M.news.map((n) => h('div', { class: 'news' },
         h('span', { class: n.dir > 0 ? 'up' : 'down' }, n.dir > 0 ? '▲' : '▼'), h('span', {}, n.text),
@@ -1843,8 +1848,9 @@ function renderPeople() {
         ? ['mood', 'energy', 'health', 'loneliness'].map((id) => S.boot.params.find((x) => x.id === id)).filter(Boolean)
           .map((x) => (mode === 'look' || !near ? `${x.name}: ${lookWord(x, p.params[x.id] ?? 0) || '？'}` : `${x.name} ${Math.round(p.params[x.id] ?? 0)}`)).join('・')
         : '？（いまは見えない）';
-      const likes = p.known.filter((k) => k.kind !== 'heard');
+      const likes = p.known.filter((k) => k.kind === 'like' || k.kind === 'dislike');
       const heard = p.known.filter((k) => k.kind === 'heard');
+      const stock = p.known.filter((k) => k.kind === 'stock');
       const row = (label, val) => [h('span', { class: 'muted' }, label), h('span', {}, val)];
       return h('div', { class: 'person' + (near ? ' near' : '') },
         h('div', { class: 'person-head' }, face,
@@ -1861,6 +1867,7 @@ function renderPeople() {
           row('見た目の印象', look),
           row('好きなもの', likes.length ? likes.map((k) => `${KNOWN_LABEL[k.kind]}: ${k.text}`).join('・') : '？（まだ知らない）'),
           heard.length ? row('聞いた話', heard.slice(0, 4).map((k) => h('div', {}, `${ago(k.t)}　${k.text}`))) : '',
+          stock.length ? row('株の噂', stock.slice(0, 3).map((k) => h('div', {}, `${ago(k.t)}　${k.text}（${k.about ? `${k.about}のことを人づてに` : k.via === 'message' ? 'メッセージで' : '本人から'}）`))) : '',
           (p.sched || []).length ? row('予定について', p.sched.slice(0, 6).map((k) => h('div', { class: k.stale || k.old ? 'muted' : '' },
             `${k.text}（${SCHED_VIA[k.via] || '聞いた'}・${ago(k.t)}）`, k.stale ? h('span', { class: 'tag', style: 'margin-left:4px' }, 'もう違うかも') : k.old ? h('span', { class: 'tag', style: 'margin-left:4px' }, '前に聞いた話') : ''))) : '',
           p.owed ? row('貸し借り', h('span', { class: 'down' }, `あなたが ${yen(p.owed)} 借りている`)) : '',

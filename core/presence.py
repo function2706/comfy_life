@@ -221,6 +221,9 @@ class Presence:
             told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
             if told:
                 self.app.chat.add(char["id"], "sys", told, kind="sched", t=now + 0.0005)
+            rum = self.app.rumors.from_message(char, st, now)          # 会社や店の噂が添えられることも
+            if rum:
+                self.app.chat.add(char["id"], "sys", rum, kind="rumor", t=now + 0.0007)
             self.app.picked_up_phone(char, st, now)
         st["approach"]["entry"] = e["id"]
         return e

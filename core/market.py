@@ -168,6 +168,12 @@ class Market:
             self._news(m, random.choice(pick), t, is_open(dt))
         if not is_open(dt):
             return
+        pend = m.get("pending") or []
+        for p in [x for x in pend if x["at"] <= t]:          # 噂の出来事が表に出る (core/rumor.py)
+            pend.remove(p)
+            a = next((x for x in assets if x["id"] == p["asset"]), None)
+            if a:
+                self._news(m, a, t, True, real=p["real"])
         first = not is_open(datetime.fromtimestamp(t - STEP))     # 寄り付き (前場・後場のはじめ)
         for a in assets:
             st = self.state(a, t)
@@ -189,16 +195,20 @@ class Market:
         self._orders(m, t, dt)
         self._plans(m, t, dt)
 
-    def _news(self, m, a, t, live):
+    def _news(self, m, a, t, live, real=None):
         """銘柄のニュース. 見出しの向きどおりに動くとは限らない (的中率 news_accuracy. 誰にとっても同じ).
         取引時間中なら, しばらくの取引時間 (news_session_hours) その向きに寄る. 取引時間外なら, 次の寄り付きの値段に効く."""
         e = self.econ()
-        d = random.choice((1, -1))
+        acc = float(e.get("news_accuracy", 0.7))
+        if real is None:
+            d = random.choice((1, -1))
+            real = d if random.random() < acc else -d
+        else:                   # 噂で先に知られていた出来事 (本当の向きは決まっている). 見出しの当たりやすさは同じ
+            d = real if random.random() < acc else -real
         N = e.get("news") or {}
         heads = list(N.get("up" if d > 0 else "down") or ["{name}に関するニュース"])
         if a.get("sector") in SECTOR_EFFECTS and a.get("sector") != "food":
             heads += N.get("store_up" if d > 0 else "store_down") or []
-        real = d if random.random() < float(e.get("news_accuracy", 0.7)) else -d
         lo, hi = (e.get("news_session_hours") or [0.5, 2])[:2]
         st = self.state(a, t)
         st["bias"] = real * float(e.get("news_bias", 0.0003)) * random.uniform(0.6, 1.4)
@@ -411,4 +421,4 @@ class Market:
                 "next": None if op else ("%s %s" % ("今日" if nx.date() == dt.date() else "%d/%d（%s）" % (nx.month, nx.day, wd), nx.strftime("%H:%M"))),
                 "orders": [dict(o, name=names.get(o["asset"], o["asset"])) for o in m["orders"]],
                 "plans": [dict(p, name=names.get(p["asset"], p["asset"])) for p in m["plans"]],
-                "fills": list(reversed(m["fills"][-6:])), "buy_power": self.buy_power()}
+                "fills": list(reversed(m["fills"][-6:])), "buy_power": self.buy_power(), "rumors": self.app.rumors.view(now)}
