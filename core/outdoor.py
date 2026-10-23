@@ -98,7 +98,8 @@ class Outdoor:
         dt = datetime.fromtimestamp(now)
         cur = self.current(now)
         pv = self.app.places.view(now)
-        ch = dict(CHOICES, out=self.app.places.out_choices())
+        from .solo import JOG_PLACES
+        ch = dict(CHOICES, out=self.app.places.out_choices(), jog=list(JOG_PLACES))
         out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
                "choices": ch, "routine_choices": list(places_mod.OUT_PLACES), "current": None}
         if cur:

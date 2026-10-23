@@ -27,7 +27,9 @@ KINDS = {
     "chores": {"label": "家事をする", "icon": "🧹", "mode": "busy", "doing": "片付け中", "go": "go_busy"},
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
     "out": {"label": "外出", "icon": "🚶", "mode": "out", "doing": "外出中", "go": "go_out"},
+    "jog": {"label": "ジョギング", "icon": "🏃", "mode": "out", "doing": "ジョギング中", "go": "go_out"},
 }
+JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先
 # 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
 LEGACY = {
     "walk": {"label": "一人で散歩", "icon": "🚶", "mode": "out", "doing": "散歩中", "go": "go_out"},
@@ -45,7 +47,7 @@ PLAIN = {
 }
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
-              "out": "{place}へ出かけた"}
+              "out": "{place}へ出かけた", "jog": "{place}へ走りに出た"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事"}
 PRACTICE_TEXT = {"talk": "話し方の本を読んだ", "touch": "マッサージのやり方を調べた", "cook": "料理の練習をした",
@@ -91,6 +93,10 @@ class Solo:
         return cond.check(a.get("when", ""), app.context(char, st, datetime.now()))
 
     def _place(self, kind, place):
+        if kind == "jog":
+            if place not in JOG_PLACES:
+                raise ValueError("どこを走るか選んでください")
+            return place
         if kind != "out":
             return None
         if place not in self.app.places.out_choices():
@@ -302,6 +308,9 @@ class Solo:
             out["skill"] = {sk: gain}
             text = "%s%s%s。%sが%s" % (_dur(h), "本を見ながら" if book else "", PRACTICE_TEXT[sk], SKILL_LABEL[sk],
                                        "少し伸びた" if gain >= 0.1 else "伸びた気はあまりしない")
+        elif kind == "jog":
+            L.tire(min(40.0, 8 * h))                 # 走るのは疲れる (体は動かした: body.step)
+            text = "%s%sを走った。%s" % (_dur(h), where, "息が上がったけれど、すっきりした" if h < 1.5 else "走りすぎて、へとへとだ")
         elif kind == "walk":
             L.tire(2 * h)
             text = "%s%s一人でぶらぶらした" % (_dur(h), where + "を" if where else "")

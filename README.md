@@ -254,6 +254,10 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 行動パターン: `do: meal` + `how`（`cook` / `out` / `buy`）+ `place`（`offline.MEAL_PLACES`）。`body.routine_meal`: 自炊は足りない栄養を補える献立（`best_dish`）、食材がなければ買い置き、それも無ければ食べない。外食・買って食べるは、閉まっている・お金が足りなければ食べない。食事の予定が無い時間は、何も食べない。既定の行動パターンに朝・昼・夕の食事を入れた。閉じていた間のお腹と栄養が食事の前後で正しく動くよう、`offline.simulate` は行動の順に `tick_world` を進める。
 - 生活費 `economy.living_cost_per_day` は食費抜き（既定 1,200 円。二人暮らしの額）。以前の既定（3,000 円。食費込み）のままのワールドは、起動時に直す（`App._migrate_living_cost`。自動バックアップ。`economy.living_cost_no_food`）。
 
+### 運動（あなた）
+
+`core/body.py` の `exercise`（0〜100。数日分の体を動かした量）。`body.step` で 1 日 `EXERCISE_PER_DAY`（30）ずつ減り、いましていることの `move_rate`（1 時間あたり `MOVE_PER_H`: ジョギング 120・ぶらぶら歩く外出 66・誰かとのお出かけ 48・見て回る 40・店 36・家事 24・その他の外出 12・仕事 2）で増える。ジョギングは一人の行動 `solo.KINDS["jog"]`（行き先 `solo.JOG_PLACES`: 公園・河川敷・街。体力を 1 時間に 8 使う）。行動パターンの外出・家事・仕事は `offline._move` でまとめて足す（`body.add_exercise`）。日付が変わるとき（`body.daily`）、運動が 20 未満なら `lazy_days`（運動不足の日数）が増え、足りていれば 2 日ずつ戻る。運動不足が続くと: 体力の上限 `stamina_cap`（100 − 3 × 日数、最大 25 下がる）・体力の戻り（3 日以上で 0.9 倍）・体調の崩しやすさ（4 日以上で `risk` の `exercise`）。画面には言葉だけ（`state_view.meal.health.exercise`）。
+
 ### 体調（あなた）
 
 `core/body.py` の `health`（`level` 0〜3: ふつう・少しだるい・風邪・寝込む）。日付が変わるたびに `body.daily`: その日の過ごし方（`body.today`: 寝た時間・空腹の時間・外にいた時間・休んだ時間。`body.step` が数える）と、栄養の偏り・ここ 3 日の勤務・体力・雨雪の中の外出・冬から崩しやすさ `body.risk` を出し、ふつうなら崩す・不調なら治る / こじれるを決める（補正なし）。治りやすさは休み（7 時間以上寝た・休んだ）・薬（`med_until`）・看病（`care_until`）しだい。

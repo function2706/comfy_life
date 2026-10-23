@@ -223,6 +223,7 @@ def snapshot(app, day):
            "loans": sum((ps.get("loans") or {}).values()), "home": app.home.score(), "chars": {},
            "satiety": round(app.body.rec()["satiety"], 1), "nutri": {k: round(v, 1) for k, v in app.body.rec()["nutri"].items()},
            "health": int((app.life.player_state().get("body") or {}).get("health", {}).get("level", 0)),
+           "exercise": round(app.body.rec()["exercise"], 1), "lazy": int(app.body.rec().get("lazy_days", 0)),
            "spent": {c: -sum(x["a"] for x in app.kakeibo.rec()["raw"] if x["c"] == c and x["a"] < 0 and _REAL_DATE.fromtimestamp(x["t"]) == day)
                      for c in ("food", "eatout", "shopping", "social", "fun", "medical")}}
     for cid, c in app.chars.items():
@@ -415,6 +416,9 @@ def report(S, app, args):
         "、".join("%s %s" % (_REAL_DT.fromtimestamp(m["t"]).strftime("%m/%d %H:%M"), m["label"]) for m in meals[-4:])))
     hl = [x["health"] for x in d[1:]]
     w("[体調] 不調の日 %d (軽い %d・風邪 %d・寝込む %d)" % (sum(1 for x in hl if x), hl.count(1), hl.count(2), hl.count(3)))
+    ex = [x.get("exercise", 0) for x in d[1:]]
+    w("[運動] 23:59 時点 平均 %.0f / 最小 %.0f / 運動不足 (3 日以上続いた) の日 %d" % (
+        sum(ex) / len(ex), min(ex), sum(1 for x in d[1:] if x.get("lazy", 0) >= 3)))
     hs = [x["home"] for x in d]
     w("[家の散らかり] 23:59 時点 平均 %.0f / 最小 %.0f / 最大 %.0f / 最後 %.0f (0 = 片付いている)" % (sum(hs) / len(hs), min(hs), max(hs), hs[-1]))
     w("\n[キャラ] (日ごとの 23:59 時点)")

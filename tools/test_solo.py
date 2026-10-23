@@ -129,7 +129,7 @@ def main():
             pass
         app.world["encounters"] = {"rate_out": 0}
         assert S.start("out", place="cafe")["act"] is None and app.presence.rec()["mode"] == "out"
-        assert [k["id"] for k in v["kinds"]] == ["rest", "chores", "practice", "out"], "散歩・買い物・カフェは外出に吸収"
+        assert [k["id"] for k in v["kinds"]] == ["rest", "chores", "practice", "out", "jog"], "散歩・買い物・カフェは外出に吸収 (ジョギングは別)"
         app.come_back()
         print("plain (alone): OK")
 

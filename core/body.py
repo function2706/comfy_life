@@ -20,6 +20,10 @@
   無理をすれば (働きすぎ・寝不足・偏った食事のまま) こじらせることもある.
 - 体調が悪い間: 体力が戻りにくい・仕事の給料が下がる・スキルが伸びにくい. 寝込んでいると仕事に行けない.
   行動パターンの仕事も, 休む・早退することがある.
+
+運動 (exercise 0〜100): 数日分の「体を動かした量」. 1 日に EXERCISE_PER_DAY ずつ減り, 体を動かすと増える
+(ぶらぶら歩く外出・ジョギング (一人の行動. 公園・河川敷・街で)・誰かとのお出かけ・家事・店を見て回る. 仕事は少しだけ).
+足りない日が続くと (運動不足), 体力の上限が下がり, 体力が戻りにくく, 体調を崩しやすい. 自覚できる言葉でだけ出す (「体がなまっている気がする」).
 """
 import random
 import time
@@ -74,6 +78,10 @@ BUY_PLACES = ("convenience", "supermarket", "station")
 ITEM_MEALS = {"bento": ({"staple": 11, "protein": 7, "veg": 2}, 52), "cup_noodle": ({"staple": 9, "protein": 1, "veg": 1}, 38)}
 
 
+EXERCISE_PER_DAY = 30.0      # 運動の蓄えの減り (1 日あたり. 30 分ほど歩けば, その日の分になる)
+# 体を動かす量 (1 時間あたり): 何をしているか (在席・一人の時間の中身・行き先) から
+MOVE_PER_H = {"jog": 120.0, "walk": 66.0, "outing": 48.0, "shop": 36.0, "see": 40.0, "chores": 24.0, "work": 2.0, "other": 12.0}
+EXERCISE_LOW = 20.0          # これを下回る日が続くと運動不足
 HEALTH_WORD = {0: "", 1: "少しだるい", 2: "熱っぽい。風邪をひいたみたいだ", 3: "寝込むほどつらい。病院へ行ったほうが良さそうだ"}
 HEALTH_MULT = {"stamina": (1.0, 0.85, 0.65, 0.35), "work": (1.0, 0.92, 0.75, 0.5), "train": (1.0, 0.85, 0.6, 0.3)}
 MEDICINE = "cold_medicine"
@@ -96,6 +104,8 @@ class Body:
         b.setdefault("meals", [])
         b.setdefault("health", {"level": 0, "since": None})
         b.setdefault("today", {})
+        b.setdefault("exercise", 50.0)
+        b.setdefault("lazy_days", 0)          # 運動が足りない日が続いた日数
         return b
 
     # ------------------------------------------------------------------ 時間の経過 (life.tick_world の 5 分ごと)
@@ -115,14 +125,51 @@ class Body:
         sl = self.app.presence.rec().get("solo") or {}
         if mode == "busy" and sl.get("kind") == "rest":
             td["rested"] = td.get("rested", 0.0) + h
+        b["exercise"] = max(0.0, min(100.0, b["exercise"] - EXERCISE_PER_DAY * h / 24.0 + self.move_rate(mode, sl) * h))
+
+    def move_rate(self, mode, sl=None):
+        """いま体を動かしている量 (1 時間あたり). 何をしているかから."""
+        from .places import is_home, solo_kind
+        app = self.app
+        sl = sl or {}
+        if mode == "out":
+            kind = sl.get("kind")
+            if kind == "jog":
+                return MOVE_PER_H["jog"]
+            place = app.presence.rec().get("place") or "town"
+            if is_home(place):
+                return MOVE_PER_H["other"]
+            k = solo_kind(place)
+            return MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else \
+                MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"]
+        if mode == "work":
+            return MOVE_PER_H["work"]
+        if mode == "busy" and sl.get("kind") == "chores":
+            return MOVE_PER_H["chores"]
+        if mode in ("here", "idle"):
+            cur = app.outdoor.current()
+            if cur and cur["kind"] == "outing":      # 誰かとのお出かけ (散歩・ハイキングなど)
+                return MOVE_PER_H["outing"]
+        return 0.0
+
+    def add_exercise(self, points):
+        """まとめて体を動かした (行動パターンの外出・家事など)."""
+        b = self.rec()
+        b["exercise"] = max(0.0, min(100.0, b["exercise"] + float(points)))
+
+    def stamina_cap(self):
+        """体力の上限: 運動不足が続くと下がる (最大 25)."""
+        return 100.0 - min(25.0, 3.0 * self.rec().get("lazy_days", 0))
 
     def level(self):
         return int(self.rec()["health"]["level"])
 
     def stamina_mult(self):
         """お腹がすいている・体調が悪いと, 体力が戻りにくい."""
-        s = self.rec()["satiety"]
-        return (0.4 if s < 8 else 0.6 if s < 20 else 1.0) * HEALTH_MULT["stamina"][self.level()]
+        b = self.rec()
+        s = b["satiety"]
+        lazy = 0.9 if b.get("lazy_days", 0) >= 3 else 1.0          # 運動不足が続くと戻りにくい
+        return (0.4 if s < 8 else 0.6 if s < 20 else 1.0) * HEALTH_MULT["stamina"][self.level()] * lazy
 
     def train_mult(self):
         return HEALTH_MULT["train"][self.level()]
@@ -163,6 +210,8 @@ class Body:
             why["weather"] = 0.02
         if datetime.fromtimestamp(t).month in (12, 1, 2):
             why["winter"] = 0.01
+        if b.get("lazy_days", 0) >= 4:
+            why["exercise"] = 0.015 if b["lazy_days"] < 10 else 0.03
         return 0.006 + sum(why.values()), why
 
     def daily(self, t):
@@ -193,6 +242,9 @@ class Body:
                 hl["level"] = lv + 1
                 note = "体調が悪くなった"
         hl["why"] = sorted(why, key=why.get, reverse=True)[:3]
+        b["lazy_days"] = b.get("lazy_days", 0) + 1 if b["exercise"] < EXERCISE_LOW else max(0, b.get("lazy_days", 0) - 2)
+        ps = self.app.life.player_state()
+        ps["stamina"] = min(float(ps.get("stamina", 100)), self.stamina_cap())
         b["today"] = {}
         if note:
             self.app.solo.note("health", "%s（%s）" % (note, HEALTH_WORD[hl["level"]] or "いつもどおり"), t)
@@ -455,6 +507,10 @@ class Body:
         hl = b["health"]
         health = {"level": int(hl["level"]), "word": HEALTH_WORD[int(hl["level"])], "since": hl.get("since"),
                   "medicine": self.app.items.count(MEDICINE), "med": hl.get("med_until", 0) > now}
+        ex = b["exercise"]
+        health["exercise"] = "体がなまっている気がする" if b.get("lazy_days", 0) >= 3 else \
+            "最近あまり体を動かしていない" if ex < EXERCISE_LOW else "よく体を動かしている" if ex > 75 else ""
+        health["cap"] = round(self.stamina_cap())
         return {"health": health, "hunger": self.hunger_word(b["satiety"]), "satiety_low": b["satiety"] < 30, "nutri": self.nutri_words(),
                 "home": self.at_home(now), "dishes": self.dishes(), "items": items,
                 "place": place, "place_label": self.app.places.label(place) if place else "",

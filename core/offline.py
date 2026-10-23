@@ -136,6 +136,7 @@ class Offline:
         per_h = float(econ.get("stamina_per_work_hour", 9))
         stamina = float(ps.get("stamina", 100))
         s0 = stamina
+        cap = app.body.stamina_cap()
         money0 = int(ps["money"])
         # 市場・定期収入・お腹と栄養などは, 行動の順に時間を進めながら (食事の前に空腹になる. 体力はこのあと, 過ごし方に合わせて決め直す)
         works, meets, timeline = [], [], []
@@ -147,7 +148,7 @@ class Offline:
             while x < b:
                 y = min(b, x + 1800)
                 r = rate if rate is not None else (rec_night if self._night(x) else rec)
-                stamina = min(100.0, stamina + r * (y - x) / 3600.0)
+                stamina = min(cap, stamina + r * (y - x) / 3600.0)
                 x = y
 
         for s, e, b in self.blocks(t0, t1):
@@ -185,6 +186,7 @@ class Offline:
             elif do == "work":
                 w = self._work(s, e, stamina)
                 stamina = max(0.0, stamina - per_h * w["hours"])
+                app.body.add_exercise(2.0 * w["hours"])
                 works.append(w)
                 m = self._coworkers(w["start"], w["end"])
                 meets += m
@@ -206,6 +208,7 @@ class Offline:
                             h = (until - s) / 3600.0
                             ent["text_extra"] = "閉まる時間になったので帰った"
                     res = app.solo.result(do, h, e, b.get("skill"), b.get("place"))
+                    app.body.add_exercise(self._move(do, b.get("place")) * h)          # 体を動かした分 (閉じていた間)
                     stamina = float(ps.get("stamina", stamina))
                     ent["text"] = res["text"].strip("（）") + ("。" + ent.pop("text_extra") if ent.get("text_extra") else "")
                     if res.get("bought"):
@@ -227,6 +230,17 @@ class Offline:
         L.save_player()
         app.solo.note("offline", self._summary(rep), t1)
         return rep
+
+    def _move(self, do, place):
+        """行動パターンの行動で体を動かす量 (1 時間あたり)."""
+        from .body import MOVE_PER_H
+        if do == "chores":
+            return MOVE_PER_H["chores"]
+        if do == "out":
+            k = solo_kind(place)
+            return MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else \
+                MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"]
+        return 0.0
 
     @staticmethod
     def _meal_name(t):

@@ -323,6 +323,8 @@ function renderSoloTab() {
           h('button', { class: 'btn small', disabled: S.busy || !v.meal.health.medicine, title: v.meal.health.medicine ? `風邪薬 ×${v.meal.health.medicine}` : '風邪薬を持っていない（ドラッグストア・コンビニで買える）',
             onclick: takeMedicine }, `💊 薬を飲む${v.meal.health.medicine ? '' : '（なし）'}`),
           h('span', { class: 'muted small' }, v.meal.health.level >= 3 ? '病院は「外出」の行き先から（営業時間あり・お金がかかる）' : '休めば治ることも。こじらせることも'))) : '',
+      v.meal && v.meal.health && v.meal.health.exercise ? h('div', { class: 'small', style: 'margin-bottom:4px' }, `🏃 ${v.meal.health.exercise}`,
+        v.meal.health.cap < 100 ? h('span', { class: 'muted' }, `（体力の上限 ${v.meal.health.cap}）`) : '') : '',
       v.meal ? h('div', { class: 'small', style: 'margin-bottom:4px' }, `🍚 ${v.meal.hunger}`, ...(v.meal.nutri || []).map((x) => h('span', { class: 'muted' }, `・${x}`)),
         v.meal.last ? h('span', { class: 'muted' }, `（最後に食べたのは ${fmtTime(v.meal.last.t)} の${v.meal.last.label}）`) : '') : '',
       h('div', { class: 'prow', title: '仕事・内職・外出・家事で減り、時間で戻ります（寝ると早い）。減っていると、構っても効きが悪くなります' },
