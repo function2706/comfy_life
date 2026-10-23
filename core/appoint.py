@@ -164,9 +164,9 @@ class Appoint:
         p = st["params"]
         busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
         if (busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8:
-            alt = self._alt_time(char, x, now) if x.get("counter") and int(x.get("rounds", 0)) < COUNTER_MAX else None
-            if alt and random.random() < 0.3 + (p.get("affection", 50) - 50) / 100.0 + (p.get("mood", 50) - 50) / 200.0:
-                return self._counter_back(x, alt, now, extra)        # その時間は無理だけど, この時間なら
+            alt = self._alt_time(char, x, now) if int(x.get("rounds", 0)) < COUNTER_MAX else None
+            if alt and random.random() < self.counter_chance(char, p, busy=True):
+                return self._counter_back(char, st, x, alt, now, extra)        # その時間は無理だけど, この時間なら
             x["status"] = "declined"
             self.save()
             return "appoint_busy", {}, extra
@@ -182,19 +182,37 @@ class Appoint:
             st.pop("date_promise", None)
             self.save()
             return "appoint_yes", {"heart": 2, "mood": 2}, extra
-        if x.get("counter") and int(x.get("rounds", 0)) < COUNTER_MAX and random.random() < 0.35:
+        if int(x.get("rounds", 0)) < COUNTER_MAX and not places_mod.is_home(x["place"]) \
+                and random.random() < self.counter_chance(char, p, busy=False):
             alt = self._alt_time(char, x, now)
             if alt:
-                return self._counter_back(x, alt, now, extra)
+                return self._counter_back(char, st, x, alt, now, extra)      # その日は気が乗らないけど, こっちなら
         x["status"] = "declined"
         self.save()
         return "appoint_no", {}, extra
 
-    def _counter_back(self, x, t, now, extra):
-        """相手が, さらに別の日時を返してくる (あなたが受ける / 断る / また返す)."""
+    def counter_chance(self, char, p, busy):
+        """断るときに, 別の日時 (・行き先) を返してくれるか. 予定が合わないだけなら返しやすく, 気が乗らないだけなら返しにくい.
+        仲・機嫌・性格 (話しかけてくる多さ・慎重さ) しだい. 必ずではない."""
+        tr = self.app.traits(char)
+        f = (0.3 if busy else 0.12) + (p.get("affection", 50) - 50) / (100.0 if busy else 150.0) \
+            + (p.get("mood", 50) - 50) / (200.0 if busy else 250.0) + 0.15 * (float(tr.get("approach", 1)) - 1) \
+            - float(tr.get("caution", 0)) / 60.0
+        return max(0.02, min(0.7, f))
+
+    def _counter_back(self, char, st, x, t, now, extra):
+        """相手が別の日時を返してくる (ときどき行き先も. あなたが受ける / 断る / また返す)."""
+        app = self.app
+        d = datetime.fromtimestamp(t)
+        if random.random() < 0.3:              # 行き先も変える (その人の好みで, 気持ち傾くだけ)
+            opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(x["cid"], pid)
+                    if phase_ok(app, a, d) and places_mod.open_state(pid, d)["open"]]
+            if opts:
+                pid, a = self.pick(char, st, opts)
+                x.update(place=pid, do=a["id"])
         x.update(t=t, status="offered", made=now, rounds=int(x.get("rounds", 0)) + 1)
         self.save()
-        extra = dict(extra, when=fmt_when(t, now))
+        extra = dict(extra, when=fmt_when(t, now), place=app.places.label(x["place"]))
         return "appoint_counter", {}, extra
 
     def _plan(self, char, st):

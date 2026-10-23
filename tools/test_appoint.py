@@ -70,7 +70,11 @@ def main():
             assert C.thread(cid)["items"][-1]["who"] == "me" and "河川敷" in C.thread(cid)["items"][-1]["text"]
             st["msg_pending"]["due"] = time.time() - 1
             out = app.deliver_due()
-            return A.get(x["id"]), out[0]["text"] if out else None
+            x = A.get(x["id"])
+            if x["status"] == "offered":          # 断る代わりに別の日時が返ってきた (ここでは受けない)
+                x["status"] = "refused"
+                x["_counter"] = True
+            return x, out[0]["text"] if out else None
 
         yes = {"hi": 0, "lo": 0}
         for i in range(12):
@@ -83,7 +87,7 @@ def main():
         busy = 0
         for i in range(10):
             x, text = ask(now + 10 * 86400 + i * 4 * 3600, affection=90, mood=80)
-            busy += x["status"] == "declined" and "予定" in text
+            busy += (x["status"] == "declined" and "予定" in text) or bool(x.get("_counter"))
         assert busy >= 5, "その時間に予定があれば断られる: %d" % busy
         app.scheduled_scene = free
         st["date_promise"] = 0
@@ -177,6 +181,26 @@ def main():
         x["status"] = "cancelled"
         st.pop("msg_pending", None)
         print("counter: OK", dict(outcomes))
+
+        # ---- 3d. こちらからの誘いを断るときにも, 相手から別の日時が来ることがある (仲・機嫌・性格・予定しだい)
+        def ask_once(busy, aff, mood):
+            st.pop("msg_pending", None)
+            x = {"id": "q%d" % random.randint(0, 1 << 30), "cid": cid, "t": time.time() + 2 * 86400, "place": "riverside", "do": "walk",
+                 "by": "me", "status": "asked", "made": time.time()}
+            A.all().append(x)
+            t0 = x["t"]                           # その時間だけ予定がある (ほかの時間は空いている)
+            app.scheduled_scene = (lambda c, d: dict(sched(c, d), away=abs(d.timestamp() - t0) < 7200, busy=False, asleep=False))                 if busy else free
+            app.set_params({"affection": aff, "mood": mood}, cid)
+            pend = {"appoint": x["id"]}
+            key = A.reply(char, st, pend, time.time(), app.context(char, st, datetime.now()))[0]
+            app.scheduled_scene = free
+            x["status"] = "cancelled"
+            return key
+        warm = collections.Counter(ask_once(True, 75, 70) for _ in range(80))
+        cold = collections.Counter(ask_once(True, 30, 25) for _ in range(80))
+        assert warm["appoint_counter"] > cold["appoint_counter"] + 5, (warm, cold)
+        assert A.counter_chance(char, {"affection": 60, "mood": 60}, True) > A.counter_chance(char, {"affection": 60, "mood": 60}, False)
+        print("counter from her: OK", dict(warm), dict(cold))
 
         # ---- 4. 当日: 会いに行く. 来る / 遅れる / 来ない
         def make(t, plan, do="walk", place="riverside"):
