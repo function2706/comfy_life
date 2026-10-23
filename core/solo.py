@@ -109,6 +109,9 @@ class Solo:
     def start(self, kind, skill=None, place=None, cid=None):
         """cid: 告げる相手 (そばにいる人の中から. 無ければ「誰かと」で選んでいる相手)."""
         app = self.app
+        why = app.blocked("solo")
+        if why:
+            raise ValueError(why)
         if kind in PLAIN:
             return self.start_plain(kind, place, cid)
         if kind == "kakeibo":

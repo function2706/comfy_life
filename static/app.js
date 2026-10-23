@@ -256,7 +256,8 @@ function cmdButton(a) {
     st.cooldown ? `連続実行で効果減 (あと${Math.ceil(st.cooldown / 60)}分)` : ''].filter(Boolean).join('\n');
   const od = (S.view.outdoor || {}).places || {};
   const pl = a.override && a.override.outing && a.override.place ? od[a.override.place] : null;    // お出かけの行き先 (表から)
-  return h('button', { class: 'cmd', disabled: !st.ok || S.busy, title: [tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
+  const why = (S.view.blocked || {})[isMoneyAction(a) || a.category !== 'system' ? 'social' : ''];
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
@@ -268,7 +269,8 @@ function cmdButton(a) {
 function renderSoloTab() {
   const v = S.view, so = v.solo || {}, Y = v.you || {};
   const free = (v.presence || {}).mode === 'none';
-  const btn = (icon, label, onclick, tip, dis) => h('button', { class: 'cmd', disabled: !free || S.busy || dis, title: tip || '', onclick },
+  const btn = (icon, label, onclick, tip, dis) => h('button', { class: 'cmd', disabled: !free || S.busy || dis || !!(v.blocked || {}).solo,
+    title: (v.blocked || {}).solo || tip || '', onclick },
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'chores'
     ? btn(k.icon, k.label, () => { S.choresOpen = !S.choresOpen; renderSoloTab(); }, '片付け（戻るまで）か、家計簿をつける（15分ほど）を選ぶ')
@@ -284,8 +286,10 @@ function renderSoloTab() {
     h('button', { class: 'btn primary small', disabled: S.busy, onclick: comeBack }, pres.solo ? `${pres.solo.label.replace(/中$/, '')}を終える` : '作業を終える')) : null;
   const near = so.near;
   const sj = v.side_job;
+  const bl = (v.blocked || {}).solo;
   $('#tab-solo').replaceChildren(...[
     busyNow,
+    bl && !busyNow ? h('div', { class: 'blocked-note' }, `⏸ ${bl}`) : null,
     h('div', { class: 'cat solo' },
       h('div', { class: 'cat-title' }, near ? `一人で（${near.name}には告げてから）` : '一人で'),
       h('div', { class: 'cmds' }, ...kinds,
@@ -404,8 +408,9 @@ function openMeal() {
         h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => eat('out', m.id) }, '食べる')))
         : h('p', { class: 'muted small' }, 'ここでは食べられません（閉まっているか、食べるところがない）')) : '',
     M.home ? h('div', { class: 'pgroup' }, h('h4', {}, '自炊（持ち物の食材を使う）'),
+      (S.view.blocked || {}).cook ? h('div', { class: 'blocked-note' }, `⏸ ${S.view.blocked.cook}`) : '',
       (M.dishes || []).map((d) => row(d.name, `${d.need.join('・')}${d.ok ? '' : '　— ' + d.why}`,
-        h('button', { class: 'btn small', disabled: S.busy || !d.ok, onclick: () => eat('cook', d.id) }, '作って食べる'))),
+        h('button', { class: 'btn small', disabled: S.busy || !d.ok || !!(S.view.blocked || {}).cook, onclick: () => eat('cook', d.id) }, '作って食べる'))),
       h('p', { class: 'hint' }, '料理スキルが上がると作れる献立が増え、主食・たんぱく質・野菜がそろいやすくなります。食材は買い物（買うものリスト）で。')) : '',
     M.home && (M.items || []).length ? h('div', { class: 'pgroup' }, h('h4', {}, '買ってきたもの'),
       M.items.map((x) => row(`${x.name} ×${x.count}`, '', h('button', { class: 'btn small', disabled: S.busy, onclick: () => eat('item', x.id) }, '食べる')))) : '',
@@ -512,6 +517,11 @@ function renderWith() {
   renderCommands();
   renderDress();
   renderGames();
+  const gw = (S.view.blocked || {}).game;
+  if (gw && !(t.games || {}).current) {
+    $('#tab-games').prepend(h('div', { class: 'blocked-note' }, `⏸ ${gw}`));
+    $$('#tab-games button').forEach((b) => { b.disabled = true; b.title = gw; });
+  }
   renderStatus();
   renderWMoney();
 }
@@ -530,6 +540,8 @@ function renderCommands() {
     cats.get(a.category).push(a);
   }
   const out = [];
+  const why = (S.view.blocked || {}).social;
+  if (why) out.push(h('div', { class: 'blocked-note' }, `⏸ ${why}`));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),

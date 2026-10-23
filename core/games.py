@@ -211,6 +211,9 @@ class Games:
             st = app.state(cid)
             g = self.get(gid)
             kind = g.get("kind")
+            why = app.blocked("game")
+            if why and not st.get("game"):
+                raise ValueError(why)
             dt = datetime.now()
             ctx = app.context(char, st, dt)
             if not cond.check(g.get("require", ""), ctx):

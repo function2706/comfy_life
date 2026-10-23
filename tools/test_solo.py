@@ -69,9 +69,15 @@ def main():
             S.start("chores")
             noticed += "気づいて" in back_after(app, 1)["solo"]["text"]
         assert 0 < noticed < 12, noticed
-        # 一人の時間の最中に相手を構うと, 一人の時間はおしまい (結果は出ない)
+        # 一人の時間の最中は, 相手を構えない (先に終える. 理由は押す前に出る). 終えれば構える
         S.start("rest")
         st["cooldowns"] = {}
+        try:
+            app.act("talk")
+            raise AssertionError("休んでいる途中に構える")
+        except ValueError as e:
+            assert "休憩の途中" in str(e) and app.blocked("social")
+        app.come_back()
         app.act("talk")
         assert app.presence.rec()["mode"] == "none" and not app.presence.rec().get("solo")
         print("practice / chores: OK", noticed, "/ 12")

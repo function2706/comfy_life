@@ -323,6 +323,9 @@ class Body:
             raise ValueError("その献立は作れません")
         if not self.at_home(now):
             raise ValueError("自炊は家でします")
+        why = app.blocked("cook")
+        if why:
+            raise ValueError(why)
         opt = next(x for x in self.dishes() if x["id"] == did)
         if not opt["ok"]:
             raise ValueError("%sは作れません（%s）" % (d[1], opt["why"]))

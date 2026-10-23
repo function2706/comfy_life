@@ -263,6 +263,42 @@ class App:
             raise ValueError("%sはいまそばにいません" % (self.chars.get(cid) or {}).get("name", cid))
         return self.save_settings({"active_character": cid})
 
+    # 同時にはできないこと: いましていること (内職・一人の時間・ミニゲーム) と, 始めようとしていること
+    BLOCK_KINDS = ("solo", "side_job", "social", "game", "cook")
+
+    def doing_now(self):
+        """いましていること (同時にほかのことを始められない): {kind, label} か None.
+        内職の途中 / 休む・家事・研鑽の途中 (家で) / 誰かとミニゲームの途中."""
+        if self.task_active():
+            return {"kind": "task", "label": "内職"}
+        p = self.presence.rec()
+        sl = p.get("solo") or {}
+        if p.get("mode") == "busy" and sl.get("kind") in solo_mod.KINDS:
+            return {"kind": sl["kind"], "label": solo_mod.KINDS[sl["kind"]]["doing"].replace("中", "")}
+        for c in self.chars:
+            if (self.states.get(c) or {}).get("game"):
+                return {"kind": "game", "label": "%sとのミニゲーム" % self.chars[c].get("name", "")}
+        return None
+
+    def blocked(self, what):
+        """what (solo = 一人の行動 / side_job = 内職 / social = 誰かとすること / game = ミニゲーム / cook = 自炊) を
+        いま始められない理由 (押す前に画面に出す). 始められるなら None."""
+        d = self.doing_now()
+        if not d:
+            return None
+        if what == "cook" and d["kind"] == "rest":
+            return None                         # 休んでいる途中に作って食べるのはかまわない
+        if what == "game" and d["kind"] == "game":
+            return None                         # 続き
+        if d["kind"] == "task":
+            return "内職の途中です（先に内職を終えてから）"
+        if d["kind"] == "game":
+            return "%sの途中です（先に終えてから）" % d["label"]
+        return "%sの途中です（先に「%sを終える」で終えてから）" % (d["label"], d["label"])
+
+    def blocked_view(self):
+        return {w: self.blocked(w) for w in self.BLOCK_KINDS}
+
     def you_context(self, dt=None):
         """あなた一人の条件式の値 (誰とも関係しない予定・一人の行動の条件用): 時刻・在席・お金・体力・あなたの情報."""
         dt = dt or datetime.now()
@@ -739,6 +775,11 @@ class App:
                 if self.bonds.stage(cid) == "known":
                     raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
                 raise ValueError("いまは%sと一緒にいません（連絡するか、会いに行きましょう）" % char.get("name", ""))
+            if a.get("category") != "system" and not opts.get("deliver") and not opts.get("approach") \
+                    and not (apart and a.get("category") in ("連絡", "会う")) and not opts.get("appointment"):
+                why = self.blocked("social")
+                if why:
+                    raise ValueError(why)
             ctx.update(opts.get("ctx") or {})
             outfit = None
             if dress is not None:
@@ -878,9 +919,12 @@ class App:
                     self.bonds.end()
             elif a.get("category") != "system" and not opts.get("deliver"):
                 self.presence.touch(now)
-                if self.presence.rec()["mode"] == "busy" and not (apart and a.get("category") == "連絡"):   # スマホなら続けられる
-                    self.presence.rec()["mode"] = "none"     # 作業中でも, 構いに来たら作業はおしまい
-                    self.presence.rec().pop("solo", None)
+                if self.presence.rec()["mode"] == "busy" and not (apart and a.get("category") == "連絡") \
+                        and not self.task_active():       # スマホなら続けられる
+                    # 作業中・一人の時間の途中でも, 話しかけられて応じたら, そこでおしまい (一人の時間の結果は残す)
+                    ll = self.presence.back(now)
+                    if ll:
+                        self.solo.finish(ll)
                 self.presence.drop(st)
             if cd:
                 st["cooldowns"][aid] = hist + [now]
@@ -1738,7 +1782,7 @@ class App:
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(), "shop_done": shop_done,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
-                "side_job": self.task_ready(now), "task_active": self.task_active(),
+                "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(),
@@ -1858,9 +1902,14 @@ class App:
                         aid = None
                 except KeyError:
                     aid = None
+            p = self.presence.rec()
+            if ans == "accept" and p.get("mode") == "busy" and (p.get("solo") or {}).get("kind") in solo_mod.KINDS                     and not (self.presence.find(ap.get("id")) or {}).get("apart"):
+                ll = self.presence.back()          # そばで話しかけられて応じた: 一人の時間はそこまで (結果は残す)
+                if ll:
+                    self.solo.finish(ll)
             e, run = self.presence.answer(char, st, ans, use_action=bool(aid))
         if run:
-            return self.act(run, char["id"])
+            return self.act(run, char["id"], opts={"approach": True})
         return {"entry": e, "job": e.get("job") if e else None}
 
     def force_approach(self, aid, cid=None):
@@ -1965,6 +2014,9 @@ class App:
         now = now or time.time()
         if self.task_active():
             return None                      # やりかけがあれば, 続きから
+        why = self.blocked("side_job")
+        if why:
+            return {"reason": why, "wait": 0}
         a = self.action("side_job")
         w = self.bonds.with_rec()
         if self.presence.rec().get("mode") not in ("none", "busy") or self.outdoor.current(now) or (w and w["mode"] in ("meet", "visit")):
