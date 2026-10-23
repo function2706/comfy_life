@@ -33,6 +33,7 @@ from . import kakeibo as kakeibo_mod
 from . import body as body_mod
 from . import presence as presence_mod
 from . import knowsched as knowsched_mod
+from . import market as market_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
 from .keys import line_keys
@@ -135,6 +136,7 @@ class App:
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
+        self.market = market_mod.Market(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
@@ -172,6 +174,7 @@ class App:
         """既存の data/ に, 後から増えた既定項目を補う (ユーザーの編集内容は上書きしない)."""
         self._migrate_living_cost()
         self._migrate_my_entries()
+        self._migrate_assets()
         self._sync_defaults("actions", self.actions, "actions.json")
         self._sync_defaults("minigames", self.minigames, "minigames.json")
         self._sync_defaults("events", self.events, "events.json")
@@ -194,6 +197,26 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["wardrobe"] = d.get("wardrobe", [])
                 store.save_character(c)
+
+    def _migrate_assets(self):
+        """銘柄を店の種類ぶん増やした: 以前の既定の 4 銘柄のまま保存しているワールドに, 新しい既定の銘柄を足す
+        (持っている株・値段・ニュースはそのまま. 銘柄を自分で書き換えたワールドは触らない)."""
+        f = store.wpath("world.json")
+        w = store.load(f, None)
+        mine = ((w or {}).get("economy") or {}).get("assets")
+        if not mine:
+            return
+        default = (store.load(os.path.join(store.DEFAULTS, "world.json"), {}) or {}).get("economy", {}).get("assets") or []
+        old = {"idx", "food", "tech", "game"}
+        ids = {a.get("id") for a in mine}
+        if not ids <= old or not [a for a in default if a["id"] not in ids]:
+            return
+        store.backup("株の銘柄を店の種類ぶん増やす")
+        by = {a["id"]: a for a in default}
+        w["economy"]["assets"] = [dict(by.get(a["id"], {}), **{k: v for k, v in a.items() if k not in ("drift",)}) for a in mine] \
+            + [a for a in default if a["id"] not in ids]
+        store.save(f, w)
+        self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}), w)
 
     def _migrate_my_entries(self):
         """以前の「選んでいるキャラ」のログに書かれていた, あなた一人の行動の記録 (離れている相手のログの「（仕事から帰ってきた。…）」
@@ -2004,9 +2027,14 @@ class App:
 
     def trade(self, asset, qty, cid=None):
         with self.lock:
-            mv, amt, profit = self.life.trade(asset, qty)
+            mv, amt, profit, reserved = self.life.trade(asset, qty)
         name = next((a.get("name", asset) for a in self.life.assets() if a["id"] == asset), asset)
         near = self.target(cid)
+        if reserved:            # 取引時間外: 次の取引開始に売買する注文 (予約) を出しただけ
+            mk = self.market.view()
+            text = "取引時間外なので、%sを%s株%s注文を出した。次の取引開始は %s" % (
+                name, format(abs(int(qty)), ","), "買う" if int(qty) > 0 else "売る", mk["next"])
+            return self.my_entry("invest", "株の注文", "📈", text)
         if not near:            # 一人で: あなたの記録だけ
             text = "%sを%s株、%s円で%s" % (name, format(abs(int(qty)), ","), format(amt, ","), "買った" if int(qty) > 0 else "売った")
             if int(qty) < 0 and profit:
@@ -2015,6 +2043,26 @@ class App:
         return self.act("invest_buy" if int(qty) > 0 else "invest_sell", near, opts={
             "money": mv, "ctx": {"profit": profit},
             "extra": {"amount": format(amt, ","), "profit": format(abs(profit), ","), "asset": name, "qty": format(abs(int(qty)), ",")}})
+
+    def market_order(self, asset, side, qty, limit=None, days=None):
+        """指値の注文 (limit 円以下で買う / 以上で売る. days 日のあいだ)."""
+        with self.lock:
+            o = self.market.order(asset, side, qty, limit, days)
+            return {"order": o, "market": self.market.view()}
+
+    def market_cancel(self, oid):
+        with self.lock:
+            self.market.cancel(oid)
+            return {"market": self.market.view()}
+
+    def market_plan(self, asset, amount=None, day=None, drop=None):
+        """積立 (毎月 day 日に amount 円分). drop: 積立の id をやめる."""
+        with self.lock:
+            if drop:
+                self.market.drop_plan(drop)
+            else:
+                self.market.set_plan(asset, amount, day)
+            return {"market": self.market.view()}
 
     def task_start(self, kind, level="easy", cid=None):
         """内職 (パズル) を始める. 連続ではできない (コマンド side_job のクールダウン). 盤面はサーバで作る."""

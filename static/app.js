@@ -1428,17 +1428,34 @@ function renderMoney() {
     const qty = h('input', { type: 'number', min: 1, step: 1, value: S.tradeQty?.[a.id] || 1, class: 'qty',
       oninput: (ev) => { (S.tradeQty = S.tradeQty || {})[a.id] = ev.target.value; } });
     const pl = a.qty ? a.value - a.cost : 0;
+    const open = (S.assetOpen || {})[a.id];
+    const lim = h('input', { type: 'number', min: 1, step: 1, value: Math.round(a.price), class: 'qty', title: '指値（円）' });
+    const days = h('input', { type: 'number', min: 1, max: 30, step: 1, value: 5, class: 'qty', title: '期限（日）' });
+    const plan = (M.plans || []).find((p) => p.asset === a.id);
+    const amt = h('input', { type: 'number', min: 1000, step: 1000, value: plan ? plan.amount : 10000, class: 'qty', title: '毎月の積立額（円）' });
+    const pday = h('input', { type: 'number', min: 1, max: 28, step: 1, value: plan ? plan.day : 10, class: 'qty', title: '毎月の積立日' });
+    const pre = M.open ? '' : '予約で';
     return h('div', { class: 'asset' },
-      h('div', { class: 'asset-head', title: a.desc }, h('span', { class: 'ic' }, a.icon), h('b', {}, a.name),
+      h('div', { class: 'asset-head', title: a.desc, style: 'cursor:pointer', onclick: () => { S.assetOpen = Object.assign({}, S.assetOpen, { [a.id]: !open }); renderMoney(); } },
+        h('span', { class: 'ic' }, a.icon), h('b', {}, a.name), a.sector_label ? h('span', { class: 'tag', style: 'margin-left:4px' }, a.sector_label) : '',
+        plan ? h('span', { class: 'tag', style: 'margin-left:4px', title: `毎月${plan.day}日に${yen(plan.amount)}分` }, '積立') : '',
         h('div', { class: 'spacer' }), h('b', {}, yen(a.price)),
-        h('span', { class: 'chg ' + (a.day >= 0 ? 'up' : 'down') }, `${a.day >= 0 ? '+' : ''}${a.day}%`)),
-      a.history.length > 1 ? sparkline(a.history, `${a.name}の値動き（直近72時間・1時間ごと）`) : '',
+        h('span', { class: 'chg ' + (a.day >= 0 ? 'up' : 'down'), title: '前の取引日の終わりから' }, `${a.day >= 0 ? '+' : ''}${a.day}%`)),
       a.qty ? h('div', { class: 'muted small' }, `保有 ${a.qty}株・評価 ${yen(a.value)}（`,
         h('span', { class: pl >= 0 ? 'up' : 'down' }, `${pl >= 0 ? '+' : ''}${yen(pl)}`), '）') : '',
-      h('div', { class: 'row trade' }, qty, h('span', { class: 'muted small' }, '株'),
-        h('button', { class: 'btn', disabled: S.busy, onclick: () => trade(a.id, +qty.value) }, '買う'),
-        h('button', { class: 'btn', disabled: S.busy || !a.qty, onclick: () => trade(a.id, -qty.value) }, '売る'),
-        a.qty ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => trade(a.id, -a.qty) }, '全部売る') : ''));
+      open ? [
+        h('div', { class: 'muted small' }, a.desc),
+        a.history.length > 1 ? sparkline(a.history, `${a.name}の値動き（取引時間の 1 時間ごと）`) : '',
+        h('div', { class: 'row trade' }, qty, h('span', { class: 'muted small' }, '株'),
+          h('button', { class: 'btn', disabled: S.busy, title: M.open ? 'いまの値段で買う' : '次の取引開始に、そのときの値段で買う', onclick: () => trade(a.id, +qty.value) }, pre + '買う'),
+          h('button', { class: 'btn', disabled: S.busy || !a.qty, onclick: () => trade(a.id, -qty.value) }, pre + '売る'),
+          a.qty ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => trade(a.id, -a.qty) }, '全部' + (pre || '') + '売る') : ''),
+        h('div', { class: 'row trade' }, h('span', { class: 'muted small' }, '指値'), lim, h('span', { class: 'muted small' }, '円・'), days, h('span', { class: 'muted small' }, '日'),
+          h('button', { class: 'btn small', disabled: S.busy, title: 'この値段以下になったら買う', onclick: () => marketOrder(a.id, 'buy', +qty.value, +lim.value, +days.value) }, '以下で買う'),
+          h('button', { class: 'btn small', disabled: S.busy || !a.qty, title: 'この値段以上になったら売る', onclick: () => marketOrder(a.id, 'sell', +qty.value, +lim.value, +days.value) }, '以上で売る')),
+        h('div', { class: 'row trade' }, h('span', { class: 'muted small' }, '積立 毎月'), pday, h('span', { class: 'muted small' }, '日に'), amt, h('span', { class: 'muted small' }, '円'),
+          h('button', { class: 'btn small', disabled: S.busy, onclick: () => marketApi('/api/market/plan', { asset: a.id, amount: +amt.value, day: +pday.value }, '積立を設定しました') }, plan ? '変える' : '始める'),
+          plan ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => marketApi('/api/market/plan', { drop: plan.id }, '積立をやめました') }, 'やめる') : '')] : '');
   };
   const ok = (k) => ((v.solo || {}).plain || []).some((p) => p.id === k && p.ok) && (v.presence || {}).mode === 'none';
   $('#tab-money').replaceChildren(
@@ -1465,12 +1482,20 @@ function renderMoney() {
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います')),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
-      h('div', { class: 'muted small', style: 'margin-bottom:6px' }, 'ニュースは当たるとは限りません。値動きはリアル時間で進みます。'),
-      ...M.assets.map(asset)),
+      h('div', { class: 'row', style: 'margin-bottom:4px' }, h('span', { class: 'tag' + (M.open ? ' bond' : '') }, M.open ? `📈 取引中（${M.until}まで）` : `🌙 取引時間外（次は ${M.next}）`),
+        h('span', { class: 'muted small' }, `買付余力 ${yen(M.buy_power ?? L.my_money ?? 0)}`)),
+      h('div', { class: 'muted small', style: 'margin-bottom:6px' }, '取引時間は平日の 9:00〜11:30 と 12:30〜15:00（土日・祝日・年末年始は休み）。値段はそのあいだだけ動き、時間外のニュースは次の取引開始の値段に効きます。時間外の売買は予約になります。ニュースは当たるとは限りません。銘柄を押すと、売買・指値・積立。'),
+      ...M.assets.map(asset),
+      (M.orders || []).length ? h('div', { class: 'kb-cats' }, h('div', { class: 'muted small' }, '注文中'),
+        M.orders.map((o) => h('div', { class: 'money-row small' },
+          h('span', {}, `${o.name} ${o.qty}株 ${o.limit ? `${yen(o.limit)}${o.side === 'buy' ? '以下で買う' : '以上で売る'}（${fmtTime(o.until)}まで）` : (o.side === 'buy' ? '予約で買う' : '予約で売る')}`),
+          h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => marketApi('/api/market/cancel', { id: o.id }, '注文を取り消しました') }, '取消')))) : '',
+      (M.fills || []).length ? h('div', { class: 'kb-cats' }, h('div', { class: 'muted small' }, '注文・積立の結果'),
+        M.fills.map((x) => h('div', { class: 'muted small' }, `${fmtTime(x.t)} ${x.text}`))) : ''),
     h('div', { class: 'pgroup' }, h('h4', {}, 'ニュース'),
       M.news.length ? M.news.map((n) => h('div', { class: 'news' },
         h('span', { class: n.dir > 0 ? 'up' : 'down' }, n.dir > 0 ? '▲' : '▼'), h('span', {}, n.text),
-        h('span', { class: 'muted small' }, fmtTime(n.t)))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
+        h('span', { class: 'muted small' }, fmtTime(n.t) + (n.after ? '（時間外）' : '')))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
 }
 
 // 家計簿: 見えるのは, つけた分だけ (記録した日ごとの出入り・分類ごとの合計) と, 1日にどれくらい稼げばいいかの見積もり
@@ -1508,6 +1533,18 @@ async function repay(to, owed, name) {
   try { const r = await api('/api/money/repay', { to, amount }); toast(`${yen(r.amount)}返しました${r.left ? `（残り ${yen(r.left)}）` : '（完済）'}`); }
   catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
+}
+async function marketApi(path, body, ok) {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api(path, body); if (ok) toast(ok, 'ok'); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
+function marketOrder(asset, side, qty, limit, days) {
+  qty = Math.trunc(qty);
+  if (!(qty > 0)) return toast('株数を入れてください', 'err');
+  if (!(limit > 0)) return toast('値段を入れてください', 'err');
+  return marketApi('/api/market/order', { asset, side, qty, limit, days }, `指値の注文を出しました（${yen(limit)}${side === 'buy' ? '以下で買う' : '以上で売る'}）`);
 }
 async function trade(asset, qty) {
   qty = Math.trunc(qty);
@@ -2892,7 +2929,7 @@ SEC.prompt = () => {
         n('work_wage_per_hour', '仕事の時給', '仕事スキルで 0.6〜1.4 倍', '10'),
         n('work_max_hours', '仕事の上限（時間）', '1回の仕事で稼げる時間の上限', '1'),
         n('side_job_rate_per_min', '内職の額（目安の時間1分あたり）', '解けたとき。目安の時間 × この額（難しいほど少し上乗せ）。仕事スキルで 0.6〜1.4 倍、速さとミスで上下', '5'),
-        n('news_rate_per_hour', '株のニュースの出やすさ（1時間あたり）', '0.12 ≒ 1日に3回ほど', '0.01'),
+        n('news_rate_per_hour', '株のニュースの出やすさ（1時間あたり）', '0.25 ≒ 1日に6回ほど（全銘柄で）', '0.01'),
         n('news_accuracy', 'ニュースの当たりやすさ', '0.7 = 7割はニュースどおりに動く', '0.05'),
         n('event_rate_per_hour', '出来事の起きやすさ（1時間あたり）', '0.08 ≒ 起きている間に1日1〜2回', '0.01'));
     })(),

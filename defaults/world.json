@@ -12,21 +12,18 @@
   "work_wage_per_hour": 1200,
   "work_max_hours": 9,
   "side_job_rate_per_min": 50,
-  "news_rate_per_hour": 0.12,
+  "news_rate_per_hour": 0.25,
   "news_accuracy": 0.7,
-  "news_bias": 0.0005,
-  "news_hours": [
-   6,
-   18
-  ],
+  "news_bias": 0.0003,
   "assets": [
    {
     "id": "idx",
     "name": "くらしインデックス",
     "icon": "📊",
     "price": 1000,
-    "vol": 0.0015,
-    "drift": 2e-05,
+    "vol": 0.0012,
+    "drift": 3.4e-06,
+    "sector": "index",
     "desc": "いろいろな会社をまとめた投資信託。値動きは小さい"
    },
    {
@@ -34,8 +31,9 @@
     "name": "まんぷく食品",
     "icon": "🍙",
     "price": 2400,
-    "vol": 0.0025,
-    "drift": 1e-05,
+    "vol": 0.0016,
+    "drift": 2e-06,
+    "sector": "food",
     "desc": "食品メーカー。景気に左右されにくい"
    },
    {
@@ -43,8 +41,9 @@
     "name": "ミライ電機",
     "icon": "🔌",
     "price": 5200,
-    "vol": 0.004,
-    "drift": 2e-05,
+    "vol": 0.0026,
+    "drift": 4e-06,
+    "sector": "maker",
     "desc": "電機メーカー。新製品しだいで大きく動く"
    },
    {
@@ -52,9 +51,110 @@
     "name": "ピコピコ堂",
     "icon": "🎮",
     "price": 800,
-    "vol": 0.006,
+    "vol": 0.004,
     "drift": 0.0,
+    "sector": "game",
     "desc": "ゲーム会社。ヒット作が出るかどうかの博打"
+   },
+   {
+    "id": "super",
+    "name": "まいにちマート",
+    "icon": "🛒",
+    "price": 1800,
+    "vol": 0.0015,
+    "drift": 2e-06,
+    "sector": "supermarket",
+    "desc": "スーパーのチェーン。雨や雪の日は近所の買い物が増える"
+   },
+   {
+    "id": "conv",
+    "name": "ひだまりストア",
+    "icon": "🏪",
+    "price": 3100,
+    "vol": 0.0016,
+    "drift": 2.5e-06,
+    "sector": "convenience",
+    "desc": "コンビニのチェーン。夏は冷たい飲み物がよく売れる"
+   },
+   {
+    "id": "drug",
+    "name": "すこやか薬局",
+    "icon": "💊",
+    "price": 4200,
+    "vol": 0.0018,
+    "drift": 3e-06,
+    "sector": "drugstore",
+    "desc": "ドラッグストアのチェーン。冬の風邪や春の花粉の季節に強い"
+   },
+   {
+    "id": "book",
+    "name": "しおり書房",
+    "icon": "📚",
+    "price": 900,
+    "vol": 0.0018,
+    "drift": 0.0,
+    "sector": "bookstore",
+    "desc": "本屋のチェーン。雨の日や読書の秋に少し強い"
+   },
+   {
+    "id": "elec",
+    "name": "でんきのヨツバ",
+    "icon": "📺",
+    "price": 2700,
+    "vol": 0.0022,
+    "drift": 2.5e-06,
+    "sector": "electronics",
+    "desc": "家電量販店。夏のエアコン・冬の暖房、ボーナスの時期に動く"
+   },
+   {
+    "id": "eat",
+    "name": "ごちそう亭ホールディングス",
+    "icon": "🍱",
+    "price": 1500,
+    "vol": 0.002,
+    "drift": 2e-06,
+    "sector": "eat",
+    "desc": "定食屋・ラーメン屋・ファミレスなどの飲食チェーン。天気の悪い日は客足が落ちる"
+   },
+   {
+    "id": "mall",
+    "name": "グランモール",
+    "icon": "🏬",
+    "price": 2200,
+    "vol": 0.0018,
+    "drift": 2e-06,
+    "sector": "mall",
+    "desc": "ショッピングモールの運営。雨の日と連休に人が集まる"
+   },
+   {
+    "id": "cafe",
+    "name": "こもれび珈琲",
+    "icon": "☕",
+    "price": 1300,
+    "vol": 0.002,
+    "drift": 2e-06,
+    "sector": "cafe",
+    "desc": "カフェのチェーン。寒い季節に温かい飲み物が売れる"
+   },
+   {
+    "id": "fun",
+    "name": "わくわくランド",
+    "icon": "🎡",
+    "price": 3500,
+    "vol": 0.0028,
+    "drift": 2e-06,
+    "sector": "amusement",
+    "desc": "遊園地。晴れた連休・夏休みに強く、雨や冬は弱い"
+   },
+   {
+    "id": "aqua",
+    "name": "うみなみ水族館",
+    "icon": "🐠",
+    "price": 1600,
+    "vol": 0.0022,
+    "drift": 1.5e-06,
+    "sector": "aquarium",
+    "desc": "水族館。夏休みと雨の日（屋内なので）に人が来る"
    }
   ],
   "news": {
@@ -71,6 +171,18 @@
     "{name}、原材料の値上がりが重荷に",
     "{name}の決算、予想を下回る見込み",
     "{name}のライバル社が強力な新製品"
+   ],
+   "store_up": [
+    "{name}の店、客足が好調との声",
+    "{name}、新しい店が次々と開店",
+    "{name}の季節の新商品が話題に",
+    "{name}、既存店の売上が前年を上回る"
+   ],
+   "store_down": [
+    "{name}、客足が伸び悩み",
+    "{name}、不採算の店を閉める方針",
+    "{name}の店に行列が減ったとの声",
+    "{name}、人手不足で営業時間を短縮"
    ]
   },
   "work_hours": [
@@ -80,7 +192,13 @@
   "stamina_recover": 5,
   "stamina_recover_sleep": 12,
   "stamina_per_work_hour": 9,
-  "stamina_per_side_job": 10
+  "stamina_per_side_job": 10,
+  "news_session_hours": [
+   0.5,
+   2
+  ],
+  "news_gap": 0.004,
+  "sector_scale": 0.02
  },
  "phases": [
   {
