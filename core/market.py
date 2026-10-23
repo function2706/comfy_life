@@ -164,7 +164,8 @@ class Market:
             return
         dt = datetime.fromtimestamp(t)
         if random.random() < float(e.get("news_rate_per_hour", 0.2)) * STEP / 3600.0:
-            self._news(m, random.choice(assets), t, is_open(dt))
+            pick = [a for a in assets if a.get("sector") != "index"] or assets     # まとめ (インデックス) には個別のニュースは出ない
+            self._news(m, random.choice(pick), t, is_open(dt))
         if not is_open(dt):
             return
         first = not is_open(datetime.fromtimestamp(t - STEP))     # 寄り付き (前場・後場のはじめ)

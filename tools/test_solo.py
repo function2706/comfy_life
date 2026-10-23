@@ -103,9 +103,12 @@ def main():
         app.world["economy"]["player_daily_income"] = 0       # 日付をまたいでも, 定期収入・生活費・家賃が混ざらないように
         app.world["economy"]["living_cost_per_day"] = app.world["economy"]["home_cost_per_month"] = 0
         app.items.set_list("cookies", 3)                     # 買い物は, 買うものリストの品を買う
-        m0 = L.player_state()["money"]
-        S.start("out", place="shopping_street")
-        r = back_after(app, 1)
+        for _ in range(5):                                   # 品切れのこともある (乱数しだい)
+            m0 = L.player_state()["money"]
+            S.start("out", place="shopping_street")
+            r = back_after(app, 1)
+            if r["solo"]["bought"]:
+                break
         assert L.player_state()["money"] == m0 + r["solo"]["money"] < m0 and r["solo"]["bought"], r["solo"]
         try:
             S.start("out")

@@ -34,6 +34,7 @@ from . import body as body_mod
 from . import presence as presence_mod
 from . import knowsched as knowsched_mod
 from . import market as market_mod
+from . import earn as earn_mod
 from . import comfy, cond, games, life, llm, puzzles, store
 from . import keys as keys_mod
 from .keys import line_keys
@@ -137,6 +138,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
         self.market = market_mod.Market(self)
+        self.earn = earn_mod.Earn(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
@@ -388,7 +390,9 @@ class App:
     def my_entry(self, kind, name, icon, text, now=None, money=None, skill=None):
         """あなた一人の記録 (誰もそばにいないときの行動の結果). 一人の時間の記録 (mylog) に残し, 画面に出す形で返す."""
         now = now or time.time()
-        e = self.solo.note(kind, text.strip("（）"), now, id=uuid.uuid4().hex[:12], icon=icon, name=name,
+        if text.startswith("（") and text.endswith("）"):
+            text = text[1:-1]           # 外側の括弧だけ (「…（7,200円）」の閉じ括弧は残す)
+        e = self.solo.note(kind, text, now, id=uuid.uuid4().hex[:12], icon=icon, name=name,
                            **({"money": money} if money else {}), **({"skill": skill} if skill else {}))
         return {"entry": self._my_view(e), "job": None, "llm_error": None}
 
@@ -1870,7 +1874,7 @@ class App:
                 "now": now, "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
                 "company": [self._company_item(c) for c in company], "target": tid,
                 "with": self.person_view(tid, dt) if tid else None,
-                "you": dict(self.life.player_view(), care=round(self.life.skill_soft("care"), 2)), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
+                "you": dict(self.life.player_view(), care=round(self.life.skill_soft("care"), 2)), "earn": self.earn.view(now), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "workplace": workplace,
@@ -1952,6 +1956,8 @@ class App:
                 r = self.act("_back", near)
                 r["solo"] = solo
                 return r
+            if ll.get("job") == "parttime":
+                return self._back_parttime(ll, near, quiet, wc)
             pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
             work_note = ""
             if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
@@ -1974,6 +1980,63 @@ class App:
         if work_note:
             r["work_note"] = work_note
         return r
+
+    def _back_parttime(self, ll, near, quiet, wc):
+        """アルバイトから戻った: シフトと重なった分だけ. (誰かいれば「仕事から帰る」の反応)."""
+        pt = self.earn.pt() or {}
+        pay, h, gain = self.earn.pt_pay(ll["t"], ll["back"])
+        note = ""
+        if wc > 2:
+            pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
+            note = "。バイト中の連絡が多く、注意された"
+        mv = self.life.move(None, dp=pay, cat="income", note="バイト代") if pay else {}
+        label = self.earn.job(pt["job"])["label"] if pt.get("job") else "アルバイト"
+        text = ("%sのバイトを終えた（%s円）%s" % (label, format(pay, ","), note)) if h \
+            else "バイト先に着いてすぐ、引き返してきた" if float(ll.get("h", 0)) < 0.25 \
+            else "%sのバイトに行ったが、シフトの時間ではなかった" % self.places.label(ll.get("place") or "")
+        if quiet:
+            return {"text": text, "pay": pay}
+        if not near:
+            return self.my_entry("work", "バイトから帰った", "🧑‍💼", text, money=mv, skill={k: v for k, v in gain.items() if v} or None)
+        return self.act("work", near, opts={"money": mv, "extra": {"amount": format(pay, ",")},
+                                             "ctx": {"work_h": round(ll.get("h", 0), 2), "paid_h": round(h, 2), "pay": pay},
+                                             "skill": gain})
+
+    def go_parttime(self, cid=None):
+        """シフトの時間 (前後 30 分から) に, バイトに行く. 行き先はバイト先の店."""
+        with self.lock:
+            pt = self.earn.pt()
+            if not pt:
+                raise ValueError("アルバイトをしていません（求人から応募できます）")
+            if not self.earn.shift_now():
+                raise ValueError("いまはシフトの時間ではありません（%s）" % self.earn.shift_text(pt["shifts"]))
+            if self.solo.near(cid):          # そばに誰かいれば「仕事に行ってくる」と告げて
+                r = self.solo.start_plain("work", cid=cid)
+            else:                            # 一人なら, シフトの時間に合わせて (夜のシフトも)
+                if self.body.level() >= 3:
+                    raise ValueError("寝込むほどつらくて、バイトに行けそうにない（休むか、病院へ）")
+                if self.presence.rec().get("mode") != "none":
+                    raise ValueError("いまは出かけられません（先に戻ってください）")
+                now = time.time()
+                self.presence.declare("work", now)
+                self.solo.note("work", "バイトに出かけた", now)
+                r = {"started": "work", "label": "バイトに行く", "act": None}
+            p = self.presence.rec()
+            p["job"] = "parttime"
+            p["place"] = self.earn.job(pt["job"])["place"]
+            self.presence.save()
+            return r
+
+    def earn_api(self, op, b):
+        """稼ぎ方の操作 (アルバイトの応募・辞める)."""
+        with self.lock:
+            if op == "apply":
+                r = self.earn.apply(b.get("job"), b.get("shifts"))
+            elif op == "quit":
+                r = self.earn.quit()
+            else:
+                raise KeyError(op)
+            return dict(r, earn=self.earn.view())
 
     def answer_encounter(self, yes):
         r = self.encounters.answer(yes)

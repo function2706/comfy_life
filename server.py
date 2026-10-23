@@ -161,6 +161,12 @@ def route(method, path, q, body):
             return a.repay(b["to"], int(b.get("amount", 0)), cid)
         if path == "/api/market/trade":
             return a.trade(b["asset"], int(b["qty"]), cid)
+        if path == "/api/earn/parttime/go":
+            return a.go_parttime(cid)
+        if path == "/api/earn/parttime/apply":
+            return a.earn_api("apply", b)
+        if path == "/api/earn/parttime/quit":
+            return a.earn_api("quit", b)
         if path == "/api/market/order":
             return a.market_order(b["asset"], b.get("side"), int(b.get("qty") or 0), b.get("limit"), b.get("days"))
         if path == "/api/market/cancel":

@@ -186,6 +186,7 @@ class Life:
                 ps["stamina"] = min(self.app.body.stamina_cap(), float(ps.get("stamina", 100)) + rec * step / 3600.0)
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:
+                self.app.earn.daily(t, d0.month != d1.month)      # 時給の見直し・賞与・バイトの休み (core/earn.py)
                 self.rust(t)
                 self.app.body.daily(t)                         # 体調 (その日の過ごし方しだい)
                 ps["money"] += int(e.get("player_daily_income", 1000))
@@ -244,7 +245,10 @@ class Life:
         if (t1 - t0) < 900:
             return 0, 0.0, (t1 - t0) / 3600.0
         h, raw = self.work_hours(t0, t1, record)
-        return int(round(float(e.get("work_wage_per_hour", 1200)) * h * self.skill_mult("work") * self.app.body.work_mult() / 10.0)) * 10, h, raw
+        pay = int(round(float(self.app.earn.wage()) * h * self.skill_mult("work") * self.app.body.work_mult() / 10.0)) * 10
+        if record:
+            self.app.earn.record_main(h, pay, t1)        # 月ごとの勤務 (時給の見直し・賞与のもと. core/earn.py)
+        return pay, h, raw
 
     def stamina(self):
         return float(self.player_state().get("stamina", 100))

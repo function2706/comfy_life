@@ -1437,9 +1437,9 @@ function renderMoney() {
     const pre = M.open ? '' : '予約で';
     return h('div', { class: 'asset' },
       h('div', { class: 'asset-head', title: a.desc, style: 'cursor:pointer', onclick: () => { S.assetOpen = Object.assign({}, S.assetOpen, { [a.id]: !open }); renderMoney(); } },
-        h('span', { class: 'ic' }, a.icon), h('b', {}, a.name), a.sector_label ? h('span', { class: 'tag', style: 'margin-left:4px' }, a.sector_label) : '',
+        h('span', { class: 'ic' }, a.icon), h('b', {}, a.name), a.sector_label ? h('span', { class: 'tag', style: 'margin-left:4px;white-space:nowrap;font-size:11px' }, a.sector_label) : '',
         plan ? h('span', { class: 'tag', style: 'margin-left:4px', title: `毎月${plan.day}日に${yen(plan.amount)}分` }, '積立') : '',
-        h('div', { class: 'spacer' }), h('b', {}, yen(a.price)),
+        h('div', { class: 'spacer' }), h('b', { style: 'white-space:nowrap' }, yen(a.price)),
         h('span', { class: 'chg ' + (a.day >= 0 ? 'up' : 'down'), title: '前の取引日の終わりから' }, `${a.day >= 0 ? '+' : ''}${a.day}%`)),
       a.qty ? h('div', { class: 'muted small' }, `保有 ${a.qty}株・評価 ${yen(a.value)}（`,
         h('span', { class: pl >= 0 ? 'up' : 'down' }, `${pl >= 0 ? '+' : ''}${yen(pl)}`), '）') : '',
@@ -1458,6 +1458,7 @@ function renderMoney() {
           plan ? h('button', { class: 'btn ghost small', disabled: S.busy, onclick: () => marketApi('/api/market/plan', { drop: plan.id }, '積立をやめました') }, 'やめる') : '')] : '');
   };
   const ok = (k) => ((v.solo || {}).plain || []).some((p) => p.id === k && p.ok) && (v.presence || {}).mode === 'none';
+  const EA = v.earn || {};
   $('#tab-money').replaceChildren(
     h('div', { class: 'pgroup money-box' }, h('h4', {}, 'あなたの財布'),
       h('div', { class: 'money-row' }, h('span', {}, '手元'), h('b', {}, yen(L.my_money || 0))),
@@ -1480,7 +1481,9 @@ function renderMoney() {
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
           h('small', { class: 'muted' }, v.side_job ? v.side_job.reason.replace(/^.*（(.*)）$/, '$1') : 'パズルを解く'))),
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
-      h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います')),
+      h('div', { class: 'muted small' }, `本業の時給 ${yen(EA.wage || 0)}${EA.wage !== EA.base_wage ? `（始め ${yen(EA.base_wage || 0)}）` : ''}・今月の本業 ${EA.month_h || 0}時間。月ごとの勤務で時給が見直され、6月・12月の10日に賞与が出ます（休みが多いと下がる・出ない）`),
+      h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います'),
+      partTimePanel(EA, v)),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
       h('div', { class: 'row', style: 'margin-bottom:4px' }, h('span', { class: 'tag' + (M.open ? ' bond' : '') }, M.open ? `📈 取引中（${M.until}まで）` : `🌙 取引時間外（次は ${M.next}）`),
         h('span', { class: 'muted small' }, `買付余力 ${yen(M.buy_power ?? L.my_money ?? 0)}`)),
@@ -1496,6 +1499,49 @@ function renderMoney() {
       M.news.length ? M.news.map((n) => h('div', { class: 'news' },
         h('span', { class: n.dir > 0 ? 'up' : 'down' }, n.dir > 0 ? '▲' : '▼'), h('span', {}, n.text),
         h('span', { class: 'muted small' }, fmtTime(n.t) + (n.after ? '（時間外）' : '')))) : h('div', { class: 'muted small' }, 'まだニュースはありません')));
+}
+
+// アルバイト: いまのバイト (シフト・バイトに行く・辞める) と求人 (応募: 曜日と時間を決める)
+function partTimePanel(EA, v) {
+  const P = EA.parttime;
+  const hm = (t) => new Date(t * 1000).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  if (P) {
+    const free = (v.presence || {}).mode === 'none';
+    return h('div', { class: 'kb-cats' },
+      h('div', { class: 'money-row' }, h('span', {}, `🧑‍💼 ${P.label}（${P.place_label}・時給 ${yen(P.wage)}）`),
+        h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => confirm(`${P.label}を辞めますか？`) && earnApi('/api/earn/parttime/quit', {}) }, '辞める')),
+      h('div', { class: 'muted small' }, `シフト: ${P.shift_text}${P.absent ? `・この30日で${P.absent}回休んだ（3回で辞めさせられる）` : ''}`),
+      h('div', { class: 'row' },
+        h('button', { class: 'cmd', disabled: S.busy || !P.now || !free, title: 'シフトの時間（前後30分から）に行けます。戻ったとき、シフトと重なった時間ぶんのバイト代が出ます',
+          onclick: () => earnApi('/api/earn/parttime/go', withT({}), 'バイトに出かけた') },
+          h('span', { class: 'ic' }, '🧑‍💼'), h('span', {}, 'バイトに行く'), h('small', { class: 'muted' }, P.now ? 'いまシフトの時間' : P.next ? `次は ${hm(P.next)}` : ''))));
+  }
+  const open = S.jobsOpen;
+  return h('div', { class: 'kb-cats' },
+    h('button', { class: 'btn small', onclick: () => { S.jobsOpen = !open; renderMoney(); } }, open ? '▾ 求人を閉じる' : '▸ アルバイトの求人を見る'),
+    open ? (EA.jobs || []).map((j) => {
+      const f = (S.jobForm = S.jobForm || {})[j.id] = (S.jobForm || {})[j.id] || { days: [], from: `${String(Math.max(j.hours[0], 17)).padStart(2, '0')}:00`, to: `${String(Math.min(j.hours[1], 21)).padStart(2, '0')}:00` };
+      const ng = (EA.rejected || {})[j.id];
+      return h('div', { class: 'asset' },
+        h('div', { class: 'asset-head' }, h('b', {}, j.label), h('span', { class: 'tag', style: 'margin-left:4px' }, j.place_label), h('div', { class: 'spacer' }), h('b', {}, `時給 ${yen(j.wage)}`)),
+        h('div', { class: 'muted small' }, `${j.hours[0]}:00〜${j.hours[1]}:00 のあいだで 1 回 2〜8 時間。${SKILL_NAME[j.skill] || ''}のスキルで少し上下`),
+        h('div', { class: 'row trade' }, ...'mon,tue,wed,thu,fri,sat,sun'.split(',').map((d, i) => h('label', { class: 'check' },
+          h('input', { type: 'checkbox', checked: f.days.includes(d), onchange: (ev) => { f.days = ev.target.checked ? [...f.days, d] : f.days.filter((x) => x !== d); } }), '月火水木金土日'[i]))),
+        h('div', { class: 'row trade' },
+          h('input', { type: 'time', value: f.from, step: 1800, style: 'width:7.5em;flex:none', onchange: (ev) => { f.from = ev.target.value; } }), h('span', { class: 'muted small' }, '〜'),
+          h('input', { type: 'time', value: f.to, step: 1800, style: 'width:7.5em;flex:none', onchange: (ev) => { f.to = ev.target.value; } }),
+          h('button', { class: 'btn small', disabled: S.busy || !!ng, title: '面接があります（身だしなみ・会話で受かりやすく）',
+            onclick: () => earnApi('/api/earn/parttime/apply', { job: j.id, shifts: [{ days: f.days.join(','), from: f.from, to: f.to }] }) }, ng ? '少し待つ' : '応募する')));
+    }) : '');
+}
+async function earnApi(path, body, okMsg) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api(path, body);
+    if (r.entry || r.act) handleActResult(r.act || r); else if (r.text) toast(r.text, r.ok === false ? 'err' : 'ok'); else if (okMsg) toast(okMsg, 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
 }
 
 // 家計簿: 見えるのは, つけた分だけ (記録した日ごとの出入り・分類ごとの合計) と, 1日にどれくらい稼げばいいかの見積もり

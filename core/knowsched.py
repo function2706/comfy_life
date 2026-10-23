@@ -125,8 +125,8 @@ class KnowSched:
         app = self.app
         now = now or time.time()
         p = app.presence.rec()
-        if p.get("mode") != "out":
-            return []
+        if p.get("mode") not in ("out", "work") or not p.get("place"):
+            return []       # 外出の行き先, またはアルバイト先
         place = p.get("place")
         seen = p.setdefault("work_seen", [])
         out = []
@@ -148,9 +148,14 @@ class KnowSched:
             app.apply_effects(st, app.trait_effects(char, eff))
             app.bonds.met(st, now)
             app.save_state(cid)
-            line = "%sで、%sが店員として働いていた。会釈すると、%s" % (
-                app.places.label(place), char.get("name", ""), random.choice(("小さく手を振ってくれた", "少し驚いた顔で会釈を返してくれた",
-                                                                            "忙しそうに目で合図をくれた")))
+            if p.get("mode") == "work":        # 同じ店のアルバイト: 一緒に働く
+                line = "%sのバイトで、%sと同じシフトだった。%s" % (
+                    app.places.label(place), char.get("name", ""), random.choice(("休憩のときに少し話した", "忙しくて、目で合図をしあうくらいだった",
+                                                                                "仕事のことを少し教えてもらった")))
+            else:
+                line = "%sで、%sが店員として働いていた。会釈すると、%s" % (
+                    app.places.label(place), char.get("name", ""), random.choice(("小さく手を振ってくれた", "少し驚いた顔で会釈を返してくれた",
+                                                                                "忙しそうに目で合図をくれた")))
             if text:
                 line += "（%s）" % text
             app.outdoor.note(line, now)

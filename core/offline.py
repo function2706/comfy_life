@@ -26,7 +26,8 @@ from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事（片付け）",
-            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽", "meal": "食事"}
+            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽", "meal": "食事",
+            "parttime": "アルバイト"}
 MEAL_HOW = {"cook": "自炊", "out": "外食", "buy": "買って食べる"}
 MEAL_PLACES = {"out": ["teishoku", "ramen", "fastfood", "family", "restaurant", "cafe"], "buy": ["convenience", "supermarket", "station"]}
 WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "meal", "how": "cook"}, {"at": "07:30", "do": "rest"},
@@ -183,6 +184,22 @@ class Offline:
             elif do in ("rest", "home"):
                 recover(s, e, rec_rest if do == "rest" else None)
                 ent["text"] = "家で休んでいた" if do == "rest" else "家で静かに過ごしていた"
+            elif do == "parttime":            # アルバイト: シフトと重なった分だけ (シフトが無ければ家で過ごす)
+                if not app.earn.pt() or app.body.level() >= 3:
+                    recover(s, e, None)
+                    ent.update(text="アルバイトはしていないので、家で過ごした" if not app.earn.pt() else "体調が悪くて、バイトを休んだ", skipped=True)
+                else:
+                    ps["stamina"] = stamina
+                    pay, ph, _ = app.earn.pt_pay(s, e)
+                    stamina = float(ps.get("stamina", stamina))
+                    if pay:
+                        ps["money"] += pay
+                        L.ledger(e, pay, "income", "バイト代")
+                    app.body.add_exercise(2.0 * ph)
+                    ent["text"] = "%s（%s円）" % (app.earn.job(app.earn.pt()["job"])["label"], format(pay, ",")) if ph \
+                        else "シフトの時間ではなかったので、家で過ごした"
+                    if not ph:
+                        recover(s, e, None)
             elif do == "work":
                 w = self._work(s, e, stamina)
                 stamina = max(0.0, stamina - per_h * w["hours"])
