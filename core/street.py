@@ -227,7 +227,7 @@ class Street:
             if choice == "decline":
                 pr["cool_until"] = now + 3 * 86400
                 line = self._line(c, "enc.decline", pend["where"])
-        adv = stage < 4 and random.random() < p_adv
+        adv = stage < 4 and random.random() < p_adv * (0.9 + 0.2 * app.life.skill_soft("groom"))     # 身だしなみで, 少しだけ
         if adv:
             stage += 1
         pr["stage"] = stage

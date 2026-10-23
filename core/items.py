@@ -30,6 +30,11 @@ _C = [
     ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["bookstore", "mall"], ["books"], True),
     ("book_cook", "レシピ本", "📙", "book_cook", 1600, ["bookstore", "mall", "shopping_street"], ["books"], True),
     ("book_work", "仕事の参考書", "📘", "book_work", 2000, ["bookstore", "station", "mall"], ["books"], True),
+    ("book_house", "暮らしの家事の本", "📗", "book_house", 1300, ["bookstore", "mall", "drugstore"], ["books", "practical"], True),
+    ("book_care", "人の気持ちの本", "📕", "book_care", 1500, ["bookstore", "station"], ["books"], True),
+    ("book_groom", "身だしなみの本", "📙", "book_groom", 1400, ["bookstore", "mall", "drugstore"], ["books", "fashion"], True),
+    ("book_budget", "家計の本", "📘", "book_budget", 1500, ["bookstore", "station", "mall"], ["books", "practical"], True),
+    ("clothes", "自分の服", "👕", "clothes", 4000, ["mall", "shopping_street"], ["fashion"], False),
     ("novel", "小説", "📖", "goods", 1200, ["bookstore", "station", "mall", "convenience"], ["books"], True),
     ("flowers", "花束", "💐", "goods", 2500, ["shopping_street", "station"], ["flowers"], True),
     ("plush", "ぬいぐるみ", "🧸", "goods", 3000, ["mall", "amusement"], ["cute"], True),
@@ -65,7 +70,8 @@ PERSONA_LIKES = {
 USES = {"cook": "food", "tea": "tea", "snack": "sweets", "clean": "detergent"}
 MISSING = {"cook": "（食材がなくて、ありあわせで簡単なものしか作れなかった）", "tea": "（お茶っ葉を切らしていて、白湯を出した）",
            "snack": "（お菓子がなくて、残っていたものを少しだけ出した）", "clean": "（洗剤が切れていて、思うようにははかどらなかった）"}
-PRACTICE_BOOK = {"talk": "book_talk", "touch": "book_touch", "cook": "book_cook", "work": "book_work"}
+PRACTICE_BOOK = {"talk": "book_talk", "touch": "book_touch", "cook": "book_cook", "work": "book_work",
+                 "house": "book_house", "care": "book_care", "groom": "book_groom", "budget": "book_budget"}
 
 
 class Items:
@@ -136,6 +142,7 @@ class Items:
         ps = self.ps()
         bought, missed = [], []
         strict = self.app.life.in_debt()
+        thrift = self.app.life.skill_soft("budget")          # やりくりがうまいほど, 少し安く買え, 衝動買いが減る (確定ではない)
         for iid, want in list(ps["shop_list"].items()):
             it = CATALOG.get(iid)
             if not it or place not in it["places"]:
@@ -145,9 +152,17 @@ class Items:
                 continue
             for _ in range(int(want)):
                 if random.random() < 0.12:
-                    missed.append("%sは品切れだった" % it["name"])
+                    alt = self._substitute(it, place) if random.random() < 0.15 + 0.45 * thrift else None
+                    if alt and ps["money"] >= alt["price"]:          # 品切れ: 代わりの品を選ぶ (同じ使い道のもの)
+                        ps["money"] -= alt["price"]
+                        self.app.life.ledger(t, -alt["price"], "food" if alt["kind"] in FOOD_KINDS else "shopping", alt["name"])
+                        self.add(alt["id"], alt.get("servings", 1))
+                        bought.append({"id": alt["id"], "name": alt["name"], "icon": alt["icon"], "price": alt["price"], "instead": it["name"]})
+                        missed.append("%sは品切れだったので、代わりに%sを買った" % (it["name"], alt["name"]))
+                    else:
+                        missed.append("%sは品切れだった" % it["name"])
                     break
-                price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
+                price = int(round(it["price"] * random.uniform(0.85, 1.15 - 0.08 * thrift) / 10.0)) * 10
                 if ps["money"] < price:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
@@ -160,7 +175,7 @@ class Items:
                     ps["shop_list"].pop(iid, None)
         # 衝動買い: 安いものをたまに (長くいるほど)
         cheap = [i for i in CATALOG.values() if place in i["places"] and i["price"] <= 1500]
-        if cheap and not strict and random.random() < min(0.35, 0.12 * max(0.5, hours)):
+        if cheap and not strict and random.random() < min(0.35, 0.12 * max(0.5, hours)) * (1.0 - 0.5 * thrift):
             it = random.choice(cheap)
             price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
             if ps["money"] >= price + 3000:
@@ -169,7 +184,20 @@ class Items:
                 self.add(it["id"], it.get("servings", 1))
                 bought.append({"id": it["id"], "name": it["name"], "icon": it["icon"], "price": price, "impulse": True})
         self.save()
+        if bought or missed:
+            self.app.life.train("budget", 0.3)                # 買い物をするたびに, 少しずつ
+        if any(b["id"] == "clothes" for b in bought):
+            self.app.life.train("groom", 0.8)                 # 服を選ぶ
         return bought, missed
+
+    def _substitute(self, it, place):
+        """品切れの品の代わり: 同じ種類 (食材なら同じ栄養) で, この店に売っている別の品."""
+        for c in CATALOG.values():
+            if c["id"] == it["id"] or place not in c["places"]:
+                continue
+            if (it.get("nut") and c.get("nut") == it.get("nut")) or (not it.get("nut") and c["kind"] == it["kind"] and c["kind"] != "goods"):
+                return dict(c, price=int(round(c["price"] * random.uniform(0.9, 1.1) / 10.0)) * 10)
+        return None
 
     @staticmethod
     def describe(bought, missed):

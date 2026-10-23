@@ -44,6 +44,7 @@ FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_flo
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+CARE_ACTIONS = ("look", "peek_face", "watch_quietly", "ask_mood", "comfort", "leave_alone")     # 気配りが伸びるコマンド
 # 一人の時間の記録 (mylog) の種類 → ログに並べるときの名前と印
 MY_KIND_LABEL = {"rest": "休む", "chores": "家事", "practice": "研鑽", "out": "外出", "walk": "散歩", "shopping": "買い物", "cafe": "カフェ",
                  "see": "見て回る", "visit": "訪ねる", "home": "家で", "money": "お金", "diary": "日記", "kakeibo": "家計簿", "meal": "食事", "health": "体調", "busy": "作業", "work": "仕事",
@@ -912,6 +913,10 @@ class App:
                 money[k] = money.get(k, 0) + v
             self._act_reasons(char, st, a, r, deltas, now)
             skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk else {}
+            if aid in CARE_ACTIONS and not r.get("override"):         # 様子を見る・気持ちを聞く: 気配り
+                skill_up["care"] = self.life.train("care", 0.8 * scale)
+            if aid == "clean" and not r.get("override"):               # 一緒に掃除: 家事
+                skill_up["house"] = self.life.train("house", 0.8 * scale)
             skill_up.update(opts.get("skill") or {})
             if a.get("presence_set"):
                 self.presence.declare(a["presence_set"], now)
@@ -1777,7 +1782,7 @@ class App:
                 "now": now, "phase": {"id": phase.get("id"), "label": phase.get("label", "")},
                 "company": [self._company_item(c) for c in company], "target": tid,
                 "with": self.person_view(tid, dt) if tid else None,
-                "you": self.life.player_view(), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
+                "you": dict(self.life.player_view(), care=round(self.life.skill_soft("care"), 2)), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(), "shop_done": shop_done,

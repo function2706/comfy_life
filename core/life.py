@@ -22,7 +22,8 @@ from datetime import datetime
 from . import cond, store
 
 WHO = {"p": "あなた", "a": "キャラ"}
-SKILLS = ("talk", "touch", "cook", "work")     # あなたのスキル: 会話・スキンシップ・料理・仕事
+# あなたのスキル: 会話・スキンシップ・料理・仕事・家事・気配り・身だしなみ・やりくり (後の 4 つは, 以前のデータには初期値で補う)
+SKILLS = ("talk", "touch", "cook", "work", "house", "care", "groom", "budget")
 SKILL_RATE = 0.4         # 経験のうち身につく割合
 SKILL_DAY_SOFT = 2.0     # その日に伸びた量がこれだけあると, 次の経験は半分しか身につかない
 RUST_AFTER_DAYS = 10     # これだけ使わないスキルは, 少しずつ鈍る
@@ -78,6 +79,10 @@ class Life:
     def skill_mult(self, k):
         """スキルによる効き目の倍率 (0.6〜1.4)."""
         return skill_mult_of(self.skill(k))
+
+    def skill_soft(self, k):
+        """家事・気配り・身だしなみ・やりくりの効き目 (0〜1. 控えめに使う: 確定的な結果にしないため, 呼ぶ側で小さく掛ける)."""
+        return max(0.0, min(1.0, (self.skill(k) - 10.0) / 90.0))
 
     def train(self, k, gain):
         """スキルを伸ばす. gain は経験の量 (1 回の会話で 1.2, 仕事 1 時間で 0.5 など). 伸びた量を返す.
@@ -788,7 +793,14 @@ class Life:
                 "pay_policy": char.get("pay_policy") or "auto", "living_policy": char.get("living_policy") or "split",
                 "owed": int((ps.get("loans") or {}).get(char["id"], 0)),
                 "request": req,
-                "hint": bool(untold), "hint_mood": untold[0]["mood"] if untold else None}
+                "hint": self._noticed(untold), "hint_mood": untold[0]["mood"] if self._noticed(untold) else None}
+
+    def _noticed(self, untold):
+        """まだ聞いていない出来事があることに, 様子から気づくか (気配りしだい. 出来事ごとに決まり, 見るたびには変わらない)."""
+        if not untold:
+            return False
+        seed = int(float(untold[0].get("t", 0)) * 1000) % 997 / 997.0
+        return seed < 0.55 + 0.4 * self.skill_soft("care")
 
     def view(self, char, st):
         return dict(self.player_view(), **self.partner_view(char, st))

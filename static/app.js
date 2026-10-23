@@ -336,7 +336,7 @@ function renderSoloTab() {
         h('div', { class: 'bar' }, h('i', { style: `width:${Y.stamina ?? 100}%;background:${(Y.stamina ?? 100) >= 50 ? 'var(--good)' : (Y.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
         h('span', { class: 'pval' }, Math.floor(Y.stamina ?? 100))),
       Object.entries(Y.skills || {}).map(([k, val]) => h('div', { class: 'prow', title: SKILL_HINT[k] || '' },
-        h('span', { title: (Y.rusty || []).includes(k) ? 'しばらく使っていないので、鈍ってきた（使えば元の高さまでは戻りやすい）' : '' }, `${SKILL_NAME[k] || k}スキル${(Y.rusty || []).includes(k) ? '（鈍り）' : ''}`),
+        h('span', { title: (Y.rusty || []).includes(k) ? 'しばらく使っていないので、鈍ってきた（使えば元の高さまでは戻りやすい）' : '' }, `${SKILL_NAME[k] || k}${(Y.rusty || []).includes(k) ? '（鈍り）' : ''}`),
         h('div', { class: 'bar' }, h('i', { style: `width:${val}%;background:var(--sky)` })),
         h('span', { class: 'pval' }, Math.floor(val)))))].filter(Boolean));
 }
@@ -876,7 +876,7 @@ function level(p, v) {
 
 const yen = (n) => `${Math.round(n).toLocaleString()}円`;
 
-const SKILL_NAME = { talk: '会話', touch: 'スキンシップ', cook: '料理', work: '仕事' };
+const SKILL_NAME = { talk: '会話', touch: 'スキンシップ', cook: '料理', work: '仕事', house: '家事', care: '気配り', groom: '身だしなみ', budget: 'やりくり' };
 function sparkline(vals, title) {
   const w = 300, hgt = 36, mn = Math.min(...vals), mx = Math.max(...vals), span = mx - mn || 1;
   const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${hgt - ((v - mn) / span) * (hgt - 4) - 2}`).join(' ');
@@ -1601,6 +1601,10 @@ const SKILL_HINT = {
   touch: 'ふれあいのコマンドの効き目。低いうちは、急にするとびっくりされることも',
   cook: '料理・おやつ・お茶の効き目。低いと失敗することも、高いと絶品に',
   work: '仕事のお給料と、内職の単価',
+  house: '片付けのはかどり。家事・一緒に掃除・研鑽で伸びる',
+  care: '相手の様子の見え方（見た目の印象のずれが小さい・何かあったことに気づきやすい）。様子を見る・何かあった？・相談にのる・研鑽で伸びる',
+  groom: '出先で会った人との知り合いやすさ（少しだけ）。出かける・服を買う・研鑽で伸びる',
+  budget: '家計簿の覚えのよさ（丸め・書き漏らしが減り、見積もりの幅が狭い）、買い物で少し安く買え衝動買いが減り、品切れのとき代わりの品を選べる。家計簿・買い物・研鑽で伸びる',
 };
 /* ---- 見た目でわかること: 数値は出さず, 様子から受ける印象だけ (少しずれることもある) */
 const LOOK = {
@@ -1622,7 +1626,8 @@ function lookWord(p, val) {
   if (!words) return null;                                // 好感度・信頼など, 見ただけではわからない
   // 同じ時間帯のうちは同じ印象になるよう, ずれは param と時刻 (1時間単位) で決める
   const seed = [...(p.id + Math.floor(Date.now() / 3600000))].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-  const fuzz = ((seed % 1000) / 1000 - 0.5) * 2 * (LOOK_FUZZ[p.id] || 10);
+  const care = ((S.view || {}).you || {}).care || 0;      // 気配りがあるほど, 印象のずれが小さい
+  const fuzz = ((seed % 1000) / 1000 - 0.5) * 2 * (LOOK_FUZZ[p.id] || 10) * (1 - 0.5 * care);
   const n = Math.max(0, Math.min(99.9, ((val + fuzz) - (p.min ?? 0)) / ((p.max ?? 100) - (p.min ?? 0)) * 100));
   return words[Math.floor(n / 20)];
 }
@@ -2662,7 +2667,7 @@ SEC.actions = () => {
         fld('実行できる条件', inp(a, 'when', { ph: 'free=true' }), null, 'span2'),
         fld('クールダウン（分）', inp(a, 'cooldown', { type: 'number' }), 'この間の連続実行は repeat が増え効果減'),
         fld('連続時の効果倍率', inp(a, 'repeat_scale', { type: 'number', step: '0.1', ph: '0.5' })),
-        fld('あなたのスキル', inp(a, 'skill', { type: 'select', options: [['', 'なし'], ['talk', '会話'], ['touch', 'スキンシップ'], ['cook', '料理'], ['work', '仕事']] })),
+        fld('あなたのスキル', inp(a, 'skill', { type: 'select', options: [['', 'なし'], ['talk', '会話'], ['touch', 'スキンシップ'], ['cook', '料理'], ['work', '仕事'], ['house', '家事'], ['care', '気配り'], ['groom', '身だしなみ'], ['budget', 'やりくり']] })),
         fld('効果', inp(a, 'effects', { fmt: fmtEff, parse: parseEff, ph: 'mood:+5, loneliness:-10' }), null, 'spanall'),
         fld('Positive（行動）', inp(a, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative（行動）', inp(a, 'neg', { type: 'textarea', rows: 2 }), null, 'span2'),

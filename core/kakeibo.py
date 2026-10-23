@@ -73,20 +73,23 @@ class Kakeibo:
             days.setdefault(_day(x["t"]), []).append(x)
         fuzzy = forgot = 0
         written = []
+        thrift = self.app.life.skill_soft("budget")       # やりくりがうまいほど, 覚えている (丸めが遅く, 書き漏らしが少ない)
+        sharp = 1 if thrift >= 0.5 else 0
         for d in sorted(days):
             age = (today - date.fromisoformat(d)).days
             items = []
             small = 0
             for x in days[d]:
                 a, cat = x["a"], x["c"]
-                if age >= 7 and cat not in FIXED_CATS and abs(a) < 20000 and random.random() < min(0.6, 0.08 * (age - 5)):
+                if age >= 7 and cat not in FIXED_CATS and abs(a) < 20000 and \
+                        random.random() < min(0.6, 0.08 * (age - 5)) * (1.0 - 0.6 * thrift):
                     forgot += 1                             # 書き漏らし (本人は気づかない)
                     continue
-                if age >= 2 and cat not in FIXED_CATS and cat != "income" and -1000 < a < 0:
+                if age >= 2 + sharp and cat not in FIXED_CATS and cat != "income" and -1000 < a < 0:
                     small += a                              # 細かい出費は, もう何だったか覚えていない
                     continue
-                items.append({"a": _round(a, age) if age >= 2 else a, "c": cat, "n": x["n"] if age < 7 else "",
-                              "approx": age >= 2})
+                items.append({"a": _round(a, age) if age >= 2 + sharp else a, "c": cat, "n": x["n"] if age < 7 else "",
+                              "approx": age >= 2 + sharp})
             if small:
                 items.append({"a": _round(small, age), "c": "other", "n": "こまごました出費", "approx": True})
             if age >= 2:
@@ -105,6 +108,8 @@ class Kakeibo:
         gap = max([(today - date.fromisoformat(d)).days for d in written] or [0])
         lg["upto"] = now
         lg["last_written"] = now
+        if todo:
+            self.app.life.train("budget", min(1.5, 0.3 + 0.1 * len(written)))
         self.app.life.save_player()
         if not written:
             text = "家計簿をつけた。前につけてから、お金の出入りはなかった" if todo or since else "家計簿をつけ始めた。まだ書くことはない"
@@ -157,7 +162,7 @@ class Kakeibo:
             per = var / float(max(covered, 1))      # 毎日の生活費が入るので, 記録した日 ≒ 過ごした日
             del span
             fz = sum(1 for b in recent if b.get("fuzzy")) / float(len(recent))
-            w = max(0.15, min(0.9, 1.1 / math.sqrt(covered) + 0.25 * fz))
+            w = max(0.12, min(0.9, (1.1 / math.sqrt(covered) + 0.25 * fz) * (1.0 - 0.3 * self.app.life.skill_soft("budget"))))
             lo, hi = per * (1 - 0.6 * w), per * (1 + w)              # 書き漏らしがあるぶん, 上には広め
             est["variable"] = [int(round(lo, -1)), int(round(hi, -1))]
             need = [fixed["total"] + lo - passive, fixed["total"] + hi - passive]

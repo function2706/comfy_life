@@ -49,9 +49,12 @@ START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を�
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
               "out": "{place}へ出かけた", "jog": "{place}へ走りに出た"}
 OWN_ACTIONS = ("_back", "work", "_return")
-SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事"}
+SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事",
+               "house": "家事", "care": "気配り", "groom": "身だしなみ", "budget": "やりくり"}
 PRACTICE_TEXT = {"talk": "話し方の本を読んだ", "touch": "マッサージのやり方を調べた", "cook": "料理の練習をした",
-                 "work": "仕事の勉強をした"}
+                 "work": "仕事の勉強をした",
+                 "house": "家事の段取りを考えた", "care": "人の気持ちについての本を読んだ", "groom": "身だしなみを整える練習をした",
+                 "budget": "家計の組み立て方を調べた"}
 
 
 class Solo:
@@ -151,6 +154,8 @@ class Solo:
             if not places_mod.is_home(place) and places_mod.solo_kind(place) == "shopping":    # 店: 品を選び終えるまでの時間
                 p["solo"]["shop_need"] = round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1)
         app.presence.save()
+        if k["mode"] == "out":
+            app.life.train("groom", 0.15)           # 出かける前に整える
         self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", ""))
                   .replace("{place}", app.places.label(place) if place else ""), now)
         return {"started": kind, "label": k["doing"], "act": res}
@@ -299,7 +304,8 @@ class Solo:
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
-            how = app.home.chores(h, soap, jit)                 # 家が片付く (たまっているものほど)
+            how = app.home.chores(h, soap, jit * (0.85 + 0.35 * L.skill_soft("house")))   # 家が片付く (家事スキルで少しはかどる)
+            L.train("house", min(2.0, 0.8 * h)) if h >= 0.25 else 0
             text = "%s家事をした。%s（%s）" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった", how)
             text += app.home.notice_chores(h, soap, now, jit)      # 同居相手が気づくかどうかは偶然
         elif kind == "practice":

@@ -518,7 +518,12 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <tr><td>🤗 スキンシップ</td><td>ふれあいのコマンド、寄り添う</td><td>ふれあいの効き目。低いうちは、急にするとびっくりされることも</td></tr>
   <tr><td>🍳 料理</td><td>ご飯・おやつ・お茶</td><td>料理の効き目。低いと焦がすことも、高いと絶品に</td></tr>
   <tr><td>💼 仕事</td><td>仕事、内職</td><td>お給料と内職の単価</td></tr>
+  <tr><td>🧹 家事</td><td>家事（片付け）、一緒に掃除</td><td>片付けのはかどり（同じ時間で、少し多く片付く）</td></tr>
+  <tr><td>👀 気配り</td><td>様子を見る・顔をのぞきこむ・こっそり見守る・何かあった？・相談にのる・そっとしておく</td><td>相手の様子の見え方。見た目の印象のずれが小さく、「💭何かあったみたい」に気づきやすい（低いと、何かあっても気づかないことがある）</td></tr>
+  <tr><td>👔 身だしなみ</td><td>出かける（少しずつ）、自分の服を買う</td><td>出先で会った人と、知り合いになりやすさ（少しだけ）</td></tr>
+  <tr><td>💴 やりくり</td><td>家計簿をつける、買い物</td><td>家計簿の覚え（細かい出費まで覚えていて、書き漏らしが少なく、見積もりの幅が狭い）、買い物で少し安く買え、衝動買いが減り、品切れのときに代わりの品（同じ使い道のもの）を選べる</td></tr>
 </table>
+<p>どのスキルも研鑽で練習でき、その分野の本（家事の本・人の気持ちの本・身だしなみの本・家計の本など。本屋などで買える）があると伸びやすくなります。家事・気配り・身だしなみ・やりくりの効き目は控えめで、高くても結果が決まるわけではありません。株のニュースの読みには効きません（ニュースが当たるかは誰にも分からないので）。</p>
 <p>スキルは、コマンドのうれしい方向の効き目を 0.6〜1.4 倍にします。</p>
 <p class="where">設定 → コマンド（各コマンドの「あなたのスキル」）</p>
 
@@ -657,7 +662,7 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
   <tr><td><code>cause</code> <code>knows</code> <code>untold</code> <code>ev_mood</code></td><td>機嫌の理由まわり：原因（player / event）、理由を聞いたか、まだ話していない出来事の数、その出来事が good / bad か</td></tr>
   <tr><td><code>my_money</code> <code>her_money</code> <code>payer</code></td><td>お金まわり：あなたの所持金、キャラの所持金（画面には出ないが、条件には使える）、誰が払うか（me / her / split）</td></tr>
   <tr><td><code>presence</code> <code>said</code> <code>left_mode</code> <code>left_h</code></td><td>あなたの在席：here / idle / busy / out / work / sleep / left / gone、告げてから離れたか、どう離れていたか、何時間離れていたか（戻って15分まで）</td></tr>
-  <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code></td><td>あなたのスキル（0〜100）</td></tr>
+  <tr><td><code>sk_talk</code> <code>sk_touch</code> <code>sk_cook</code> <code>sk_work</code> <code>sk_house</code> <code>sk_care</code> <code>sk_groom</code> <code>sk_budget</code></td><td>あなたのスキル（0〜100）</td></tr>
   <tr><td><code>player_gender</code> <code>player_age</code> <code>player_has_job</code> <code>player_likes</code></td><td>設定「あなた」の性別（male / female / other / none）、年齢（未設定は 0）、職業があるか、好きなものの数</td></tr>
   <tr><td><code>my_stamina</code> <code>work_3d</code></td><td>あなたの体力（0〜100）、ここ3日で給料の出た勤務時間</td></tr>
   <tr><td><code>roll</code></td><td>実行のたびに変わる 0〜99 の乱数。<code>sk_cook&lt;30, roll&lt;45</code> のように「ときどき」を書くのに使う</td></tr>
