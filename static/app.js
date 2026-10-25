@@ -603,7 +603,7 @@ function renderDress() {
       card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
       items.map((o) => card(o.id, o.icon || '👕', (o.name || o.id) + boldMark(o.bold), d.items[o.id],
         (o.when ? '条件: ' + o.when + ' / ' : '') + (o.bold ? `大胆さ ${o.bold}（着てくれるかは仲・気分・性格しだい）` : o.pos)))),
-    items.length ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → 着せ替え で持たせられます。'),
+    items.length ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → キャラクター → 着せ替え で持たせられます。'),
     h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
       ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
   );
@@ -2043,6 +2043,7 @@ async function drawGallery() {
 }
 
 function openLightbox(e, im) {
+  $('#lb-stage').hidden = $('#lb-delete').hidden = false;
   $('#lb-img').src = imgUrl(im.path);
   $('#lb-open').href = imgUrl(im.path);
   $('#lb-text').textContent = e.text || e.action_name;
@@ -2069,6 +2070,17 @@ Negative: ${im.neg}`;
   $('#lightbox').showModal();
 }
 
+// 服の一覧のサンプル画像を大きく見る (ギャラリーと同じ拡大表示)
+function openSampleLightbox(o) {
+  $('#lb-img').src = imgUrl(o.sample);
+  $('#lb-open').href = imgUrl(o.sample);
+  $('#lb-text').textContent = `${o.icon || '👕'} ${o.name}（サンプル）`;
+  $('#lb-meta').textContent = `${((S.boot.outfits || {}).kinds || {})[o.kind] || ''}・大胆さ ${o.bold || 0}`;
+  $('#lb-prompt').textContent = `服装: ${o.pos}${o.neg ? '\n\nNegative: ' + o.neg : ''}`;
+  $('#lb-stage').hidden = $('#lb-delete').hidden = true;
+  $('#lightbox').showModal();
+}
+
 /* ================================================================= settings */
 const SEC = {};
 let SE = {}; // 編集中のワーキングコピー
@@ -2087,10 +2099,24 @@ async function openSettings(sec) {
   $('#settings-dlg').showModal();
   showSection(sec || SE.sec || 'char');
 }
+// キャラごとの設定: 「キャラクター」の中のタブ (上に編集するキャラの選択). ほかは全体の設定
+const CHAR_SECS = [['char', '基本・外見'], ['schedule', '生活スケジュール'], ['wardrobe', '着せ替え']];
+function charHead(cur) {
+  const c = SE.char;
+  return h('div', { class: 'char-head' },
+    h('div', { class: 'row' }, h('span', { class: 'muted small' }, '編集するキャラ'),
+      h('select', { onchange: (ev) => editDefinition(ev.target.value) },
+        [['このワールドにいる', true], ['このワールドにはいない（定義だけ）', false]].map(([label, here]) => {
+          const xs = allDefs().filter((x) => x.here === here);
+          return xs.length ? h('optgroup', { label }, xs.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))) : '';
+        }))),
+    h('div', { class: 'seg char-tabs' }, CHAR_SECS.map(([id, label]) => h('button', { class: id === cur ? 'on' : '', onclick: () => showSection(id) }, label))));
+}
 function showSection(sec) {
   SE.sec = sec;
   hideTip();
-  $$('#snav button').forEach((b) => b.classList.toggle('on', b.dataset.sec === sec));
+  const navSec = CHAR_SECS.some(([id]) => id === sec) ? 'char' : sec;
+  $$('#snav button').forEach((b) => b.classList.toggle('on', b.dataset.sec === navSec));
   const body = $('#sbody');
   body.replaceChildren(...[SEC[sec]()].flat().filter((x) => x != null && x !== false));
   const head = $('.sbar h3', body);
@@ -2358,12 +2384,9 @@ SEC.char = () => {
       if (others.length && S.boot.characters.some((x) => x.id === c.id)) await api('/api/relations', { id: c.id, relations: rels });
       await reloadAll('char');
     }, h('div', { class: 'row' },
-      h('select', { onchange: (ev) => editDefinition(ev.target.value) },
-        [['このワールドにいる', true], ['このワールドにはいない（定義だけ）', false]].map(([label, here]) => {
-          const xs = allDefs().filter((x) => x.here === here);
-          return xs.length ? h('optgroup', { label }, xs.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))) : '';
-        })),
+      h('button', { class: 'btn ghost', title: 'このキャラの定義を JSON で保存（データ → キャラクターを読込 で戻せる）', onclick: () => downloadJson(`character_${c.id}.json`, c) }, '書き出す'),
       h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'))),
+    charHead('char'),
     h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
@@ -2480,7 +2503,10 @@ function othersSection() {
 // 定義を編集する (このワールドにいない人も). いる人ならそのキャラを選ぶ
 async function editDefinition(id) {
   S.editCid = id;
-  try { SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); SE.rels = null; showSection(SE.sec === 'char' ? 'char' : SE.sec || 'char'); }
+  try {
+    SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); SE.rels = null;
+    showSection(CHAR_SECS.some(([x]) => x === SE.sec) ? SE.sec : 'char');
+  }
   catch (e) { toast(e.message, 'err'); }
 }
 async function placeOther(c, stage) {
@@ -2551,8 +2577,10 @@ function personaPicker(c) {
 SEC.personas = () => {
   const ps = S.boot.personas || [];
   const box = h('div');
-  const pick = h('select', { value: SE.personaSel || SE.char.persona_id || (ps[0] || {}).id, onchange: (ev) => { SE.personaSel = ev.target.value; SE.personaData = null; showSection('personas'); } },
+  if (!ps.some((p) => p.id === SE.personaSel)) SE.personaSel = (ps[0] || {}).id;      // キャラの選択とは別. 前に開いた性格のまま
+  const pick = h('select', { onchange: (ev) => { SE.personaSel = ev.target.value; SE.personaData = null; showSection('personas'); } },
     ps.map((p) => h('option', { value: p.id }, p.name + (p._custom ? '（編集済み）' : ''))));
+  pick.value = SE.personaSel || '';
   const load = async () => {
     const id = pick.value;
     if (!id) { box.replaceChildren(h('p', { class: 'muted' }, '性格プリセットがありません')); return; }
@@ -2643,7 +2671,7 @@ function sceneFields(e, opts = {}) {
 SEC.schedule = () => {
   const c = SE.char;
   if (!SE.schedOk) {      // 遊んでいる画面では相手の予定は分からないもの. 作る人の画面なので, 開く前に一言
-    return [h('div', { class: 'card' },
+    return [h('div', { class: 'sbar' }, h('h3', {}, `${c.name}の生活スケジュール`)), charHead('schedule'), h('div', { class: 'card' },
       h('p', {}, '⚠ ここは作る人のための画面です。遊ぶときに見ると、相手の予定が分かってしまいます。'),
       h('p', { class: 'muted small' }, '遊んでいるあいだの相手の予定は、話のついで・人づて・職場で見かける・メッセージなどで、少しずつ「関係性」に分かっていきます。'),
       h('button', { class: 'btn', onclick: () => { SE.schedOk = true; showSection('schedule'); } }, '分かったうえで開く'))];
@@ -2664,6 +2692,7 @@ SEC.schedule = () => {
   draw();
   return [
     saveBar(`${c.name}の生活スケジュール`, async () => { await api('/api/character/save', { data: c }); await reloadAll(); }),
+    charHead('schedule'),
     c.schedule.some((e) => e.asleep) ? '' : h('p', { class: 'hint' }, '⚠ 睡眠（状態の「睡眠」）の予定がありません。このままだと 1:00〜7:00 は寝ていることにします（予定が一致しない時間だけ）。'),
     h('p', { class: 'lead' }, '実際の時刻に合わせて、上から順に最初に一致した予定が「いまの場面」になります。どれにも一致しなければ「普段」が使われます。日をまたぐ予定（22:00〜02:00 など）も書けます。毎時の効果は滞在 1 時間あたりのパラメータ変化です。'),
     paramKeysHint(),
@@ -2705,6 +2734,7 @@ SEC.wardrobe = () => {
   draw();
   return [
     saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll('wardrobe'); }),
+    charHead('wardrobe'),
     h('p', { class: 'lead' }, `${c.name}が持っている服です。着せ替えタブには、持っている服だけが並びます。服そのもの（名前・プロンプト・大胆さ・季節など）は「服の一覧」で全員共通に編集します。持っている服は、あなたが店で買って贈る（受け取るかは大胆さ・仲・好みしだい）か、本人が自分で買うことでも増えます。頼まれていないときは、本人が気分・季節・天気で普段着や外出の服を選ぶこともあります。`),
     h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),
     list,
@@ -2719,7 +2749,8 @@ SEC.outfits = () => {
   st.images = st.images || {};
   const list = h('div');
   const sampleBox = (o) => {
-    const im = h('div', { class: 'who-face', style: 'width:96px;height:128px;border-radius:8px' });
+    const im = h('div', { class: 'who-face', style: 'width:96px;height:128px;border-radius:8px' + (o.sample ? ';cursor:zoom-in' : ''),
+      title: o.sample ? '押すと大きく表示' : '', onclick: () => { if (o.sample) openSampleLightbox(o); } });
     if (o.sample) im.style.backgroundImage = `url("${imgUrl(o.sample)}")`; else im.textContent = o.icon || '👕';
     return h('div', { class: 'row', style: 'align-items:center;gap:10px;flex-wrap:wrap' }, im,
       h('button', { class: 'btn', onclick: async () => {
@@ -2771,7 +2802,7 @@ SEC.outfits = () => {
       await api('/api/settings', { settings: { images: st.images } });
       SE.outfits = null; await reloadAll('outfits');
     }),
-    h('p', { class: 'lead' }, '服の一覧は全員共通です（コマンドや性格プリセットと同じ考え方）。キャラクターは、この中から「持っている服」を持ちます（設定 → 着せ替え）。大胆さは 0 ふつう〜3 かなり大胆で、大胆な服を着てくれるかは、好感度・信頼・間柄・性格の恥じらい・その日の機嫌・場所しだいです（仲が深くても断られることはあり、しつこく頼むと怒ります）。値段を付けた服は店（売っている店）で買え、持ち物からプレゼントにできます。'),
+    h('p', { class: 'lead' }, '服の一覧は全員共通です（コマンドや性格プリセットと同じ考え方）。キャラクターは、この中から「持っている服」を持ちます（設定 → キャラクター → 着せ替え）。大胆さは 0 ふつう〜3 かなり大胆で、大胆な服を着てくれるかは、好感度・信頼・間柄・性格の恥じらい・その日の機嫌・場所しだいです（仲が深くても断られることはあり、しつこく頼むと怒ります）。値段を付けた服は店（売っている店）で買え、持ち物からプレゼントにできます。'),
     fld('サンプル画像のプロンプト', inp(st.images, 'sample_prompt', { type: 'textarea', rows: 3, ph: O.sample_prompt }),
       '{outfit} がその服の服装（Positive）に置き換わります。空欄なら既定。共通プロンプトの前置きも付きます'),
     list,
@@ -3291,8 +3322,8 @@ SEC.data = () => {
     h('div', { class: 'sect' }, 'エクスポート / インポート'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadJson('actions.json', S.boot.actions) }, 'コマンドを保存'),
-      h('button', { class: 'btn', onclick: () => downloadJson('params.json', S.boot.params) }, 'パラメータを保存'),
-      h('button', { class: 'btn', onclick: () => downloadJson(`character_${SE.char.id}.json`, SE.char) }, 'キャラクターを保存')),
+      h('button', { class: 'btn', onclick: () => downloadJson('params.json', S.boot.params) }, 'パラメータを保存')),
+    h('p', { class: 'hint' }, 'キャラクターの書き出しは キャラクター → 基本・外見 の「書き出す」から（編集しているキャラ）。'),
     h('div', { class: 'row', style: 'margin-top:8px' },
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/actions', { actions: j }); await reloadAll(); toast('コマンドを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'コマンドを読込'),
       h('button', { class: 'btn', onclick: async () => { try { const j = await pickJson(); if (!Array.isArray(j)) throw new Error('配列ではありません'); await api('/api/params', { params: j }); await reloadAll(); toast('パラメータを読み込みました', 'ok'); } catch (e) { toast(e.message, 'err'); } } }, 'パラメータを読込'),

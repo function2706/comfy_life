@@ -133,19 +133,22 @@
   <div class="settings">
     <nav class="snav" id="snav">
       <button data-sec="player">あなた</button>
-      <button data-sec="char" class="on">キャラクター</button>
+      <div class="snav-group">キャラごと</div>
+      <button data-sec="char" class="on" title="基本・外見 / 生活スケジュール / 着せ替え（持っている服）">キャラクター</button>
+      <div class="snav-group">全員共通（全ワールド）</div>
       <button data-sec="personas">性格・セリフ集</button>
-      <button data-sec="schedule">生活スケジュール</button>
-      <button data-sec="wardrobe">着せ替え</button>
       <button data-sec="outfits">服の一覧</button>
+      <div class="snav-group">このワールドの決まり</div>
       <button data-sec="actions">コマンド</button>
       <button data-sec="minigames">ミニゲーム</button>
       <button data-sec="events">キャラの出来事</button>
       <button data-sec="approaches">キャラからの働きかけ</button>
       <button data-sec="params">パラメータ</button>
+      <div class="snav-group">画像・文章</div>
       <button data-sec="comfy">画像生成 (ComfyUI)</button>
       <button data-sec="prompt">共通プロンプト・時間帯</button>
       <button data-sec="llm">セリフ生成 (LLM)</button>
+      <div class="snav-group">表示・データ</div>
       <button data-sec="display">表示</button>
       <button data-sec="data">データ</button>
     </nav>

@@ -492,6 +492,11 @@ dialog { color: var(--text); }
 .snav button { text-align: left; background: none; border: none; padding: 9px 12px; border-radius: 9px; cursor: pointer; color: var(--muted); }
 .snav button:hover { background: var(--panel2); color: var(--text); }
 .snav button.on { background: var(--panel3); color: var(--text); }
+.snav-group { font-size: 11px; color: var(--muted); opacity: .75; padding: 10px 12px 2px; letter-spacing: .05em; }
+.char-head { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.char-tabs { display: flex; gap: 4px; flex-wrap: wrap; background: var(--panel2); padding: 3px; border-radius: 10px; align-self: flex-start; }
+.char-tabs button { background: none; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+.char-tabs button.on { background: var(--panel3); color: var(--text); }
 .sbody { overflow-y: auto; padding: 18px 22px 40px; min-height: 0; }
 .sbody h3 { margin: 0 0 4px; font-size: 17px; }
 .sbody .lead { color: var(--muted); margin: 0 0 16px; font-size: 12.5px; line-height: 1.7; }
@@ -566,6 +571,7 @@ dialog { color: var(--text); }
   .settings { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .snav { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); }
   .snav button { white-space: nowrap; }
+  .snav-group { white-space: nowrap; align-self: center; padding: 0 4px 0 10px; border-left: 1px solid var(--line); }
   .ed { grid-template-columns: 1fr; }
   .ed-list { max-height: 180px; }
   .grid3, .grid4 { grid-template-columns: 1fr 1fr; }
