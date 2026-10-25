@@ -175,6 +175,12 @@ def main():
     st = [0] * g.n
     assert SL._prop(ctx, st, []) and st[shared] == 0, "易の定石だけでは決まらない"
     assert not SL._prop(SL._Ctx(g, clues), list(st), [(shared, -1)], SL.LOCAL_STEPS), "間を×にすると数手で行き詰まる"
+    # 輪は盤全体に広がる: 四辺すべてに触れ, 線の無いマス (0) の塊が小さい (以前は 10×10 で 0 が 40〜60 マス)
+    for n in (5, 7, 10):
+        for k in range(6):
+            reg = SL.board_region(n, n, random.Random(k))
+            zeros, big, sides = SL.shape_stats(n, n, reg)
+            assert sides and big <= SL.BLANK_MAX[n] and zeros <= n * n * 0.3, (n, k, zeros, big, sides)
     print("slither: OK")
 
     # ---- 5. 稼ぎ: 難しさ・速さ・ミス. 解けずにやめたら少しだけ

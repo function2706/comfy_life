@@ -14,6 +14,7 @@
 """
 import math
 import random
+import threading
 import time
 
 from . import slither as SL
@@ -528,10 +529,31 @@ def _sl_grid(p):
     return _GRIDS[key]
 
 
-def slither_new(level, rng=random):
+_SL_READY = {}                 # 難の盤を一つ, 裏で作っておく (作るのに数秒かかるので, 次に始めるときに待たせない)
+_SL_LOCK = threading.Lock()
+
+
+def _sl_make(level, rng):
     h, w, keep = SIZE["slither"][level]
     clues, sol = SL.generate(h, w, rng, keep, level)
     return {"kind": "slither", "h": h, "w": w, "clues": clues, "sol": sol, "st": [0] * len(sol), "miss": 0}
+
+
+def _sl_prepare(level):
+    def run():
+        p = _sl_make(level, random.Random())
+        with _SL_LOCK:
+            _SL_READY.setdefault(level, p)
+    threading.Thread(target=run, daemon=True, name="slither-prepare").start()
+
+
+def slither_new(level, rng=random):
+    if rng is not random or level != "hard":      # 乱数の種を決めた盤 (単独版の seed・テスト) はその場で作る
+        return _sl_make(level, rng)
+    with _SL_LOCK:
+        p = _SL_READY.pop(level, None)
+    _sl_prepare(level)                             # 次の分を裏で
+    return p or _sl_make(level, rng)
 
 
 def slither_move(p, mv, rng=random):

@@ -5,7 +5,9 @@
           縦の辺 (r 行目のマス, c 列目の点の並び) は H + r * (w + 1) + c (H = (h + 1) * w).
 辺の状態: 1 = 線, 0 = 未定, -1 = × (線を引かない印).
 
-- 生成: マスの連結な集まり (穴がなく, 角だけで接しない) を広げて, その境目を輪にする. 数字は輪から数え,
+- 生成: 盤全体のマスから, 外側に面したマスを削っていって (連結のまま・穴がなく・角だけで接しない), 残った集まりの境目を輪にする.
+  外から食い込む形になるので, 輪は盤全体に広がって入り組む. 輪が盤の四辺すべてに触れ, 線の無いマス (数字 0) の連なった塊が
+  小さい (BLANK_MAX) 形だけを使う (以前は 1 マスから広げていて, 10×10 で線の無いマスが 40〜60 と空白が大きかった). 数字は輪から数え,
   その難しさの人の解き方 (human_solve: 易は基本の定石, 中は近くの数手の行き詰まりまで, 難は 1 段の仮置きまで) で
   解き切れるあいだ, 数字を減らしていく (正しい推理だけで解き切れるので答えは一つ).
 - 解く側 (solve, 確かめ用): 数字・点 (線は 0 本か 2 本)・輪が一つ の決まりで埋めていき (伝播), 決まらなければ分岐して, 解の数を数える (2 つで打ち切り).
@@ -192,8 +194,96 @@ def solve(g, clues, limit=2, budget=200000):
 
 
 # ====================================================================== 生成
+def _loop_region_carve(h, w, rng, fill):
+    """盤全体から, 外側に面したマスを削った集まり (連結・穴なし・角だけで接しない). その境目が一つの輪になる.
+    中が詰まったところ (2 マス先も中) に食い込むマスを削りやすくして, 線の無いマスの塊を作りにくくする."""
+    region = {(r, c) for r in range(h) for c in range(w)}
+    target = max(2, int(h * w * fill))
+
+    def inn(y, x):
+        return (y, x) in region
+
+    def touch_ok(y0, x0):
+        # 削ったマスのまわりの 2×2 に, 角だけで接する形 (市松) がないか
+        for y in (y0 - 1, y0):
+            for x in (x0 - 1, x0):
+                a, b, c, d = inn(y, x), inn(y, x + 1), inn(y + 1, x), inn(y + 1, x + 1)
+                if (a and d and not b and not c) or (b and c and not a and not d):
+                    return False
+        return True
+
+    def connected():
+        s = next(iter(region))
+        seen, stack = {s}, [s]
+        while stack:
+            y, x = stack.pop()
+            for q in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                if q in region and q not in seen:
+                    seen.add(q)
+                    stack.append(q)
+        return len(seen) == len(region)
+
+    fails = 0
+    while len(region) > target and fails < h * w * 30:
+        cands = [(y, x) for (y, x) in region if any(not inn(*q) for q in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)))]
+        wts = [1 + 3 * sum(1 for q in ((y + 2, x), (y - 2, x), (y, x + 2), (y, x - 2)) if inn(*q)) for (y, x) in cands]
+        cell = rng.choices(cands, wts)[0]
+        region.discard(cell)               # 外側に面したマスを削るので, 外側は外とつながったまま (穴はできない)
+        if region and touch_ok(*cell) and connected():
+            continue
+        region.add(cell)
+        fails += 1
+    return region
+
+
+BLANK_MAX = {5: 2, 7: 3, 10: 4}          # 線の無いマス (数字 0) の連なった塊の大きさの上限 (盤の一辺ごと)
+
+
+def shape_stats(h, w, region):
+    """(線の無いマスの数, その連なった塊のいちばん大きいもの, 輪が四辺すべてに触れるか)."""
+    inn = lambda y, x: (y, x) in region  # noqa: E731
+    zeros = set()
+    for r in range(h):
+        for c in range(w):
+            nb = [inn(y, x) for y, x in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1))]
+            if all(v == inn(r, c) for v in nb):
+                zeros.add((r, c))
+    big, seen = 0, set()
+    for z in zeros:
+        if z in seen:
+            continue
+        stack, n = [z], 0
+        seen.add(z)
+        while stack:
+            y, x = stack.pop()
+            n += 1
+            for q in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                if q in zeros and q not in seen:
+                    seen.add(q)
+                    stack.append(q)
+        big = max(big, n)
+    sides = (any(inn(0, c) for c in range(w)) and any(inn(h - 1, c) for c in range(w))
+             and any(inn(r, 0) for r in range(h)) and any(inn(r, w - 1) for r in range(h)))
+    return len(zeros), big, sides
+
+
+def board_region(h, w, rng):
+    """盤全体に広がる輪の元: 四辺すべてに触れ, 線の無いマスの塊が小さい形 (いくつか作って, 合うものを. 無ければいちばん近いもの)."""
+    cap = BLANK_MAX.get(max(h, w), max(2, max(h, w) // 2 - 1))
+    best = None
+    for _ in range(30):
+        region = _loop_region_carve(h, w, rng, rng.uniform(0.5, 0.62))
+        zeros, big, sides = shape_stats(h, w, region)
+        if sides and big <= cap:
+            return region
+        score = (not sides, big, zeros)
+        if best is None or score < best[0]:
+            best = (score, region)
+    return best[1]
+
+
 def _loop_region(h, w, rng, fill):
-    """穴がなく, 角だけで接しない, 連結なマスの集まり. その境目が一つの輪になる."""
+    """(以前の生成) 1 マスから広げた, 穴がなく角だけで接しない連結なマスの集まり. いまは board_region を使う."""
     start = (rng.randrange(h), rng.randrange(w))
     region = {start}
     target = max(2, int(h * w * fill))
@@ -252,7 +342,7 @@ def generate(h, w, rng=random, keep=0.0, level="hard", tries=12):
     g = Grid(h, w)
     best = None
     for _ in range(tries):
-        region = _loop_region(h, w, rng, rng.uniform(0.45, 0.6))
+        region = board_region(h, w, rng)
         sol = _loop_edges(g, region)
         clues = [sum(1 for e in g.cedges[i] if sol[e] == 1) for i in range(h * w)]
         if not human_solve(g, clues, level):
