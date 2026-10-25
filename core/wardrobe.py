@@ -12,7 +12,6 @@
 - 以前の形式 (キャラごとの wardrobe) は起動時に一覧へ移し, 元のキャラの持っている服にする (中身が同じものは 1 つに).
 """
 import math
-import os
 import random
 import time
 import uuid
@@ -67,10 +66,7 @@ class Wardrobe:
         return store.dpath("outfits.json")
 
     def load(self):
-        items = store.load(self.path())
-        if items is None:
-            items = store.load(os.path.join(store.DEFAULTS, "outfits.json"), []) or []
-            store.save(self.path(), items)
+        items = store.sync_list_defaults("outfits.json")     # 既定に後から増えた服も足す (消したものは戻さない)
         self.items = [_norm(o) for o in items]
         self._register_shop()
         return self.items
@@ -202,14 +198,14 @@ class Wardrobe:
     def modesty(self, char):
         return float(self.app.traits(char).get("modesty", 0))
 
-    def accept(self, char, st, o, now, outside=False, others=0, record=True):
-        """大胆な服を頼まれたときの気持ち: ok (ふつうの服) / eager (ノリノリ) / shy (照れながら) / reluctant (渋々) /
-        refuse (断る) / angry (断ったのにしつこく頼まれて怒る)."""
+    def accept(self, char, st, o, now, outside=False, others=0, record=True, asks_key="dress_asks"):
+        """大胆な服 (やポーズ・見せて) を頼まれたときの気持ち: ok (ふつう) / eager (ノリノリ) / shy (照れながら) / reluctant (渋々) /
+        refuse (断る) / angry (断ったのにしつこく頼まれて怒る). しつこさは asks_key ごとに覚える."""
         bold = int(o.get("bold") or 0)
         if bold <= 0:
             return "ok"
         p = st["params"]
-        asks = [a for a in st.get("dress_asks") or [] if now - a["t"] < 2 * 3600]
+        asks = [a for a in st.get(asks_key) or [] if now - a["t"] < 2 * 3600]
         refused = sum(1 for a in asks if not a["ok"])
         need = BOLD_NEED[bold] + (12 * bold if outside else 0) + (6 * bold if others else 0)
         score = 0.5 * (p.get("affection", 40) - 40) + 0.4 * (p.get("trust", 40) - 40) \
@@ -226,7 +222,7 @@ class Wardrobe:
         else:
             feel = "angry" if refused >= 2 else "refuse"
         if record:
-            st["dress_asks"] = (asks + [{"t": now, "ok": feel not in ("refuse", "angry"), "bold": bold}])[-10:]
+            st[asks_key] = (asks + [{"t": now, "ok": feel not in ("refuse", "angry"), "bold": bold}])[-10:]
         return feel
 
     def gift_feel(self, char, st, oid, now):
@@ -269,6 +265,7 @@ class Wardrobe:
                 w *= max(0.5, min(2.5, 1 + (aff - 45) / 30.0))
             if outing and rain and o["kind"] == "formal":
                 w *= 0.4
+            w *= max(0.3, 1.0 + 0.15 * float((st.get("prefs") or {}).get("outfit:" + o["id"], 0.0)))     # あなたの好み (着せた服)
             cands.append(o)
             weights.append(w)
         if not cands:

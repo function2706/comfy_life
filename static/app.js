@@ -606,7 +606,27 @@ function renderDress() {
     items.length ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → キャラクター → 着せ替え で持たせられます。'),
     h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
       ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
+    ...poseSections(t),
   );
+}
+
+// ポーズを取って / 見せて (大人のキャラだけ. 断られることもある. 頼んだものは相手が好みとして覚える)
+function poseSections(t) {
+  const ps = t.posing;
+  if (!ps) return [];
+  if (!ps.can) return [h('div', { class: 'sect' }, '📸 ポーズ・見せて'), h('p', { class: 'muted small' }, ps.why)];
+  return [['pose', '_pose', '📸 ポーズを取って'], ['show', '_show', '👀 見せて']].map(([typ, aid, title]) => h('div', {},
+    h('div', { class: 'sect' }, title),
+    h('div', { class: 'outfits' }, ps.items.filter((o) => o.type === typ).map((o) => h('button', {
+      class: 'outfit', disabled: S.busy || !o.here, title: o.here ? (o.bold ? `大胆さ ${o.bold}（受けてくれるかは仲・気分・性格・場所しだい）` : o.pos) : '外では頼めません',
+      onclick: () => doPose(aid, o.id) }, h('span', { class: 'ic' }, o.icon || '📸'), h('span', {}, o.name + boldMark(o.bold)))))));
+}
+async function doPose(aid, pid) {
+  if (S.busy) return;
+  S.busy = true;
+  try { handleActResult(await api('/api/act', withT({ action: aid, pose: pid }))); }
+  catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
 }
 
 /* ---------------------------------------------------------------- games tab */
@@ -2398,6 +2418,7 @@ SEC.char = () => {
     h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
+      fld('年齢', inp(c, 'age', { type: 'number' }), '18 歳以上で「ポーズを取って」「見せて」が使えます'),
       fld('一人称（固定）', inp(c, 'first_person', { ph: `空欄＝プリセット（${(curPersona(c) || {}).first_person || '私'}）` }),
         '空欄なら性格プリセットに従う'),
       fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),
@@ -2815,6 +2836,35 @@ SEC.outfits = () => {
       '{outfit} がその服の服装（Positive）に置き換わります。空欄なら既定。共通プロンプトの前置きも付きます'),
     list,
     h('button', { class: 'btn', onclick: () => { items.push({ id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', neg: '' }); draw(); } }, '＋服を追加'),
+  ];
+};
+
+/* ---- ポーズ・見せての一覧 (全体で 1 つ) */
+SEC.poses = () => {
+  const P = S.boot.poses || { items: [], types: {} };
+  const items = SE.poses = SE.poses || clone(P.items);
+  const list = h('div');
+  const draw = () => {
+    list.replaceChildren(...items.map((o, i) => h('div', { class: 'card' },
+      h('div', { class: 'card-head', style: 'flex-wrap:wrap' }, h('b', { style: 'white-space:nowrap' }, `${o.icon || '📸'} ${o.name || o.id}${boldMark(o.bold)}`),
+        h('span', { class: 'muted small' }, P.types[o.type] || ''), h('code', { class: 'muted small' }, o.id), h('div', { class: 'spacer' }),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(items, i, -1); draw(); } }, '↑'),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(items, i, 1); draw(); } }, '↓'),
+        h('button', { class: 'btn ghost danger', onclick: () => { items.splice(i, 1); draw(); } }, '削除')),
+      h('div', { class: 'grid4' },
+        fld('id', inp(o, 'id')), fld('名前', inp(o, 'name')), fld('アイコン', inp(o, 'icon')),
+        fld('種類', inp(o, 'type', { type: 'select', options: Object.entries(P.types) })),
+        fld('大胆さ', inp(o, 'bold', { type: 'select', options: ((S.boot.outfits || {}).bold || []).map((l, b) => [String(b), `${b} ${l}`]), parse: Number })),
+        h('div', { class: 'fld' }, h('span', { class: 'fl' }, '場所'), chk(o, 'outside_ok', '外でも頼める')),
+        fld('Positive（ポーズ・「〜 focus」）', inp(o, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
+        fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2')))));
+  };
+  draw();
+  return [
+    saveBar('ポーズ・見せて', async () => { await api('/api/poses', { items }); SE.poses = null; await reloadAll('poses'); }),
+    h('p', { class: 'lead' }, '「ポーズを取って」「見せて」で頼めるものの一覧です（全員共通）。大人のキャラ（年齢 18 歳以上）だけが対象です。受けてくれるかは、着せ替えの大胆さと同じく、好感度・信頼・間柄・恥じらい・機嫌・場所しだいで、しつこく頼むと怒らせます。見せては「eye focus」のように「〜 focus」の形で書きます。キャラは頼まれたもの・感想の選び方から、あなたの好みを覚えます。'),
+    list,
+    h('button', { class: 'btn', onclick: () => { items.push({ id: 'pose' + Date.now().toString(36), type: 'pose', name: '新しいポーズ', icon: '📸', bold: 0, outside_ok: false, pos: '', neg: '' }); draw(); } }, '＋追加'),
   ];
 };
 

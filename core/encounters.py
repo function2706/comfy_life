@@ -190,7 +190,7 @@ class Encounters:
         tmpl = app.char() if app.chars else {}
         return {"name": name, "player_call": "", "first_person": "", "persona_id": p.get("id", ""),
                 "persona": p.get("persona", ""), "pos": look, "neg": "", "outfit_default": random.choice(OUTFIT),
-                "outfit_outing": random.choice(OUTING), "clothes": self._starter_clothes(),
+                "outfit_outing": random.choice(OUTING), "clothes": self._starter_clothes(), "age": random.randint(20, 34),
                 "schedule": copy.deepcopy(tmpl.get("schedule") or []),
                 "default_activity": copy.deepcopy(tmpl.get("default_activity") or {}), "prompt_history": []}
 

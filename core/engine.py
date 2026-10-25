@@ -37,6 +37,7 @@ from . import market as market_mod
 from . import earn as earn_mod
 from . import rumor as rumor_mod
 from . import wardrobe as wardrobe_mod
+from . import posing as posing_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -172,6 +173,9 @@ class App:
         if not hasattr(self, "wardrobe"):
             self.wardrobe = wardrobe_mod.Wardrobe(self)
         self.wardrobe.load()                   # 服の一覧 (全体で 1 つ)
+        if not hasattr(self, "posing"):
+            self.posing = posing_mod.Posing(self)
+        self.posing.load()                     # ポーズ・見せての一覧 (全体で 1 つ)
         self.wardrobe.migrate()                # 以前のキャラごとの wardrobe を一覧へ (済んでいれば何もしない)
         # 既定に増えた項目 (economy など) も使えるよう, 既定の上に data を重ねる
         self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}),
@@ -206,6 +210,11 @@ class App:
             if p and c.get("player_call") and c["player_call"] == p.get("player_call"):
                 c["player_call"] = ""
                 store.save_character(c)
+            if "age" not in c:                    # 年齢 (既定のキャラだけ既定から. ほかは設定で入れるまで空)
+                d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
+                if d.get("age"):
+                    c["age"] = d["age"]
+                    store.save_character(c)
             if "clothes" not in c:                # 持っている服 (以前の形式は wardrobe.migrate で移してある)
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["clothes"] = d.get("clothes") or [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER]
@@ -892,6 +901,25 @@ class App:
                 ctx["dress_feel"] = self.wardrobe.accept(char, st, outfit, now, others=len(self.bonds.company(now)) > 1) \
                     if outfit else "ok"
                 ctx["dress_bold"] = int((outfit or {}).get("bold") or 0)
+            pose = None
+            if aid in ("_pose", "_show"):             # ポーズを取って / ○○を見せて (大人だけ. 受け入れは着せ替えと同じ考え方)
+                pose = self.posing.get(opts.get("pose") or "")
+                if not pose or pose["type"] != aid[1:]:
+                    raise KeyError("ポーズ・見せるものが見つかりません: %s" % opts.get("pose"))
+                ok, why = self.posing.can(char, st, now)
+                if not ok:
+                    raise ValueError(why)
+                outside = self.posing.outside(cid)
+                if outside and not pose["outside_ok"]:
+                    raise ValueError("「%s」は外では頼めません" % pose["name"])
+                ctx["pose"] = pose["id"]
+                ctx["pose_feel"] = self.wardrobe.accept(char, st, pose, now, outside=outside,
+                                                        others=len(self.bonds.company(now)) > 1, asks_key="pose_asks")
+                ctx["pose_bold"] = pose["bold"]
+                opts.setdefault("extra", {})["item"] = pose["name"]
+                self.posing.learn(st, "%s:%s" % (pose["type"], pose["id"]), 1.0)     # 頼んだもの = あなたの好み
+            if dress:
+                self.posing.learn(st, "outfit:" + dress, 1.0)
             cd = float(a.get("cooldown", 0)) * 60
             hist = [x for x in st["cooldowns"].get(aid, []) if now - x < cd] if cd else []
             ctx["repeat"] = len(hist)
@@ -968,7 +996,7 @@ class App:
                 self.items.add(gift_item, -1)        # 受け取ってもらえた (はっきり断られたら手元に残る)
                 if gift_item.startswith("outfit:"):  # 服: その人の持っている服になる (着るかは本人しだい)
                     self.wardrobe.give_to(char, gift_item.split(":", 1)[1], "player", now)
-            social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer")
+            social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer") or aid in ("_pose", "_show")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
                 eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
@@ -1076,6 +1104,8 @@ class App:
                 selfie = bool(a.get("selfie")) and not r.get("override") and random.random() < self.bonds.selfie_chance(ctx)
                 gen_ok = selfie
             pa = dict(a, pos=a.get("selfie_pos") or "selfie, holding smartphone, looking at viewer, upper body") if selfie else a
+            if pose and not r.get("override"):        # 受けてくれたら, そのポーズ・部位で
+                pa = dict(pa, pos=pose["pos"], neg=pose["neg"])
             pos, neg, parts = self.build_prompt(char, st, dt, pa, r)
             self.save_state(cid)
 
@@ -1978,6 +2008,8 @@ class App:
                     ost = self.state(oid)
                     if self.presence.live(self.chars[oid], ost, now):
                         self.save_state(oid)
+                    if oid in company and self.posing.live(self.chars[oid], ost, now):
+                        self.save_state(oid)
             company = self.bonds.company(now)
             tid = self.target(cid)
             dt = datetime.fromtimestamp(now)
@@ -2013,7 +2045,7 @@ class App:
 
     def _approach_item(self, cid):
         """話しかけられている・メッセージが来て返事を待たれている (誰から)."""
-        v = self.presence.pending_view(self.chars[cid], self.state(cid))
+        v = self.presence.pending_view(self.chars[cid], self.state(cid)) or self.posing.pending_view(self.chars[cid], self.state(cid))
         if v:
             v.update(cid=cid, name=self.chars[cid].get("name", ""))
         return v
@@ -2034,6 +2066,7 @@ class App:
                 "tags": [{"param": t["param"], "label": t["label"]} for t in self.active_tags(ctx)],
                 "available": self.available(char, st, dt), "absent": ctx["absent"],
                 "dress": self._dress_view(char, st, scene, ctx), "wardrobe": self.wardrobe.owned(char),
+                "posing": self.posing.view(char, st, now),
                 "dress_reset_on_sleep": char.get("dress_reset_on_sleep", True),
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
@@ -2217,6 +2250,10 @@ class App:
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
+            if not st.get("approach") and st.get("pose_offer"):      # 相手から見せてくれた・持ちかけてきた
+                e = self.posing.answer(char, st, choice or ans, time.time())
+                self.save_state(char["id"])
+                return {"entry": e, "job": (e or {}).get("job")}
             ap = st.get("approach") or {}
             spec = (self.presence.find(ap.get("id")) or {}).get(ans) or {}
             aid = spec.get("action")
@@ -2456,7 +2493,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "outfits": self.wardrobe.catalog_view(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "outfits": self.wardrobe.catalog_view(), "poses": self.posing.catalog_view(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
                 "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL, "meal_how": offline_mod.MEAL_HOW, "meal_places": offline_mod.MEAL_PLACES}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
@@ -2549,7 +2586,7 @@ class App:
                  "persona_id": p.get("id", ""), "persona": p.get("persona", ""),
                  "pos": (pos or "").strip() or "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
                  "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
-                 "clothes": [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER],
+                 "clothes": [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER], "age": 20,
                  "prompt_history": [], "origin": {"type": "manual", "t": time.time(), "world": store.WORLD}}
             if stage == "random":
                 ec = self.encounters.cfg()

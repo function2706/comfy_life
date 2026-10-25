@@ -341,6 +341,31 @@ def _rename_refs(wid, ren, meta):
             w["start_bonds"] = {r(k): v for k, v in w["start_bonds"].items()}
 
 
+def sync_list_defaults(fname):
+    """全体の一覧 (服・ポーズなど. data/<fname>) に, 既定 (defaults/<fname>) に後から増えた項目を一度だけ足す.
+    消したものは戻さない (足したことのある id を data/<fname>.seen に覚える). 一覧 (無ければ既定) を返す."""
+    items = load(dpath(fname))
+    defaults = load(os.path.join(DEFAULTS, fname), []) or []
+    seen_f = dpath(fname + ".seen")
+    if items is None:
+        items = [dict(d) for d in defaults]
+        save(dpath(fname), items)
+        save(seen_f, [d.get("id") for d in defaults])
+        return items
+    seen = load(seen_f)
+    have = {o.get("id") for o in items}
+    if seen is None:
+        seen = list(have)
+    new = [dict(d) for d in defaults if d.get("id") not in have and d.get("id") not in seen]
+    if new:
+        items = items + new
+        save(dpath(fname), items)
+    all_ids = sorted(set(seen) | {d.get("id") for d in defaults})
+    if all_ids != sorted(seen):
+        save(seen_f, all_ids)
+    return items
+
+
 def load_worlds():
     return load(dpath("worlds.json"), {"current": WORLD, "worlds": []})
 

@@ -3873,6 +3873,164 @@
   "home_only": true
  },
  {
+  "id": "_pose",
+  "name": "ポーズを取って",
+  "icon": "📸",
+  "category": "system",
+  "when": "asleep=false, busy=false",
+  "cooldown": 0,
+  "effects": {
+   "shyness": 4
+  },
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "{item}、こうですか？",
+    "when": "",
+    "pos": "looking at viewer",
+    "neg": ""
+   },
+   {
+    "text": "ふふ、任せてください。……{item}、どうですか？",
+    "when": "pose_feel=eager",
+    "priority": 1,
+    "effects": {
+     "heart": 6,
+     "mood": 3
+    },
+    "pos": "smile, confident",
+    "neg": ""
+   },
+   {
+    "text": "……ちょっと恥ずかしいですけど。{item}、ですね",
+    "when": "pose_feel=shy",
+    "priority": 1,
+    "effects": {
+     "shyness": 15,
+     "heart": 5
+    },
+    "pos": "blush, embarrassed",
+    "neg": ""
+   },
+   {
+    "text": "……今回だけですよ",
+    "when": "pose_feel=reluctant",
+    "priority": 1,
+    "effects": {
+     "shyness": 12,
+     "mood": -3
+    },
+    "pos": "pout, blush",
+    "neg": "smile"
+   },
+   {
+    "text": "それはちょっと……できないです",
+    "when": "pose_feel=refuse",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1
+    },
+    "pos": "flustered, shaking head",
+    "neg": "smile"
+   },
+   {
+    "text": "……さっきから、そういうのばっかり。嫌です",
+    "when": "pose_feel=angry",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    },
+    "pos": "angry, glaring",
+    "neg": "smile"
+   }
+  ]
+ },
+ {
+  "id": "_show",
+  "name": "見せて",
+  "icon": "👀",
+  "category": "system",
+  "when": "asleep=false, busy=false",
+  "cooldown": 0,
+  "effects": {
+   "shyness": 4
+  },
+  "pos": "",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "{item}、ですか？ ……はい、どうぞ",
+    "when": "",
+    "pos": "looking at viewer",
+    "neg": ""
+   },
+   {
+    "text": "ふふ、任せてください。……{item}、どうですか？",
+    "when": "pose_feel=eager",
+    "priority": 1,
+    "effects": {
+     "heart": 6,
+     "mood": 3
+    },
+    "pos": "smile, confident",
+    "neg": ""
+   },
+   {
+    "text": "……ちょっと恥ずかしいですけど。{item}、ですね",
+    "when": "pose_feel=shy",
+    "priority": 1,
+    "effects": {
+     "shyness": 15,
+     "heart": 5
+    },
+    "pos": "blush, embarrassed",
+    "neg": ""
+   },
+   {
+    "text": "……今回だけですよ",
+    "when": "pose_feel=reluctant",
+    "priority": 1,
+    "effects": {
+     "shyness": 12,
+     "mood": -3
+    },
+    "pos": "pout, blush",
+    "neg": "smile"
+   },
+   {
+    "text": "それはちょっと……できないです",
+    "when": "pose_feel=refuse",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1
+    },
+    "pos": "flustered, shaking head",
+    "neg": "smile"
+   },
+   {
+    "text": "……さっきから、そういうのばっかり。嫌です",
+    "when": "pose_feel=angry",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    },
+    "pos": "angry, glaring",
+    "neg": "smile"
+   }
+  ]
+ },
+ {
   "id": "_return",
   "name": "おかえり",
   "icon": "🏠",

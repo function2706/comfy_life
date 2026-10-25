@@ -90,7 +90,8 @@ def route(method, path, q, body):
     else:
         b = body or {}
         if path == "/api/act":
-            return a.act(b["action"], cid, opts={"place": b["place"]} if b.get("place") else None)
+            opts = {k: b[k] for k in ("place", "pose") if b.get(k)}
+            return a.act(b["action"], cid, opts=opts or None)
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")
         if path == "/api/game/start":
@@ -215,6 +216,9 @@ def route(method, path, q, body):
         if path == "/api/outfits":
             with a.lock:
                 return {"outfits": a.wardrobe.save_all(b["items"])}
+        if path == "/api/poses":
+            with a.lock:
+                return {"poses": a.posing.save_all(b["items"])}
         if path == "/api/outfit/sample":
             return {"job": a.make_sample(b["id"])}
         if path == "/api/character/icon":

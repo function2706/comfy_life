@@ -38,6 +38,7 @@ core/encounters.py   知り合った人の登録 (と, 旧来の出会いの経�
 core/offline.py      画面を閉じていた間の, あなたの行動パターン
 core/items.py        品物・持ち物・買うものリスト
 core/chat.py         メッセージアプリ (トーク)
+core/posing.py       ポーズ・見せて (頼む・相手から・持ちかけと対価・感想・好みの学習. 大人のキャラだけ)
 core/wardrobe.py     服の一覧と持っている服・大胆な服の受け入れ・服のプレゼント・本人の服選び・本人が服を買う
 core/transfer.py     セーブの書き出し・読み込み (ワールド 1 つ + 顔ぶれの定義 + 任意で画像を zip に. 読み込みは新しいワールドとして足す)
 core/home.py         あなたの家の状態 (散らかり・洗い物・洗濯物・ゴミ) と, 招いた相手・同居相手の反応
@@ -65,6 +66,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 |---|---|---|
 | `settings.json` | 全体 | ComfyUI・LLM・表示・あなた (`player`)・行動パターン (`offline`) |
 | `characters/<id>.json` | 全体 | キャラの定義 (外見・性格・口調・スケジュール・持っている服 `clothes`・好き嫌い・`met` 出会った記録・`icon` 顔のアイコン) |
+| `poses.json` | 全体 | ポーズ・見せての一覧 (大胆さ・外でも頼めるか) |
 | `outfits.json` | 全体 | 服の一覧 (コマンドや性格プリセットと同じく全員共通. 大胆さ・季節・種類・値段・サンプル画像) |
 | `personas/` | 全体 | 性格プリセットの編集分 (既定は `defaults/personas/`. セリフ `lines` と傾向 `traits`) |
 | `images/` | 全体 | 画像と索引 `index.json` (同じプロンプトの画像はワールドをまたいで再利用) |
