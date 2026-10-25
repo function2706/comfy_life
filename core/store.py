@@ -440,6 +440,9 @@ def load_personas():
                 p["_custom"] = d != os.path.join(DEFAULTS, "personas")
                 if p["_custom"] and "traits" not in p and p["id"] in out:
                     p["traits"] = out[p["id"]].get("traits")     # 傾向は編集前の既定を引き継ぐ
+                if p["_custom"] and p["id"] in out:
+                    # 編集したあとに既定へ足されたセリフの場面は, 既定から補う (無いと共通のセリフになってしまう)
+                    p["lines"] = dict(out[p["id"]].get("lines") or {}, **lines)
                 out[p["id"]] = p
     return out
 
