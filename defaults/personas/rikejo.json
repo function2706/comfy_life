@@ -845,6 +845,21 @@
   "_dress.mood_lt_25": [
    "……今は着替える気分じゃない。"
   ],
+  "_dress.dress_feel_eager": [
+   "ふむ、こういう服装の効果も検証しておくべきだよね。……どう、似合う？"
+  ],
+  "_dress.dress_feel_shy": [
+   "……恥ずかしい。顔が熱いのは室温のせいだから。{call}の要望だから、少しだけね"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけ。データは取らないでよ"
+  ],
+  "_dress.dress_feel_refuse": [
+   "それは無理。仮説の段階で棄却"
+  ],
+  "_dress.dress_feel_angry": [
+   "……同じ要求を繰り返さないで。再現性があるのは、{fp}の不快感だけだよ"
+  ],
   "_return.default": [
    "あ、{call}。おかえり！"
   ],
@@ -1586,6 +1601,12 @@
   ],
   "gift.disliked_true": [
    "ありがとう。……データとしては、好みから外れてるかな。（{item}は、いまひとつのようだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "服？ ……ありがと。{call}の選定基準、あとで詳しく聞かせて"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "……これは無理。受け取れない。条件を見直して"
   ],
   "chat.greet_morning": [
    "📱『おはよう、{call}。起床時刻、記録しとくね』"

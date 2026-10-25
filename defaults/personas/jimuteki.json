@@ -368,6 +368,21 @@
   "_dress.mood_lt_25": [
    "ごめん。今は着替える気分じゃないの。"
   ],
+  "_dress.dress_feel_eager": [
+   "悪くない選択ね。機能性はともかく、たまには気分転換も必要だわ。……どう？"
+  ],
+  "_dress.dress_feel_shy": [
+   "……想定外に恥ずかしいわね。{call}の要望だから、少しだけよ。長時間の閲覧は控えること"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回限りの対応よ"
+  ],
+  "_dress.dress_feel_refuse": [
+   "その要望は却下するわ"
+  ],
+  "_dress.dress_feel_angry": [
+   "同じ要望を繰り返さないで。回答は変わらないし、不快よ"
+  ],
   "_return.default": [
    "あ、{call}。おかえり。お疲れさま。",
    "おかえり。不在中、特に変わったことはなし。"
@@ -1636,6 +1651,12 @@
   ],
   "gift.disliked_true": [
    "受領したわ。（{item}は、用途がないと思っているようだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "服？ ……ありがとう。有効に活用させてもらうわ"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "これは受け取れないわ。用途が{fp}の生活に合わないもの"
   ],
   "chat.greet_morning": [
    "📱『おはよう、{call}。本日も効率よく』"

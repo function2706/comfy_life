@@ -365,6 +365,21 @@
   "_dress.mood_lt_25": [
    "……今は着替える気分ではありませんの。"
   ],
+  "_dress.dress_feel_eager": [
+   "まぁ、こういうお召し物も素敵ですわね！ ……いかがかしら？"
+  ],
+  "_dress.dress_feel_shy": [
+   "は、恥ずかしいですわ……でも、{call}のお願いですもの。少しだけですわよ？"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけ、ですわよ。お父様には内緒にしてくださいまし"
+  ],
+  "_dress.dress_feel_refuse": [
+   "そ、それは無理ですわ……！ はしたないですもの……！"
+  ],
+  "_dress.dress_feel_angry": [
+   "……何度もおっしゃらないでくださいまし。{fp}、本当に嫌ですのよ"
+  ],
   "_return.default": [
    "あら、{call}。お帰りなさいませ！",
    "お帰りなさい。{fp}を待たせるなんて、罪な方ですわね。"
@@ -1630,6 +1645,12 @@
   ],
   "gift.disliked_true": [
    "あ、ありがとうございますわ……。（{item}は、少し苦手なご様子だ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "まぁ、お洋服を……！ ありがとうございます。大切に着させていただきますわ"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "こ、これは……ごめんなさい、{fp}には受け取れませんわ……"
   ],
   "chat.greet_morning": [
    "📱『ごきげんよう、{call}。よい朝ですわね』"

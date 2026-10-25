@@ -368,6 +368,21 @@
   "_dress.mood_lt_25": [
    "……むぅ。今は着替える気分じゃないの。"
   ],
+  "_dress.dress_feel_eager": [
+   "えへへ、こういうの着てみたかったの〜！ ねえ、かわいい？ もっと見て？"
+  ],
+  "_dress.dress_feel_shy": [
+   "うぅ、恥ずかしい……でも{call}が見たいなら、いいよ。ぎゅってしてくれたら、もっといいかも"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……もう、今回だけだよ？ そのかわり、あとでいっぱい甘やかしてね"
+  ],
+  "_dress.dress_feel_refuse": [
+   "や、やだ……それは無理だよぉ……"
+  ],
+  "_dress.dress_feel_angry": [
+   "……しつこいよ。{fp}、そういうの嫌って言ったよね？ ちょっと悲しい……"
+  ],
   "_return.default": [
    "あ、{call}。おかえり！ 待ってたよ〜。",
    "おかえりなさい！ ……ねぇ、ぎゅーして？"
@@ -1632,6 +1647,12 @@
   ],
   "gift.disliked_true": [
    "あ、ありがと……。（{item}は、あんまり好きじゃないみたい）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "わぁ、服！ {call}が選んでくれたの？ うれしい〜！ 今度着て見せるね"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "えっ、こ、これはちょっと……ごめんね、受け取れないよぉ……"
   ],
   "chat.greet_morning": [
    "📱『おはよ〜{call}！ 朝から連絡くれてうれしい』"

@@ -361,6 +361,21 @@
   "_dress.mood_lt_25": [
    "……今は着替える気分じゃない。"
   ],
+  "_dress.dress_feel_eager": [
+   "……悪くない。たまにはこういうのも。……似合う？"
+  ],
+  "_dress.dress_feel_shy": [
+   "……恥ずかしい。けど、{call}が見たいなら。……じろじろ見ないで"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけ。貸しだから"
+  ],
+  "_dress.dress_feel_refuse": [
+   "無理。却下"
+  ],
+  "_dress.dress_feel_angry": [
+   "……しつこい。嫌だって言った。不愉快"
+  ],
   "_return.default": [
    "おかえり、{call}。",
    "……おかえり。遅かったね。"
@@ -1625,6 +1640,12 @@
   ],
   "gift.disliked_true": [
    "……ありがとう。（{item}には、あまり興味がなさそうだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "……服？ ……ありがと。気に入った。今度着る"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "……これは無理。受け取れない"
   ],
   "chat.greet_morning": [
    "📱『……おはよう、{call}』"

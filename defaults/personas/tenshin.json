@@ -372,6 +372,21 @@
   "_dress.mood_lt_25": [
    "……今は着替える気分じゃないな。"
   ],
+  "_dress.dress_feel_eager": [
+   "わーい、こういうの着てみたかったの！ ひらひらしてて楽しい！ どう？"
+  ],
+  "_dress.dress_feel_shy": [
+   "えへへ、ちょっと恥ずかしいけど……{call}が見たいなら、いいよ"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけだよ？ なんか、すーすーするし"
+  ],
+  "_dress.dress_feel_refuse": [
+   "それはやだ。なんか、やだ"
+  ],
+  "_dress.dress_feel_angry": [
+   "……もう、しつこい。{fp}、やだって言ったもん。ぷいっ"
+  ],
   "_return.default": [
    "あ、{call}！ おかえり！ ねぇ聞いて、さっきね——",
    "おかえり！ 外どうだった？ 何か面白いものあった？"
@@ -1637,6 +1652,12 @@
   ],
   "gift.disliked_true": [
    "ありがと。……ふしぎな感じがするね、これ。（{item}は、ぴんと来ないみたいだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "わぁ、服！ ありがとう！ これ着て、どこ行こうかな"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "うーん、これはやだなぁ。ごめんね、受け取れないや"
   ],
   "chat.greet_morning": [
    "📱『おはよう、{call}！ 今朝の空、見た？』"

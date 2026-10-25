@@ -371,6 +371,21 @@
   "_dress.mood_lt_25": [
    "……いまは、着替える気分じゃない。（ハンガーを持ったまま、ゆるく首を振った）"
   ],
+  "_dress.dress_feel_eager": [
+   "……これ、着てみたかった。（くるりと回ってみせた）"
+  ],
+  "_dress.dress_feel_shy": [
+   "……はずかしい。……でも、{call}なら、いい。（耳まで赤くなっている）"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……こんかい、だけ。（小さくため息をついた）"
+  ],
+  "_dress.dress_feel_refuse": [
+   "……むり。（首を横にぶんぶん振った）"
+  ],
+  "_dress.dress_feel_angry": [
+   "……しつこい。……いや。（ぷいっと背を向けた）"
+  ],
   "_return.default": [
    "あ、{call}。おかえり。（玄関まで出てきて、小さく手を振った）",
    "……おかえり。（ぱたぱたと出迎えて、カバンを受け取ってくれた）"
@@ -1637,6 +1652,12 @@
   ],
   "gift.disliked_true": [
    "……ありがと。（{item}は、あまり好きではなさそうだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "……ふく？ ……ありがと。（包みをぎゅっと抱えた）"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "……これは、むり。（そっと包みを返してきた）"
   ],
   "chat.greet_morning": [
    "📱『……おはよう』"

@@ -853,6 +853,21 @@
   "_dress.mood_lt_25": [
    "……今は、着替える気分じゃないの。"
   ],
+  "_dress.dress_feel_eager": [
+   "ふふ……この服、着てほしそうな顔をしてた。……どう？ {fp}、蝶になれたかな"
+  ],
+  "_dress.dress_feel_shy": [
+   "……ちょっと恥ずかしい。でも、{call}が見たいなら。……風が通って、ふしぎな感じ"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけ、ね。月が見てないうちに"
+  ],
+  "_dress.dress_feel_refuse": [
+   "それは……{fp}の中の何かが、だめって言ってる"
+  ],
+  "_dress.dress_feel_angry": [
+   "……何度も言わないで。{fp}の心が、曇り空になっちゃう"
+  ],
   "_return.default": [
    "あ、{call}。おかえり。"
   ],
@@ -1594,6 +1609,12 @@
   ],
   "gift.disliked_true": [
    "……ありがとう。（{item}は、なんだか遠い国のものに見えたらしい）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "服……？ ふふ、ありがとう。この服、{fp}のところに来たかったみたい"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "……ごめんね。この服は、{fp}のところに来たくなさそう。受け取れない"
   ],
   "chat.greet_morning": [
    "📱『おはよう、{call}。今朝は鳥がよく鳴いてた』"

@@ -374,6 +374,21 @@
   "_dress.mood_lt_25": [
    "……ご、ごめんなさい……今は、着替える気分じゃ……"
   ],
+  "_dress.dress_feel_eager": [
+   "こ、こういうの……着てみたかったんです……。へ、変じゃないですか……？"
+  ],
+  "_dress.dress_feel_shy": [
+   "は、恥ずかしいです……っ。でも、{call}になら……。あ、あんまり見ないでください……"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……こ、今回だけ、ですよ……？"
+  ],
+  "_dress.dress_feel_refuse": [
+   "む、無理です……っ！ ご、ごめんなさい……"
+  ],
+  "_dress.dress_feel_angry": [
+   "……な、何度も言わないでください……。{fp_st}、本当に嫌なんです……"
+  ],
   "_return.default": [
    "あ……{call}。お、おかえりなさい……！",
    "……おかえりなさい。ま、待ってました……"
@@ -1640,6 +1655,12 @@
   ],
   "gift.disliked_true": [
    "あ、ありがとうございます……。（{item}は、少し苦手みたいだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "ふ、服……ですか……？ あ、ありがとうございます……大事に、着ます……"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "ご、ごめんなさい……こ、これは……受け取れません……っ"
   ],
   "chat.greet_morning": [
    "📱『お、おはようございます、{call}……』"

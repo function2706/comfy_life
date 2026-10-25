@@ -443,6 +443,21 @@
    "……今は着替える気分じゃない。",
    "……また今度にして。"
   ],
+  "_dress.dress_feel_eager": [
+   "へへ、こういうのも着てみたかったんだよね。……どう？ 惚れ直した？"
+  ],
+  "_dress.dress_feel_shy": [
+   "……うぅ、恥ずかしいんだけど。{call}だから特別ね？ あんまり見ないでよ"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……もう、今回だけだからね。昔からそうやって頼むんだから"
+  ],
+  "_dress.dress_feel_refuse": [
+   "それは無理。いくらなんでも無理"
+  ],
+  "_dress.dress_feel_angry": [
+   "……しつこい。ダメって言ったでしょ。あんた、そういうとこ直しなよ"
+  ],
   "_return.default": [
    "あ、{call}。おかえり！",
    "おかえりー。遅かったじゃん。"
@@ -1931,6 +1946,12 @@
   ],
   "gift.disliked_true": [
    "あー……うん、ありがと。（{item}は、ちょっと違ったみたいだ）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "え、服くれるの？ ……ありがと。あんたにしては、いいの選ぶじゃん"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "……これは無理だって。受け取れないよ、ばか"
   ],
   "chat.greet_morning": [
    "📱『おはよ、{call}。起きてた？』"

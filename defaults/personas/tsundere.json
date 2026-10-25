@@ -359,6 +359,21 @@
   "_dress.mood_lt_25": [
    "……今は着替える気分じゃないの。"
   ],
+  "_dress.dress_feel_eager": [
+   "べ、別に{call}のためじゃないんだからね！ 着てみたかっただけ！ ……ど、どう？"
+  ],
+  "_dress.dress_feel_shy": [
+   "……は、恥ずかしいんだけど。{call}がどうしてもって言うから……じろじろ見たら怒るから"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけよ。か、勘違いしないでよね"
+  ],
+  "_dress.dress_feel_refuse": [
+   "む、無理に決まってるでしょ！ ばかっ！"
+  ],
+  "_dress.dress_feel_angry": [
+   "……しつこいのよ！ 嫌だって言ってるでしょ！ ほんとに怒るわよ"
+  ],
   "_return.default": [
    "あ、おかえり。……遅かったじゃない。",
    "おかえり、{call}。べ、別に待ってたわけじゃないわよ。"
@@ -1623,6 +1638,12 @@
   ],
   "gift.disliked_true": [
    "……ふーん。ありがと。（{item}は、好みじゃないらしい）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "ふ、服……？ ……べ、別にうれしくなんかないけど。……ありがと。着てあげる"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "こ、こんなの受け取れるわけないでしょ！ ばかっ！"
   ],
   "chat.greet_morning": [
    "📱『……おはよ。べ、別に待ってたわけじゃないから』"

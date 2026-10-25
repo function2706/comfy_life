@@ -366,6 +366,21 @@
   "_dress.mood_lt_25": [
    "……ごめんねぇ、今は着替える気分じゃないの。"
   ],
+  "_dress.dress_feel_eager": [
+   "あらあら、こういうのも素敵ねぇ。……どうかしら、似合う？"
+  ],
+  "_dress.dress_feel_shy": [
+   "あらぁ、ちょっと恥ずかしいわぁ……でも{call}が見たいなら、いいわよぉ"
+  ],
+  "_dress.dress_feel_reluctant": [
+   "……今回だけよぉ？ もう、困った子ねぇ"
+  ],
+  "_dress.dress_feel_refuse": [
+   "ごめんねぇ、それはちょっと無理だわぁ……"
+  ],
+  "_dress.dress_feel_angry": [
+   "……何度も言われると、{fp}も悲しくなっちゃうわぁ。やめてねぇ"
+  ],
   "_return.default": [
    "あら、{call}。おかえりなさい〜。",
    "おかえり〜。外、寒くなかったかしらぁ？"
@@ -1708,6 +1723,12 @@
   ],
   "gift.disliked_true": [
    "あらあら、ありがとうねぇ。（{item}は、少し苦手みたい）"
+  ],
+  "gift.gift_outfit_yes__gift_feel_ge_30": [
+   "あらあら、お洋服？ ありがとうねぇ。今度着てみるわぁ"
+  ],
+  "gift.gift_outfit_bold_no": [
+   "あらぁ……これはちょっと、受け取れないわぁ。ごめんねぇ"
   ],
   "chat.greet_morning": [
    "📱『おはよう、{call}。いい朝ねぇ』"
