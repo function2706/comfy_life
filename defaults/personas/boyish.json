@@ -1834,6 +1834,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はムリ！ {when}なら{place}行けるけど、どう？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『だろ？ 話が早くて助かる』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『ん、そっか』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……なにそのテンション、どした』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞く？ じゃあ話すけどさ』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『いや、大した話じゃないって』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そこまで聞かなくてよくない？』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。ちょっと気が楽になった』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『平気平気。気にすんなって』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……大げさだって。{fp}のことなんだと思ってんの』"
+  ],
+  "msgr.tease.good": [
+   "📱『うっさい！ ……ははっ、やるじゃん』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……それ、ちょっとカチンときた』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいのか。おっけ、またあとで』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……なんか冷たくない？』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ、今度ゲーセン行こうぜ』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ピースのスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいって』"
   ]
  }
 }

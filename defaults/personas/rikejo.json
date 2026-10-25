@@ -1789,6 +1789,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は予定が重なってて……。{when}なら{place}行ける。条件を変えて再実験、ってことで』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『いい反応。こっちのテンションも有意に上がった』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『ん、了解』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……そのテンション、ちょっと理解不能』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの？ じゃあ順を追って説明するね』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『んー、データとしては平凡だよ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そこまで深掘りしなくていい』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。心拍が少し落ち着いた』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫。観測上、異常なし』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……過剰反応。大丈夫だってば』"
+  ],
+  "msgr.tease.good": [
+   "📱『む。……その仮説は棄却したいけど、否定しきれない』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……その言い方、検証するまでもなく不快』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいんだ。了解、あとで』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……反応が薄い。ちょっと寂しい、かも』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ、今度一緒に科学館行こう。説明してあげる』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（フラスコのスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういい。実験に戻る』"
   ]
  }
 }

@@ -2134,6 +2134,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はムリなんだよね。{when}なら{place}行けるけど、どう？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『でしょ？ やっぱ{call}とはノリが合うわ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『ん、まあね』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……なにそのテンション。調子狂う』"
+  ],
+  "msgr.expand.good": [
+   "📱『え、聞きたい？ しょうがないなぁ、あのね』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『んー、大した話じゃないって』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……根掘り葉掘り聞かないでよ』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。{call}にそう言われると、なんか安心する』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫だって。昔から心配性だよね』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そういうの、今はいい』"
+  ],
+  "msgr.tease.good": [
+   "📱『うっさい！ ……ふふ、変わんないね』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はいはい、言ってなさい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……それ、今は笑えない』"
+  ],
+  "msgr.curt.good": [
+   "📱『はいはい、忙しいのね。あとでね』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ふーん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……なにそれ。冷たっ』"
+  ],
+  "msgr.more.good": [
+   "📱『あ、そうだ。今度、昔よく行ったとこ行こうよ』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（あっかんべーのスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういい。寝る』"
   ]
  }
 }

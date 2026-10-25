@@ -2131,6 +2131,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はだめなのよ。{when}なら{place}行けるけど、どう？ ちゃんと空けときなさいよ』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ふふ、元気いいわね。こっちまでうれしくなるわ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『そう。よかったわ』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……あら、ずいぶん軽いのね』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの？ じゃあ少しだけ。あのね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『大した話じゃないのよ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そこまで聞かなくてもいいのよ』"
+  ],
+  "msgr.worry.good": [
+   "📱『心配してくれたの？ ……ふふ、ありがと。大丈夫よ』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『平気よ。{call}こそ、ちゃんと休んでる？』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そんなに頼りなく見える？』"
+  ],
+  "msgr.tease.good": [
+   "📱『こら、年上をからかわないの。……ふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……そういう言い方は、感心しないわね』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいのね。無理しちゃだめよ』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……ずいぶん素っ気ないのね』"
+  ],
+  "msgr.more.good": [
+   "📱『そうそう、今度ごはん作ってあげるから、ちゃんと食べに来なさいね』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（「おやすみ」のスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいわ』"
   ]
  }
 }

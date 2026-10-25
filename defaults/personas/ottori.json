@@ -1911,6 +1911,60 @@
   ],
   "chat.appoint_counter": [
    "📱『あらぁ、その時間はちょっと……。{when}なら{place}に行けるけど、どうかしら？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『あらあら、うれしいわぁ。ありがとうねぇ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『そうねぇ』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……あらぁ、ずいぶん元気ねぇ』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの？ あのねぇ、今日はねぇ……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『大したことじゃないのよぉ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……あらぁ、そんなに聞くのぉ？』"
+  ],
+  "msgr.worry.good": [
+   "📱『心配してくれたの？ ありがとうねぇ。大丈夫よぉ』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『平気よぉ。のんびりしてるわぁ』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……あらあら、大げさねぇ』"
+  ],
+  "msgr.tease.good": [
+   "📱『あらぁ、いじわるねぇ。……うふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……あらぁ』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……それはちょっと、悲しいわぁ』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいのねぇ。無理しないでねぇ』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そうなのねぇ』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……あらぁ、そっけないのねぇ』"
+  ],
+  "msgr.more.good": [
+   "📱『今度、お茶でもいかが？ おいしいお菓子があるのよぉ』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ほんわか笑うスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もう寝るわねぇ』"
   ]
  }
 }

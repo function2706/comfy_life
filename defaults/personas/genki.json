@@ -1844,6 +1844,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はダメなんだー！ {when}なら{place}行けるよ！ どうどう？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『でしょー！ やっぱり{call}、わかってる！』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『うん、そっか！』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……あれ、なんか適当じゃない？』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いて聞いて！ あのね！』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『んー、なんでもないかも！』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そんなに聞かれると、ちょっと疲れちゃう』"
+  ],
+  "msgr.worry.good": [
+   "📱『心配してくれたの？ ありがと！ もう元気！』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『平気平気！ 元気だけが取り柄だもん！』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……大丈夫だってばー。大げさ！』"
+  ],
+  "msgr.tease.good": [
+   "📱『あはは、やられたー！』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はーい！』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……むっ。それはちょっと、ひどい』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいんだね！ がんばって！』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そっか』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……えー、それだけ？』"
+  ],
+  "msgr.more.good": [
+   "📱『あ、そうだ！ 今度いっしょに遊びに行こ！』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ガッツポーズのスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいもん！』"
   ]
  }
 }

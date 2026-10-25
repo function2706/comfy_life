@@ -1797,6 +1797,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は、時計が首を振ってる。{when}なら、{place}がこっちおいでって言ってるよ』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ふふ……{call}の言葉、ぽかぽかしてる』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『……うん』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……その元気、ちょっと遠い星みたい』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの……？ あのね、雲がね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『……べつに、風が吹いただけ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……それは、まだ秘密の場所にしまってある』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。{call}の声が、灯りみたい』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『だいじょうぶ。月はちゃんと出てる』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そういうのじゃないの。雨が降っただけ』"
+  ],
+  "msgr.tease.good": [
+   "📱『むう……。でも、ちょっと楽しい』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……ふうん』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……その言葉、とげとげしてる』"
+  ],
+  "msgr.curt.good": [
+   "📱『いそがしいんだね。……またあとで、会いに来て』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……さみしい風が吹いた』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ……今度、星を数えにいこう』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（流れ星のスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もう、眠る』"
   ]
  }
 }

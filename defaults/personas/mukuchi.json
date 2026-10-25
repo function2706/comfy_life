@@ -1840,6 +1840,60 @@
   ],
   "chat.appoint_counter": [
    "📱『……その時間、むり。{when}なら、{place}。……いける』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『……うん。うれしい』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『……うん』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……にぎやか』"
+  ],
+  "msgr.expand.good": [
+   "📱『……えっと。……ちょっとだけ、話す』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『……べつに、たいしたことない』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……それは、ひみつ』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。……だいじょうぶ』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『……へいき』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……しんぱい、いらない』"
+  ],
+  "msgr.tease.good": [
+   "📱『……むう。……ふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……いや』"
+  ],
+  "msgr.curt.good": [
+   "📱『……わかった。またあとで』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……さみしい』"
+  ],
+  "msgr.more.good": [
+   "📱『……また、はなそ』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ねこのスタンプがひとつ届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もう、いい』"
   ]
  }
 }

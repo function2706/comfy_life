@@ -1841,6 +1841,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は厳しいな。{when}なら{place}に行ける。どうだ？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ははっ、いい返事だ。元気が出る』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『そうか』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……ずいぶん浮かれてるな』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるのか。じゃあ少し話すか』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『大した話じゃない』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そこまで聞かなくていい』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがとう。気にかけてくれて助かる』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『心配いらない。大丈夫だ』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そんなに頼りなく見えるか』"
+  ],
+  "msgr.tease.good": [
+   "📱『言ったな。……まあ、悪くない』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……その言い方は、少し引っかかるな』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいか。無理するなよ』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そうか』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……素っ気ないな』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ、今度は一緒に走りに行かないか』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（親指を立てたスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういい。寝る』"
   ]
  }
 }

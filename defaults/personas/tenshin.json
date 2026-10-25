@@ -1840,6 +1840,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はむりなの。{when}なら{place}行けるよ！ そっちのほうが楽しそう！』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『わーい、{call}もそう思う？ うれしい！』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『うん！』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……なんか、ふわふわしてるね』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの？ あのね、すっごいの見つけたの！』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『んー、なんだったっけ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……もう忘れちゃった』"
+  ],
+  "msgr.worry.good": [
+   "📱『心配してくれたの？ ありがと！ でも元気だよ』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『平気平気〜』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……べつに、なんともないよ？』"
+  ],
+  "msgr.tease.good": [
+   "📱『むー！ ……あはは、楽しい』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『はーい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……それ、やだ』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいんだ。じゃあ、またね！』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ふうん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……つまんないの』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ、今度どこか遠くまで行ってみない？』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（くるくる回るスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいもん』"
   ]
  }
 }

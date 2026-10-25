@@ -1826,6 +1826,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は無理なのよ。……{when}なら、{place}行ってあげてもいいけど？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『べ、別にうれしくなんかないけど。……ふふ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『……あっそ』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……なによ、そのテンション。調子狂う』"
+  ],
+  "msgr.expand.good": [
+   "📱『し、しょうがないから教えてあげる。あのね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『べつに、大したことじゃないし』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……なんでそこまで聞くのよ』"
+  ],
+  "msgr.worry.good": [
+   "📱『……し、心配なんてしなくていいのに。……ありがと』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫よ。あんたに心配されるほどじゃないわ』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……大げさなのよ、ばか』"
+  ],
+  "msgr.tease.good": [
+   "📱『ば、ばかっ！ ……もう、知らない。……ふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……ふん』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……ほんとに怒るわよ』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいなら仕方ないわね。……あとで連絡しなさいよ』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……あっそ』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……なによ、その返事。もういい』"
+  ],
+  "msgr.more.good": [
+   "📱『……つ、次会うとき、遅れたら許さないから』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ぷいっとそっぽを向くスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……ばか。おやすみ』"
   ]
  }
 }

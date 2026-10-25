@@ -1865,6 +1865,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はちょっと……。{when}なら、{place}行けると思う。体調も、たぶん大丈夫』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ふふ、元気もらっちゃった。ありがとう』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『うん、そうだね』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……ちょっと、まぶしすぎるかも』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるの？ あのね、今日は窓からね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『大したことじゃないの』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……ごめんね、今はあんまり話せないかも』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがとう。{call}がいてくれて、よかった』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫だよ。今日は調子いいから』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そんなに心配されると、かえって苦しいな』"
+  ],
+  "msgr.tease.good": [
+   "📱『もう……。でも、ちょっと笑っちゃった』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……うん』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……そういうの、ちょっとつらいな』"
+  ],
+  "msgr.curt.good": [
+   "📱『忙しいんだね。無理しないでね』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……うん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……ちょっと、さみしいな』"
+  ],
+  "msgr.more.good": [
+   "📱『元気になったら、一緒にお散歩しようね』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（お花のスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もう、寝るね』"
   ]
  }
 }

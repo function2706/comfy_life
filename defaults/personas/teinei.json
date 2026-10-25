@@ -2110,6 +2110,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はちょっと……。{when}なら、{place}行けますけど、どうですか？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ふふ、そう言ってもらえるとうれしいです！』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『あ、はい。……そうですね』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……なんか、軽いですね』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくれるんですか？ えっとですね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『うーん、大したことじゃないんですけど』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……別に、そこまで聞かなくても』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがとうございます。そう言ってもらえるだけで、ほっとします』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫ですよ。心配しすぎです』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そういうのじゃないです。大げさです』"
+  ],
+  "msgr.tease.good": [
+   "📱『もう、からかわないでくださいよ〜。……ふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……そういう言い方、ちょっと傷つきます』"
+  ],
+  "msgr.curt.good": [
+   "📱『ふふ、忙しいんですね。またあとで』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そうですか』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……なんか、冷たくないですか』"
+  ],
+  "msgr.more.good": [
+   "📱『あ、そうだ。今度また、ゆっくり話しましょうね』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（ぺこりとお辞儀するスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいです』"
   ]
  }
 }

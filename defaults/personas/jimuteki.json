@@ -1839,6 +1839,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は都合がつかないわ。代案: {when}、{place}。検討して』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『了解。前向きな返答は、悪くないわ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『了解』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……その返答、少し軽率ね』"
+  ],
+  "msgr.expand.good": [
+   "📱『質問ね。要点だけ話すわ』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『特筆すべきことはないわ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……その質問は、今は不要よ』"
+  ],
+  "msgr.worry.good": [
+   "📱『……気遣いに感謝するわ。問題はないの』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『問題ないわ』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……過剰な心配は非効率よ』"
+  ],
+  "msgr.tease.good": [
+   "📱『……冗談として受理するわ。ふふ』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……その発言は不適切よ』"
+  ],
+  "msgr.curt.good": [
+   "📱『了解。手が空いたら連絡して』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『了解』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……返答として、少し簡素すぎるわね』"
+  ],
+  "msgr.more.good": [
+   "📱『補足。次に会う日程、近いうちに調整しましょう』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（「了解」のスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……以上。連絡を終えるわ』"
   ]
  }
 }

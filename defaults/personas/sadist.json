@@ -1795,6 +1795,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間はだめ。{when}なら{place}に行ってあげる。……もちろん来るわよね？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『ふふ、いい返事。素直な子は好きよ』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『そう』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……はしゃいじゃって。子どもね』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞きたいの？ ふふ、どうしようかしら……教えてあげる』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『大したことじゃないわ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……詮索するなんて、百年早いわ』"
+  ],
+  "msgr.worry.good": [
+   "📱『心配してくれるの？ ……ふん、悪い気はしないわね』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『{fp}を誰だと思ってるの。平気よ』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……余計なお世話よ』"
+  ],
+  "msgr.tease.good": [
+   "📱『ふふ、言うじゃない。覚えておきなさい』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……{fp}をからかうなんて、いい度胸ね。後悔させてあげる』"
+  ],
+  "msgr.curt.good": [
+   "📱『あら、忙しいの。じゃあ待っててあげる』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ふうん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……{fp}を後回しにするの？ いい度胸ね』"
+  ],
+  "msgr.more.good": [
+   "📱『そうだ。今度会ったら、たっぷり構ってもらうから』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（不敵に笑うスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういいわ。おやすみ』"
   ]
  }
 }

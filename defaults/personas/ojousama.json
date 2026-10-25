@@ -1833,6 +1833,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は難しいですわ……。{when}でしたら、{place}にご一緒できますけれど、いかが？』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『まぁ、うれしいですわ！ ありがとうございます』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『ええ、そうですわね』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……あら、ずいぶん軽やかですのね』"
+  ],
+  "msgr.expand.good": [
+   "📱『聞いてくださるの？ それがですね……』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『たいしたことではございませんわ』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……あまり詮索なさらないでくださいまし』"
+  ],
+  "msgr.worry.good": [
+   "📱『……お気遣い、ありがとうございます。心強いですわ』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『大丈夫ですわ。ご心配なく』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……そこまで心配されるほど、か弱くはありませんわ』"
+  ],
+  "msgr.tease.good": [
+   "📱『ま、まぁ……！ ……ふふ、意地悪な方』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……はぁ』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……そのような物言い、悲しいですわ』"
+  ],
+  "msgr.curt.good": [
+   "📱『お忙しいのですね。お邪魔いたしましたわ』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……そうですか』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……ずいぶん素っ気ないのですわね』"
+  ],
+  "msgr.more.good": [
+   "📱『そうそう、今度お茶会にご招待してもよろしくて？』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（優雅にお辞儀するスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もう結構ですわ』"
   ]
  }
 }

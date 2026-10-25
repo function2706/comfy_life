@@ -1828,6 +1828,60 @@
   ],
   "chat.appoint_counter": [
    "📱『その時間は無理。{when}なら{place}、行ける』"
+  ],
+  "msgr.cheerful.good": [
+   "📱『……ふふ。悪くない』"
+  ],
+  "msgr.cheerful.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.cheerful.bad": [
+   "📱『……テンション、高すぎ』"
+  ],
+  "msgr.expand.good": [
+   "📱『……聞きたいの？ じゃあ、少しだけ』"
+  ],
+  "msgr.expand.neutral": [
+   "📱『……大したことない』"
+  ],
+  "msgr.expand.bad": [
+   "📱『……そこまで話すつもりはない』"
+  ],
+  "msgr.worry.good": [
+   "📱『……ありがと。少し、楽になった』"
+  ],
+  "msgr.worry.neutral": [
+   "📱『……平気』"
+  ],
+  "msgr.worry.bad": [
+   "📱『……心配しすぎ』"
+  ],
+  "msgr.tease.good": [
+   "📱『……言うね。でも、嫌いじゃない』"
+  ],
+  "msgr.tease.neutral": [
+   "📱『……はいはい』"
+  ],
+  "msgr.tease.bad": [
+   "📱『……不愉快』"
+  ],
+  "msgr.curt.good": [
+   "📱『……了解。忙しいなら仕方ない』"
+  ],
+  "msgr.curt.neutral": [
+   "📱『……ん』"
+  ],
+  "msgr.curt.bad": [
+   "📱『……冷たい。まあ、{fp}も人のこと言えないけど』"
+  ],
+  "msgr.more.good": [
+   "📱『……今度、会える日があったら教えて』"
+  ],
+  "msgr.more.neutral": [
+   "📱『（無表情のスタンプが届いた）』"
+  ],
+  "msgr.more.bad": [
+   "📱『……もういい』"
   ]
  }
 }
