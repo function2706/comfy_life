@@ -559,6 +559,7 @@ tools/test_presence.py  在席・働きかけ・スキル・内職・株・お�
 tools/test_life.py   お金・機嫌の理由・おねだり・留守中の変化のテスト
 defaults/personas/ 性格プリセット (セリフ集) 16 種
 tools/dump_line_keys.py / check_persona.py  セリフ集の台本書き出し / 検査
+tools/check_tone.py  セリフの口調の精査（性格ごとの決まりと照らして、外れている行を 性格・場面・理由 つきで data/tone_report.tsv に。直さない。候補なので誤検出を含む）
 tools/convert_pronouns.py  セリフ中の一人称・二人称を {fp} / {call} に変換 (移行用)
 tools/test_mahjong_board.py  麻雀・盤面ゲームのテスト
 tools/test_household.py  暮らしのお金 (家ごとの生活費・家賃・借りる・借金)・離れている相手の過ごし方・冷める下限のテスト
