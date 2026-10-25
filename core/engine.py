@@ -134,6 +134,7 @@ class App:
         self.lock = threading.RLock()
         self.states, self.logs, self.jobs = {}, {}, {}
         self.jobq = queue.Queue()
+        self._icon_tried = set()
         self.logq = queue.Queue()
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
         self.reload()
@@ -1467,6 +1468,7 @@ class App:
 
     def _present_image(self, cid, entry):
         """設定に従い, 既存画像をすぐ表示するか / 新規生成するかを決める. 生成したらジョブ id を返す."""
+        self.make_icon(cid)      # まだ顔のアイコンがない人 (以前からいる人も) は, 画像を出すついでに一度だけ
         ic = self.settings.get("images") or {}
         mode = ic.get("mode", "reuse")
         # 生成中 (実行中 or 待ちあり) なら, 既存画像があればそれで済ませて待たせない
@@ -1485,6 +1487,55 @@ class App:
         job = self.enqueue(cid, entry["id"], entry["pos"], entry["neg"])
         entry["job"] = job
         return job
+
+    # 顔だけのアイコン: トーク・関係性・そばにいる人の欄に出す顔. 一度だけ作って定義に固定する (char["icon"]).
+    # 外見 (定義の pos/neg) だけで, 場面・服・表情は入れない. 足すタグは設定の images.icon_pos / icon_neg で変えられる
+    ICON_POS = "portrait, face focus, close-up, looking at viewer, simple background"
+    ICON_NEG = "full body, wide shot, multiple views"
+
+    def icon_prompt(self, char):
+        pr = self.settings.get("prompt") or {}
+        ic = self.settings.get("images") or {}
+        pos = join_tags([pr.get("prefix_pos", ""), char.get("pos", ""), ic.get("icon_pos") or self.ICON_POS])
+        neg = join_tags([pr.get("prefix_neg", ""), char.get("neg", ""), ic.get("icon_neg") or self.ICON_NEG])
+        return pos, neg
+
+    def icon_job(self, cid):
+        """作っている途中のアイコンのジョブ (無ければ None)."""
+        return next((j["id"] for j in self.jobs.values()
+                     if j.get("kind") == "icon" and j["cid"] == cid and j["status"] in ("queued", "running")), None)
+
+    def make_icon(self, cid, force=False):
+        """顔だけのアイコンを作る. force でなければ, すでにある・作っている途中・画像の自動表示が切れているときは作らない.
+        設定の「作り直す」(force) は自動表示の設定によらず作る. ジョブ id を返す."""
+        c = self.chars.get(cid) or store.all_characters().get(cid)
+        if not c:
+            raise KeyError("キャラの定義が見つかりません: %s" % cid)
+        cur = self.icon_job(cid)
+        if cur:
+            return cur
+        if not force:
+            if not self.settings.get("auto_generate") or self.has_icon(c) or cid in self._icon_tried:
+                return None
+        self._icon_tried.add(cid)       # 失敗しても, 一回の起動では作り直しを繰り返さない (作り直すは設定から)
+        pos, neg = self.icon_prompt(c)
+        return self.enqueue(cid, None, pos, neg, kind="icon")
+
+    @staticmethod
+    def has_icon(c):
+        p = c.get("icon")
+        return bool(p) and os.path.exists(store.dpath("images", *p.split("/")))
+
+    def _set_icon(self, j, rel):
+        """できたアイコンを定義に固定する (全ワールド共通)."""
+        with self.lock:
+            c = store.all_characters().get(j["cid"])
+            if not c:
+                return
+            c["icon"], c["icon_seed"] = rel, j["seed"]
+            store.save_character(c)
+            if j["cid"] in self.chars:
+                self.chars[j["cid"]]["icon"], self.chars[j["cid"]]["icon_seed"] = rel, j["seed"]
 
     def generating(self):
         """生成ジョブが実行中か待ち行列にあるか."""
@@ -1697,13 +1748,14 @@ class App:
         if msg and not extra.get("quiet"):
             self.jlog(j, msg, level)
 
-    def enqueue(self, cid, eid, pos, neg, seed=None):
+    def enqueue(self, cid, eid, pos, neg, seed=None, kind="entry"):
+        """生成ジョブを積む. kind: entry = ログ項目の画像 / icon = 顔だけのアイコン (できたら定義に固定)."""
         jid = uuid.uuid4().hex
         if seed in (None, "", -1):
             seed = random.randint(0, 2 ** 32 - 1)
-        e = self.find_entry(cid, eid) or {}
-        j = {"id": jid, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
-             "action": e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
+        e = (self.find_entry(cid, eid) if eid else None) or {}
+        j = {"id": jid, "kind": kind, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
+             "action": "顔アイコン" if kind == "icon" else e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
              "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
              "cancel": False, "events": []}
         self.jobs[jid] = j
@@ -1731,7 +1783,7 @@ class App:
             return {"id": jid, "status": "unknown", "error": "サーバにこのジョブがありません（サーバ再起動など）"}
         now = j.get("finished") or time.time()
         ahead = sum(1 for x in self.jobs.values() if x["status"] == "queued" and x["created"] < j["created"])
-        keys = ("id", "status", "stage", "cid", "entry", "action", "seed", "error", "image", "created",
+        keys = ("id", "kind", "status", "stage", "cid", "entry", "action", "seed", "error", "image", "created",
                 "prompt_id", "queue_pos")
         out = {k: j.get(k) for k in keys}
         out["stage_label"] = self.STAGE_LABEL.get(j.get("stage"), j.get("stage"))
@@ -1787,6 +1839,8 @@ class App:
                 store.save(f, log)
 
     def _clear_entry_job(self, j, error):
+        if j.get("kind") == "icon":
+            return
         def fn(e):
             if e.get("job") != j["id"]:
                 return False
@@ -1824,6 +1878,11 @@ class App:
                     self.img_index.setdefault(self.prompt_key(j["pos"], j["neg"]), []).append(
                         {"path": rel, "seed": j["seed"], "t": time.time()})
                     store.save(store.dpath("images", "index.json"), self.img_index)
+                if j.get("kind") == "icon":
+                    self._set_icon(j, rel)
+                    j["image"], j["status"] = rel, "done"
+                    self._set_stage(j, "done", "完了 %s（%.1f 秒）" % (rel, time.time() - j["started"]))
+                    continue
 
                 def put(e):
                     e["image"], e["seed"], e["reused"] = rel, j["seed"], False
@@ -2411,6 +2470,9 @@ class App:
             if not old or not hist or hist[0].get("pos") != c.get("pos") or hist[0].get("neg") != c.get("neg"):
                 hist.insert(0, {"t": time.time(), "pos": c.get("pos", ""), "neg": c.get("neg", "")})
             c["prompt_history"] = hist[:200]
+            for k in ("icon", "icon_seed"):      # 設定を開いている間にできた顔のアイコンを, 古い画面の保存で消さない
+                if k not in c and (old or {}).get(k):
+                    c[k] = old[k]
             if c["id"] in self.chars or c["id"] in store.load_cast():     # このワールドに現れている人だけ手元に
                 self.chars[c["id"]] = c
             store.save_character(c)              # 定義は全体 (全ワールドに反映)
@@ -2497,6 +2559,7 @@ class App:
             store.save_cast(store.load_cast() + [cid])
             self.chars[cid] = c
             self.bonds.set_stage(cid, stage)
+            self.make_icon(cid)        # 顔のアイコン (まだ無ければ. 自動表示が切れていれば作らない)
             return dict(c, _stage=stage)
 
     def save_definition(self, c):

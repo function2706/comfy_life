@@ -62,7 +62,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 | 置き場所 | 範囲 | 中身 |
 |---|---|---|
 | `settings.json` | 全体 | ComfyUI・LLM・表示・あなた (`player`)・行動パターン (`offline`) |
-| `characters/<id>.json` | 全体 | キャラの定義 (外見・性格・口調・スケジュール・着せ替え・好き嫌い・`met` 出会った記録) |
+| `characters/<id>.json` | 全体 | キャラの定義 (外見・性格・口調・スケジュール・着せ替え・好き嫌い・`met` 出会った記録・`icon` 顔のアイコン) |
 | `personas/` | 全体 | 性格プリセットの編集分 (既定は `defaults/personas/`. セリフ `lines` と傾向 `traits`) |
 | `images/` | 全体 | 画像と索引 `index.json` (同じプロンプトの画像はワールドをまたいで再利用) |
 | `worlds.json` | 全体 | ワールド一覧・いまのワールド・作ったときの間柄のくじ (`start_bonds`) |

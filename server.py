@@ -208,6 +208,8 @@ def route(method, path, q, body):
             return {"character": a.save_definition(b["data"])}
         if path == "/api/character/place":
             return {"character": a.place_character(b["id"], b.get("stage") or "contact")}
+        if path == "/api/character/icon":
+            return {"job": a.make_icon(b["id"], force=True)}
         if path == "/api/character/delete":
             return a.delete_character(b["id"])
         if path == "/api/character/select":

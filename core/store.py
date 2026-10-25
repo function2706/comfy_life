@@ -231,7 +231,7 @@ def ensure_default_characters():
 
 
 def _same_def(a, b):
-    strip = lambda c: {k: v for k, v in c.items() if k not in ("prompt_history", "met")}  # noqa: E731
+    strip = lambda c: {k: v for k, v in c.items() if k not in ("prompt_history", "met", "icon", "icon_seed", "imported")}  # noqa: E731
     return obj_hash(strip(a)) == obj_hash(strip(b))
 
 

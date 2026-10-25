@@ -781,7 +781,8 @@ async function pollJobsOnce() {
     S.jobs.set(jid, j);
     if (j.status === 'done') {
       S.jobs.delete(jid);
-      if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
+      if (j.kind === 'icon') { /* 顔のアイコン: ステージの画像は変えない */ }
+      else if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
       else if (!S.current || S.current.t <= (S.view.log.find((x) => x.id === j.entry) || {}).t) setImage(j.image);
       refresh();
     } else if (['error', 'unknown', 'cancelled'].includes(j.status)) {
@@ -2371,6 +2372,7 @@ SEC.char = () => {
         '{player} = あなたの名前。空欄なら性格プリセットに従う')),
     likesEditor(c),
     h('div', { class: 'sect' }, '外見プロンプト'),
+    iconRow(c),
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
     fld('普段の服装（スケジュールで未指定のとき）', inp(c, 'outfit_default')),
@@ -2395,6 +2397,18 @@ SEC.char = () => {
     hist,
   ];
 };
+
+// 顔だけのアイコン (トーク・関係性の顔). 一度だけ作って定義に固定. 作り直しは外見を変えたあとなどに
+function iconRow(c) {
+  const face = h('div', { class: 'who-face' });
+  if (c.icon) face.style.backgroundImage = `url("${imgUrl(c.icon)}")`; else face.textContent = (c.name || '?').slice(0, 1);
+  return h('div', { class: 'row', style: 'align-items:center;gap:10px;margin:6px 0' }, face,
+    h('span', { class: 'hint' }, c.icon ? '顔のアイコン（トーク・関係性に出ます）' : 'まだ顔のアイコンがありません（それまではいちばん新しい画像を使います）'),
+    h('button', { class: 'btn', onclick: async () => {
+      try { await api('/api/character/icon', { id: c.id }); toast('顔のアイコンを作っています（保存済みの外見で。できたら入れ替わります）', 'ok'); }
+      catch (e) { toast(e.message, 'err'); }
+    } }, c.icon ? '作り直す' : '作る'));
+}
 
 // キャラの追加: このワールドに現れるか・あなたとの間柄を確かめる (同居はいきなりは選べない)
 function newCharacterDialog() {
@@ -3030,6 +3044,8 @@ SEC.comfy = () => {
         ['reuse', '既存の画像からランダムにすぐ表示'], ['always', '毎回新しく生成する']] }), null, 'span2'),
       fld('1プロンプトあたりの上限枚数', inp(st.images, 'max_per_prompt', { type: 'number' }),
         '「すぐ表示」のとき、この枚数に達するまでは裏で新規生成も行う（1 = 1枚あれば以降は生成しない）'),
+      fld('顔アイコンに足すタグ（Positive）', inp(st.images, 'icon_pos', { ph: 'portrait, face focus, close-up, looking at viewer, simple background' }), '空欄なら既定。外見のプロンプトに足して、顔だけの画像を一度だけ作ります', 'span2'),
+      fld('顔アイコンの Negative', inp(st.images, 'icon_neg', { ph: 'full body, wide shot, multiple views' })),
       h('div', { class: 'fld spanall' }, chk(st.images, 'busy_reuse', '生成中にコマンドを実行したら、既存の画像があればそれを表示して新規生成しない（なければ待ち行列に追加）'))),
     h('p', { class: 'hint' }, '同じプロンプト = 合成後の Positive と Negative が完全に一致するもの（キャラをまたいでも共有）。表示中の画像は 🎲 で同じプロンプトの別の画像に、⟳ で新規生成に切り替えられます。'),
     h('div', { class: 'sect' }, 'ワークフロー'),

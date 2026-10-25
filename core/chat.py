@@ -214,6 +214,10 @@ class Chat:
         return out
 
     def face(self, cid):
+        """顔: 顔だけのアイコンがあればそれ, 無ければログの最新の画像."""
+        c = self.app.chars.get(cid) or {}
+        if self.app.has_icon(c):
+            return c["icon"]
         for e in reversed(self.app.log(cid)):
             if e.get("image"):
                 return e["image"]
