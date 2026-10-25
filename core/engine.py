@@ -2743,6 +2743,8 @@ class App:
             store.save_worlds(meta)
             if switch:
                 self.switch_world(wid)
+            for cid in store.load_cast(wid):
+                self.make_icon(cid)        # 最初から顔ぶれにいる人の顔のアイコン (まだ無ければ. 自動表示が切れていれば作らない)
             return {"id": wid, "worlds": self.worlds_view()}
 
     def export_world(self, wid=None, images=False):
