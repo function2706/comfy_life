@@ -187,6 +187,8 @@ def route(method, path, q, body):
             return a.task_resume(b.get("token"))
         if path == "/api/task/move":
             return a.task_move(b["token"], b.get("move") or {})
+        if path == "/api/task/pause":
+            return a.task_pause(b["token"], b.get("on", True) is not False)
         if path == "/api/task/finish":
             return a.task_finish(b["token"], cid)
         if path == "/api/image/delete":

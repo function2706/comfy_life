@@ -672,6 +672,17 @@ a.btn { color: inherit; }
 .pz-clue.done { color: var(--muted); opacity: .45; }
 .pz-clue.cur { background: #3a3346; }
 .pz-slide .tile { background: var(--accent-d); border-radius: 6px; }
+.pz-paused { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 260px;
+  background: repeating-linear-gradient(45deg, var(--panel2), var(--panel2) 12px, var(--panel3) 12px, var(--panel3) 24px); border-radius: 12px; margin: 8px 0; }
+.pz-paused .big { font-size: 40px; }
+.pz-g2048 { gap: 6px; padding: 6px; background: var(--panel3); border-radius: 10px; touch-action: none; user-select: none; }
+.pz-c.g2 { display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--panel2); font-size: calc(var(--cell) * .34); }
+.pz-c.g2.v2 { background: #3b3546; } .pz-c.g2.v4 { background: #4a3f5a; } .pz-c.g2.v8 { background: #7a4a6a; }
+.pz-c.g2.v16 { background: #8f4f6f; } .pz-c.g2.v32 { background: #a85470; } .pz-c.g2.v64 { background: #c25a6c; }
+.pz-c.g2.v128 { background: #b7843f; } .pz-c.g2.v256 { background: #c49438; } .pz-c.g2.v512 { background: #cfa332; }
+.pz-c.g2.v1024 { background: #d8b22c; color: #222; } .pz-c.g2.v2048, .pz-c.g2.v4096 { background: #e6c53a; color: #222; }
+.pz-c.g2.goal { box-shadow: 0 0 0 2px var(--accent); }
+.g2-pad { gap: 6px; justify-content: center; }
 .pz-slide .tile.home { background: var(--accent); }
 .pz-slide .blank { background: var(--panel); cursor: default; }
 .pz-slither { touch-action: none; user-select: none; -webkit-user-select: none; background: #f6f1e6; border-radius: 8px; line-height: 0; }

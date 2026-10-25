@@ -1758,7 +1758,7 @@ async function finishTask(gaveUp) {
     const k = r.task;
     T.view = k.view;
     renderTask(h('div', { class: 'task-result' },
-      h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}${k.fast ? '・速い！' : ''}・ミス ${k.miss}）` : `途中でやめた（${fmtSec(k.sec)}・ミス ${k.miss}）`),
+      h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}${k.fast ? '・速い！' : ''}・ミス ${k.miss}）` : `${k.view && k.view.stuck ? '動かせなくなった' : '途中でやめた'}（${fmtSec(k.sec)}・ミス ${k.miss}）`),
       h('div', { class: 'big' }, yen(k.pay)),
       r.entry && r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
       h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));

@@ -2340,10 +2340,21 @@ class App:
         pz = t["puzzle"]
         kind, level = pz["kind"], pz["level"]
         base = puzzles.base_pay(kind, level, self.world.get("economy", {}).get("side_job_rate_per_min"))
-        return {"token": token, "view": puzzles.view(pz), "skill": round(self.life.skill("work"), 1),
+        paused = puzzles.paused(t)       # 一時停止中は盤面を返さない (覗いて考えられないように)
+        return {"token": token, "view": None if paused else puzzles.view(pz), "paused": paused, "skill": round(self.life.skill("work"), 1),
                 "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
                 "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind],
-                "elapsed": round(time.time() - t["t0"], 1)}
+                "elapsed": round(puzzles.elapsed(t), 1)}
+
+    def task_pause(self, token, on=True):
+        """内職の一時停止 (離席用) / 再開. 止めている間は経過時間に数えず, 盤面も返さない."""
+        with self.lock:
+            t = self._task_store().get(token)
+            if not t:
+                raise ValueError("作業が見つかりません（やり直してください）")
+            (puzzles.pause if on else puzzles.unpause)(t)
+            self._task_save()
+            return self._task_info(token)
 
     def task_resume(self, token=None):
         """やりかけの内職の続き (盤面と経過時間)."""
@@ -2390,9 +2401,11 @@ class App:
             t = self._task_store().get(token)
             if not t:
                 raise ValueError("作業が見つかりません（やり直してください）")
+            if puzzles.paused(t):
+                raise ValueError("一時停止中です（再開してから）")
             r = puzzles.move(t["puzzle"], mv)
             self._task_save()
-            return dict(r, view=puzzles.view(t["puzzle"]), sec=round(time.time() - t["t0"], 1))
+            return dict(r, view=puzzles.view(t["puzzle"]), sec=round(puzzles.elapsed(t), 1))
 
     def task_finish(self, token, cid=None):
         """内職を終える (できあがっていても, 途中でやめても). 稼ぎ・体力・仕事スキル・キャラの反応."""
@@ -2403,7 +2416,7 @@ class App:
             self.tasks.pop(token, None)
             self._task_save()
             pz = t["puzzle"]
-            sec = time.time() - t["t0"]
+            sec = puzzles.elapsed(t)              # 一時停止していた間は数えない
             e = self.world.get("economy", {})
             pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_rate_per_min"))
             mv = self.life.move(None, dp=pay, cat="income", note="内職") if pay else {}

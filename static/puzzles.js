@@ -8,14 +8,23 @@
      finishTask(gaveUp): できあがったとき・やめたときに呼ばれる (結果は renderTask(結果の要素) で盤と一緒に出せる).
      closeTask(): 「やめる」で呼ばれる.
    サーバの API: POST /api/task/move {token, move} → {view, wrong?, short?, solved} (答え合わせはサーバ).
-   beginTask(tk) で始める. tk = {token, view, name, level_name, base, par, desc, elapsed}. */
+   POST /api/task/pause {token, on} → tk (一時停止中は view が null. 経過時間も止まる).
+   beginTask(tk) で始める. tk = {token, view, name, level_name, base, par, desc, elapsed, paused}. */
 
 function beginTask(tk) {
-  S.task = { tk, view: tk.view, flags: new Set(), xs: new Set(), memo: {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false };
-  if (tk.view.kind === 'slither') slInit(S.task);
+  S.task = { tk, view: tk.view, flags: new Set(), xs: new Set(), memo: {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false,
+    paused: !!tk.paused, pausedSec: tk.elapsed || 0 };
+  if (tk.view && tk.view.kind === 'slither') slInit(S.task);
   S.task.timer = setInterval(taskStats, 500);
   S.task.key = (ev) => {
     const T = S.task;
+    if (!T || T.done || T.paused || !T.view) return;
+    if (T.view.kind === 'g2048') {                // 矢印キー・WASD で寄せる
+      const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right',
+        W: 'up', S: 'down', A: 'left', D: 'right' }[ev.key];
+      if (dir && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); g2048Move(dir); }
+      return;
+    }
     if (T && !T.done && T.view.kind === 'slither' && (ev.ctrlKey || ev.metaKey)) {      // Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z)
       const k = ev.key.toLowerCase();
       if (k === 'z' && !ev.shiftKey) { ev.preventDefault(); slUndo(T); }
@@ -47,11 +56,13 @@ function taskStats() {
   const el = document.querySelector('.pz-stats');
   if (!T || !el) return;
   const v = T.view;
+  if (T.paused || !v) { el.textContent = `⏸ 一時停止中（⏱ ${fmtSec(T.pausedSec)} で止まっています）`; return; }
   const sec = (Date.now() - T.t0) / 1000;
   let rest = '';
   if (v.kind === 'mines') rest = `残り地雷 ${v.n - T.flags.size}`;
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
   else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
+  else if (v.kind === 'g2048') rest = `最大 ${v.max} / 目標 ${v.target}　${v.moves} 手`;
   else if (v.kind === 'slither') rest = `線 ${(T.sl ? T.sl.st : v.st).filter((x) => x === 1).length} 本${T.sl && T.sl.trials.length ? `　✎ 仮置き中${T.sl.trials.length > 1 ? `（${T.sl.trials.length} 段目）` : ''}` : ''}`;
   else rest = `${v.moves} 手`;
   el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
@@ -202,9 +213,52 @@ async function sudokuInput(d) {
 // 数独: 正しい数字が入ったら, 同じ行・列・ブロックのメモからその数字を自動で消すか (このブラウザで覚える. 既定は消さない)
 function autoMemo() { try { return localStorage.getItem('kurashi.sudokuAutoMemo') === '1'; } catch (e) { return false; } }
 function setAutoMemo(on) { try { localStorage.setItem('kurashi.sudokuAutoMemo', on ? '1' : '0'); } catch (e) { /* 覚えられなくても動く */ } }
-async function taskMove(mv) {
+// 一時停止 (離席用): 止めている間は盤面を隠し (手元にも残さない), 経過時間も止める. 再開で盤面を受け取り直す
+async function taskPause(on) {
   const T = S.task;
   if (!T || T.done || T.busy) return;
+  T.busy = true;
+  try {
+    const tk = await api('/api/task/pause', { token: T.tk.token, on });
+    T.paused = !!tk.paused;
+    if (T.paused) { T.view = null; T.pausedSec = tk.elapsed; }
+    else { T.view = tk.view; T.t0 = Date.now() - tk.elapsed * 1000; }
+    renderTask();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.busy = false; }
+}
+
+// 2048: 寄せる. 動かせなくなったらそこまで (稼ぎは最大のタイルの進み具合のぶん)
+async function g2048Move(dir) {
+  const T = S.task;
+  if (!T || T.done || T.busy || T.paused) return;
+  T.busy = true;
+  let r = null;
+  try {
+    r = await api('/api/task/move', { token: T.tk.token, move: { dir } });
+    T.view = r.view;
+    renderTask();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.busy = false; }
+  if (r && r.solved) await finishTask(false);
+  else if (r && r.view.stuck) { toast('もう動かせません。ここまでです', 'err'); await finishTask(true); }
+}
+function g2048Swipe(grid) {          // スワイプ (指・マウスのドラッグ) で寄せる
+  let s = null;
+  grid.addEventListener('pointerdown', (ev) => { s = [ev.clientX, ev.clientY]; });
+  grid.addEventListener('pointerup', (ev) => {
+    if (!s) return;
+    const dx = ev.clientX - s[0], dy = ev.clientY - s[1];
+    s = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    g2048Move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+  grid.addEventListener('pointercancel', () => { s = null; });
+}
+
+async function taskMove(mv) {
+  const T = S.task;
+  if (!T || T.done || T.busy || T.paused) return;
   T.busy = true;
   try {
     const r = await api('/api/task/move', { token: T.tk.token, move: mv });
@@ -516,11 +570,22 @@ function renderTask(result) {
   if (!T) return;
   const v = T.view;
   $('#task-sub').textContent = `${T.tk.name}（${T.tk.level_name}）・解けたら ${yen(T.tk.base)}前後`;
+  if (!result && (T.paused || !v)) {          // 一時停止中: 盤面は隠す (覆い). 操作もできない
+    $('#task-body').replaceChildren(
+      h('div', { class: 'pz-stats muted' }),
+      h('div', { class: 'pz-paused' }, h('div', { class: 'big' }, '⏸'), h('div', {}, '一時停止中'),
+        h('div', { class: 'muted small' }, '盤面は隠しています。時間も止まっています'),
+        h('button', { class: 'btn primary', onclick: () => taskPause(false) }, '▶ 再開')),
+      h('div', { class: 'row' }, h('span', { class: 'muted small', style: 'flex:1' }, T.tk.desc),
+        h('button', { class: 'btn small ghost', onclick: () => closeTask() }, 'やめる')));
+    taskStats();
+    return;
+  }
   const n = v.kind === 'mines' || v.kind === 'slither' ? v.w : v.kind === 'sudoku' ? 9 : v.n;
   const extra = v.kind === 'picross' ? 1 : 0;
   // 盤に収まるマスの大きさ. 押しにくいほど小さい (30px 未満) ときは「拡大」で大きくして, 盤を縦横にずらして遊べる
   const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 40;      // 作業画面の中の実際の幅
-  const fit = Math.max(18, Math.min(v.kind === 'slide' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
+  const fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
   const small = fit < 30;
   const cell = small && T.zoom ? '38px' : `${Math.floor(fit)}px`;
   let grid = h('div', { class: `pz-grid pz-${v.kind}`, style: `--cell:${cell}` });
@@ -576,6 +641,10 @@ function renderTask(result) {
     if (!result) picrossDrag(grid);
   } else if (v.kind === 'slither') {
     grid = h('div', { class: 'pz-slither' }, slBoard(T, v, parseFloat(cell), result));
+  } else if (v.kind === 'g2048') {
+    grid.style.gridTemplateColumns = `repeat(${v.n}, var(--cell))`;
+    v.board.forEach((x) => grid.append(h('div', { class: 'pz-c g2 v' + Math.min(x, 4096) + (x >= v.target ? ' goal' : '') }, x ? String(x) : '')));
+    if (!result) g2048Swipe(grid);
   } else {
     grid.style.gridTemplateColumns = `repeat(${v.n}, var(--cell))`;
     v.board.forEach((x, i) => {
@@ -590,6 +659,10 @@ function renderTask(result) {
       T.zoom ? '🔍 全体を表示' : '🔍 拡大（盤をずらして遊ぶ）'));
   }
   if (!result && v.kind === 'slither') tools.push(h('div', { class: 'row sl-tools', style: 'gap:6px;flex-wrap:wrap' }));
+  if (!result && v.kind === 'g2048') {
+    tools.push(h('div', { class: 'row g2-pad' }, [['left', '←'], ['up', '↑'], ['down', '↓'], ['right', '→']].map(([d, l]) =>
+      h('button', { class: 'btn small', title: '矢印キー・WASD・スワイプでも', onclick: () => g2048Move(d) }, l))));
+  }
   if (!result && (v.kind === 'mines' || v.kind === 'picross')) {
     tools.push(h('button', { class: 'btn small' + (T.alt ? ' primary' : ''), onclick: () => { T.alt = !T.alt; renderTask(); } },
       v.kind === 'mines' ? '🚩 旗を立てる' : '× 印を付ける'));
@@ -610,6 +683,7 @@ function renderTask(result) {
     h('div', { class: 'pz-wrap' + (small && T.zoom ? ' zoom' : '') }, grid),
     ...tools,
     result ? '' : h('div', { class: 'row' }, h('span', { class: 'muted small', style: 'flex:1' }, T.tk.desc),
+      h('button', { class: 'btn small ghost', title: '離席するとき。盤面を隠して、時間を止めます', onclick: () => taskPause(true) }, '⏸ 一時停止'),
       h('button', { class: 'btn small ghost', onclick: () => closeTask() }, 'やめる')));
   taskStats();
   if (!result && v.kind === 'slither') slTools(T);

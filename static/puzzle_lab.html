@@ -107,7 +107,7 @@ async function finishTask() {
   S.hist = S.hist.slice(0, 20);
   drawHist();
   renderTask(h('div', { class: 'task-result' },
-    h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}／目安 ${fmtSec(k.par)}${k.fast ? '・速い' : ''}・ミス ${k.miss}）` : `やめた（${fmtSec(k.sec)}・ミス ${k.miss}）`),
+    h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}／目安 ${fmtSec(k.par)}${k.fast ? '・速い' : ''}・ミス ${k.miss}）` : `${k.view && k.view.stuck ? '動かせなくなった' : 'やめた'}（${fmtSec(k.sec)}・ミス ${k.miss}）`),
     h('div', { class: 'big' }, yen(k.pay)), h('div', { class: 'muted small' }, `本体ならこの額（仕事スキル ${+$('#skill').value || 0} で試算）`),
     h('div', { class: 'row', style: 'gap:6px;justify-content:center' },
       h('button', { class: 'btn primary', onclick: () => newBoard() }, '次の盤面'),

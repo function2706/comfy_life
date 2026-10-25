@@ -191,6 +191,8 @@ def main():
             q["st"] = list(q["sol"])
         elif kind == "sudoku":
             q["cur"] = list(q["solution"])
+        elif kind == "g2048":
+            q["board"][0] = q["target"]
         q["miss"] = miss
         return q
 

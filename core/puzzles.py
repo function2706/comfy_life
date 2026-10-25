@@ -1,4 +1,4 @@
-"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・15 パズル.
+"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・スリザーリンク・15 パズル・2048.
 
 - 盤面はサーバで作る (毎回ランダム). 数独とピクロスは解が一つだけになるように, マインスイーパは最初に開けたマスとその周りに
   地雷を置かない. 答え合わせもサーバでする (手をひとつずつ受け取って判定する. 画面の申告は信じない).
@@ -6,27 +6,36 @@
 - 稼ぎ (pay): 基本額 × 仕事スキルの倍率 × 速さ (目安の時間 PAR より速ければ 1.2 倍, 2 倍より遅ければ 0.8 倍)
   × ミス (1 回 1 割減, 4 割まで). 基本額は 目安の時間 (分) × 1 分あたりの額 (economy.side_job_rate_per_min) ×
   難しさの上乗せ (LEVEL_BONUS) で, 種類が違っても時間あたりの稼ぎがならされる. 解けずにやめたら, 進んだぶんの 2 割.
+- 2048: 難しさは目標のタイル (易 512 / 中 1024 / 難 2048). 盤の大きさ・出るタイルは変えない (変えると別物になる).
+  目標に届いたらそこでできあがり. 動かせなくなったら (詰み) そこまで. 元に戻すは無し. 出るタイルはサーバで決める.
+  進み具合は最大のタイル (log2(最大) − 2) / (log2(目標) − 2) で, 詰んだ・やめたときはそのぶんの 2 割 (ほかと同じ).
+- 一時停止 (pause / resume): 離席用. 止めている間は経過時間に数えず, 盤面も返さない (手も受け付けない).
 盤面の状態は App.tasks[token]["puzzle"] (ワールドの tasks.json にも書く. サーバを再起動しても続きから. 1 日で消える).
 """
+import math
 import random
 import time
 
 from . import slither as SL
 
-KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slither": "スリザーリンク", "slide": "15パズル"}
+KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slither": "スリザーリンク", "slide": "15パズル",
+         "g2048": "2048"}
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
 DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
         "slither": "点と点の間に線を引いて、全体で一つの輪を作る。数字はそのマスの周りに引く線の数（なぞって線、クリックで×。仮置き・元に戻すも）",
         "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
-        "slide": "空いているマスの隣を押して動かし、1 から順に並べます"}
+        "slide": "空いているマスの隣を押して動かし、1 から順に並べます",
+        "g2048": "矢印キー・WASD・スワイプで全部のタイルを寄せ、同じ数がぶつかると合わさります。目標の数のタイルを作ったらできあがり（動かせなくなったらそこまで）"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
         "sudoku": {"easy": 38, "mid": 30, "hard": 23},          # 最初から入っている数の目安 (その難しさの解き方で解けなくなる分は残る)
         "picross": {"easy": 5, "mid": 8, "hard": 10},
         "slither": {"easy": (5, 5, 0.55), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py)
-        "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)}}       # (一辺, 崩す手数)
+        "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)},       # (一辺, 崩す手数)
+        "g2048": {"easy": 512, "mid": 1024, "hard": 2048}}                  # 目標のタイル (盤は 4×4 のまま)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
-       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480}}
+       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480},
+       "g2048": {"easy": 300, "mid": 600, "hard": 1200}}        # 2048: 目標が倍になると手数もおよそ倍
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
@@ -553,7 +562,107 @@ def slither_view(p, reveal=False):
     return {"h": p["h"], "w": p["w"], "clues": p["clues"], "st": st}
 
 
+# ====================================================================== 2048
+DIRS = ("up", "down", "left", "right")
+
+
+def g2048_spawn(p, rng):
+    empty = [i for i, x in enumerate(p["board"]) if not x]
+    if empty:
+        p["board"][rng.choice(empty)] = 4 if rng.random() < 0.1 else 2
+
+
+def g2048_new(level, rng=random):
+    p = {"kind": "g2048", "n": 4, "board": [0] * 16, "target": SIZE["g2048"][level], "moves": 0, "score": 0, "miss": 0}
+    g2048_spawn(p, rng)
+    g2048_spawn(p, rng)
+    return p
+
+
+def g2048_lines(n, d):
+    """向き d に寄せるときの並び (寄せる先が先頭)."""
+    rows = [[r * n + c for c in range(n)] for r in range(n)]
+    cols = [[r * n + c for r in range(n)] for c in range(n)]
+    return {"left": rows, "right": [x[::-1] for x in rows], "up": cols, "down": [x[::-1] for x in cols]}[d]
+
+
+def g2048_slide(board, n, d):
+    """寄せた盤と, 合わさって増えた点数. 一列で, 一度合わさったタイルはもう合わさらない (2 2 4 → 4 4, 8 にはならない)."""
+    out, gain = list(board), 0
+    for line in g2048_lines(n, d):
+        vals = [board[i] for i in line if board[i]]
+        merged = []
+        i = 0
+        while i < len(vals):
+            if i + 1 < len(vals) and vals[i] == vals[i + 1]:
+                merged.append(vals[i] * 2)
+                gain += vals[i] * 2
+                i += 2
+            else:
+                merged.append(vals[i])
+                i += 1
+        merged += [0] * (n - len(merged))
+        for idx, v in zip(line, merged):
+            out[idx] = v
+    return out, gain
+
+
+def g2048_stuck(p):
+    return all(g2048_slide(p["board"], p["n"], d)[0] == p["board"] for d in DIRS)
+
+
+def g2048_move(p, mv, rng=random):
+    d = mv.get("dir")
+    if d not in DIRS:
+        raise ValueError("向きが違います")
+    if g2048_solved(p) or g2048_stuck(p):
+        return {"moved": False, "stuck": g2048_stuck(p)}
+    board, gain = g2048_slide(p["board"], p["n"], d)
+    if board == p["board"]:
+        return {"moved": False, "stuck": False}       # その向きには動かない (手数に数えない)
+    p["board"], p["score"], p["moves"] = board, p["score"] + gain, p["moves"] + 1
+    g2048_spawn(p, rng)
+    return {"moved": True, "stuck": g2048_stuck(p)}
+
+
+def g2048_solved(p):
+    return max(p["board"]) >= p["target"]
+
+
+def g2048_progress(p):
+    top = max(p["board"]) or 2
+    return (math.log2(top) - 2) / (math.log2(p["target"]) - 2)
+
+
+def g2048_view(p, reveal=False):
+    return {"n": p["n"], "board": list(p["board"]), "target": p["target"], "moves": p["moves"], "score": p["score"],
+            "max": max(p["board"]), "stuck": g2048_stuck(p)}
+
+
 _F = {k: {f: globals()["%s_%s" % (k, f)] for f in ("new", "move", "solved", "progress", "view")} for k in KINDS}
+
+
+# ====================================================================== 一時停止 (離席用)
+def elapsed(t, now=None):
+    """作業の経過秒 (一時停止していた間は数えない). t: 作業の記録 {t0, paused_at?, paused_total?}."""
+    now = now or time.time()
+    stop = t.get("paused_at")
+    return max(0.0, (stop or now) - t["t0"] - float(t.get("paused_total") or 0))
+
+
+def pause(t, now=None):
+    if not t.get("paused_at"):
+        t["paused_at"] = now or time.time()
+
+
+def unpause(t, now=None):
+    if t.get("paused_at"):
+        t["paused_total"] = float(t.get("paused_total") or 0) + (now or time.time()) - t["paused_at"]
+        t["paused_at"] = None
+
+
+def paused(t):
+    return bool(t.get("paused_at"))
 
 
 def new(kind, level, rng=random):

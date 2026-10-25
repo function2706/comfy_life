@@ -7,7 +7,7 @@
 - できること: 種類と難しさを選んで何度でも続けて遊ぶ, すぐ新しい盤面, 答えを表示, かかった時間・ミス・本体ならいくら稼げたか
   (仕事スキルを入れて試算), 乱数の種 (seed) を指定して同じ盤面を出す.
 API (本体の内職と同じ形): POST /api/task/start {kind, level, seed?, skill?} / /api/task/move {token, move} /
-/api/task/answer {token} / /api/task/finish {token}, GET /api/catalog.
+/api/task/answer {token} / /api/task/pause {token, on} / /api/task/finish {token}, GET /api/catalog.
 """
 import argparse
 import json
@@ -42,9 +42,11 @@ class Lab:
         pz = g["puzzle"]
         k, lv = pz["kind"], pz["level"]
         base = puzzles.base_pay(k, lv) * skill_mult_of(g["skill"])
-        return {"token": token, "view": puzzles.view(pz), "name": puzzles.KINDS[k], "level_name": puzzles.LEVEL_LABEL[lv],
+        paused = puzzles.paused(g)
+        return {"token": token, "view": None if paused else puzzles.view(pz), "paused": paused,
+                "name": puzzles.KINDS[k], "level_name": puzzles.LEVEL_LABEL[lv],
                 "desc": puzzles.DESC[k], "par": puzzles.PAR[k][lv], "base": int(round(base / 10.0)) * 10,
-                "elapsed": round(time.time() - g["t0"], 1), "seed": g["seed"], "skill": g["skill"]}
+                "elapsed": round(puzzles.elapsed(g), 1), "seed": g["seed"], "skill": g["skill"]}
 
     def start(self, kind, level, seed=None, skill=10):
         seed = int(seed) if seed not in (None, "") else random.randrange(1, 10 ** 9)
@@ -69,8 +71,17 @@ class Lab:
             g = self._get(token)
             if g["finished"]:
                 raise ValueError("もう終わった盤面です")
+            if puzzles.paused(g):
+                raise ValueError("一時停止中です（再開してから）")
             r = puzzles.move(g["puzzle"], mv, g["rng"])
-            return dict(r, view=puzzles.view(g["puzzle"]), sec=round(time.time() - g["t0"], 1))
+            return dict(r, view=puzzles.view(g["puzzle"]), sec=round(puzzles.elapsed(g), 1))
+
+    def pause(self, token, on=True):
+        """一時停止 / 再開 (本体と同じ. 止めている間は時間に数えず, 盤面も返さない)."""
+        with self.lock:
+            g = self._get(token)
+            (puzzles.pause if on else puzzles.unpause)(g)
+        return self._info(token)
 
     def answer(self, token):
         """答えを表示 (その盤面はおしまい. 稼ぎの試算は解けなかった扱い)."""
@@ -87,7 +98,7 @@ class Lab:
             g = self._get(token)
             g["finished"] = True
             pz = g["puzzle"]
-            sec = time.time() - g["t0"]
+            sec = puzzles.elapsed(g)
             solved = puzzles.solved(pz)
             return {"task": {"solved": solved, "fast": puzzles.fast(pz, sec), "miss": pz["miss"], "sec": round(sec),
                              "pay": puzzles.pay(pz, sec, skill_mult_of(g["skill"])), "kind": pz["kind"], "level": pz["level"],
@@ -110,6 +121,8 @@ def call_api(method, path, body):
             return LAB.move(b["token"], b.get("move") or {}), 200
         if method == "POST" and path == "/api/task/answer":
             return LAB.answer(b["token"]), 200
+        if method == "POST" and path == "/api/task/pause":
+            return LAB.pause(b["token"], b.get("on", True) is not False), 200
         if method == "POST" and path == "/api/task/finish":
             return LAB.finish(b["token"]), 200
         return {"error": "見つかりません: %s" % path}, 404
