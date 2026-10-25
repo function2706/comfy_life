@@ -170,6 +170,8 @@ class Offline:
             ent = {"t": s, "end": e, "do": do, "label": DO_LABEL[do], "text": "", "skipped": False}
             if b.get("_plan"):
                 ent["plan"] = b["_plan"]
+            if do == "practice" and b.get("skill"):
+                ent["label"] = app.planner.label(b)
             if do == "out":
                 ent["place"] = b.get("place")
                 ent["label"] = "外出（%s）" % app.places.label(b.get("place"))

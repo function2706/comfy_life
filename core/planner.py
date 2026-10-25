@@ -140,6 +140,9 @@ class Planner:
             return "外出（%s）" % app.places.label(b.get("place"))
         if b["do"] == "meal":
             return "食事（%s%s）" % (MEAL_HOW.get(b.get("how") or "cook", ""), "・" + app.places.label(b["place"]) if b.get("place") else "")
+        if b["do"] == "practice" and b.get("skill"):
+            from .solo import SKILL_LABEL
+            return "研鑽（%sの練習）" % SKILL_LABEL.get(b["skill"], b["skill"])
         return DO_LABEL.get(b["do"], b["do"])
 
     def view(self, now=None):
