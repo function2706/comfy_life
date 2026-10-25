@@ -1739,6 +1739,15 @@
   "chat.stamp": [
    "📱『（無表情の猫のスタンプが返ってきた）』"
   ],
+  "chat.selfie_yes": [
+   "📱『……はい』"
+  ],
+  "chat.selfie_no": [
+   "📱『……気分じゃない』"
+  ],
+  "chat.selfie_pester": [
+   "📱『……しつこい』"
+  ],
   "chat.late_night": [
    "📱『……何時だと思ってるの。寝る』"
   ],
