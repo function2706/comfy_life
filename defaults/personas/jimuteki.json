@@ -1657,6 +1657,14 @@
   "chat.ask_how": [
    "📱『近況？ {news}』"
   ],
+  "chat.ask_how_news": [
+   "{tell}わ。報告は以上。"
+  ],
+  "chat.ask_how_nothing": [
+   "特記事項なし。",
+   "変化なしよ。",
+   "平常どおりね。"
+  ],
   "chat.consult": [
    "📱『状況を整理しましょう。{fp}でよければ』"
   ],

@@ -1659,6 +1659,14 @@
   "chat.ask_how": [
    "📱『近況か？ {news}』"
   ],
+  "chat.ask_how_news": [
+   "{tell}んだ。"
+  ],
+  "chat.ask_how_nothing": [
+   "特に変わりない。",
+   "相変わらずだ。",
+   "まあ、ぼちぼちだな。"
+  ],
   "chat.consult": [
    "📱『話してくれて助かる。一緒に考えよう』"
   ],

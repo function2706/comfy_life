@@ -1646,6 +1646,14 @@
   "chat.ask_how": [
    "📱『……最近？ {news}』"
   ],
+  "chat.ask_how_news": [
+   "{tell}。それだけ。"
+  ],
+  "chat.ask_how_nothing": [
+   "別に。何も。",
+   "……いつも通り。",
+   "……変わらない。"
+  ],
   "chat.consult": [
    "📱『……そう。聞くよ。……話して』"
   ],
