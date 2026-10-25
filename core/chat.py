@@ -27,6 +27,7 @@ KINDS = {
     "flirt": ("甘える", "💕", "（甘えてみた）"),
     "invite": ("会おうよ", "📅", "（会おうと誘った）"),
     "photo": ("写真を送る", "📷", "（写真を送った）"),
+    "ask_selfie": ("自撮り送って", "🤳", "（自撮りを送ってとお願いした）"),
     "stamp": ("スタンプ", "🐾", "（スタンプを送った）"),
 }
 # 共通の返信 (性格プリセットに無ければ). 鍵は chat.<場面>
@@ -50,6 +51,9 @@ LINES = {
     "chat.invite_no": "📱『ごめんなさい、しばらくはちょっと……』",
     "chat.photo": "📱『わ、いい写真ですね！』",
     "chat.stamp": "📱『（スタンプが返ってきた）』",
+    "chat.selfie_yes": "📱『もう……しょうがないですね。はい、どうぞ』",
+    "chat.selfie_no": "📱『え、自撮りですか？ ……今はちょっと』",
+    "chat.selfie_pester": "📱『……さっきも言いましたよね？ しつこいです』",
     "chat.late_night": "📱『……こんな時間に、どうしたんですか？ もう寝ますね』",
     "chat.too_often": "📱『……ちょっと、連絡多くないですか？』",
     "chat.repaid": "📱『あ、確かに受け取りました。わざわざありがとうございます』",
@@ -72,7 +76,8 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "ask_how_nothing": "近況の中身: 特に何もないとき (一文のかけら)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
                "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
-               "stamp": "スタンプ", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
+               "stamp": "スタンプ", "selfie_yes": "自撮り送って (送ってくれた. 自撮りが添えられる)",
+               "selfie_no": "自撮り送って (断られた)", "selfie_pester": "自撮り送って (続けて頼みすぎ)", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
                "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
                "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)",
                "appoint_yes": "約束の誘い (応じた. {when} {place})", "appoint_no": "約束の誘い (断った)",
@@ -167,6 +172,17 @@ class Chat:
             return "too_often", {"mood": -2, "affection": -1}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
             return "late_night", {"mood": -2, "stress": 2}, extra
+        if kind == "ask_selfie":
+            # 自撮りを頼む: 仲・機嫌・ドキドキ・恥じらい・間柄しだい (必ずではない). 続けて頼むと嫌がられる
+            asks = [t for t in st.get("selfie_asks") or [] if now - t < 3 * 3600]
+            st["selfie_asks"] = (asks + [now])[-6:]
+            if len(asks) >= 2:
+                return "selfie_pester", {"mood": -4, "affection": -1}, extra
+            chance = 0.15 + (p.get("affection", 40) - 40) / 100.0 + (p.get("mood", 50) - 50) / 150.0 \
+                + p.get("heart", 0) / 300.0 - app.wardrobe.modesty(char) / 40.0 + (0.1 if stage in ("visit", "live") else 0.0)
+            if random.random() < max(0.03, min(0.85, chance)):
+                return "selfie_yes", {"heart": 3, "loneliness": -4}, extra
+            return "selfie_no", {"shyness": 3}, extra
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:

@@ -772,6 +772,7 @@ a.btn { color: inherit; }
   .topbar .chip.phase, .topbar .clock-date, .topbar .clock-s { display: none; }
   .topbar .btn.ghost { padding-left: 6px; padding-right: 6px; }
   .topbar .chip { padding: 3px 7px; }
+  #world-select { max-width: 76px; min-width: 0; text-overflow: ellipsis; }   /* ワールドが 2 つ以上でも ⚙ が押せるように */
 }
 /* メッセージ: 一覧と履歴は, ダイアログの高さに収めてそれぞれスクロールする (送る種類のボタンは下に固定) */
 .chat-wrap { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
@@ -804,3 +805,4 @@ a.btn { color: inherit; }
 
 /* 途中のことがあって, 始められない理由 */
 .blocked-note { margin: 0 0 10px; padding: 7px 10px; border-radius: 10px; background: #3a3322; color: #f0dfb0; font-size: 12.5px; }
+.chat-reply { padding: 8px 10px; border-top: 1px solid var(--line); background: var(--panel2); display: flex; flex-direction: column; gap: 6px; }

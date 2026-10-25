@@ -1300,8 +1300,9 @@ class App:
             st["last_interaction"] = now
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
             text = self.chat.line(char, key, extra)
-            selfie = key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused") and \
-                random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0)
+            selfie = key == "selfie_yes" or (
+                key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
+                and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
             if key not in ("too_often", "late_night"):
                 self.picked_up_phone(char, st, now)

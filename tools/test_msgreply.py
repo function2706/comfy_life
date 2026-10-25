@@ -108,7 +108,31 @@ def main():
         char["persona_id"] = "teinei"
         print("放っておく: 既読 %.1f / 未読 %.1f / クール %.1f / 会いたい %.1f / 今日の出来事 %.1f" % (r_read, r_unread, r_cool, r_miss, r_today))
 
-        # ---- 5. 選ばずに「返信する」(以前の形) でも受け付ける (先頭の選択肢)
+        # ---- 5. 自撮りを頼む (スマホのトーク): 仲・機嫌しだいで送ってくれる. 続けて頼むと嫌がられる
+        def ask_selfie(**params):
+            st["approach"], st["contacts"] = None, []
+            st.pop("msg_pending", None)
+            app.set_params(dict({"mood": 60, "loneliness": 40}, **params), cid)
+            app.chat.send(cid, "ask_selfie")
+            st["msg_pending"]["due"], st["msg_pending"]["reply"] = time.time() - 1, True
+            app.deliver_due()
+            return app.chat.thread(cid)["items"][-1]
+        yes = 0
+        for _ in range(40):
+            st["selfie_asks"] = []
+            it = ask_selfie(affection=85, mood=80)
+            yes += bool(it.get("selfie"))
+        low = 0
+        for _ in range(40):
+            st["selfie_asks"] = []
+            low += bool(ask_selfie(affection=20, mood=40).get("selfie"))
+        assert yes > low and yes < 40 and low < 15, (yes, low)
+        st["selfie_asks"] = [time.time() - 60, time.time() - 30]
+        it = ask_selfie(affection=85, mood=80)
+        assert it["kind"] == "selfie_pester" and not it.get("selfie"), it
+        print("自撮りを頼む: 仲が深い %d / 浅い %d (40 回中). 続けて頼むと嫌がられる" % (yes, low))
+
+        # ---- 6. 選ばずに「返信する」(以前の形) でも受け付ける (先頭の選択肢)
         fire()
         r = app.answer_approach("accept", cid)
         assert r["entry"]["reply"]["kind"] == "cheerful"

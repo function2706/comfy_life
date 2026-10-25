@@ -1091,6 +1091,14 @@ async function drawChat() {
         h('span', { class: 'muted small', style: 'margin-left:8px' }, th.together ? 'そばにいる' : th.promise ? `📅 会う約束（${hhmm(th.promise)}まで）` : ''),
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
       h('div', { class: 'chat-body' }, body.length ? body : h('p', { class: 'muted small', style: 'text-align:center' }, 'まだやりとりはありません')),
+      (() => {          // 返事を待たれているメッセージ: ここでも返事を選べる
+        const ap = can && (S.view.approaches || []).find((x) => x.cid === th.id && x.choices);
+        if (!ap) return '';
+        return h('div', { class: 'chat-reply' }, h('div', { class: 'muted small' }, `${ap.icon} 返事を選ぶ（あと${Math.max(1, Math.ceil((ap.until - Date.now() / 1000) / 60))}分）`),
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+            ...ap.choices.map((c) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'reply', c.id); S.chatJump = true; drawChat(); } }, c.label)),
+            h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later)));
+      })(),
       h('div', { class: 'chat-send' },
         can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`)),
           (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
