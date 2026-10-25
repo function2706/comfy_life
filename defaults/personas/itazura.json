@@ -1381,7 +1381,7 @@
    "うそ、リーチ!? ……ず、ずるくない？"
   ],
   "mg.mahjong.hand_win.default": [
-   "うぅ……{yaku}、{han}……。「{stage}」です……。み、見ないで",
+   "うぅ……{yaku}、{han}……。「{stage}」だって……。み、見ないで",
    "{yaku}で{han}……。「{stage}」とか……か、からかわないでよ!?"
   ],
   "mg.mahjong.hand_win.game_stage_le_1": [
@@ -1653,7 +1653,7 @@
    "……降りる。今のはなかったことに"
   ],
   "mg.poker.round_win.default": [
-   "{her_hand}に{my_hand}……うぅ、「{stage}」です……。み、見ないでよ",
+   "{her_hand}に{my_hand}……うぅ、「{stage}」になっちゃった……。み、見ないでよ",
    "{her_hand}で{my_hand}に負け……。「{stage}」とか……からかわないでね……"
   ],
   "mg.poker.round_win.game_stage_ge_3": [

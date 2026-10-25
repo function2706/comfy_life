@@ -1062,7 +1062,7 @@
    "えっ、リーチ！？ ……その牌、通るかな……安全牌の候補は……"
   ],
   "mg.mahjong.hand_win.default": [
-   "うぅ……{yaku}、{han}……。「{stage}」です……"
+   "うぅ……{yaku}、{han}……。「{stage}」になった……"
   ],
   "mg.mahjong.hand_win.game_stage_le_1": [
    "ま、まだまだ……次は和了るから！"
@@ -1266,7 +1266,7 @@
    "う……降りる。今回は撤退が合理的。"
   ],
   "mg.poker.round_win.default": [
-   "{her_hand}に{my_hand}……うぅ、「{stage}」です……"
+   "{her_hand}に{my_hand}……うぅ、結果は「{stage}」……"
   ],
   "mg.poker.round_win.game_stage_ge_3": [
    "こ、これ以上は……次で最後だからね……！"
@@ -1633,7 +1633,7 @@
    "……この時間の通話は睡眠効率に響くんだけど。……どうしたの。"
   ],
   "gift.liked_true": [
-   "{item}。私の好みに合致してる。……正直、すごくうれしい。"
+   "{item}。{fp}の好みに合致してる。……正直、すごくうれしい。"
   ],
   "gift.disliked_true": [
    "ありがとう。……データとしては、好みから外れてるかな。（{item}は、いまひとつのようだ）"

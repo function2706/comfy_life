@@ -13,7 +13,8 @@
 - 「〜でしょう」「〜ましょう」と決まり文句 (いただきます・おじゃまします など) は丁寧語に数えない (タメ口の女性言葉でも使う).
 - 共通のまま: 共通のセリフ (性格が無いときの言い方) とほぼ同じ行で, 共通の口調 (多くは丁寧語) がその性格の口調と違う (浮いている).
   共通のセリフがもともとその性格に合う口調なら, 同じでも拾わない.
-ナレーション (（…）だけの行) は口調の対象にしない. 結果はあくまで候補で, 誤検出を含む (人が読んで決める).
+ナレーション (（…）だけの行) は口調の対象にしない. 見知らぬ人・名前を知らない顔なじみに話しかける場面 (STRANGER_KEYS) は
+呼び方・丁寧さを見ない. 読んで「わざと」と決めた行は ALLOWED に足す. 結果はあくまで候補で, 誤検出を含む (人が読んで決める).
 """
 import argparse
 import difflib
@@ -28,7 +29,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 from core.keys import all_keys  # noqa: E402
 
-POLITE = re.compile(r"(です|ます|でした|ました|ません|ください|ございま)")
+POLITE = re.compile(r"(です(?!る)|ます(?!る)|でした|ました|ません|ください|ございま)")     # 「そこまでする」「おじゃまする」は除く
 # 丁寧語に数えない決まり文句 (タメ口の人も言う). 「〜でしょう」「〜ましょう」はタメ口の女性言葉でも使うので丁寧語に数えない
 SET_PHRASES = re.compile(r"(いただきます|ごちそうさまでした?|おじゃまします|お邪魔します|おかえりなさいませ|お待ちしてます|"
                          r"よろしくお願いします|ありがとうございま[すし]た?|おはようございます|すみません|おじゃま|お邪魔|"
@@ -42,6 +43,17 @@ OJOU = re.compile(r"(わ[。！!？?…」、,♪〜～]|わ$|くて[？?]|わ�
                   r"くださいまし|くださいませ|ですわ|ますわ|あそばせ|ですもの|ますもの|の[！!？?…。]|の$|なさい)")
 # 丁寧語の性格で「浮いている」とみなすタメ口 (ゆるい独り言・感嘆はタメ口に数えない)
 STRONG_CASUAL = re.compile(r"(だよ|だね|だろ|じゃん|だった[。！？…」!?]|だから[。！？…」!?]|だ[。！!？?」]|だ$)")
+# 見知らぬ人・名前を知らない顔なじみに話しかける場面: 呼び方 ({call}) を使えないので, 「あなた」も丁寧語も自然
+STRANGER_KEYS = ("enc.call.first", "enc.call.again")
+# わざとの言い方 (役になりきる・からかい・皮肉など). 読んで決めたもの: (性格, 場面のキー)
+ALLOWED = {
+    ("boyish", "tuck_in.default"),              # 「はいはい、寝ますよ」(からかい半分の丁寧語)
+    ("osananajimi", "tuck_in.default"),         # 同上
+    ("osananajimi", "comfort.cause_player"),    # 「原因{call}なんですけど」(皮肉)
+    ("genki", "_req_no.req_kind_gift"),         # 「……ですよねー」(決まり文句)
+    ("itazura", "mg.blackjack.start.default"),  # 「ディーラーの{fp}です」(役になりきる)
+    ("rikejo", "chat.apology"),                 # 「謝罪、受理します」(わざと事務的に)
+}
 # 説明から決まる性格ごとの決まり (register: polite / casual. 無ければ大多数から決める)
 RULES = {
     "aneki": {"register": "casual"}, "jimuteki": {"register": "casual"}, "kedakai": {"register": "casual"},
@@ -88,18 +100,19 @@ def check(path, keys):
     out = []
     for k, t in lines:
         b = body(t)
-        if not b:
+        if not b or (pid, k) in ALLOWED:
             continue
+        stranger = k.startswith(STRANGER_KEYS)
         why = []
         if FIRST_PERSON.search(b.replace("{fp}", "").replace("{fp_st}", "")):
             why.append("一人称の直書き")
         for name, pat in CALLS.items():
-            if name != own_call and re.search(pat, b):
+            if not stranger and name != own_call and re.search(pat, b):
                 why.append("呼び方の直書き（%s）" % name)
         r = register_of(t)
         if reg == "polite" and r == "casual" and not STRONG_CASUAL.search(body(t)):
             r = None                       # 丁寧語の人の短い感嘆・独り言 (「かわいい……！」) は浮いていない
-        if reg and r and r != reg:
+        if reg and r and r != reg and not stranger:
             why.append("丁寧さ（%sの性格に%s）" % ("丁寧語" if reg == "polite" else "タメ口", "タメ口" if r == "casual" else "丁寧語"))
         if rule.get("no_feminine") and FEMININE.search(b):
             why.append("使わない語尾（女性的な「わ・かしら・のよ」）")
