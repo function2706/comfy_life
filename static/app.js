@@ -2464,13 +2464,32 @@ SEC.char = () => {
 // 顔だけのアイコン (トーク・関係性の顔). 一度だけ作って定義に固定. 作り直しは外見を変えたあとなどに
 function iconRow(c) {
   const face = h('div', { class: 'who-face' });
-  if (c.icon) face.style.backgroundImage = `url("${imgUrl(c.icon)}")`; else face.textContent = (c.name || '?').slice(0, 1);
-  return h('div', { class: 'row', style: 'align-items:center;gap:10px;margin:6px 0' }, face,
-    h('span', { class: 'hint' }, c.icon ? '顔のアイコン（トーク・関係性に出ます）' : 'まだ顔のアイコンがありません（それまではいちばん新しい画像を使います）'),
-    h('button', { class: 'btn', onclick: async () => {
-      try { await api('/api/character/icon', { id: c.id }); toast('顔のアイコンを作っています（保存済みの外見で。できたら入れ替わります）', 'ok'); }
-      catch (e) { toast(e.message, 'err'); }
-    } }, c.icon ? '作り直す' : '作る'));
+  const hint = h('span', { class: 'hint' });
+  const btn = h('button', { class: 'btn' });
+  const show = () => {
+    if (c.icon) { face.style.backgroundImage = `url("${imgUrl(c.icon)}")`; face.textContent = ''; } else face.textContent = (c.name || '?').slice(0, 1);
+    hint.textContent = c.icon ? '顔のアイコン（トーク・関係性に出ます）' : 'まだ顔のアイコンがありません（それまではいちばん新しい画像を使います）';
+    btn.textContent = c.icon ? '作り直す' : '作る';
+  };
+  // できたらこの欄の顔を入れ替え, 画面の顔 (トーク・関係性) も読み直す
+  const watch = (jid) => {
+    const tick = async () => {
+      const j = await api('/api/job?id=' + jid).catch(() => null);
+      if (j && j.status === 'done') { c.icon = j.image; show(); toast(`${c.name || ''}の顔のアイコンができました`, 'ok'); refresh(); return; }
+      if (j && ['error', 'cancelled', 'unknown'].includes(j.status)) { if (j.error) toast('顔のアイコン: ' + j.error, 'err'); return; }
+      setTimeout(tick, 1500);
+    };
+    setTimeout(tick, 1500);
+  };
+  btn.onclick = async () => {
+    try {
+      const r = await api('/api/character/icon', { id: c.id });
+      toast('顔のアイコンを作っています（保存済みの外見で。できたら入れ替わります）', 'ok');
+      if (r && r.job) watch(r.job);
+    } catch (e) { toast(e.message, 'err'); }
+  };
+  show();
+  return h('div', { class: 'row', style: 'align-items:center;gap:10px;margin:6px 0' }, face, hint, btn);
 }
 
 // キャラの追加: このワールドに現れるか・あなたとの間柄を確かめる (同居はいきなりは選べない)
