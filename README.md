@@ -193,6 +193,8 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 誘いに応じてくれたら外で会う（お出かけの一時シーンが終われば別れる）。「家に遊びに行く」は `visit_hours` 時間で帰る。
 - コマンドの `"bond"`: `to_visit`（家に行ってもいい？）/ `to_live`（一緒に住まない？。同居は一人だけ）/ `end_live` / `visit_start` / `visit_end`。断る反応（置き換え）なら変わらない。
 - 一緒にいない相手からの働きかけは、`approaches.json` の `"apart": true` のものだけ（📱 メッセージ、画像なし。一緒のときは逆に出ない）。来やすさは `presence.approach_apart_rate_per_hour` × 寂しさ・好感度・機嫌。あなたが外出中・仕事中でも届く（出かけている同居相手からも）。連絡先を知っている離れた相手なら誰からでも届き、そばにいる人は誰でも話しかけてくる（`state_view.approaches`）。メッセージを送れば、それが返事になる。
+- **メッセージへの返事は選択肢**（`core/msgreply.py`）: `msgreply.OPTIONS`（メッセージごとに 3〜4 つ: cheerful 明るく乗る / expand 話を広げる / worry 心配する / tease からかう / curt 素っ気なく）。`POST /api/approach {answer: "reply", choice, character}`（`choice` なしの accept は先頭の選択肢）→ `presence._reply`。受け取り方 `msgreply.judge`（good / neutral / bad）= 種類の基本 + 内容との合い方 `FIT` + 性格の好み `TASTE` + 機嫌・好感度・会話スキル + 揺らぎ ±15（からかいは好感度 60 からの差 × 0.4、素っ気ないは寂しさ 40 からの差 × 0.2 だけ下がる。good でも 1 割は neutral）。good は働きかけの accept の効果、neutral は寂しさ −3、bad は機嫌 −4・好感度 −1・信頼 −1 と機嫌の理由。どれも `bonds.realize` を通す。相手の返しは `msgr.<種類>.<結果>`、もう一言は `msgr.more.<結果>`（good 55%・neutral 30%・bad 45%）で、性格プリセットで差し替えられる（18 場面）。
+- **返事をしないまま時間切れ**（メッセージ. `presence._expire`）: 待つ時間は既定 90 分（`wait_minutes`）。効果は ignore の効果 × 0.6 × 性格の `absence` × 既読なら 1.4・未読なら 0.7（トークの `seen_t` がメッセージより後なら既読）× 急ぎの度合い `urgency`（既定: 会いたい 1.4・何してる？ 1.0・今日の出来事 0.8）× (0.5 + 寂しさ/100)。既読のまま放っておくとトークに「既読のまま返事をしなかった」と残り、機嫌の理由は「既読のまま放っておかれた」。
 - 離れている相手も、本人は自分の予定（スケジュール）どおりに過ごしている。条件式の `away` は「あなたから見てそばにいない」も含むが、本人のパラメータの動き・出来事は本人の過ごし方で決まる（`App.context(..., view=False)`。家にいれば外出中の体の動きにならない）。見え方は今までどおり（離れている相手の様子は既定で伏せる）。
 - メッセージは画像なし。`"selfie": true` のコマンドは、機嫌・好感度・ドキドキが高いほど自撮りが添えられる（上限 35%）。
 - 嫉妬: あなたと深い仲のキャラは、時間経過であなたとほかの人との深い仲に気づく（同居だと気づきやすい。性格の `jealousy` 倍率）。機嫌の理由に残り、その相手への好感度も下がる。
@@ -502,6 +504,7 @@ static/            UI（内職のパズルの画面は static/puzzles.js、ミ�
 tools/mock_comfy.py  動作確認用の ComfyUI もどき
 tools/smoke_test.py  バックエンドの簡易テスト
 tools/test_reuse_dress.py  画像の再利用と着せ替えのテスト
+tools/test_msgreply.py  メッセージへの返事（選択肢・受け取り方・もう一言）と放っておいたとき（既読・未読・性格・急ぎ）のテスト
 tools/test_2048.py  内職の 2048（寄せる・合わさる・詰み・稼ぎ）と一時停止（本体・単独版）のテスト
 tools/test_wardrobe.py  服の一覧と持っている服（移行・大胆な服の受け入れ・服のプレゼント・本人の服選び・自分で買う・サンプル画像）のテスト
 tools/test_icon.py  顔のアイコン（一度だけ作って定義に固定・作り直し）のテスト

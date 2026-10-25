@@ -2213,7 +2213,7 @@ class App:
         r = self.encounters.answer(yes)
         return r
 
-    def answer_approach(self, ans, cid=None):
+    def answer_approach(self, ans, cid=None, choice=None):
         with self.lock:
             char = self.char(cid)
             st = self.state(char["id"])
@@ -2234,7 +2234,7 @@ class App:
                 ll = self.presence.back()          # そばで話しかけられて応じた: 一人の時間はそこまで (結果は残す)
                 if ll:
                     self.solo.finish(ll)
-            e, run = self.presence.answer(char, st, ans, use_action=bool(aid))
+            e, run = self.presence.answer(char, st, ans, use_action=bool(aid), choice=choice)
         if run:
             return self.act(run, char["id"], opts={"approach": True})
         return {"entry": e, "job": e.get("job") if e else None}

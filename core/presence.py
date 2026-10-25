@@ -20,6 +20,7 @@ import time
 from datetime import datetime
 
 from . import cond
+from . import msgreply
 
 DECLARED = ("busy", "out", "work", "sleep", "left")
 AWAY_MODES = ("out", "work", "sleep", "left")
@@ -265,8 +266,14 @@ class Presence:
         ig = a.get("ignore") or {}
         pres = self.at(now)
         lon = st["params"].get("loneliness", 50)
-        mult = (0.5 if a.get("apart") else 0.4 if ap.get("presence") == "busy" or pres == "busy"
-                else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
+        read = False
+        if a.get("apart"):
+            # メッセージ: 既読のまま放っておかれると重く, 開いていない (未読) なら軽い. 急ぎの内容ほど重い. 気にしない性格もいる
+            read = self.app.chat.load(char["id"])["seen_t"] >= ap.get("t", 0)
+            mult = 0.6 * float(self.app.traits(char).get("absence", 1)) * (1.4 if read else 0.7) * float(a.get("urgency", 1.0))
+        else:
+            mult = (0.4 if ap.get("presence") == "busy" or pres == "busy"
+                    else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
         mult *= 0.5 + lon / 100.0
         eff = {k: float(v) * mult for k, v in (ig.get("effects") or {"mood": -3, "loneliness": 5}).items()}
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
@@ -275,21 +282,26 @@ class Presence:
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         call = self.app.pronouns(char)[2]
         if deltas.get("mood", 0) <= -2 and (lon >= 75 or (lon >= 50 and not busy)):
-            tell = ("{call}にメッセージを送ったのに、返事がなかった" if a.get("apart") else
+            tell = ("{call}に既読のまま放っておかれた" if a.get("apart") and read else
+                    "{call}にメッセージを送ったのに、返事がなかった" if a.get("apart") else
                     "{call}が作業に夢中で、構ってもらえなかった" if busy else "{call}に話しかけたのに、返事がなかった")
             self.app.life.add_reason(st, "player", "bad", tell.replace("{call}", call), now, told=False,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         e = self._entry(char, st, now, a, "busy" if busy and ig.get("busy_text") else "ignore", text, deltas, None, gen=False)
+        if a.get("apart") and read:
+            self.app.chat.add(char["id"], "sys", "既読のまま返事をしなかった", kind="ignored", t=now)
         self.app.save_state(char["id"])
         return e
 
-    def answer(self, char, st, ans, now=None, use_action=True):
-        """働きかけに答える. ans = accept / later. (記録, 代わりに実行するコマンド id) を返す."""
+    def answer(self, char, st, ans, now=None, use_action=True, choice=None):
+        """働きかけに答える. ans = accept / later (メッセージは reply + choice も). (記録, 代わりに実行するコマンド id) を返す."""
         now = now or time.time()
         ap = st.get("approach")
         if not ap:
             raise ValueError("いまは話しかけられていません")
         a = self.find(ap["id"]) or {"id": ap["id"]}
+        if a.get("apart") and ans in ("accept", "reply"):
+            return self._reply(char, st, a, choice, now), None
         out = a.get(ans) or {}
         st["approach"] = None
         self.touch(now)
@@ -327,6 +339,52 @@ class Presence:
         self.app.save_state(char["id"])
         return e, None
 
+    def _reply(self, char, st, a, choice, now):
+        """メッセージに選んだ返事をする. 相手の受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
+        opts = [o["id"] for o in msgreply.options(a["id"])]
+        kind = choice if choice in opts else opts[0]
+        st["approach"] = None
+        self.touch(now)
+        st["last_interaction"] = now
+        st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
+        out = a.get("accept") or {}
+        mult = self.app.life.skill_mult("talk")
+        res = msgreply.judge(char, st, a["id"], kind, mult)
+        if res == "good":
+            eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
+                   for k, v in (out.get("effects") or {}).items()}
+        else:
+            eff = dict(msgreply.EFFECT[res])
+        eff, _ = self.app.bonds.realize(char, st, eff, "_ap_" + a["id"], now)        # 揺らぎ・鈍り・繰り返し
+        self.app.bonds.touch(st, now)
+        deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
+        self.app.life.train("talk", 1.0)
+        call = self.app.pronouns(char)[2]
+        if res == "good" and out.get("reason_good") and deltas.get("mood", 0) > 0:
+            self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", call), now, told=True,
+                                     delta=deltas.get("mood", 0), action="_ap_" + a["id"])
+        if res == "bad":
+            self.app.life.add_reason(st, "player", "bad", msgreply.BAD_TELL[kind].replace("{call}", call), now, told=True,
+                                     delta=deltas.get("mood", 0), action="_ap_" + a["id"])
+        key = "msgr.%s.%s" % (kind, res)
+        text = self.app.persona_text(char, key) or msgreply.LINES[key]
+        e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
+        e["reply"] = {"kind": kind, "result": res}
+        chat = self.app.chat
+        chat.add(char["id"], "me", "（%s）" % msgreply.said(a["id"], kind), kind="approach", t=now)
+        chat.mark_read_by_her(char["id"], now)
+        chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
+        if random.random() < msgreply.MORE_RATE[res]:          # 会話している感じ: もう一言
+            more = self.app.persona_text(char, "msgr.more." + res) or msgreply.LINES["msgr.more." + res]
+            d = datetime.fromtimestamp(now)
+            more = self.app.format_text(more, char, self.app.scene_at(char, st, d), d)
+            chat.add(char["id"], "her", more, kind="approach", t=now + 0.002)
+            e["more"] = more
+        self.app.picked_up_phone(char, st, now)
+        self.app.save_log(char["id"])
+        self.app.save_state(char["id"])
+        return e
+
     def drop(self, st):
         """あなたが別のことで構ったら, 待っていた働きかけはそれで済んだことにする."""
         if st.get("approach"):
@@ -340,5 +398,6 @@ class Presence:
         a = self.find(ap["id"]) or {}
         return {"id": ap["id"], "entry": ap.get("entry"), "until": ap["until"], "label": a.get("label", ""),
                 "icon": a.get("icon", "💬"), "apart": bool(a.get("apart")),
-                "accept": (a.get("accept") or {}).get("label") or "うん", "later": (a.get("later") or {}).get("label") or "あとでね"}
+                "accept": (a.get("accept") or {}).get("label") or "うん", "later": (a.get("later") or {}).get("label") or "あとでね",
+                "choices": msgreply.options(ap["id"]) if a.get("apart") else None}
 

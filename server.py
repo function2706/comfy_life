@@ -112,7 +112,7 @@ def route(method, path, q, body):
         if path == "/api/presence/back":
             return a.come_back(cid)
         if path == "/api/approach":
-            return a.answer_approach(b["answer"], cid)
+            return a.answer_approach(b["answer"], cid, b.get("choice"))
         if path == "/api/solo/start":
             return a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid)
         if path == "/api/medicine":

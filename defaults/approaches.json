@@ -121,7 +121,7 @@
  },
  {
   "id": "msg_chat", "label": "メッセージが届いた", "icon": "📱", "apart": true, "when": "boredom>=35", "weight": 3,
-  "cooldown_h": 6, "wait_minutes": 60,
+  "cooldown_h": 6, "wait_minutes": 90, "urgency": 1.0,
   "text": "📱『{call}、いま何してます？ ちょっとお話ししたくて』",
   "accept": {"label": "返信する", "text": "📱『返事きた！ ……ふふ、やっぱり{call}とお話しするの楽しいです』", "skill": "talk",
    "effects": {"loneliness": -8, "mood": 3, "boredom": -6}, "reason_good": "{call}がメッセージに返事をくれた"},
@@ -130,7 +130,7 @@
  },
  {
   "id": "msg_miss", "label": "会いたいって", "icon": "💌", "apart": true, "when": "loneliness>=55, affection>=45", "weight": 2,
-  "cooldown_h": 10, "wait_minutes": 60,
+  "cooldown_h": 10, "wait_minutes": 90, "urgency": 1.4,
   "text": "📱『……{call}、ちょっとだけ会いたいなって。なんでもないです』",
   "accept": {"label": "返信する", "text": "📱『……うん。返事もらえただけで、ちょっと元気出ました』", "skill": "talk",
    "effects": {"loneliness": -12, "mood": 4, "affection": 1}, "reason_good": "{call}が会いたい気持ちに応えてくれた"},
@@ -139,7 +139,7 @@
  },
  {
   "id": "msg_today", "label": "今日の出来事", "icon": "✉️", "apart": true, "when": "mood>=55", "weight": 2,
-  "cooldown_h": 10, "wait_minutes": 60,
+  "cooldown_h": 10, "wait_minutes": 90, "urgency": 0.8,
   "text": "📱『聞いてください{call}、今日こんなことがあって！』",
   "accept": {"label": "読んで返す", "text": "📱『でしょう！ {call}に話したかったんです』", "skill": "talk",
    "effects": {"mood": 4, "loneliness": -6, "boredom": -4, "affection": 1}},

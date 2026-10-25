@@ -1177,11 +1177,15 @@ function renderOffline() {
       rep.messages.length ? rep.messages.map((m) => h('div', { class: 'row', style: 'align-items:flex-start' },
         h('div', { style: 'flex:1' }, h('b', {}, m.name), h('span', { class: 'muted small' }, ` ${t(m.t)}`), h('div', {}, m.text),
           m.mood < 0 ? h('div', { class: 'muted small' }, '（返事がなくて、少し気にしているかも）') : ''),
-        h('button', { class: 'btn small', onclick: async (ev) => {
-          ev.target.disabled = true;
-          try { const r = await api('/api/approach', { answer: 'accept', character: m.cid }); toast(`${m.name}に返事をした`, 'ok'); if (r && r.entry) S.lastDeltas = r.entry.deltas || {}; }
-          catch (e) { toast(e.message, 'err'); ev.target.disabled = false; }
-        } }, '返事をする'))) : h('div', { class: 'muted small' }, 'なし')),
+        (() => {             // まだ返事を待っているメッセージなら, 返事を選ぶ (待ちが終わっていれば出さない)
+          const ap = (S.view.approaches || []).find((x) => x.cid === m.cid && x.choices);
+          if (!ap) return '';
+          return h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px;max-width:60%' }, ap.choices.map((c) => h('button', { class: 'btn small', onclick: async (ev) => {
+            ev.target.parentNode.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+            try { const r = await api('/api/approach', { answer: 'reply', choice: c.id, character: m.cid }); toast(`${m.name}に返事をした`, 'ok'); if (r && r.entry) S.lastDeltas = r.entry.deltas || {}; }
+            catch (e) { toast(e.message, 'err'); }
+          } }, c.label)));
+        })())) : h('div', { class: 'muted small' }, 'なし')),
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
   document.body.append(dlg);
   dlg.showModal();
@@ -1436,17 +1440,21 @@ function renderApproach() {
     return h('div', { class: 'ap-item' },
       h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
         h('span', { class: 'muted small', id: 'ap-rest-' + ap.cid }, `（あと${Math.ceil(rest / 60)}分）`)),
-      h('div', { class: 'row' },
-        h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'accept') }, ap.accept),
-        h('button', { class: 'btn', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later)));
+      ap.choices        // メッセージ: 返事を選ぶ (どれが良く効くかは相手しだい)
+        ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+          ...ap.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'reply', c.id) }, c.label)),
+          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))
+        : h('div', { class: 'row' },
+          h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'accept') }, ap.accept),
+          h('button', { class: 'btn', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later)));
   }));
 }
 
-async function answerApproach(cid, ans) {
+async function answerApproach(cid, ans, choice) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const r = await api('/api/approach', { answer: ans, character: cid });
+    const r = await api('/api/approach', { answer: ans, character: cid, choice });
     if (r.entry) handleActResult(Object.assign(r, { entry: Object.assign({ who: cid }, r.entry) }));
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
