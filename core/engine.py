@@ -1577,6 +1577,34 @@ class App:
         pos, neg = self.icon_prompt(c)
         return self.enqueue(cid, None, pos, neg, kind="icon")
 
+    def make_person_icon(self, pid, force=False):
+        """出先で会った, まだ登録していない人 (people.json) の顔のアイコンを一度だけ作る. できたらその人の記録に固定し,
+        知り合いになって登録したら, キャラの定義に引き継ぐ (作り直さない). 登録済みならキャラのアイコン."""
+        pr = self.street.people().get(pid)
+        if not pr:
+            raise KeyError("その人が見つかりません: %s" % pid)
+        if pr.get("cid"):
+            return self.make_icon(pr["cid"], force)
+        cur = next((j["id"] for j in self.jobs.values() if j.get("kind") == "icon_person" and j["entry"] == pid
+                    and j["status"] in ("queued", "running")), None)
+        if cur:
+            return cur
+        if not force:
+            if not self.settings.get("auto_generate") or self.has_icon(pr) or ("p:" + pid) in self._icon_tried:
+                return None
+        self._icon_tried.add("p:" + pid)
+        pos, neg = self.icon_prompt(pr["char"])
+        return self.enqueue("_people", pid, pos, neg, kind="icon_person")
+
+    def _set_person_icon(self, j, rel):
+        """できた, 登録していない人のアイコンを people.json (作ったときのワールド) に固定する."""
+        with self.lock:
+            f = store.dpath("worlds", j["wid"], "people.json")
+            ppl = store.load(f, {}) or {}
+            if j["entry"] in ppl:
+                ppl[j["entry"]]["icon"] = rel
+                store.save(f, ppl)
+
     @staticmethod
     def has_icon(c):
         p = c.get("icon")
@@ -1823,7 +1851,7 @@ class App:
             seed = random.randint(0, 2 ** 32 - 1)
         e = (self.find_entry(cid, eid) if eid and kind == "entry" else None) or {}
         j = {"id": jid, "kind": kind, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
-             "action": {"icon": "顔アイコン", "sample": "服のサンプル"}.get(kind) or e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
+             "action": {"icon": "顔アイコン", "icon_person": "顔アイコン", "sample": "服のサンプル"}.get(kind) or e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
              "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
              "cancel": False, "events": []}
         self.jobs[jid] = j
@@ -1907,7 +1935,7 @@ class App:
                 store.save(f, log)
 
     def _clear_entry_job(self, j, error):
-        if j.get("kind") in ("icon", "sample"):
+        if j.get("kind") in ("icon", "sample", "icon_person"):
             return
         def fn(e):
             if e.get("job") != j["id"]:
@@ -1946,9 +1974,11 @@ class App:
                     self.img_index.setdefault(self.prompt_key(j["pos"], j["neg"]), []).append(
                         {"path": rel, "seed": j["seed"], "t": time.time()})
                     store.save(store.dpath("images", "index.json"), self.img_index)
-                if j.get("kind") in ("icon", "sample"):
+                if j.get("kind") in ("icon", "sample", "icon_person"):
                     if j["kind"] == "icon":
                         self._set_icon(j, rel)
+                    elif j["kind"] == "icon_person":
+                        self._set_person_icon(j, rel)
                     else:
                         with self.lock:
                             self.wardrobe.set_sample(j["entry"], rel)

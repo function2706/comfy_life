@@ -1225,7 +1225,8 @@ function streetCard() {
   const sp = S.view.street_pending;
   if (!sp) return null;
   return h('div', { class: 'street-card' + (sp.type === 'call' ? ' calling' : '') },
-    h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた` : `👀 ${sp.where}で、${sp.name}を見かけた`),
+    h('div', { class: 'row', style: 'align-items:center;gap:8px;flex-wrap:nowrap' }, avatar(sp.face, sp.name, 'small'),
+      h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた` : `👀 ${sp.where}で、${sp.name}を見かけた`)),
     sp.text ? h('div', { class: 'muted' }, `「${sp.text}」`) : '',
     h('div', { class: 'row' }, sp.options.map((o) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerStreet(o.id) }, o.label))));
 }
@@ -1341,7 +1342,8 @@ function joinCard() {
     finally { S.busy = false; await refresh(); }
   };
   return h('div', { class: 'street-card' + (j.offer ? ' calling' : '') },
-    h('div', {}, j.offer ? `🚶 ${j.name}に、このまま一緒にいないかと誘われた` : `🚶 ${j.name}と、${j.where}で立ち話をした`),
+    h('div', { class: 'row', style: 'align-items:center;gap:8px;flex-wrap:nowrap' }, avatar(j.face, j.name, 'small'),
+      h('div', {}, j.offer ? `🚶 ${j.name}に、このまま一緒にいないかと誘われた` : `🚶 ${j.name}と、${j.where}で立ち話をした`)),
     j.line ? h('div', { class: 'muted' }, `「${j.line}」`) : '',
     h('div', { class: 'row' },
       h('button', { class: 'btn small', disabled: S.busy, onclick: () => go(true) }, j.offer ? '一緒に過ごす' : '一緒に過ごさない？と誘う'),

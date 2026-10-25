@@ -159,6 +159,13 @@ class Street:
                 "name": name, "text": text, "stage": stage_i, "place": place}
         self.rec()["street_pending"] = pend
         app.presence.save()
+        try:                     # 顔のアイコン (まだ無ければ一度だけ. 画像の自動表示が切れていれば作らない)
+            if kind == "char":
+                app.make_icon(who)
+            else:
+                app.make_person_icon(who)
+        except KeyError:
+            pass
         msg = ("%sで、%sに声をかけられた" % (where, name)) if typ == "call" else ("%sで、%sを見かけた" % (where, name))
         app.outdoor.note(msg, now)
         return {"kind": typ, "name": name, "where": where, "text": "（%s）" % msg}
@@ -327,7 +334,8 @@ class Street:
         j = self.rec().get("street_join")
         if not j or now >= j["until"] or self.rec().get("mode") != "out":
             return None
-        return {"cid": j["cid"], "name": j["name"], "where": j["where"], "offer": j["offer"], "line": j.get("line", "")}
+        return {"cid": j["cid"], "name": j["name"], "where": j["where"], "offer": j["offer"], "line": j.get("line", ""),
+                "face": self.app.chat.face(j["cid"]) if j["cid"] in self.app.chars else None}
 
     def join(self, yes, now=None):
         """一緒に過ごすか決める. 相手から誘われていれば yes で合流 (no なら別れる).
@@ -396,4 +404,14 @@ class Street:
         if not pend:
             return None
         return {"type": pend["type"], "name": pend["name"], "where": pend["where"], "text": pend.get("text", ""), "t": pend["t"],
-                "options": [{"id": i, "label": l} for i, l in OPTIONS[pend["type"]]]}
+                "face": self.face(pend), "options": [{"id": i, "label": l} for i, l in OPTIONS[pend["type"]]]}
+
+    def face(self, pend):
+        """出先で会った人の顔 (アイコンがあれば. 登録済みならキャラの顔)."""
+        app = self.app
+        if pend["kind"] == "char":
+            return app.chat.face(pend["who"]) if pend["who"] in app.chars else None
+        pr = self.people().get(pend["who"]) or {}
+        if pr.get("cid") in app.chars:
+            return app.chat.face(pr["cid"])
+        return pr["icon"] if app.has_icon(pr) else None

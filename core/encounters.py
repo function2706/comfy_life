@@ -226,11 +226,19 @@ class Encounters:
             if not yes:
                 return {"registered": None}
             src = enc.get("src") or {}
+            # 出先で会っていたときに作った顔のアイコンは, キャラの定義に引き継ぐ (作り直さない)
+            pr_icon = ((app.street.people().get(enc.get("pid") or "") or {}).get("icon")) if enc.get("pid") else None
             if src.get("type") == "def" and src.get("id") in store.all_characters():
+                d = store.all_characters()[src["id"]]
+                if pr_icon and not app.has_icon(d):
+                    d["icon"] = pr_icon
+                    store.save_character(d)
                 c = app.place_character(src["id"], "contact")      # すでにある定義: このワールドに現れる
             else:
                 c = json.loads(json.dumps(enc["char"]))           # 新しく作った人: 定義を作って現れる
                 c["id"] = "c" + uuid.uuid4().hex[:8]
+                if pr_icon:
+                    c["icon"] = pr_icon
                 c["met"] = {"t": enc["t"], "where": enc["where"], "src": src, "world": store.WORLD}
                 app.save_character(c)
                 app.place_character(c["id"], "contact")
