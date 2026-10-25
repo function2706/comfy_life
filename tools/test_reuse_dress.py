@@ -80,8 +80,12 @@ def main():
         print("busy reuse: OK")
 
         # 着せ替え (メイド服は少し大胆: 仲がよく機嫌もいいときに頼む)
-        app.set_params({"affection": 90, "trust": 90, "mood": 70})
-        r = app.act("_dress", dress="maid")
+        for _ in range(5):          # 仲がよくても「今日はそういう気分じゃない」がある (大胆さ × 4%) ので, 数回まで頼み直す
+            app.set_params({"affection": 90, "trust": 90, "mood": 70})
+            app.state("hina")["dress_asks"] = []
+            r = app.act("_dress", dress="maid")
+            if "maid" in r["entry"]["pos"]:
+                break
         print("dress maid:", r["entry"]["text"], "|", app.person_view()["dress"]["wearing"])
         assert "maid" in r["entry"]["pos"]
         app.set_params({"affection": 10, "trust": 10})
