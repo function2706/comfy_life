@@ -119,7 +119,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 
 /* ---------- side ---------- */
 .who { display: flex; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
-.who-face { width: 52px; height: 52px; border-radius: 50%; background: var(--panel3) center/cover; display: flex; align-items: center; justify-content: center; font-size: 26px; flex: none; border: 2px solid var(--accent-d); }
+.who-face { width: 52px; height: 52px; border-radius: 50%; background: var(--panel3) center 20%/cover; display: flex; align-items: center; justify-content: center; font-size: 26px; flex: none; border: 2px solid var(--accent-d); }
 .who-name { font-weight: 700; font-size: 16px; }
 .who-scene { color: var(--muted); font-size: 12.5px; margin: 2px 0 6px; }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }

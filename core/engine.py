@@ -1956,6 +1956,10 @@ class App:
             self._set_stage(j, "prepare", "処理開始（待ち %.1f 秒）" % (j["started"] - j["created"]))
             try:
                 c = dict(self.settings.get("comfy") or {})
+                if j.get("kind") == "icon":
+                    # 顔のアイコンは丸く切り抜いて出すので, 縦長だと頭や顎が見切れる. 同じくらいの画素数の正方形で作る
+                    side = int(round((int(c.get("width", 832)) * int(c.get("height", 1216))) ** 0.5 / 64.0)) * 64
+                    c["width"] = c["height"] = side
                 custom = None
                 if c.get("workflow_mode") == "custom":
                     custom = store.load(store.dpath("workflow.json"))
