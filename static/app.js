@@ -680,7 +680,8 @@ function setImage(rel) {
 
 /* ---- 会話欄の表示設定 (ブラウザごとに保存) */
 const UI_KEY = 'kurashi.ui';
-const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact', showApart: false, callSound: true };
+const UI_DEFAULT = { pos: 'bottom', alpha: 0.82, font: 17, compact: false, autoHide: 0, deltas: true, stats: 'exact', showApart: false, callSound: true,
+  callRemind: true, vibrate: true, browserNotify: false };
 S.ui = (() => {
   try { return Object.assign({}, UI_DEFAULT, JSON.parse(localStorage.getItem(UI_KEY) || '{}')); } catch (e) { return Object.assign({}, UI_DEFAULT); }
 })();
@@ -1201,24 +1202,68 @@ function renderStreet() {
   box.hidden = !card;
   if (card) box.replaceChildren(card);
   const sp = S.view.street_pending;
-  if (sp && sp.type === 'call' && S.lastCallT !== sp.t) {
+  if (sp && sp.type === 'call') {
     // 声をかけられた: 名前を呼ばれれば気づくのと同じく, はっきり知らせる (見かけただけのときは控えめのまま)
-    S.lastCallT = sp.t;
-    toast(`💬 ${sp.where}で、${sp.name}に声をかけられた`, 'ok');
-    if (S.ui.callSound !== false) chime();
+    notifyCall(`st:${sp.t}`, `💬 ${sp.where}で、${sp.name}に声をかけられた`, sp.text ? `「${sp.text}」` : '', true);
+  } else if (sp && document.hidden && !NOTIFY.blink) {
+    document.title = '・Comfy LIFE';
   }
-  document.title = sp && document.hidden ? (sp.type === 'call' ? '💬 声をかけられた - Comfy LIFE' : '・Comfy LIFE') : 'Comfy LIFE';
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden) document.title = 'Comfy LIFE'; });
-// 声をかけられたときの, 控えめな 2 音
-function chime() {
+/* ---- 知らせ: 話しかけられた・メッセージが来て返事を待たれている・出先で声をかけられた. 見落とさないように,
+   画面の知らせ・音・タブの題名の点滅・画面を見ていないときはブラウザの通知 (許可したときだけ)・スマホは振動で知らせる.
+   返事をするまで, 2 分ごとに一度だけ音で知らせ直す (設定で切れる) */
+const NOTIFY = { seen: new Set(), blink: null, lastRemind: 0 };
+function notifyCall(key, title, body, strong) {
+  if (NOTIFY.seen.has(key)) return;
+  NOTIFY.seen.add(key);
+  NOTIFY.lastRemind = Date.now();
+  toast(title, 'ok');
+  if (S.ui.callSound !== false) chime(strong);
+  if (S.ui.vibrate !== false && navigator.vibrate) { try { navigator.vibrate(strong ? [120, 80, 120] : 90); } catch (e) { /* 振動できない端末 */ } }
+  if (document.hidden || !document.hasFocus()) {
+    blinkTitle(title);
+    if (S.ui.browserNotify && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const n = new Notification('Comfy LIFE', { body: title + (body ? '\n' + body : ''), tag: 'comfy-life-call', renotify: true });
+        n.onclick = () => { window.focus(); n.close(); };
+      } catch (e) { /* 通知が出せない環境でも, 題名の点滅と音はある */ }
+    }
+  }
+}
+function blinkTitle(text) {
+  clearInterval(NOTIFY.blink);
+  let on = false;
+  NOTIFY.blink = setInterval(() => { on = !on; document.title = on ? text : 'Comfy LIFE'; }, 1000);
+}
+function stopBlink() {
+  if (NOTIFY.blink) { clearInterval(NOTIFY.blink); NOTIFY.blink = null; }
+  document.title = 'Comfy LIFE';
+}
+function callPending() {
+  const v = S.view || {};
+  return (v.approaches || []).length > 0 || (v.street_pending && v.street_pending.type === 'call');
+}
+// 返事をするまで, 2 分ごとに一度だけ音 (と振動) で知らせ直す
+setInterval(() => {
+  if (!S.view || S.ui.callRemind === false || !callPending()) return;
+  if (Date.now() - NOTIFY.lastRemind < 120000) return;
+  NOTIFY.lastRemind = Date.now();
+  if (S.ui.callSound !== false) chime(false);
+  if (S.ui.vibrate !== false && navigator.vibrate) { try { navigator.vibrate(60); } catch (e) { /* 振動できない端末 */ } }
+}, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) stopBlink(); });
+window.addEventListener('focus', () => stopBlink());
+// 知らせの音: 話しかけられた・声をかけられた (strong) は 3 音, 知らせ直し・ほかは控えめな 2 音
+function chime(strong) {
   try {
     const ac = S.audio || (S.audio = new (window.AudioContext || window.webkitAudioContext)());
-    [[660, 0], [880, 0.16]].forEach(([f, d]) => {
+    if (ac.state === 'suspended') ac.resume();
+    const vol = strong ? 0.2 : 0.12;
+    (strong ? [[660, 0], [880, 0.16], [1046, 0.32]] : [[660, 0], [880, 0.16]]).forEach(([f, d]) => {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = 'sine'; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, ac.currentTime + d);
-      g.gain.exponentialRampToValueAtTime(0.12, ac.currentTime + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(vol, ac.currentTime + d + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + d + 0.35);
       o.connect(g).connect(ac.destination);
       o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.4);
@@ -1379,6 +1424,11 @@ function renderApproach() {
   const aps = S.view.approaches || [];
   if (!aps.length) { box.hidden = true; return; }
   box.hidden = false;
+  box.classList.toggle('calling', true);
+  for (const ap of aps) {          // 新しく話しかけられた・メッセージが来た: 知らせる (同じ働きかけは一度だけ)
+    notifyCall(`ap:${ap.cid}:${ap.id}:${Math.round(ap.until)}`, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`,
+      ap.apart ? '' : 'そばで話しかけられています', !ap.apart);
+  }
   box.replaceChildren(...aps.map((ap) => {
     const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
     return h('div', { class: 'ap-item' },
@@ -1411,10 +1461,6 @@ function showAutoEntry() {
   if (!e) return;
   showEntry(e, true);
   if (e.job) trackJob(e.job);
-  if (document.hidden) {
-    S.titleBase = S.titleBase || document.title;
-    document.title = '💬 ' + S.titleBase;
-  }
 }
 
 /* ---- お金タブ: 財布・支払い・銘柄・ニュース・稼ぐ */
@@ -2709,8 +2755,24 @@ SEC.display = () => {
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.showApart, onchange: (ev) => set('showApart', ev.target.checked) }),
       '離れている相手の様子も見る（いまの場面・ステータス・表情・機嫌の理由）'),
     h('p', { class: 'hint' }, '既定では、一緒に暮らしていない・会っていない相手の様子は見えません（本人から聞いた機嫌の理由だけ）。'),
+    h('div', { class: 'sect' }, '知らせ（話しかけられた・メッセージが来た・出先で声をかけられた）'),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.callSound !== false, onchange: (ev) => set('callSound', ev.target.checked) }),
-      '出先で声をかけられたときに、控えめな音でも知らせる'),
+      '音でも知らせる'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.callRemind !== false, onchange: (ev) => set('callRemind', ev.target.checked) }),
+      '返事をするまで、2 分ごとに一度知らせ直す'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.vibrate !== false, onchange: (ev) => set('vibrate', ev.target.checked) }),
+      'スマホでは振動でも知らせる（対応している端末だけ）'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.browserNotify, onchange: async (ev) => {
+      const on = ev.target.checked;
+      if (on && 'Notification' in window && Notification.permission !== 'granted') {
+        let p = 'denied';
+        try { p = await Notification.requestPermission(); } catch (e) { /* 許可を聞けない環境 */ }
+        if (p !== 'granted') { ev.target.checked = false; toast('ブラウザの通知が許可されませんでした（ブラウザのサイトの設定で許可できます）', 'err'); return; }
+      }
+      if (on && !('Notification' in window)) { ev.target.checked = false; toast('このブラウザは通知に対応していません', 'err'); return; }
+      set('browserNotify', on);
+    } }), '画面を見ていないときは、ブラウザの通知でも知らせる（初めてオンにすると、ブラウザが許可を聞きます）'),
+    h('p', { class: 'hint' }, '画面を見ていないときは、タブの題名も点滅します。ブラウザの通知は、この画面を開いたまま別のタブやアプリを見ているときに出ます（画面を閉じているあいだは出ません）。'),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },
       h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),
@@ -3187,7 +3249,6 @@ function bind() {
   for (const t of ['keydown', 'pointerdown', 'wheel', 'touchstart']) document.addEventListener(t, seen, { passive: true, capture: true });
   document.addEventListener('pointermove', () => { if (Date.now() - S.lastInput > 5000) seen(); }, { passive: true });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && S.titleBase) { document.title = S.titleBase; S.titleBase = null; }
     if (!document.hidden) refresh();
   });
   $('#task-close').addEventListener('click', closeTask);

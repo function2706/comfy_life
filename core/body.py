@@ -140,8 +140,9 @@ class Body:
             if is_home(place):
                 return MOVE_PER_H["other"]
             k = solo_kind(place)
-            return MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else \
-                MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"]
+            from .places import effort
+            return effort(place) * (MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else
+                                    MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"])
         if mode == "work":
             return MOVE_PER_H["work"]
         if mode == "busy" and sl.get("kind") == "chores":
@@ -151,6 +152,11 @@ class Body:
             if cur and cur["kind"] == "outing":      # 誰かとのお出かけ (散歩・ハイキングなど)
                 return MOVE_PER_H["outing"]
         return 0.0
+
+    def add_wet(self, h):
+        """雨・雪の中を外で過ごした時間 (その日の体調の判定に)."""
+        td = self.rec()["today"]
+        td["wet"] = round(td.get("wet", 0.0) + float(h), 2)
 
     def add_exercise(self, points):
         """まとめて体を動かした (行動パターンの外出・家事など)."""
@@ -206,8 +212,10 @@ class Body:
         if L.stamina() < 15:
             why["stamina"] = 0.03
         wx = weather(datetime.fromtimestamp(t - 3600))
-        if td.get("out", 0) > 1 and wx["id"] in ("rain", "snow"):
-            why["weather"] = 0.02
+        if td.get("wet", 0) >= 0.5:           # 雨・雪の中を外で過ごして, 体が冷えた (solo.result)
+            why["weather"] = min(0.05, 0.02 + 0.01 * td["wet"])
+        elif td.get("out", 0) > 1 and wx["id"] in ("rain", "snow"):
+            why["weather"] = 0.01
         if datetime.fromtimestamp(t).month in (12, 1, 2):
             why["winter"] = 0.01
         if b.get("lazy_days", 0) >= 4:

@@ -178,6 +178,14 @@ def from_location(loc, default="town"):
     return LOCATION_PLACE.get(loc or "", default)
 
 
+# 行き先の体の使い方 (一人の外出の疲れ・運動にかける. 無ければ 1): 山道は坂がきつい, 海は砂浜, 遊園地は歩き回って並ぶ
+EFFORT = {"mountain": 2.0, "amusement": 1.5, "beach": 1.3, "hill": 1.2}
+
+
+def effort(pid):
+    return EFFORT.get(pid or "", 1.0)
+
+
 def main_do(pid):
     """その行き先で, 一人で行ったときにすること (公共の行き先の最初の does. 人の家なら visit)."""
     if is_home(pid):

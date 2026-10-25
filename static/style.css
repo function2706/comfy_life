@@ -596,6 +596,8 @@ a.btn { color: inherit; }
 .tabs button { white-space: nowrap; font-size: 13px; }
 .approach-box { margin: 0 12px 4px; padding: 10px 12px; border-radius: 12px; background: #24283a; border: 1px solid var(--sky); display: flex; flex-direction: column; gap: 8px; font-size: 13px; animation: tin .2s ease; }
 .approach-box .row { justify-content: flex-end; }
+.approach-box.calling { animation: tin .2s ease, callpulse 1.6s ease-in-out 3; }      /* 話しかけられた: 少しのあいだ光らせて目に入るように */
+@keyframes callpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(120, 180, 255, 0); } 50% { box-shadow: 0 0 0 4px rgba(120, 180, 255, .45); } }
 .tag.busy { background: #263a33; color: #bff0dc; border: 0; cursor: pointer; font: inherit; font-size: 11px; }
 .delta.skill { color: var(--sky); }
 .away-overlay { position: fixed; inset: 58px 0 0 0; z-index: 20; display: grid; place-items: center; background: rgba(12,10,16,.82); backdrop-filter: blur(6px); }

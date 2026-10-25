@@ -254,9 +254,10 @@ class Offline:
         if do == "chores":
             return MOVE_PER_H["chores"]
         if do == "out":
+            from .places import effort
             k = solo_kind(place)
-            return MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else \
-                MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"]
+            return effort(place) * (MOVE_PER_H["walk"] if k == "walk" else MOVE_PER_H["see"] if k == "see" else
+                                    MOVE_PER_H["shop"] if k == "shopping" else MOVE_PER_H["other"])
         return 0.0
 
     @staticmethod

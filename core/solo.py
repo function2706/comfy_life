@@ -320,9 +320,13 @@ class Solo:
         elif kind == "jog":
             L.tire(min(40.0, 8 * h))                 # 走るのは疲れる (体は動かした: body.step)
             text = "%s%sを走った。%s" % (_dur(h), where, "息が上がったけれど、すっきりした" if h < 1.5 else "走りすぎて、へとへとだ")
+            text += self._wet(place, h, now)
         elif kind == "walk":
-            L.tire(2 * h)
-            text = "%s%s一人でぶらぶらした" % (_dur(h), where + "を" if where else "")
+            ef = places_mod.effort(place)            # 山道・砂浜は, 同じ時間でも疲れる (運動にもなる: body.step)
+            L.tire(2 * h * ef)
+            text = "%s%s一人で%s" % (_dur(h), where + "を" if where else "",
+                                   "歩いた。足が重い" if ef >= 1.8 and h >= 1 else "ぶらぶらした")
+            text += self._wet(place, h, now)
         elif kind == "eat":                     # 食べに行った: そこで食べていなければ, 帰る前に何か食べる
             L.tire(1 * h)
             if ate:
@@ -340,7 +344,7 @@ class Solo:
             out["money"] = r["money"]
             text = "%s%s" % (_dur(h), r["text"])
         elif kind == "see":
-            L.tire(2 * h)
+            L.tire(2 * h * places_mod.effort(place))      # 遊園地は歩き回って並ぶ
             ps = L.player_state()
             fee = min(int(ps["money"]), int(places_mod.PLACES[place].get("fee", 0)))
             if fee > 0:
@@ -359,7 +363,8 @@ class Solo:
             bought, missed = app.items.shop(place or "cafe", h, now)       # 買うものリストの品がカフェにあれば
             out["money"] = -spend - sum(b["price"] for b in bought)
             out["bought"] = bought
-            text = "%s一人でカフェで過ごした（%s円）。少し気分が落ち着いた" % (_dur(h), format(spend, ","))
+            ps["stamina"] = min(app.body.stamina_cap(), float(ps.get("stamina", 100)) + 3 * min(h, 3))    # 座って一息: 休むのと同じくらい戻る
+            text = "%s一人でカフェで過ごした（%s円）。座って一息ついて、少し疲れがとれた" % (_dur(h), format(spend, ","))
             if bought or missed:
                 text += "。" + app.items.describe(bought, missed)
         elif shop == "pending":     # 品を選び終える前に店を出た
@@ -384,6 +389,17 @@ class Solo:
         out["text"] = "（%s）" % text
         self.note(note_kind, text, now, hours=round(h, 2), place=place)
         return out
+
+    def _wet(self, place, h, now):
+        """雨・雪の日に外 (屋外の行き先) で過ごした: 体が冷えて, その日は体調を崩しやすい (body.risk). 添える一文."""
+        from .outdoor import weather
+        pl = places_mod.PLACES.get(place or "") or {}
+        w = weather(datetime.fromtimestamp(now - h * 1800))
+        if not pl.get("outdoor") or w["id"] not in ("rain", "snow") or h < 0.25:
+            return ""
+        self.app.body.add_wet(h)
+        self.app.life.tire(1 * h)
+        return "。%sに濡れて、体が冷えた" % w["label"]
 
     # ------------------------------------------------------------------ 日記
     def diary_list(self):

@@ -228,6 +228,8 @@ class Street:
                 pr["cool_until"] = now + 3 * 86400
                 line = self._line(c, "enc.decline", pend["where"])
         adv = stage < 4 and random.random() < p_adv * (0.9 + 0.2 * app.life.skill_soft("groom"))     # 身だしなみで, 少しだけ
+        if talk and not auto:
+            app.life.train("talk", 0.3)          # 知らない人との立ち話も, 会話の練習になる
         if adv:
             stage += 1
         pr["stage"] = stage
