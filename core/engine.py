@@ -36,7 +36,7 @@ from . import knowsched as knowsched_mod
 from . import market as market_mod
 from . import earn as earn_mod
 from . import rumor as rumor_mod
-from . import comfy, cond, games, life, llm, puzzles, store
+from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
 
@@ -2617,6 +2617,20 @@ class App:
             if switch:
                 self.switch_world(wid)
             return {"id": wid, "worlds": self.worlds_view()}
+
+    def export_world(self, wid=None, images=False):
+        """セーブの書き出し (core/transfer.py). (ファイル名, zip) を返す."""
+        with self.lock:
+            fname, data, _ = transfer.export_world(wid or store.WORLD, images)
+            return fname, data
+
+    def import_world(self, data, name=None):
+        """セーブの読み込み: いつも新しいワールドとして足す (切り替えはしない)."""
+        with self.lock:
+            r = transfer.import_world(data, name)
+            self._load_index()                 # 足した画像を, 同じプロンプトの再利用に入れる
+            r["worlds"] = self.worlds_view()
+            return r
 
     def switch_world(self, wid):
         with self.lock:

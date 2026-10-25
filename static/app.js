@@ -3214,8 +3214,32 @@ SEC.data = () => {
   ];
 };
 
+// セーブの読み込み: zip を新しいワールドとして足す (いまのワールド・定義・画像は上書きしない)
+function importWorld() {
+  const f = h('input', { type: 'file', accept: '.zip,application/zip' });
+  f.onchange = () => {
+    const file = f.files[0];
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = async () => {
+      toast('読み込んでいます…');
+      try {
+        const r = await api('/api/world/import', { data: rd.result });
+        const bits = [`キャラ ${r.characters} 人`];
+        if (Object.keys(r.renamed || {}).length) bits.push(`うち ${Object.keys(r.renamed).length} 人はこちらの定義と中身が違うので別の人として足した`);
+        bits.push(r.with_images ? `画像 ${r.images} 枚を足した` : '画像なし（記録の画像は表示されません）');
+        toast(`ワールド「${r.name}」を足しました（${bits.join('・')}）。開くと続きから遊べます`, 'ok');
+        await reloadAll('data');
+      } catch (e) { toast(e.message, 'err'); }
+    };
+    rd.readAsDataURL(file);
+  };
+  f.click();
+}
+
 function worldManager() {
   const W = S.boot.worlds;
+  const ex = SE.exportOpt = SE.exportOpt || { images: false };
   const nameEl = h('input', { placeholder: '新しいワールドの名前' });
   const fromEl = h('select', {}, h('option', { value: '' }, '登録済みのキャラから始める（間柄はくじ）'),
     W.worlds.map((w) => h('option', { value: w.id }, `「${w.name}」のキャラ・コマンドなどを複製`)));
@@ -3231,6 +3255,8 @@ function worldManager() {
         if (!name) return;
         await api('/api/world/rename', { id: w.id, name }); await reloadAll('data');
       } }, '名前変更'),
+      h('a', { class: 'btn', href: `/api/world/export?id=${encodeURIComponent(w.id)}`, title: 'このワールドと、そこにいるキャラの定義を 1 つのファイル（zip）に',
+        onclick: (ev) => { ev.currentTarget.href = `/api/world/export?id=${encodeURIComponent(w.id)}${ex.images ? '&images=1' : ''}`; } }, '書き出す'),
       h('button', { class: 'btn danger', onclick: async () => {
         if (!confirm(`ワールド「${w.name}」を削除しますか？（キャラ・状態・ログ・お金が消えます。画像ファイルは残ります）`)) return;
         try {
@@ -3244,7 +3270,13 @@ function worldManager() {
         toast('ワールドを作りました', 'ok');
         location.reload();
         return r;
-      } }, '＋作成して開く')));
+      } }, '＋作成して開く')),
+    h('div', { class: 'sect' }, 'セーブの書き出し・読み込み'),
+    h('p', { class: 'hint' }, '「書き出す」で、そのワールド（状態・ログ・あなた・トーク・コマンドなどの定義）と、そこにいるキャラの定義（自作・編集した性格プリセットも）を 1 つの zip にします。'
+      + '読み込みは、いつも新しいワールドとして足します（いまのワールド・キャラの定義・画像は上書きしません。同じキャラで中身の違う定義は、別の人として足します）。'),
+    h('div', { class: 'row' },
+      chk(ex, 'images', '書き出しに画像も含める（記録・顔のアイコンの画像。ファイルが大きくなります）'),
+      h('button', { class: 'btn', onclick: importWorld }, 'セーブを読み込む')));
 }
 
 /* ================================================================= events */

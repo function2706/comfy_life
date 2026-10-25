@@ -224,6 +224,8 @@ def route(method, path, q, body):
             return a.switch_world(b["id"])
         if path == "/api/world/rename":
             return a.rename_world(b["id"], b.get("name"))
+        if path == "/api/world/import":
+            return a.import_world(b["data"], b.get("name"))
         if path == "/api/world/delete":
             return a.delete_world(b["id"])
         if path == "/api/relations":
@@ -291,6 +293,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+        if p == "/api/world/export":
+            return self._export()
         if p.startswith("/api/"):
             return self._api("GET")
         if p in ("/", "/index.html"):
@@ -300,6 +304,21 @@ class Handler(BaseHTTPRequestHandler):
         if p.startswith("/images/"):
             return self._file(_safe_join(store.dpath("images"), p[len("/images/"):]), cache=True)
         self._send(404, b"not found", "text/plain")
+
+    def _export(self):
+        """セーブの書き出し: zip をそのまま返す (ブラウザが保存する)."""
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        try:
+            fname, data = APP.export_world(_q(q, "id") or None, _q(q, "images") == "1")
+        except LookupError as e:
+            return self._json({"error": str(e)}, 404)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % urllib.parse.quote(fname))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self):
         if self.path.startswith("/api/"):
