@@ -2603,6 +2603,7 @@ SEC.schedule = () => {
   draw();
   return [
     saveBar(`${c.name}の生活スケジュール`, async () => { await api('/api/character/save', { data: c }); await reloadAll(); }),
+    c.schedule.some((e) => e.asleep) ? '' : h('p', { class: 'hint' }, '⚠ 睡眠（状態の「睡眠」）の予定がありません。このままだと 1:00〜7:00 は寝ていることにします（予定が一致しない時間だけ）。'),
     h('p', { class: 'lead' }, '実際の時刻に合わせて、上から順に最初に一致した予定が「いまの場面」になります。どれにも一致しなければ「普段」が使われます。日をまたぐ予定（22:00〜02:00 など）も書けます。毎時の効果は滞在 1 時間あたりのパラメータ変化です。'),
     paramKeysHint(),
     h('div', { class: 'sect' }, '普段（予定のない時間）'),

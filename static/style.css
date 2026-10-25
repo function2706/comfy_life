@@ -642,8 +642,11 @@ a.btn { color: inherit; }
 .pz-sudoku .given.peer { background: #3a3446; }
 .pz-sudoku .same { outline: 2px solid #8e7bb5; outline-offset: -3px; }   /* 同じ数字: 枠だけ (数字の色は変えない. 入ったように見えないように) */
 .pz-sudoku .same.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
-.pz-sudoku .memo { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; font-size: calc(var(--cell) * .26); font-weight: 400;
-  color: var(--muted); line-height: 1; align-items: center; justify-items: center; }
+/* メモ: 数字ごとに決まった位置 (1 は左上 … 9 は右下). 行も列も 3 等分に固定して, 書いた数が増えてもずれない */
+.pz-sudoku .memo { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 100%;
+  padding: 1px; box-sizing: border-box; font-size: calc(var(--cell) * .3); font-weight: 600; color: #b9aed0; line-height: 1;
+  align-items: center; justify-items: center; overflow: hidden; }
+.pz-sudoku .memo span { display: block; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 .pz-sudoku .wrong { background: #6b2c2c; }
 .pz-sudoku .br, .pz-picross .br { box-shadow: 2px 0 0 0 var(--muted); }
 .pz-sudoku .bb, .pz-picross .bb { box-shadow: 0 2px 0 0 var(--muted); }

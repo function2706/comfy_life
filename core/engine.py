@@ -82,6 +82,12 @@ def in_range(mins, frm, to):
     return mins >= a or mins < b
 
 
+# 予定に睡眠が一つも無いキャラの, 既定の睡眠 (作ったばかりのキャラが一日中起きていることにならないように)
+DEFAULT_SLEEP = ("01:00", "07:00")
+DEFAULT_SLEEP_SCENE = {"activity": "sleep", "label": "就寝中", "location": "寝室", "asleep": True, "outfit": "pajamas",
+                       "pos": "sleeping, lying on bed, closed eyes, bedroom, blanket", "neg": "", "effects": {"energy": 12, "sleepiness": -12}}
+
+
 def day_match(spec, dt):
     spec = (spec or "all").strip().lower()
     wd = dt.weekday()
@@ -483,12 +489,17 @@ class App:
 
     def scheduled_scene(self, char, dt):
         mins = dt.hour * 60 + dt.minute
-        for e in char.get("schedule") or []:
+        sched = char.get("schedule") or []
+        for e in sched:
             if day_match(e.get("days"), dt) and in_range(mins, e.get("from", "00:00"), e.get("to", "24:00")):
                 s = self._norm_scene(e, char, "schedule")
                 break
         else:
-            s = self._norm_scene(char.get("default_activity") or {}, char, "default")
+            if not any(e.get("asleep") for e in sched) and in_range(mins, *DEFAULT_SLEEP):
+                # 予定に睡眠が一つも無い: 誰でも夜は寝ている (一日中起きていることにしない)
+                s = self._norm_scene(DEFAULT_SLEEP_SCENE, char, "default_sleep")
+            else:
+                s = self._norm_scene(char.get("default_activity") or {}, char, "default")
         s["outfit"] = s["outfit"] or char.get("outfit_default", "")
         return s
 
@@ -838,8 +849,8 @@ class App:
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
-            if apart and a.get("category") == "連絡" and not opts.get("deliver"):
-                self._phoned(st, now)            # スマホで連絡した (頻度・仕事中かどうか)
+            if apart and a.get("category") == "連絡" and not opts.get("deliver") and opts.get("msg_kind") != "apology":
+                self._phoned(st, now)            # スマホで連絡した (頻度・仕事中かどうか. 謝るメッセージは数えない)
             if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
                 # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
                 return self._send_later(char, st, a, now, dt, scene, ctx, opts.get("msg_kind"))

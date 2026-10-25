@@ -27,6 +27,18 @@ MODE_LABEL = {"here": "そばにいる", "idle": "そばでのんびり", "busy"
               "sleep": "就寝中", "left": "離れている", "gone": "いない"}
 
 
+def hour_factor(dt):
+    """離れている相手がメッセージを送ってくる時刻の現実味: 起きていても, 夜中や早朝にはまず送らない."""
+    h = dt.hour + dt.minute / 60.0
+    if 1 <= h < 6:
+        return 0.03
+    if 6 <= h < 7.5 or 0 <= h < 1:
+        return 0.3
+    if h >= 23:
+        return 0.6
+    return 1.0
+
+
 class Presence:
     def __init__(self, app):
         self.app = app
@@ -170,7 +182,7 @@ class Presence:
         if ctx.get("apart") and ctx.get("stage") == "known":    # 連絡先を知らない相手からは来ない
             return None
         if ctx.get("apart"):         # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
-            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx)
+            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx) * hour_factor(d)
         elif pres in ("out", "work"):
             return None
         else:

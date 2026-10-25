@@ -103,6 +103,12 @@ def main():
     wrong_flags = [list(safe_near[0])] + [list(x) for x in mines_near[1:]]     # 旗を一つ間違える
     out = P.move(q, {"r": r, "c": c, "chord": True, "flags": wrong_flags})
     assert out.get("wrong") and q["miss"] >= 1 and list(mines_near[0]) in q["boom"], "旗が違えば, 普通に爆発する"
+    # 爆発したマスは地雷と分かっているので, 旗と同じに数える (旗を立てなくても一括開けできる)
+    q, (r, c), mines_near, safe_near = fresh()
+    P.move(q, {"r": mines_near[0][0], "c": mines_near[0][1]})            # 一つ踏んで爆発させる
+    assert list(mines_near[0]) in q["boom"]
+    out = P.move(q, {"r": r, "c": c, "chord": True, "flags": [list(x) for x in mines_near[1:]]})
+    assert not out.get("short") and not out.get("wrong") and all(list(x) in q["open"] for x in safe_near), out
     closed = next([y, x] for y in range(q["h"]) for x in range(q["w"]) if [y, x] not in q["open"] and [y, x] not in q["boom"])
     n0 = len(q["open"])
     P.move(q, {"r": closed[0], "c": closed[1], "chord": True, "flags": []})

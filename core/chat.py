@@ -147,16 +147,19 @@ class Chat:
         extra = {}
         if kind == "repaid":                    # 返したお金の受け取り (効き目は返したときに済んでいる)
             return "repaid", {}, extra
-        if ctx.get("too_often"):
-            return "too_often", {"mood": -2, "affection": -1}, extra
-        if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
-            return "late_night", {"mood": -2, "stress": 2}, extra
-        if kind == "apology":
+        if kind == "apology":       # 謝るのは, 連絡が多いうちに数えない (連絡しすぎを謝るのも)
             bad = L.dominant(st, now, "bad")
             if bad and bad["kind"] == "player":            # あなたのせいで機嫌が悪い理由がある: 謝れば和らぐ
                 L.resolve(st, "bad", now)
                 return "apology", {"mood": 4, "trust": 1}, extra
             return "apology_confused", {"mood": -1}, extra
+        if ctx.get("too_often"):
+            # 連絡が多くて少し疲れた: あなたのせいの理由として覚える (謝れば和らぐ)
+            L.add_reason(st, "player", "bad", "%sからの連絡が多くて、少し疲れた" % app.pronouns(char)[2], now, told=True,
+                         delta=-2.0, action="_too_often")
+            return "too_often", {"mood": -2, "affection": -1}, extra
+        if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
+            return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:

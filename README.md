@@ -249,7 +249,7 @@ python tools/minigame_lab.py --port 8792 --no-browser
 `core/chat.py`。相手ごとのトーク（`W/chats/<cid>.json`: `seen_t` と `items[{t, who: me/her/sys, kind, text, read_t}]`）。
 
 - 送る種類 `KINDS`（おはよう・おやすみ・ありがとう・ごめんね・雑談・最近どう？・相談・からかう・甘える・会おうよ・写真・スタンプ）。`POST /api/chat/send {id, kind}` → `act("message", opts.msg_kind)` → `_send_later`（トークに要約、`msg_pending.kind`）。
-- 返信は `deliver_due` → `_chat_reply` → `chat.reply`（種類 × 状況: 連絡しすぎ・夜中・理由の有無・仲の深さ・機嫌）。既読（`read_t`）、来ないとき既読だけ。「会おう」に応じると `date_promise`（半日のうちに約束を持ちかけると受けてもらいやすい）。セリフは性格プリセットの `chat.<場面>`（18 場面 × 23 性格、`chat.LINES` が共通）。
+- 返信は `deliver_due` → `_chat_reply` → `chat.reply`（種類 × 状況: 連絡しすぎ・夜中・理由の有無・仲の深さ・機嫌）。謝る（`apology`）は連絡しすぎより先に見て, 連絡の回数（`_phoned`）にも数えない。連絡しすぎで返したときは, あなたのせいの理由（「〜からの連絡が多くて、少し疲れた」. `told`）を残すので, 謝れば和らぐ。離れている相手からのメッセージは時刻の重み（`presence.hour_factor`: 1〜6 時 0.03, 6〜7:30・0〜1 時 0.3, 23 時〜 0.6）を掛け, 閉じていた間のメッセージは相手が起きていて手が空いている 30 分刻みの時間から選ぶ（`offline._awake_slots`）。予定に睡眠（`asleep`）が一つもないキャラは, 予定が一致しない 1:00〜7:00 を寝ていることにする（`engine.DEFAULT_SLEEP`）。既読（`read_t`）、来ないとき既読だけ。「会おう」に応じると `date_promise`（半日のうちに約束を持ちかけると受けてもらいやすい）。セリフは性格プリセットの `chat.<場面>`（18 場面 × 23 性格、`chat.LINES` が共通）。
 - 電話（出た・出なかった・折り返し）、相手からの働きかけ（`"apart": true`、オフライン中も）、それへの返事もトークに並ぶ。
 - API: `GET /api/chats`（一覧・未読）、`GET /api/chat?id=`（トーク）、`POST /api/chat/seen {id}`、`state_view.chat_unread`。
 

@@ -336,6 +336,20 @@ class Offline:
             out.append(((r.get("text") or "").strip("（）") + "。" + (res or {}).get("text", "").split("\n")[0].strip("（）")))
         return out
 
+    def _awake_slots(self, char, st, t0, t1):
+        """t0〜t1 の 30 分ごとの, メッセージを送ってくる見込み [(時刻, 重み)] (寝ている・手が離せない時間は除く)."""
+        from .presence import hour_factor
+        app = self.app
+        out = []
+        t = t0
+        while t < t1:
+            d = datetime.fromtimestamp(t)
+            sc = app.scheduled_scene(char, d)
+            if not (sc.get("asleep") or sc.get("busy")):
+                out.append((t, hour_factor(d)))
+            t += 1800
+        return out
+
     def _messages(self, t0, t1):
         """離れているキャラから届いたメッセージ. 返事が遅れた受け止め方は, 性格 (absence) と信頼しだい."""
         app = self.app
@@ -348,11 +362,17 @@ class Offline:
             if st.get("approach"):
                 continue
             ctx = app.context(char, st, datetime.fromtimestamp(t1))
+            # 送ってくるのは, 相手が起きていて手が空いている時間. 夜中・早朝にはまず送らない (presence.hour_factor)
+            slots = self._awake_slots(char, st, t0, t1)
+            if not slots:
+                continue
+            avail = sum(w for _, w in slots) / float(len(slots))
             rate = float(app.presence.cfg().get("approach_apart_rate_per_hour", 0.25)) * app.presence.eagerness_apart(ctx) \
-                * float(app.traits(char).get("approach", 1))
+                * float(app.traits(char).get("approach", 1)) * avail
             if random.random() >= 1 - math.exp(-rate * min(h, 12)):
                 continue
-            sent = t0 + random.random() * (t1 - t0)
+            ts, ws = zip(*slots)
+            sent = min(t1 - 60, random.choices(ts, ws)[0] + random.random() * 1800)
             e = app.presence.fire(char, st, t1, ctx)
             if not e:
                 continue

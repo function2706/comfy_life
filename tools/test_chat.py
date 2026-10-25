@@ -82,6 +82,17 @@ def main():
             if r:
                 assert "連絡多く" in r[0]["text"], r
                 break
+        # 連絡しすぎたことを謝る: 謝るのは「連絡が多い」に数えない. 疲れさせた理由は, 謝れば和らぐ
+        assert any(x["tell"].endswith("少し疲れた") for x in L.reasons(st, time.time())), "連絡しすぎは, あなたのせいの理由として残る"
+        app.set_params({"mood": 35}, cid)
+        n0 = len(st.get("contacts") or [])
+        st.pop("msg_pending", None)
+        C.send(cid, "apology")
+        assert len(st.get("contacts") or []) == n0, "謝るメッセージは数えない"
+        st["msg_pending"].update(due=time.time() - 1, reply=True)
+        r = app.deliver_due()
+        assert r and "連絡多く" not in r[0]["text"] and "もういい" in r[0]["text"], r
+        st["contacts"], st["reasons"] = [], []
         night = app.phase_at
         app.phase_at = lambda dt: {"id": "midnight", "label": "深夜", "pos": "", "neg": ""}
         assert "こんな時間" in send("smalltalk", mood=60), "夜中は迷惑"
@@ -98,7 +109,7 @@ def main():
         sched = app.scheduled_scene
         app.scheduled_scene = lambda c, d: dict(sched(c, d), away=False, busy=False, asleep=False)
         ok = 0
-        for i in range(8):
+        for i in range(20):         # 受けてもらえるかは運しだい (半分ほど). 回数を多めに
             st.pop("msg_pending", None)
             st["contacts"] = []
             st["date_promise"] = time.time() + 3600
@@ -110,7 +121,7 @@ def main():
                 ok += 1
                 assert "date_promise" not in st
         app.scheduled_scene = sched
-        assert ok >= 4, ok
+        assert ok >= 6, ok
         st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "部屋", "until": time.time() + 9e6}
         print("invite -> promise: OK", ok)
 

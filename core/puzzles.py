@@ -91,7 +91,7 @@ def mines_chord(p, r, c, flags, rng=random):
     if p["mines"] is None or [r, c] not in p["open"]:
         return {}
     num = mines_count(p, r, c)
-    fl = {(int(a), int(b)) for a, b in flags}
+    fl = {(int(a), int(b)) for a, b in flags} | {(int(a), int(b)) for a, b in p["boom"]}   # 爆発したマスも地雷と分かっている
     around = list(_nb(r, c, p["h"], p["w"]))
     if num == 0 or sum(1 for x in around if x in fl) != num:
         return {"short": True}
