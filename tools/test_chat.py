@@ -69,6 +69,20 @@ def main():
         assert "もういい" in send("apology") and not L.dominant(st, time.time(), "bad")
         L.add_reason(st, "event", "bad", "電車に傘を忘れた", time.time(), told=False)
         assert "傘を忘れた" in send("ask_how", mood=60), "近況を聞くと, まだ話していない出来事を話す"
+        # 近況の中身は性格ごとの言い方 (無ければ共通の「〜んです。」/「特に変わりないですよ。」など)
+        t = send("ask_how", mood=60)
+        assert any(x in t for x in ("変わりない", "相変わらず", "ぼちぼち")), t
+        P = app.personas["teinei"].setdefault("lines", {})
+        saved = {k: P.get(k) for k in ("chat.ask_how_news", "chat.ask_how_nothing")}
+        P["chat.ask_how_news"], P["chat.ask_how_nothing"] = ["実はね、{tell}の！"], ["なんにもないよー。"]
+        L.add_reason(st, "event", "bad", "電車に傘を忘れた", time.time() + 1, told=False)
+        assert "実はね、電車に傘を忘れたの！" in send("ask_how", mood=60), "出来事は性格の言い方で"
+        assert "なんにもないよー。" in send("ask_how", mood=60), "何もないときも性格の言い方で"
+        for k, v in saved.items():
+            if v is None:
+                P.pop(k, None)
+            else:
+                P[k] = v
         texts = [send("tease", affection=80, mood=80) for _ in range(6)]
         assert any("からかわないで" in t for t in texts)
         assert "傷つき" in send("tease", affection=30, mood=40), "仲が浅い・機嫌が悪いと, からかいは逆効果"
@@ -114,6 +128,9 @@ def main():
             st["contacts"] = []
             st["date_promise"] = time.time() + 3600
             app.set_params({"affection": 45, "mood": 60}, cid)
+            for y in app.appoint.open_with(cid):
+                if y["status"] == "offered":     # 断るときに返ってきた別の日時の案は, 答えずに流す (次の誘いとぶつからないように)
+                    y["status"] = "lapsed"
             x = app.appoint.propose(cid, time.time() + (i + 1) * 4 * 3600, "cafe", "cafe")
             st["msg_pending"]["due"] = time.time() - 1
             app.deliver_due()

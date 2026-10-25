@@ -38,6 +38,9 @@ LINES = {
     "chat.apology_confused": "📱『え、何がですか？ ……何かあったんですか？』",
     "chat.smalltalk": "📱『ふふ、なんですかそれ。……でも、ちょっと元気出ました』",
     "chat.ask_how": "📱『最近ですか？ {news}』",
+    # 「最近どう？」の {news} の中身 (一文のかけら. 性格ごとの言い方に差し替える). {tell} に出来事 (「友だちとケンカした」の形)
+    "chat.ask_how_news": "{tell}んです。",
+    "chat.ask_how_nothing": "特に変わりないですよ。",
     "chat.consult": "📱『そうだったんですね……。{fp}でよければ、いつでも聞きますよ』",
     "chat.tease": "📱『もう、からかわないでくださいよ〜』",
     "chat.tease_hurt": "📱『……そういうの、ちょっと傷つきます』",
@@ -61,8 +64,12 @@ LINES = {
     "chat.appoint_sorry": "📱『今日は本当にごめんなさい……行けなくて』",
     "chat.appoint_missed": "📱『……今日、どうしたんですか？ ずっと待ってたんですけど』",
 }
+# 何もないときの共通の言い方 (性格プリセットに chat.ask_how_nothing が無ければ, ここから選ぶ)
+NOTHING = ("特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。")
 SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "thanks": "お礼", "apology": "謝罪 (理由を知っている)",
-               "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "雑談", "ask_how": "近況 ({news} に出来事)",
+               "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "雑談", "ask_how": "近況 ({news} に下の 2 つのどちらか)",
+               "ask_how_news": "近況の中身: 出来事があったとき ({tell} に出来事. 一文のかけら)",
+               "ask_how_nothing": "近況の中身: 特に何もないとき (一文のかけら)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
                "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
                "stamp": "スタンプ", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
@@ -164,9 +171,10 @@ class Chat:
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:
                 L.mark_told(untold[0])
-                extra["news"] = untold[0]["tell"] + "んです。"
+                news = app.persona_text(char, "chat.ask_how_news") or LINES["chat.ask_how_news"]
+                extra["news"] = news.replace("{tell}", untold[0]["tell"])
             else:
-                extra["news"] = random.choice(["特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。"])
+                extra["news"] = app.persona_text(char, "chat.ask_how_nothing") or random.choice(NOTHING)
             return "ask_how", {"loneliness": -4, "trust": 1}, extra
         if kind == "tease":
             if p.get("affection", 0) >= 55 and p.get("mood", 50) >= 50 and random.random() < 0.7:
