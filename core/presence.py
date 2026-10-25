@@ -339,7 +339,7 @@ class Presence:
         self.app.save_state(char["id"])
         return e, None
 
-    def _reply(self, char, st, a, choice, now):
+    def _reply(self, char, st, a, choice, now, auto=False):
         """メッセージに選んだ返事をする. 相手の受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
         opts = [o["id"] for o in msgreply.options(a["id"])]
         kind = choice if choice in opts else opts[0]
@@ -349,12 +349,14 @@ class Presence:
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
-        res = msgreply.judge(char, st, a["id"], kind, mult)
+        res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15)     # 自動の返事は, 相手の様子を読み違えやすい
         if res == "good":
             eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                    for k, v in (out.get("effects") or {}).items()}
         else:
             eff = dict(msgreply.EFFECT[res])
+        if auto:                                     # 自動の返事 (画面を閉じていた間): 効き目を弱く
+            eff = {k: v * 0.5 for k, v in eff.items()}
         eff, _ = self.app.bonds.realize(char, st, eff, "_ap_" + a["id"], now)        # 揺らぎ・鈍り・繰り返し
         self.app.bonds.touch(st, now)
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
@@ -371,7 +373,7 @@ class Presence:
         e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
         e["reply"] = {"kind": kind, "result": res}
         chat = self.app.chat
-        chat.add(char["id"], "me", "（%s）" % msgreply.said(a["id"], kind), kind="approach", t=now)
+        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind), "・自動" if auto else ""), kind="approach", t=now)
         chat.mark_read_by_her(char["id"], now)
         chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
         if random.random() < msgreply.MORE_RATE[res]:          # 会話している感じ: もう一言

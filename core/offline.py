@@ -127,7 +127,8 @@ class Offline:
         """画面を閉じていた t0 (最後の心拍) 〜 t1 (いま). 行動パターンに沿って過ごした結果のまとめを返す (対象でなければ None)."""
         app, L = self.app, self.app.life
         c = self.cfg()
-        if not c.get("enabled") or t1 - t0 < float(c.get("min_minutes", 30)) * 60:
+        use_plan = app.planner.active()          # 予定・未指定時コマンドを組んでいれば, そちらが先 (core/planner.py)
+        if (not c.get("enabled") and not use_plan) or t1 - t0 < float(c.get("min_minutes", 30)) * 60:
             return None
         ps = L.player_state()
         econ = L.econ()
@@ -152,13 +153,23 @@ class Offline:
                 stamina = min(cap, stamina + r * (y - x) / 3600.0)
                 x = y
 
-        for s, e, b in self.blocks(t0, t1):
+        source = self._plan_blocks(t0, t1, lambda: stamina, c.get("enabled")) if use_plan else self.blocks(t0, t1)
+        for s, e, b in source:
             s = max(s, t)                          # 残業などで, 前の行動が延びたぶんは後ろへ
             if e - s < 60:
                 continue
             L.tick_world(s)
             do, h = b["do"], (e - s) / 3600.0
+            if do == "appoint":                    # 相手との約束: 約束が先 (自動で過ごした分は, 良い影響が出にくい)
+                text = self._appoint(b["appoint"], s)
+                recover(s, e, None)
+                timeline.append({"t": s, "end": e, "do": "appoint", "label": "約束", "text": text, "skipped": False,
+                                 "plan": b.get("_plan")})
+                t = max(t, e)
+                continue
             ent = {"t": s, "end": e, "do": do, "label": DO_LABEL[do], "text": "", "skipped": False}
+            if b.get("_plan"):
+                ent["plan"] = b["_plan"]
             if do == "out":
                 ent["place"] = b.get("place")
                 ent["label"] = "外出（%s）" % app.places.label(b.get("place"))
@@ -237,6 +248,8 @@ class Offline:
             t = max(t, e)
             timeline.append(ent)
         L.tick_world(t1)
+        if use_plan:
+            app.planner.purge(t1)                 # 過ぎた日の予定を消す
         ps["stamina"] = round(stamina, 1)
         L.save_player()
         msgs = self._messages(t0, t1)
@@ -247,6 +260,77 @@ class Offline:
         L.save_player()
         app.solo.note("offline", self._summary(rep), t1)
         return rep
+
+    def _plan_blocks(self, t0, t1, stamina_now, routine_on):
+        """予定の順番で, 閉じていた間の行動を決める: 予定 → できなければ未指定時コマンド (優先度順) → 設定の行動パターン → 何もしない.
+        空き時間は未指定時コマンドから. 約束の時間は約束. 体力は過ごしながら変わるので, 決めるたびに今の値を見る."""
+        app = self.app
+        P = app.planner
+        fb = P.rec()["fallback"]
+        for s, e, kind, x in P.slots(t0, t1):
+            if kind == "appoint":
+                yield s, e, {"do": "appoint", "appoint": x["id"], "_plan": {"src": "appoint"}}
+                continue
+            why = None
+            meta = {"orig": P.label(x), "at": x["at"]} if x else {"orig": None, "at": None}
+            if kind == "plan":
+                b = {k: v for k, v in x.items() if k in ("do", "place", "how", "skill")}
+                why = P.cannot(b, s, stamina_now())
+                if not why:
+                    yield s, e, dict(b, _plan=dict(meta, src="plan", cut=self._cut(b, s, e, t1)))
+                    continue
+            f = next((f for f in fb if not P.cannot(f, s, stamina_now())), None)
+            if f:
+                yield s, e, dict(f, _plan=dict(meta, src="fallback", why=why or "予定なし", label=P.label(f)))
+                continue
+            if routine_on:
+                first = True
+                for s2, e2, b2 in self.blocks(s, e):
+                    yield s2, e2, dict(b2, _plan=dict(meta, src="routine", why=why or "予定なし") if (x and first) else None)
+                    first = False
+                continue
+            yield s, e, {"do": "home", "_plan": dict(meta, src="none", why=why or "予定なし")}
+
+    @staticmethod
+    def _cut(b, s, e, t1):
+        """次の予定の時刻で切り上げたか (買い物・家事・研鑽などの目安より短い)."""
+        from .planner import NATURAL, SHOP_NATURAL
+        nat = NATURAL.get(b["do"]) or (SHOP_NATURAL if b["do"] == "out" and solo_kind(b.get("place")) == "shopping" else 0)
+        return bool(nat) and e - s < nat and e < t1
+
+    def _appoint(self, aid, s):
+        """閉じていた間の約束: 約束の場所へ行って会う. 自動で過ごした分は, 良い影響が出にくく, 仲の深まりも小さい."""
+        app = self.app
+        try:
+            x = app.appoint.get(aid)
+        except KeyError:
+            return "約束はもう無かった"
+        char = app.chars.get(x["cid"]) or {}
+        if x["status"] not in ("set", "waiting"):
+            return "%sとの約束は%s" % (char.get("name", ""), x["status"])
+        if (x.get("plan") or {}).get("noshow"):
+            x["status"] = "stood_up"
+            x["sorry_at"] = s + random.uniform(30, 180) * 60
+            app.appoint.save()
+            return "%sで待っていたが、%sは来なかった" % (app.places.label(x["place"]), char.get("name", ""))
+        try:
+            r = app.appoint._meet(x, s, extra_opts={"auto_weak": True})
+        except ValueError as ex:                 # 会えたが, いっしょにすることはできなかった
+            x["status"] = "met"
+            app.appoint.save()
+            return "%sで%sと会った（約束。%s）" % (app.places.label(x["place"]), char.get("name", ""), ex)
+        return "%sで%sと会った（約束）。%s" % (app.places.label(x["place"]), char.get("name", ""),
+                                         ((r.get("entry") or {}).get("text") or "").split("\n")[0])
+
+    def _auto_choice(self, typ):
+        """出先で声をかけられた・見かけた: 予定の欄の方針 (無ければ無難な対応). その場にいないので, 読み違えることもある."""
+        pol = self.app.planner.rec()["auto"].get("street")
+        if not pol:
+            return "nod" if typ == "call" else "pass", False
+        choice = pol if typ == "call" else {"chat": "talk", "nod": "nod", "decline": "pass"}[pol]
+        if random.random() < 0.25:              # その場にいないので, 相手の様子を読み違える
+            choice = "nod" if typ == "call" else "pass"
+        return choice, True
 
     def _move(self, do, place):
         """行動パターンの行動で体を動かす量 (1 時間あたり)."""
@@ -293,7 +377,8 @@ class Offline:
         r = app.street.happen(cur, s + random.random() * (e - s))
         if not r:
             return []
-        res = app.street.resolve("nod" if app.street.pending()["type"] == "call" else "pass", auto=True)
+        choice, weak = self._auto_choice(app.street.pending()["type"])
+        res = app.street.resolve(choice, auto=True, weak=weak)
         return [(r.get("text") or "").strip("（）") + "。" + (res or {}).get("text", "").split("\n")[0].strip("（）")]
 
     def _work(self, s, e, stamina):
@@ -333,7 +418,8 @@ class Offline:
             return out
         r = app.street.happen(cur, s + random.random() * (e - s))
         if r:
-            res = app.street.resolve("nod" if app.street.pending()["type"] == "call" else "pass", auto=True)
+            choice, weak = self._auto_choice(app.street.pending()["type"])
+            res = app.street.resolve(choice, auto=True, weak=weak)
             out.append(((r.get("text") or "").strip("（）") + "。" + (res or {}).get("text", "").split("\n")[0].strip("（）")))
         return out
 
@@ -379,6 +465,19 @@ class Offline:
                 continue
             e["t"] = sent
             app.chat.retime_last(cid, sent)            # 届いた時刻に
+            pol = app.planner.rec()["auto"].get("reply")
+            a = app.presence.find(st["approach"]["id"]) or {}
+            if pol and a.get("apart"):
+                from .msgreply import options
+                ids = [o["id"] for o in options(a["id"])]
+                choice = pol if pol in ids else ids[0]
+                rt = min(t1 - 30, sent + random.uniform(5, 40) * 60)
+                re_ = app.presence._reply(char, st, a, choice, rt, auto=True)
+                app.save_log(cid)
+                app.save_state(cid)
+                out.append({"cid": cid, "name": char.get("name", ""), "t": sent, "text": e.get("text", ""), "mood": 0,
+                            "approach": None, "auto_reply": {"choice": choice, "result": re_["reply"]["result"], "text": re_["text"]}})
+                continue
             st["approach"]["until"] = t1 + 30 * 60          # 開いてから少しのあいだは, 返事ができる
             late = (t1 - sent) / 3600.0
             k = float(app.traits(char).get("absence", 1)) * max(0.2, 1.3 - st["params"].get("trust", 40) / 100.0)

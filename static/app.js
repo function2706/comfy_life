@@ -317,6 +317,7 @@ function renderSoloTab() {
     (v.appoints || []).some((x) => x.status === 'set' || x.status === 'waiting') ? h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, '約束（自分でその場所へ出向く）'),
       (v.appoints || []).filter((x) => x.status === 'set' || x.status === 'waiting').map((x) => appointLine(x, true))) : null,
+    planSection(v),
     h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, 'スマホ'),
       h('div', { class: 'cmds' }, h('button', { class: 'cmd', disabled: S.busy, onclick: () => openChat(), title: '連絡先の人を選んで、メッセージの種類か電話を選ぶ（誰かといるときも使えます）' },
         h('span', { class: 'ic' }, '📱'), h('span', {}, 'スマホを見る'), v.chat_unread ? h('small', { class: 'muted' }, `未読 ${v.chat_unread}`) : null))),
@@ -1197,13 +1198,14 @@ function renderOffline() {
     h('p', { class: 'muted small' }, `${t(rep.from)} 〜 ${t(rep.to)}`),
     h('div', { class: 'pgroup' }, h('h4', {}, 'どう過ごしたか'),
       (rep.timeline || []).length ? rep.timeline.map((x) => h('div', { class: 'small' + (x.skipped ? ' muted' : '') },
-        `${t(x.t)}〜${hm(x.end)}　${x.label}：${x.text}`, (x.meets || []).length ? h('div', { class: 'muted' }, '　' + x.meets.join(' / ')) : ''))
+        `${t(x.t)}〜${hm(x.end)}　${x.label}：${x.text}`, planNote(x), (x.meets || []).length ? h('div', { class: 'muted' }, '　' + x.meets.join(' / ')) : ''))
         : h('div', { class: 'muted small' }, '家で静かに過ごした')),
     h('div', { class: 'small' }, `お金 ${rep.pay >= 0 ? '+' : ''}${yen(rep.pay)}・体力 ${Math.round(rep.stamina[0])} → ${Math.round(rep.stamina[1])}`),
     rep.meets.length ? h('div', { class: 'pgroup' }, h('h4', {}, '出会い'), rep.meets.map((m) => h('div', { class: 'small' }, m))) : '',
     h('div', { class: 'pgroup' }, h('h4', {}, '届いたメッセージ'),
       rep.messages.length ? rep.messages.map((m) => h('div', { class: 'row', style: 'align-items:flex-start' },
         h('div', { style: 'flex:1' }, h('b', {}, m.name), h('span', { class: 'muted small' }, ` ${t(m.t)}`), h('div', {}, m.text),
+          m.auto_reply ? h('div', { class: 'muted small' }, `↳ 自動で返事（${(REPLY_POLICY.find((p) => p[0] === m.auto_reply.choice) || [])[1] || m.auto_reply.choice}）: ${m.auto_reply.text}`) : '',
           m.mood < 0 ? h('div', { class: 'muted small' }, '（返事がなくて、少し気にしているかも）') : ''),
         (() => {             // まだ返事を待っているメッセージなら, 返事を選ぶ (待ちが終わっていれば出さない)
           const ap = (S.view.approaches || []).find((x) => x.cid === m.cid && x.choices);
@@ -2326,6 +2328,82 @@ function pickJson() {
 
 /* ---- あなた (プレイヤー) */
 // 行動パターン: 曜日を選んで, その日の流れ (時刻・行動・行き先・研鑽の分野) を編集. ほかの曜日へコピーもできる
+// 閉じていた間のまとめ: 予定ごとに, 予定どおり / 代わりに何をしたか (理由つき) / 何もしなかった, 切り上げた
+function planNote(x) {
+  const p = x.plan;
+  if (!p) return '';
+  const at = p.at ? `${p.at}の予定「${p.orig}」` : '予定なし';
+  const s = p.src === 'plan' ? `📌 予定どおり${p.cut ? '（次の予定の時刻で切り上げた）' : ''}`
+    : p.src === 'appoint' ? '📅 約束（約束が先）'
+    : p.src === 'fallback' ? `↪ ${p.at ? `${at}は${p.why}ので、` : '空き時間なので、'}未指定時コマンドの「${p.label}」に`
+    : p.src === 'routine' ? `↪ ${at}は${p.why}ので、設定の行動パターンに`
+    : `✕ ${at}は${p.why}ので、何もしなかった`;
+  return h('div', { class: 'muted' }, '　' + s);
+}
+// 予定 (画面を閉じている間の過ごし方を日ごとに. core/planner.py): 予定 → 未指定時コマンド (優先度順) → 設定の行動パターン → 何もしない
+function commandPicker(b, redraw) {
+  const L = (S.boot.routine || {}).labels || {};
+  const od0 = (S.view || {}).outdoor || {};
+  const ch = Object.assign({}, od0.choices || {}, { out: od0.routine_choices || (od0.choices || {}).out || [] });
+  const pl = od0.places || {};
+  const skills = ((S.view || {}).solo || {}).skills || {};
+  const MH = (S.boot.routine || {}).meal_how || {}, MP = (S.boot.routine || {}).meal_places || {};
+  const sel = (key, opts, after) => h('select', { onchange: (ev) => { b[key] = ev.target.value; if (after) after(); redraw(); } },
+    opts.map(([v, l]) => h('option', { value: v, selected: b[key] === v }, l)));
+  const placeOpt = (x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`];
+  return [
+    sel('do', Object.entries(L), () => {
+      if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
+      if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
+      if (b.do === 'meal') { b.how = b.how || 'cook'; } else delete b.how;
+    }),
+    b.do === 'meal' ? sel('how', Object.entries(MH), () => { const ps = MP[b.how]; if (ps) b.place = ps.includes(b.place) ? b.place : ps[0]; else delete b.place; }) : '',
+    b.do === 'meal' && MP[b.how] ? sel('place', MP[b.how].map(placeOpt)) : '',
+    ch[b.do] ? sel('place', ch[b.do].map(placeOpt)) : '',
+    b.do === 'practice' ? sel('skill', Object.entries(skills)) : ''];
+}
+const STREET_POLICY = [['', '無難に（会釈・通り過ぎる）'], ['chat', '応じて立ち話する'], ['nod', '軽く会釈する'], ['decline', '急いでいると断る']];
+const REPLY_POLICY = [['', '返さない（あとで手で返す）'], ['cheerful', '明るく乗る'], ['expand', '話を広げる'], ['worry', '心配する'], ['tease', 'からかう'], ['curt', '素っ気なく']];
+function planSection(v) {
+  const P = v.plan;
+  if (!P) return null;
+  const redraw = () => renderSoloTab();
+  const f = S.planForm = S.planForm || { date: P.dates[1] || P.dates[0], at: '09:00', do: 'out', place: 'supermarket' };
+  if (!P.dates.includes(f.date)) f.date = P.dates[0];
+  const fb = S.fbForm = S.fbForm || { do: 'rest' };
+  const md = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
+  const call = async (path, body) => { if (S.busy) return; S.busy = true; try { await api(path, body); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } };
+  const clash = P.appoints.find((a) => a.date === f.date && Math.abs((+a.at.slice(0, 2) * 60 + +a.at.slice(3)) - (+f.at.slice(0, 2) * 60 + +f.at.slice(3))) < 150);
+  const byDate = P.dates.map((d) => [d, P.items.filter((x) => x.date === d), P.appoints.filter((a) => a.date === d)]);
+  const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
+  return h('details', { class: 'cat plan', open: !!S.planOpen, ontoggle: (ev) => { S.planOpen = ev.target.open; } },
+    h('summary', { class: 'cat-title' }, `🗓 予定（画面を閉じている間）${P.items.length ? `　${P.items.length}件` : ''}`),
+    h('p', { class: 'hint' }, `${P.horizon}日先まで組めます（段取りのスキル ${P.skill}。上がると先まで）。予定のコマンドができなければ、未指定時コマンドを上から順に、それもできなければ設定の行動パターン。約束の時刻は約束が先です。画面を開いているときは、時刻になっても知らせるだけです。`),
+    ...byDate.map(([d, xs, as]) => (xs.length || as.length) ? h('div', { class: 'plan-day' }, h('b', {}, md(d)),
+      ...as.map((a) => h('div', { class: 'plan-row muted' }, `📅 ${a.at} ${a.name}との約束（${a.place}）`)),
+      ...xs.map((x) => h('div', { class: 'plan-row' }, h('span', {}, `${x.at} ${x.label}`),
+        h('button', { class: 'btn small ghost danger', disabled: S.busy, onclick: () => call('/api/plan/remove', { id: x.id }) }, '×')))) : ''),
+    h('div', { class: 'row plan-form', style: 'flex-wrap:wrap;gap:6px' },
+      h('select', { onchange: (ev) => { f.date = ev.target.value; redraw(); } }, P.dates.map((d, i) => h('option', { value: d, selected: d === f.date }, `${md(d)}${i === 0 ? '（今日）' : i === 1 ? '（明日）' : ''}`))),
+      h('input', { type: 'time', value: f.at, onchange: (ev) => { f.at = ev.target.value; redraw(); } }), ...commandPicker(f, redraw),
+      h('button', { class: 'btn small primary', disabled: S.busy || !!clash, title: clash ? `${clash.at}に${clash.name}との約束があります` : '',
+        onclick: () => call('/api/plan/add', { date: f.date, at: f.at, item: { do: f.do, place: f.place, how: f.how, skill: f.skill } }) }, '＋予定に足す')),
+    clash ? h('div', { class: 'muted small' }, `⚠ ${clash.at}に${clash.name}との約束（${clash.place}）があります。約束が先です`) : '',
+    h('div', { class: 'sect' }, '未指定時コマンド（上から順に）'),
+    ...P.fallback.map((x, i) => h('div', { class: 'plan-row' }, h('span', {}, `${i + 1}. ${x.label}`),
+      h('span', {}, h('button', { class: 'btn small ghost', onclick: () => order(i, -1) }, '↑'), h('button', { class: 'btn small ghost', onclick: () => order(i, 1) }, '↓'),
+        h('button', { class: 'btn small ghost danger', onclick: () => call('/api/plan/fallback', { items: P.fallback.filter((_, j) => j !== i).map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill })) }) }, '×')))),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...commandPicker(fb, redraw),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => call('/api/plan/fallback', { items: P.fallback.map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill })).concat([{ do: fb.do, place: fb.place, how: fb.how, skill: fb.skill }]) }) }, '＋足す')),
+    h('div', { class: 'sect' }, '自動の応答（閉じている間）'),
+    h('p', { class: 'hint' }, 'その場にいないので、手で選ぶより効き目は弱く、相手の様子を読み違えることもあります。'),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+      h('label', { class: 'small' }, '出先でばったり ', h('select', { onchange: (ev) => call('/api/plan/auto', { street: ev.target.value, reply: P.auto.reply || '' }) },
+        STREET_POLICY.map(([k, l]) => h('option', { value: k, selected: (P.auto.street || '') === k }, l)))),
+      h('label', { class: 'small' }, '届いたメッセージ ', h('select', { onchange: (ev) => call('/api/plan/auto', { street: P.auto.street || '', reply: ev.target.value }) },
+        REPLY_POLICY.map(([k, l]) => h('option', { value: k, selected: (P.auto.reply || '') === k }, l))))));
+}
+
 function routineEditor(days) {
   const L = (S.boot.routine || {}).labels || {};
   const od0 = (S.view || {}).outdoor || {};

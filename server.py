@@ -216,6 +216,18 @@ def route(method, path, q, body):
         if path == "/api/outfits":
             with a.lock:
                 return {"outfits": a.wardrobe.save_all(b["items"])}
+        if path == "/api/plan/add":
+            with a.lock:
+                return a.planner.add(b["date"], b["at"], b.get("item") or {})
+        if path == "/api/plan/remove":
+            with a.lock:
+                return a.planner.remove(b["id"])
+        if path == "/api/plan/fallback":
+            with a.lock:
+                return a.planner.set_fallback(b.get("items") or [])
+        if path == "/api/plan/auto":
+            with a.lock:
+                return a.planner.set_auto(b.get("street"), b.get("reply"))
         if path == "/api/poses":
             with a.lock:
                 return {"poses": a.posing.save_all(b["items"])}

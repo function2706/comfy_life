@@ -317,6 +317,14 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - プレゼント: `POST /api/gift {item, character}`（`engine.give_item`）。値段 1 万円以上は `expensive_gift`（「重い」と断られたら手元に残る）、それ以外は `gift`。条件キー `liked` / `disliked`（キャラクターの定義の `likes` / `dislikes`、無ければ `items.PERSONA_LIKES`）。反応キー `gift.liked_true` / `gift.disliked_true`（23 性格分）。
 - API: `POST /api/items/list {id, qty}`、`state_view.items`、`boot.catalog`。
 
+### あなたの予定（日ごと. 閉じている間の過ごし方）
+
+`core/planner.py`。「一人で」タブの「予定」（`state_view.plan`）。保存は `player.json` の `plan`（`items` 日付つきの予定 / `fallback` 未指定時コマンド / `auto` 自動の応答の方針）。API: `POST /api/plan/add {date, at, item}`・`/api/plan/remove {id}`・`/api/plan/fallback {items}`・`/api/plan/auto {street, reply}`。
+- 予定は次の予定の時刻（同じ日のうち）まで続く。過ぎた日の分は消える（`purge`）。組める先の日数は段取りのスキル（仕事・やりくりの平均）25 ごとに 1 日（明日まで〜最大 5 日先. `horizon_days`）。約束の時刻（前 30 分〜後 2 時間）には組めない。
+- 閉じていた間（`offline.simulate`）: 予定を組んでいれば `Offline._plan_blocks` で, 予定 → できなければ（`Planner.cannot`: 閉まっている・入場料/外食のお金・体力・仕事の時間外・体調・アルバイトなし）未指定時コマンドを優先度順 → 設定の行動パターン → 何もしない。空き時間は未指定時コマンドから。約束の時間は約束（`Offline._appoint`: 会う. 効き目は `act` の `auto_weak` で良い方向を 4 割に）。次の予定で切り上げたもの（買い物・家事・研鑽などの目安より短い）は `cut`。タイムラインの各項目の `plan` に `src`（plan / fallback / routine / none / appoint）・`why`・`orig`・`at`。何も組んでいなければ今までどおり。
+- 画面を開いている間に予定の時刻が来たら（`Planner.live`）, 知らせて記録するだけ（`appoint_events` に一行・あなたの記録）。
+- 自動の応答: ばったりは方針どおり（25% は無難な対応に読み違える）, 効き目は半分（`street.resolve(weak=True)`）。届いたメッセージは方針があれば少しあとに自動で返す（`presence._reply(auto=True)`: 受け取り方の揺らぎ ±25・効き目は半分. トークに「・自動」）。
+
 ### オフラインモード（あなたの行動パターン）
 
 `core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline.days`（全体共通。曜日ごとの `[{at, do, place?, skill?}]`、各行動は次の行動の時刻まで）に沿って過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。以前の `offline.work`（曜日ごとの勤務時間）は `from_work` で流れに読み替える。
@@ -513,6 +521,7 @@ tools/mock_comfy.py  動作確認用の ComfyUI もどき
 tools/smoke_test.py  バックエンドの簡易テスト
 tools/test_reuse_dress.py  画像の再利用と着せ替えのテスト
 tools/test_posing.py  ポーズ・見せて（受け入れの割合・大人だけ・相手から・感想・好みの学習・持ちかけと対価・一覧の既定の追従）のテスト
+tools/test_planner.py  あなたの予定（組める日数・過ぎた日・決まる順番・切り上げ・約束が先・画面を開いているときは何もしない・自動の応答の弱さ・報告）のテスト
 tools/test_msgreply.py  メッセージへの返事（選択肢・受け取り方・もう一言）と放っておいたとき（既読・未読・性格・急ぎ）のテスト
 tools/test_2048.py  内職の 2048（寄せる・合わさる・詰み・稼ぎ）と一時停止（本体・単独版）のテスト
 tools/test_wardrobe.py  服の一覧と持っている服（移行・大胆な服の受け入れ・服のプレゼント・本人の服選び・自分で買う・サンプル画像）のテスト

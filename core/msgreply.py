@@ -86,13 +86,13 @@ def said(aid, kind):
     return t
 
 
-def judge(char, st, aid, kind, skill_mult=1.0, rng=random):
+def judge(char, st, aid, kind, skill_mult=1.0, rng=random, noise=15):
     """返事がどう受け取られるか: good / neutral / bad (揺らぎあり)."""
     p = st["params"]
     taste = TASTE.get(char.get("persona_id") or "", {})
     score = KIND_BASE[kind] + FIT.get(aid, {}).get(kind, 0) + taste.get(kind, 0) \
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill_mult - 1.0) \
-        + rng.uniform(-15, 15)
+        + rng.uniform(-noise, noise)
     if kind == "tease":                    # からかいは仲が深いほど通じる
         score += 0.4 * (p.get("affection", 45) - 60)
     if kind == "curt":                     # 素っ気ない返事は, 寂しいときほど刺さる

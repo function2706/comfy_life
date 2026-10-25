@@ -193,7 +193,7 @@ class Street:
             raise ValueError("選べない反応です: %s" % choice)
         return self.resolve(choice)
 
-    def resolve(self, choice, auto=False, now=None):
+    def resolve(self, choice, auto=False, now=None, weak=False):
         app = self.app
         now = now or time.time()
         pend = self.rec().pop("street_pending", None)
@@ -202,6 +202,7 @@ class Street:
             return None
         talk = choice in ("chat", "talk")
         name, where = pend["name"], pend["where"]
+        self._weak = weak                     # 自動の応答 (予定の欄の方針): 効き目を弱く
         if pend["kind"] == "char":
             out = self._resolve_char(pend, choice, talk, auto, now)
         else:
@@ -234,6 +235,8 @@ class Street:
             if choice == "decline":
                 pr["cool_until"] = now + 3 * 86400
                 line = self._line(c, "enc.decline", pend["where"])
+        if getattr(self, "_weak", False):
+            p_adv *= 0.5                       # 自動の応答 (その場にいない): 知り合いになりにくい
         adv = stage < 4 and random.random() < p_adv * (0.9 + 0.2 * app.life.skill_soft("groom"))     # 身だしなみで, 少しだけ
         if talk and not auto:
             app.life.train("talk", 0.3)          # 知らない人との立ち話も, 会話の練習になる
@@ -278,6 +281,8 @@ class Street:
                 app.life.add_reason(st, "player", "bad", "%sに、急いでいると流された" % app.pronouns(char)[2], now, told=False,
                                     action="_street")
             deltas = {}
+            if eff and getattr(self, "_weak", False):
+                eff = {k: v * 0.5 for k, v in eff.items()}
             if eff:
                 eff, _ = app.bonds.realize(char, st, eff, "_encounter", now)
                 deltas = app.apply_effects(st, app.trait_effects(char, eff))

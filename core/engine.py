@@ -38,6 +38,7 @@ from . import earn as earn_mod
 from . import rumor as rumor_mod
 from . import wardrobe as wardrobe_mod
 from . import posing as posing_mod
+from . import planner as planner_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -160,6 +161,7 @@ class App:
         self.kakeibo = kakeibo_mod.Kakeibo(self)
         self.body = body_mod.Body(self)
         self.presence = presence_mod.Presence(self)
+        self.planner = planner_mod.Planner(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
         self._load_index()
@@ -854,10 +856,12 @@ class App:
             when = "asleep=false, away=false" if gift_item else "" if appt else self._when(a, ctx)     # 持ち物を渡すなら, 所持金の条件はいらない
             if not appt and ctx["apart"] and not opts.get("deliver") and self.appoint.needs(a, cid):
                 raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
-            if not cond.check(when, ctx):
+            # 閉じていた間の約束をあとからまとめて進めるとき (auto_weak) は, いまの時刻ではなく約束の時刻の話なので見ない
+            replay = opts.get("auto_weak") and opts.get("appointment")
+            if not replay and not cond.check(when, ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
             ovp = (a.get("override") or {})
-            if ovp.get("outing"):           # お出かけの行き先が閉まっていたら行けない (約束でも, 着いた時刻で)
+            if ovp.get("outing") and not replay:      # お出かけの行き先が閉まっていたら行けない (約束でも, 着いた時刻で)
                 pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ovp.get("place")
                 pl = pl if pl in places_mod.PLACES else places_mod.from_location(ovp.get("location"))
                 o = places_mod.open_state(pl, dt)
@@ -999,6 +1003,9 @@ class App:
             social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer") or aid in ("_pose", "_show")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
+                if opts.get("auto_weak"):          # 自動で過ごした (画面を閉じていた間の約束など): 良い影響が出にくい
+                    eff = {k: (float(v) * 0.4 if float(v) * (-1 if (self.param_def(k) or {}).get("invert") else 1) > 0 else float(v))
+                           for k, v in eff.items()}
                 eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
                 self.bonds.touch(st, now)
                 if a.get("gift"):
@@ -2020,6 +2027,8 @@ class App:
         # (約束の場所にいたかどうかは, 家に帰ったあとで見る)
         gap = self.outdoor.check_gap() if beat else None
         appoint_events = self.appoint.live()            # 約束 (着いた・会えた・遅刻・すっぽかし・キャンセル・相手からの誘い)
+        if beat:
+            appoint_events += self.planner.live()       # 予定の時刻になった (画面を開いている間は知らせるだけで, 何もしない)
         with self.lock:
             now = time.time()
             for oid in self.bonds.company() or ([self.settings.get("active_character")] if self.settings.get("active_character") in self.chars else []):
@@ -2061,7 +2070,7 @@ class App:
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "workplace": workplace,
-                "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed,
+                "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
                 "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),

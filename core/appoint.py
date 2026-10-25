@@ -495,7 +495,7 @@ class Appoint:
             return True
         return False
 
-    def _meet(self, x, now, me_late=False):
+    def _meet(self, x, now, me_late=False, extra_opts=None):
         app = self.app
         cid = x["cid"]
         char = app.char(cid)
@@ -506,7 +506,7 @@ class Appoint:
         late = (x.get("plan") or {}).get("late", 0) if x.get("status") == "waiting" else 0
         x["status"] = "met"
         self.save()
-        opts = {"appointment": x["id"]}
+        opts = dict({"appointment": x["id"]}, **(extra_opts or {}))
         if x["place"] in places_mod.PLACES:
             opts["place"] = x["place"]
         r = app.act(x["do"], cid, opts=opts)
