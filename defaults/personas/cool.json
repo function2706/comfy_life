@@ -376,6 +376,42 @@
   "_dress.dress_feel_angry": [
    "……しつこい。嫌だって言った。不愉快"
   ],
+  "_pose.default": [
+   "{item}。……こう"
+  ],
+  "_pose.pose_feel_eager": [
+   "……いいよ。{item}。どう？"
+  ],
+  "_pose.pose_feel_shy": [
+   "……恥ずかしい。{item}"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……今回だけ"
+  ],
+  "_pose.pose_feel_refuse": [
+   "無理。却下"
+  ],
+  "_pose.pose_feel_angry": [
+   "……しつこい。不愉快"
+  ],
+  "_show.default": [
+   "{item}。……どうぞ"
+  ],
+  "_show.pose_feel_eager": [
+   "……いいよ。{item}、見て"
+  ],
+  "_show.pose_feel_shy": [
+   "……あんまり見ないで。{item}"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……今回だけ"
+  ],
+  "_show.pose_feel_refuse": [
+   "無理"
+  ],
+  "_show.pose_feel_angry": [
+   "……しつこい"
+  ],
   "_return.default": [
    "おかえり、{call}。",
    "……おかえり。遅かったね。"
@@ -1882,6 +1918,72 @@
   ],
   "msgr.more.bad": [
    "📱『……もういい』"
+  ],
+  "pose.self.pose": [
+   "……見て。{item}"
+  ],
+  "pose.self.show": [
+   "……少しだけ。{item}"
+  ],
+  "pose.offer.free": [
+   "……{item}、見たい？"
+  ],
+  "pose.offer.money": [
+   "……{item}。{amount}円"
+  ],
+  "pose.offer.chore": [
+   "……{item}。かわりに、今日の家事やって"
+  ],
+  "pose.offer.declined_ok": [
+   "……そう。少しほっとした"
+  ],
+  "pose.offer.declined_bad": [
+   "……そう。残念"
+  ],
+  "pose.react.praise.good": [
+   "……ふふ。悪くない"
+  ],
+  "pose.react.praise.neutral": [
+   "……そう"
+  ],
+  "pose.react.praise.bad": [
+   "……心がこもってない"
+  ],
+  "pose.react.shy.good": [
+   "……照れてる。かわいい"
+  ],
+  "pose.react.shy.neutral": [
+   "……なんで目をそらすの"
+  ],
+  "pose.react.shy.bad": [
+   "……見たくなかった？"
+  ],
+  "pose.react.more.good": [
+   "……欲張り。少しだけ"
+  ],
+  "pose.react.more.neutral": [
+   "……今日はここまで"
+  ],
+  "pose.react.more.bad": [
+   "……それは引く"
+  ],
+  "pose.react.tease.good": [
+   "……言うね。嫌いじゃない"
+  ],
+  "pose.react.tease.neutral": [
+   "……はいはい"
+  ],
+  "pose.react.tease.bad": [
+   "……不愉快"
+  ],
+  "pose.react.stop.good": [
+   "……そう。真面目"
+  ],
+  "pose.react.stop.neutral": [
+   "……そう"
+  ],
+  "pose.react.stop.bad": [
+   "……せっかく見せたのに"
   ]
  }
 }

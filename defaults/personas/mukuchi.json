@@ -386,6 +386,42 @@
   "_dress.dress_feel_angry": [
    "……しつこい。……いや。（ぷいっと背を向けた）"
   ],
+  "_pose.default": [
+   "……{item}。こう？"
+  ],
+  "_pose.pose_feel_eager": [
+   "……{item}。……どう？（少し得意げ）"
+  ],
+  "_pose.pose_feel_shy": [
+   "……はずかしい。……{item}"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……こんかい、だけ"
+  ],
+  "_pose.pose_feel_refuse": [
+   "……むり"
+  ],
+  "_pose.pose_feel_angry": [
+   "……しつこい。……いや"
+  ],
+  "_show.default": [
+   "……{item}。……どうぞ"
+  ],
+  "_show.pose_feel_eager": [
+   "……{item}。……みて"
+  ],
+  "_show.pose_feel_shy": [
+   "……はずかしい。……{item}、だけ"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……こんかい、だけ"
+  ],
+  "_show.pose_feel_refuse": [
+   "……むり"
+  ],
+  "_show.pose_feel_angry": [
+   "……いや。（ぷいっと背を向けた）"
+  ],
   "_return.default": [
    "あ、{call}。おかえり。（玄関まで出てきて、小さく手を振った）",
    "……おかえり。（ぱたぱたと出迎えて、カバンを受け取ってくれた）"
@@ -1894,6 +1930,72 @@
   ],
   "msgr.more.bad": [
    "📱『……もう、いい』"
+  ],
+  "pose.self.pose": [
+   "……みて。{item}"
+  ],
+  "pose.self.show": [
+   "……ちょっとだけ。……{item}"
+  ],
+  "pose.offer.free": [
+   "……{item}、みたい？"
+  ],
+  "pose.offer.money": [
+   "……{item}。……{amount}円"
+  ],
+  "pose.offer.chore": [
+   "……{item}。……かわりに、家事して"
+  ],
+  "pose.offer.declined_ok": [
+   "……そう。……ほっとした"
+  ],
+  "pose.offer.declined_bad": [
+   "……そう。……ざんねん"
+  ],
+  "pose.react.praise.good": [
+   "……うれしい"
+  ],
+  "pose.react.praise.neutral": [
+   "……ん"
+  ],
+  "pose.react.praise.bad": [
+   "……ほんとう？"
+  ],
+  "pose.react.shy.good": [
+   "……ふふ。てれてる"
+  ],
+  "pose.react.shy.neutral": [
+   "……なんで、めをそらすの"
+  ],
+  "pose.react.shy.bad": [
+   "……みたくなかった？"
+  ],
+  "pose.react.more.good": [
+   "……よくばり。……すこしだけ"
+  ],
+  "pose.react.more.neutral": [
+   "……きょうは、おしまい"
+  ],
+  "pose.react.more.bad": [
+   "……やだ"
+  ],
+  "pose.react.tease.good": [
+   "……むう。……ふふ"
+  ],
+  "pose.react.tease.neutral": [
+   "……"
+  ],
+  "pose.react.tease.bad": [
+   "……いや"
+  ],
+  "pose.react.stop.good": [
+   "……そう。……まじめ"
+  ],
+  "pose.react.stop.neutral": [
+   "……ん"
+  ],
+  "pose.react.stop.bad": [
+   "……せっかく、みせたのに"
   ]
  }
 }

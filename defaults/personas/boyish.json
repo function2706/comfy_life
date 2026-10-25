@@ -382,6 +382,42 @@
   "_dress.dress_feel_angry": [
    "しつこいって。ダメって言ったじゃん。……そういうの、マジで引く"
   ],
+  "_pose.default": [
+   "{item}？ こんな感じ？"
+  ],
+  "_pose.pose_feel_eager": [
+   "まかせとけ。{item}、どうよ"
+  ],
+  "_pose.pose_feel_shy": [
+   "……うわ、恥ずっ。{item}な"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……今回だけな"
+  ],
+  "_pose.pose_feel_refuse": [
+   "いや、それは無理"
+  ],
+  "_pose.pose_feel_angry": [
+   "……しつこいって。マジで引く"
+  ],
+  "_show.default": [
+   "{item}？ ……ほら"
+  ],
+  "_show.pose_feel_eager": [
+   "いいよ。{item}、見とけ"
+  ],
+  "_show.pose_feel_shy": [
+   "……照れるな、これ。{item}だけな"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……今回だけだからな"
+  ],
+  "_show.pose_feel_refuse": [
+   "いや、無理だって"
+  ],
+  "_show.pose_feel_angry": [
+   "……しつこい。もういい"
+  ],
   "_return.default": [
    "お、{call}。おかえり！",
    "おかえりー！ 待ってたよ。"
@@ -1888,6 +1924,72 @@
   ],
   "msgr.more.bad": [
    "📱『……もういいって』"
+  ],
+  "pose.self.pose": [
+   "なあ、見てよ。{item}、どう？"
+  ],
+  "pose.self.show": [
+   "……ちょっとだけな。{item}、見ていいよ"
+  ],
+  "pose.offer.free": [
+   "なあ{call}、{item}……見たい？"
+  ],
+  "pose.offer.money": [
+   "{item}、見せてもいいけど。……{amount}円な"
+  ],
+  "pose.offer.chore": [
+   "{item}見せてやる。そのかわり、今日の家事はそっちな"
+  ],
+  "pose.offer.declined_ok": [
+   "そっか。……正直、ちょっとほっとした"
+  ],
+  "pose.offer.declined_bad": [
+   "……なんだよ。せっかく言ったのに"
+  ],
+  "pose.react.praise.good": [
+   "へへっ、だろ？ サンキュ"
+  ],
+  "pose.react.praise.neutral": [
+   "ん、どうも"
+  ],
+  "pose.react.praise.bad": [
+   "……なんか棒読みじゃね？"
+  ],
+  "pose.react.shy.good": [
+   "ははっ、照れてんの？"
+  ],
+  "pose.react.shy.neutral": [
+   "……え、目そらすなよ"
+  ],
+  "pose.react.shy.bad": [
+   "……見たくなかった？"
+  ],
+  "pose.react.more.good": [
+   "欲張りだな。……ちょっとだけな"
+  ],
+  "pose.react.more.neutral": [
+   "……今日はおしまい"
+  ],
+  "pose.react.more.bad": [
+   "……それは引く"
+  ],
+  "pose.react.tease.good": [
+   "うっさい！ ……ははっ"
+  ],
+  "pose.react.tease.neutral": [
+   "はいはい"
+  ],
+  "pose.react.tease.bad": [
+   "……それ、ちょっとカチンときた"
+  ],
+  "pose.react.stop.good": [
+   "そっか。……真面目だな"
+  ],
+  "pose.react.stop.neutral": [
+   "……ん"
+  ],
+  "pose.react.stop.bad": [
+   "……せっかく見せたのに"
   ]
  }
 }

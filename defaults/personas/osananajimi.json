@@ -458,6 +458,42 @@
   "_dress.dress_feel_angry": [
    "……しつこい。ダメって言ったでしょ。あんた、そういうとこ直しなよ"
   ],
+  "_pose.default": [
+   "{item}？ こんな感じ？"
+  ],
+  "_pose.pose_feel_eager": [
+   "まかせて！ ……{item}、どうよ？"
+  ],
+  "_pose.pose_feel_shy": [
+   "……なにこれ、恥ずかし。{item}、だっけ"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……今回だけだからね"
+  ],
+  "_pose.pose_feel_refuse": [
+   "やだ。無理"
+  ],
+  "_pose.pose_feel_angry": [
+   "……しつこい。昔からそういうとこあるよね"
+  ],
+  "_show.default": [
+   "{item}？ ……はい、どうぞ"
+  ],
+  "_show.pose_feel_eager": [
+   "へへ、いいよ。{item}、ほら"
+  ],
+  "_show.pose_feel_shy": [
+   "……あんたに見せるの、なんか照れるんだけど。{item}ね"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……今回だけね"
+  ],
+  "_show.pose_feel_refuse": [
+   "いや、それは無理だって"
+  ],
+  "_show.pose_feel_angry": [
+   "……しつこいってば。怒るよ"
+  ],
   "_return.default": [
    "あ、{call}。おかえり！",
    "おかえりー。遅かったじゃん。"
@@ -2188,6 +2224,72 @@
   ],
   "msgr.more.bad": [
    "📱『……もういい。寝る』"
+  ],
+  "pose.self.pose": [
+   "ねえ、見てよ。{item}、どう？"
+  ],
+  "pose.self.show": [
+   "……ちょっとだけね。{item}、見ていいよ"
+  ],
+  "pose.offer.free": [
+   "ねえ、{item}……見たい？"
+  ],
+  "pose.offer.money": [
+   "{item}、見せてあげてもいいけど。……{amount}円ね"
+  ],
+  "pose.offer.chore": [
+   "{item}見せてあげる。そのかわり、今日の家事あんたがやって"
+  ],
+  "pose.offer.declined_ok": [
+   "そ。……まあ、そのほうがいっか"
+  ],
+  "pose.offer.declined_bad": [
+   "……なによ。せっかく言ったのに"
+  ],
+  "pose.react.praise.good": [
+   "でしょ？ ……へへ、ありがと"
+  ],
+  "pose.react.praise.neutral": [
+   "ふーん。……どうも"
+  ],
+  "pose.react.praise.bad": [
+   "……なにそれ、棒読み"
+  ],
+  "pose.react.shy.good": [
+   "あはは、照れてんの？ 珍しー"
+  ],
+  "pose.react.shy.neutral": [
+   "……え、目そらすの？"
+  ],
+  "pose.react.shy.bad": [
+   "……そんなに見たくなかった？"
+  ],
+  "pose.react.more.good": [
+   "欲張り。……ちょっとだけね"
+  ],
+  "pose.react.more.neutral": [
+   "……今日はおしまい"
+  ],
+  "pose.react.more.bad": [
+   "……うわ、それはちょっと引く"
+  ],
+  "pose.react.tease.good": [
+   "うっさい！ ……ふふ"
+  ],
+  "pose.react.tease.neutral": [
+   "はいはい"
+  ],
+  "pose.react.tease.bad": [
+   "……人が恥ずかしいの我慢してんのに"
+  ],
+  "pose.react.stop.good": [
+   "あ、そう？ ……あんたって昔から真面目だよね"
+  ],
+  "pose.react.stop.neutral": [
+   "……ふーん"
+  ],
+  "pose.react.stop.bad": [
+   "……せっかく見せたのに"
   ]
  }
 }

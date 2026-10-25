@@ -66,7 +66,7 @@ def main():
         app.set_params({"affection": 15, "trust": 15, "mood": 40}, cid)
         st["pose_asks"] = []
         r = app.act("_show", cid, opts={"pose": "hips"})
-        assert "ass focus" not in r["entry"]["pos"] and "できない" in r["entry"]["text"], r["entry"]["text"]
+        assert "ass focus" not in r["entry"]["pos"] and not st.get("pose_asks")[-1]["ok"], r["entry"]["text"]   # 断られた
         try:
             app.act("_pose", cid, opts={"pose": "thighs"})
             raise AssertionError("見せてをポーズで頼めた")

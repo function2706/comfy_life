@@ -860,6 +860,42 @@
   "_dress.dress_feel_angry": [
    "……同じ要求を繰り返さないで。再現性があるのは、{fp}の不快感だけだよ"
   ],
+  "_pose.default": [
+   "{item}、こう？ 角度はこれで最適だと思う"
+  ],
+  "_pose.pose_feel_eager": [
+   "了解、再現してみる。{item}、どう？"
+  ],
+  "_pose.pose_feel_shy": [
+   "……想定以上に恥ずかしい。{item}、これで"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……今回だけ。データは取らないでよ"
+  ],
+  "_pose.pose_feel_refuse": [
+   "それは無理。却下"
+  ],
+  "_pose.pose_feel_angry": [
+   "……同じ要求の繰り返し。不快"
+  ],
+  "_show.default": [
+   "{item}？ ……はい、観察どうぞ"
+  ],
+  "_show.pose_feel_eager": [
+   "いいよ。{item}、どう見える？"
+  ],
+  "_show.pose_feel_shy": [
+   "……顔が熱いのは室温のせい。{item}ね"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……今回だけだよ"
+  ],
+  "_show.pose_feel_refuse": [
+   "それは無理"
+  ],
+  "_show.pose_feel_angry": [
+   "……しつこい。再現性があるのは{fp}の不快感だけ"
+  ],
   "_return.default": [
    "あ、{call}。おかえり！"
   ],
@@ -1843,6 +1879,72 @@
   ],
   "msgr.more.bad": [
    "📱『……もういい。実験に戻る』"
+  ],
+  "pose.self.pose": [
+   "ねえ、見て。{item}、検証してみた"
+  ],
+  "pose.self.show": [
+   "……少しだけ。{item}、観察していいよ"
+  ],
+  "pose.offer.free": [
+   "{call}。……{item}、見たい？"
+  ],
+  "pose.offer.money": [
+   "{item}、見せてもいいよ。……{amount}円。妥当な対価だと思う"
+  ],
+  "pose.offer.chore": [
+   "{item}、見せる。そのかわり、今日の家事は代わりにやって"
+  ],
+  "pose.offer.declined_ok": [
+   "了解。……正直、少しほっとした"
+  ],
+  "pose.offer.declined_bad": [
+   "……そう。仮説が外れた"
+  ],
+  "pose.react.praise.good": [
+   "……ありがと。心拍が上がった"
+  ],
+  "pose.react.praise.neutral": [
+   "ん、ありがと"
+  ],
+  "pose.react.praise.bad": [
+   "……その評価、根拠が薄い"
+  ],
+  "pose.react.shy.good": [
+   "ふふ、照れてる。興味深い反応"
+  ],
+  "pose.react.shy.neutral": [
+   "……なんで目をそらすの"
+  ],
+  "pose.react.shy.bad": [
+   "……需要がなかった？"
+  ],
+  "pose.react.more.good": [
+   "欲張り。……少しだけね"
+  ],
+  "pose.react.more.neutral": [
+   "……今日はここまで"
+  ],
+  "pose.react.more.bad": [
+   "……その要求は不適切"
+  ],
+  "pose.react.tease.good": [
+   "む。……その仮説は否定しきれない"
+  ],
+  "pose.react.tease.neutral": [
+   "……はいはい"
+  ],
+  "pose.react.tease.bad": [
+   "……恥ずかしいのに、その言い方"
+  ],
+  "pose.react.stop.good": [
+   "了解。……誠実だね"
+  ],
+  "pose.react.stop.neutral": [
+   "……そう"
+  ],
+  "pose.react.stop.bad": [
+   "……せっかく見せたのに"
   ]
  }
 }

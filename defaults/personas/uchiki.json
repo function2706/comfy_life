@@ -389,6 +389,42 @@
   "_dress.dress_feel_angry": [
    "……な、何度も言わないでください……。{fp_st}、本当に嫌なんです……"
   ],
+  "_pose.default": [
+   "{item}……こ、こうですか……？"
+  ],
+  "_pose.pose_feel_eager": [
+   "は、はい……っ。{item}、ど、どうですか……"
+  ],
+  "_pose.pose_feel_shy": [
+   "……は、恥ずかしい、です……。{item}……"
+  ],
+  "_pose.pose_feel_reluctant": [
+   "……こ、今回だけ、ですよ……？"
+  ],
+  "_pose.pose_feel_refuse": [
+   "む、無理です……っ"
+  ],
+  "_pose.pose_feel_angry": [
+   "……な、何度も言わないでください……"
+  ],
+  "_show.default": [
+   "{item}……ですか……？ ど、どうぞ……"
+  ],
+  "_show.pose_feel_eager": [
+   "え、えっと……{item}、み、見てください……"
+  ],
+  "_show.pose_feel_shy": [
+   "……あ、あんまり見ないでください……。{item}……"
+  ],
+  "_show.pose_feel_reluctant": [
+   "……こ、今回だけ、です……"
+  ],
+  "_show.pose_feel_refuse": [
+   "む、無理です……っ。ご、ごめんなさい……"
+  ],
+  "_show.pose_feel_angry": [
+   "……も、もう、やめてください……"
+  ],
   "_return.default": [
    "あ……{call}。お、おかえりなさい……！",
    "……おかえりなさい。ま、待ってました……"
@@ -1897,6 +1933,72 @@
   ],
   "msgr.more.bad": [
    "📱『……も、もう寝ます……』"
+  ],
+  "pose.self.pose": [
+   "あ、あの……{item}、み、見てもらえますか……"
+  ],
+  "pose.self.show": [
+   "……ちょ、ちょっとだけ、です……。{item}……"
+  ],
+  "pose.offer.free": [
+   "あ、あの……{item}、み、見たい、ですか……？"
+  ],
+  "pose.offer.money": [
+   "{item}……{amount}円で、ど、どうでしょう……"
+  ],
+  "pose.offer.chore": [
+   "{item}、み、見せます……。そのかわり、家事を、お願いしても……"
+  ],
+  "pose.offer.declined_ok": [
+   "そ、そうですよね……。ほ、ほっとしました……"
+  ],
+  "pose.offer.declined_bad": [
+   "……そ、そうですか……。が、がんばったのに……"
+  ],
+  "pose.react.praise.good": [
+   "ほ、ほんとですか……？ う、うれしい、です……"
+  ],
+  "pose.react.praise.neutral": [
+   "……あ、ありがとうございます……"
+  ],
+  "pose.react.praise.bad": [
+   "……む、無理に言わなくても……"
+  ],
+  "pose.react.shy.good": [
+   "ふ、ふふ……{call}も、照れるんですね……"
+  ],
+  "pose.react.shy.neutral": [
+   "……あ、あの、なんで目を……"
+  ],
+  "pose.react.shy.bad": [
+   "……み、見たくなかったですか……"
+  ],
+  "pose.react.more.good": [
+   "え、ええっ……す、少しだけ、ですよ……"
+  ],
+  "pose.react.more.neutral": [
+   "……き、今日はここまでで……"
+  ],
+  "pose.react.more.bad": [
+   "……そ、そういうのは、こ、困ります……"
+  ],
+  "pose.react.tease.good": [
+   "も、もう……っ。……で、でも、ちょっとうれしい、です……"
+  ],
+  "pose.react.tease.neutral": [
+   "……は、はい……"
+  ],
+  "pose.react.tease.bad": [
+   "……そ、そういうの、苦手です……"
+  ],
+  "pose.react.stop.good": [
+   "そ、そうですよね……。ご、ごめんなさい……"
+  ],
+  "pose.react.stop.neutral": [
+   "……は、はい……"
+  ],
+  "pose.react.stop.bad": [
+   "……せ、せっかく、がんばったのに……"
   ]
  }
 }
