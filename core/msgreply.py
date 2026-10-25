@@ -55,7 +55,7 @@ LINES = {
     "msgr.curt.good": "📱『ふふ、忙しいんですね。またあとで』",
     "msgr.curt.neutral": "📱『……そうですか』",
     "msgr.curt.bad": "📱『……なんか、冷たくないですか』",
-    "msgr.more.good": "📱『あ、そうだ。今度また、ゆっくり話しましょうね』",
+    "msgr.more.good": "📱『ふふ、なんだか今日はいい日になりそうです』",
     "msgr.more.neutral": "📱『（スタンプが届いた）』",
     "msgr.more.bad": "📱『……もういいです』",
 }
