@@ -222,7 +222,7 @@ class Offline:
                     if do == "out":                 # 閉まる時刻までしかいられない
                         until = open_state(b.get("place") or "", datetime.fromtimestamp(s))["until"]
                         if until and until < e:
-                            h = (until - s) / 3600.0
+                            h = max(0.0, (until - s) / 3600.0)     # もう閉まっていた (until が始めより前) なら 0
                             ent["text_extra"] = "閉まる時間になったので帰った"
                     res = app.solo.result(do, h, e, b.get("skill"), b.get("place"))
                     app.body.add_exercise(self._move(do, b.get("place")) * h)          # 体を動かした分 (閉じていた間)

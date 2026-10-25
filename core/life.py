@@ -255,8 +255,9 @@ class Life:
         return float(self.player_state().get("stamina", 100))
 
     def tire(self, amount):
+        """体力を減らす (負の量は無視する. 体力は時間・休息でだけ戻る)."""
         ps = self.player_state()
-        ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - float(amount))
+        ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - max(0.0, float(amount)))
         self.save_player()
 
     def stamina_mult(self):
