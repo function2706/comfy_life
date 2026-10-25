@@ -278,7 +278,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="box"><b>次に開く</b><small>離れていた時間をまとめて計算（最大14日）</small></div><div class="arr">→</div>
   <div class="box hl"><b>おかえり</b><small>留守中の出来事を話す。1週間以上空くと寂しがる</small></div>
 </div>
-<p class="where">設定 → キャラクター → 生活スケジュール</p> <p class="where">設定 → 共通プロンプト・時間帯</p>
+<p class="where">設定 → キャラクター → 生活スケジュール</p> <p class="where">設定 → 時間帯・数値</p>
 
 <!-- ============================================================ -->
 <h2 id="params"><span class="ic">📊</span>パラメータ</h2>
@@ -359,7 +359,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <div class="box"><b>生成中</b></div><div class="arr">→</div>
   <div class="box hl"><b>完了</b><small>または失敗（エラーを表示）</small></div>
 </div>
-<p class="where">設定 → 画像生成 (ComfyUI)</p> <p class="where">設定 → 共通プロンプト・時間帯</p>
+<p class="where">設定 → 画像生成 (ComfyUI)</p> <p class="where">設定 → 共通プロンプト</p> <p class="where">設定 → 時間帯・数値（時間帯の光の演出）</p>
 
 <!-- ============================================================ -->
 <h2 id="mood"><span class="ic">💭</span>機嫌の理由</h2>
@@ -499,7 +499,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li>キャラがお金に困るとおねだりが、余裕があるとプレゼントやおごりの申し出が、<b>お願い</b>欄に出ます。</li>
   <li>日給、生活費、株の値動きは、アプリを閉じていた間の分もまとめて進みます。</li>
 </ul>
-<p class="where">設定 → 共通プロンプト・時間帯 → お金・出来事</p>
+<p class="where">設定 → 時間帯・数値 → お金・出来事</p>
 
 <!-- ============================================================ -->
 <h3 id="kakeibo">📒 家計簿</h3>
@@ -650,7 +650,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <!-- ============================================================ -->
 <h2 id="settings"><span class="ic">⚙</span>設定の各画面</h2>
 <p>各画面の右上の 📖 を押すと、ここの該当カードが開きます。変更は「保存」を押すまで反映されません（「表示」だけは、すぐ反映されます）。</p>
-<p>左の並びは、範囲ごとに分かれています。<b>あなた</b>（全ワールド共通）／<b>キャラごと</b>（キャラクター。中のタブで「基本・外見」「生活スケジュール」「着せ替え」を切り替え、上の欄で編集するキャラを選ぶ）／<b>全員共通（全ワールド）</b>（性格・セリフ集、服の一覧）／<b>このワールドの決まり</b>（コマンド、ミニゲーム、キャラの出来事、キャラからの働きかけ、パラメータ）／<b>画像・文章</b>／<b>表示・データ</b>。キャラごとの画面だけが、編集するキャラの選択に従います。</p>
+<p>左の並びは、範囲ごとに分かれています。<b>あなた</b>（全ワールド共通）／<b>キャラごと</b>（キャラクター。中のタブで「基本・外見」「生活スケジュール」「着せ替え」を切り替え、上の欄で編集するキャラを選ぶ）／<b>全員共通（全ワールド）</b>（性格・セリフ集、服の一覧）／<b>このワールドの決まり</b>（コマンド、ミニゲーム、キャラの出来事、キャラからの働きかけ、パラメータ、時間帯・数値）／<b>画像・文章</b>／<b>表示・データ</b>。キャラごとの画面だけが、編集するキャラの選択に従います。</p>
 <div class="cards">
   <div class="card sec" id="sec-player"><div class="hd"><span class="ic">&#x1F9D1;</span>あなた</div>
     <p>あなた自身の情報（全ワールド共通）：名前、性別、年齢、職業、人柄、
@@ -679,8 +679,10 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
     <p>パラメータの範囲、初期値、基本変化、変化の上書き、自然回帰、状態タグです。<a href="#params">→ パラメータ</a></p></div>
   <div class="card sec" id="sec-comfy"><div class="hd"><span class="ic">🖼</span>画像生成 (ComfyUI)</div>
     <p>接続先、画像の出し方（すぐ表示／毎回生成）、内蔵ワークフローの設定（チェックポイント、サイズ、Steps など）、カスタムワークフローの登録、ComfyUI 側に画像を残すかどうか。<a href="#image">→ 画像ができるまで</a></p></div>
-  <div class="card sec" id="sec-prompt"><div class="hd"><span class="ic">🌅</span>共通プロンプト・時間帯</div>
-    <p>すべての画像に付く品質タグ、時間帯ごとの光の演出、「おかえり」を出す不在時間、お金と出来事の数値（日給・生活費・時給・内職の単価・株のニュース・出来事の起きやすさ）、在席と働きかけの数値（放置とみなすまでの時間、働きかけの来やすさ・待ち時間）。</p></div>
+  <div class="card sec" id="sec-prompt"><div class="hd"><span class="ic">🌅</span>共通プロンプト</div>
+    <p>すべての画像に付く品質タグ（全ワールド共通）。</p></div>
+  <div class="card sec" id="sec-worldnums"><div class="hd"><span class="ic">⏱</span>時間帯・数値（このワールドの決まり）</div>
+    <p>時間帯ごとの光の演出、「おかえり」を出す不在時間、お金と出来事の数値（日給・生活費・時給・内職の単価・株のニュース・出来事の起きやすさ）、在席と働きかけの数値（放置とみなすまでの時間、働きかけの来やすさ・待ち時間）。</p></div>
   <div class="card sec" id="sec-llm"><div class="hd"><span class="ic">🤖</span>セリフ生成 (LLM)</div>
     <p>Ollama か OpenAI 互換の API で、定型のセリフを参考に LLM がセリフを書きます。失敗したら定型のセリフのままです。ナレーションと「LLM を使わない」コマンドは定型のままです。</p></div>
   <div class="card sec" id="sec-display"><div class="hd"><span class="ic">💬</span>表示</div>

@@ -3187,9 +3187,23 @@ SEC.comfy = () => {
   ];
 };
 
-/* ---- 共通プロンプト・時間帯 */
+/* ---- 共通プロンプト (全ワールド共通) */
 SEC.prompt = () => {
-  const pr = SE.settings.prompt, w = SE.world;
+  const pr = SE.settings.prompt;
+  return [
+    saveBar('共通プロンプト', async () => {
+      await api('/api/settings', { settings: { prompt: pr } });
+      await reloadAll();
+    }),
+    h('p', { class: 'lead' }, 'すべての画像に付く品質タグです（全ワールド共通）。時刻による光の演出は「時間帯・数値」（このワールドの決まり）にあります。'),
+    fld('共通 Positive（先頭）', inp(pr, 'prefix_pos', { type: 'textarea', rows: 2 })),
+    fld('共通 Negative', inp(pr, 'prefix_neg', { type: 'textarea', rows: 3 })),
+  ];
+};
+
+/* ---- 時間帯・数値 (このワールドの決まり) */
+SEC.worldnums = () => {
+  const w = SE.world;
   w.phases = w.phases || [];
   const box = h('div', { class: 'mini-table' });
   const draw = () => box.replaceChildren(
@@ -3200,14 +3214,11 @@ SEC.prompt = () => {
     h('div', {}, h('button', { class: 'btn ghost', onclick: () => { w.phases.push({ id: 'new', label: '', from: '00:00', to: '01:00', pos: '', neg: '' }); draw(); } }, '＋時間帯')));
   draw();
   return [
-    saveBar('共通プロンプト・時間帯', async () => {
-      await api('/api/settings', { settings: { prompt: pr } });
+    saveBar('時間帯・数値', async () => {
       await api('/api/world', { world: w });
       await reloadAll();
     }),
-    h('p', { class: 'lead' }, 'すべての画像に付く品質タグと、時刻による光の演出です。'),
-    fld('共通 Positive（先頭）', inp(pr, 'prefix_pos', { type: 'textarea', rows: 2 })),
-    fld('共通 Negative', inp(pr, 'prefix_neg', { type: 'textarea', rows: 3 })),
+    h('p', { class: 'lead' }, 'このワールドの時間帯（時刻による光の演出）と、お金・出来事・在席・働きかけの数値です（ワールドごと）。'),
     h('div', { class: 'sect' }, '時間帯（条件キー phase の値）'),
     box,
     h('div', { class: 'sect' }, 'その他'),
