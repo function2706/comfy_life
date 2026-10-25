@@ -43,9 +43,10 @@ def main():
         c = app.chars[cid]
         assert not app.has_icon(c)
 
-        # プロンプト: 外見 + 顔だけのタグ. 場面・服は入れない
+        # プロンプト: キャラの外見 + 顔だけのタグ. 共通プロンプト・場面・服は入れない
+        app.settings.setdefault("prompt", {})["prefix_pos"] = "common_prefix_tag"
         pos, neg = app.icon_prompt(c)
-        assert "face focus" in pos and "portrait" in pos, pos
+        assert "portrait" in pos and "looking at viewer" in pos and "common_prefix_tag" not in pos, pos
         for tg in [t.strip() for t in c.get("pos", "").split(",") if t.strip()]:
             assert tg.lower() in pos.lower(), tg
         assert c.get("outfit_default", "x") not in pos or not c.get("outfit_default")

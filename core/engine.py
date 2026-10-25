@@ -1545,15 +1545,15 @@ class App:
         return job
 
     # 顔だけのアイコン: トーク・関係性・そばにいる人の欄に出す顔. 一度だけ作って定義に固定する (char["icon"]).
-    # 外見 (定義の pos/neg) だけで, 場面・服・表情は入れない. 足すタグは設定の images.icon_pos / icon_neg で変えられる
-    ICON_POS = "portrait, face focus, close-up, looking at viewer, simple background"
-    ICON_NEG = "full body, wide shot, multiple views"
+    # キャラの外見 (定義の pos/neg) + 顔だけのタグ. 共通プロンプト・場面・服・表情は入れない (足すタグに画質のタグも含める).
+    # 足すタグは設定の images.icon_pos / icon_neg で変えられる
+    ICON_POS = "portrait,looking at viewer,simple background,1girl,solo,masterpiece,best quality,amazing quality"
+    ICON_NEG = "full body,wide shot,multiple views,worst quality,bad quality,(monochrome),3d,(shiny skin:1.2),worst detail,text,logo,cropped,deformed,blurry,sketch,censor"
 
     def icon_prompt(self, char):
-        pr = self.settings.get("prompt") or {}
         ic = self.settings.get("images") or {}
-        pos = join_tags([pr.get("prefix_pos", ""), char.get("pos", ""), ic.get("icon_pos") or self.ICON_POS])
-        neg = join_tags([pr.get("prefix_neg", ""), char.get("neg", ""), ic.get("icon_neg") or self.ICON_NEG])
+        pos = join_tags([char.get("pos", ""), ic.get("icon_pos") or self.ICON_POS])
+        neg = join_tags([char.get("neg", ""), ic.get("icon_neg") or self.ICON_NEG])
         return pos, neg
 
     def icon_job(self, cid):
