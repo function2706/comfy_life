@@ -61,6 +61,7 @@ def main():
         st["pose_asks"], st["cooldowns"] = [], {}
         app.set_params({"affection": 90, "trust": 90, "mood": 70}, cid)
         r = app.act("_pose", cid, opts={"pose": "v_sign"})
+        assert "loli" not in r["entry"]["neg"], "Negative には何も足さない (判定は年齢だけ)"
         assert "double v" not in r["entry"]["pos"] and ", v," in ", " + r["entry"]["pos"] + ",", r["entry"]["pos"]
         app.set_params({"affection": 15, "trust": 15, "mood": 40}, cid)
         st["pose_asks"] = []
@@ -73,16 +74,19 @@ def main():
             pass
         print("頼む: 太もも 浅い仲 %.2f / 深い仲 %.2f, お尻 深い仲 %.2f" % (low, high, hips_high))
 
-        # ---- 3. 大人だけ: 年齢が無い・18 未満ならできない
+        # ---- 3. 大人だけ: 判定は年齢の欄だけ. 18 未満ならできない (未入力は大人として扱う)
         c = store.all_characters()[cid]
-        for age in (None, 17):
+        c["age"] = None
+        app.save_character(c)
+        assert app.person_view(cid)["posing"]["can"], "未入力は大人として扱う"
+        for age in (17, "15"):
             c["age"] = age
             app.save_character(c)
             try:
                 app.act("_pose", cid, opts={"pose": "v_sign"})
                 raise AssertionError("年齢 %s でポーズを頼めた" % age)
             except ValueError as e:
-                assert "大人" in str(e)
+                assert "18 歳未満" in str(e)
             assert not app.person_view(cid)["posing"]["can"]
         c["age"] = 20
         app.save_character(c)

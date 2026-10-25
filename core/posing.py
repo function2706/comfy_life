@@ -2,7 +2,8 @@
 
 - 一覧 (data/poses.json. 既定は defaults/poses.json. 全体で 1 つ): {id, type: pose / show, name, icon, bold 0〜3, outside_ok, pos, neg}.
   見せて は「〜 focus」の形のプロンプト. 既定は服を着たままの範囲で, 裸・性的な行為は入れない (設定から足せる).
-- 大人のキャラだけ (定義の age が 18 以上. 設定されていなければできない).
+- 大人のキャラだけ: 定義の age に 18 未満が入っている人には, 頼むことも相手からの行動も出さない. 未入力は (今までのキャラを
+  使えなくしないよう) 大人として扱う. 判定は年齢の欄だけ (外見のタグ・性格・プロンプトの語からは推し量らない).
 - 頼んだとき: 着てくれるかと同じ受け入れ (wardrobe.accept. 好感度・信頼・間柄・恥じらい・機嫌・場所・揺らぎ・しつこさ. pose_asks).
 - 相手から (live): その気 (ドキドキ・好感度・機嫌・恥じらい) しだいで, 二人きりのときに, ポーズを取って見せる / 「見せてあげようか？」と
   持ちかけてくる. 持ちかけには対価 (お金・家事の肩代わり) を求めることがある (性格・仲・相手の懐しだい). 見せてきたら感想を選ぶ
@@ -61,10 +62,14 @@ for _k, _l in REACTIONS:
 
 
 def adult(char):
+    """大人か: 年齢が 18 未満と入っていなければ大人 (未入力は大人として扱う)."""
+    age = char.get("age")
+    if age in (None, ""):
+        return True
     try:
-        return int(char.get("age") or 0) >= ADULT_AGE
+        return int(float(age)) >= ADULT_AGE
     except (TypeError, ValueError):
-        return False
+        return True
 
 
 def _norm(o):
@@ -124,7 +129,7 @@ class Posing:
     def can(self, char, st, now):
         """頼める・相手からしてくるか (理由). 大人だけ, 起きていて手が空いていて, そばにいるとき."""
         if not adult(char):
-            return False, "大人のキャラだけです（設定 → キャラクターで年齢を設定）"
+            return False, "18 歳未満のキャラにはできません"
         if not self.app.bonds.together(char["id"]):
             return False, "そばにいるときだけです"
         return True, ""
