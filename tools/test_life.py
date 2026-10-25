@@ -79,8 +79,11 @@ def main():
 
         # ---- 機嫌の理由: 理由も知らずに謝ると悪化 → 聞く → 謝ると和らぐ / 相談で解決
         app.set_params({"mood": 40})
-        L.player_state()["skills"]["care"] = 100.0      # 気づくかは出来事の時刻しだいなので, 気配りを高くして必ず気づくように
-        L.happen(char, st, time.time(), app.context(char, st, __import__("datetime").datetime.now()), force="argument")
+        L.player_state()["skills"]["care"] = 100.0      # 気づくかは出来事の時刻しだいなので, 気配りを高くして
+        t_ev = time.time()
+        while int(t_ev * 1000) % 997 / 997.0 >= 0.9:     # 気配り 100 でも 95% なので, 必ず気づく時刻にする (life._noticed)
+            t_ev -= 0.001
+        L.happen(char, st, t_ev, app.context(char, st, __import__("datetime").datetime.now()), force="argument")
         assert app.life.view(char, st)["hint"], "何かあったみたい のヒント"
         mood0 = st["params"]["mood"]
         r = app.act("apologize")
