@@ -69,6 +69,8 @@ def route(method, path, q, body):
             return a.prompt_preview(cid)
         if path == "/api/workflow":
             return {"workflow": store.load(store.dpath("workflow.json"))}
+        if path == "/api/outfits":
+            return a.wardrobe.catalog_view()
         if path == "/api/diary":
             return {"diary": a.solo.diary_list(), "mylog": a.solo.mylog()[-100:]}
         if path == "/api/character":
@@ -208,6 +210,11 @@ def route(method, path, q, body):
             return {"character": a.save_definition(b["data"])}
         if path == "/api/character/place":
             return {"character": a.place_character(b["id"], b.get("stage") or "contact")}
+        if path == "/api/outfits":
+            with a.lock:
+                return {"outfits": a.wardrobe.save_all(b["items"])}
+        if path == "/api/outfit/sample":
+            return {"job": a.make_sample(b["id"])}
         if path == "/api/character/icon":
             return {"job": a.make_icon(b["id"], force=True)}
         if path == "/api/character/delete":

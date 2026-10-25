@@ -30,7 +30,8 @@
   "money": -10,
   "neat": -6,
   "carer": 0.1,
-  "punctual": 0.5
+  "punctual": 0.5,
+  "modesty": -2
  },
  "lines": {
   "look.free_true": [

@@ -17,6 +17,7 @@ import time
 import uuid
 
 from . import store
+from . import wardrobe as wardrobe_mod
 
 DEFAULTS = {"start_contact": 0.4, "start_known": 0.35, "rate_work": 0.05, "rate_out": 0.2, "rate_outing": 0.1, "stranger_share": 0.5, "max_chance": 0.6,
             "pending_hours": 72}
@@ -189,9 +190,17 @@ class Encounters:
         tmpl = app.char() if app.chars else {}
         return {"name": name, "player_call": "", "first_person": "", "persona_id": p.get("id", ""),
                 "persona": p.get("persona", ""), "pos": look, "neg": "", "outfit_default": random.choice(OUTFIT),
-                "outfit_outing": random.choice(OUTING), "wardrobe": copy.deepcopy(tmpl.get("wardrobe") or []),
+                "outfit_outing": random.choice(OUTING), "clothes": self._starter_clothes(),
                 "schedule": copy.deepcopy(tmpl.get("schedule") or []),
                 "default_activity": copy.deepcopy(tmpl.get("default_activity") or {}), "prompt_history": []}
+
+    def _starter_clothes(self):
+        """新しく作る人の持っている服: 普段着・部屋着・パジャマと, 一覧のふつうの服からいくつか."""
+        ids = list(wardrobe_mod.STARTER)
+        more = [o["id"] for o in self.app.wardrobe.all() if o["bold"] == 0 and o["id"] not in ids
+                and o["kind"] in ("casual", "formal", "work") and not o.get("when")]
+        ids += random.sample(more, min(len(more), random.randint(1, 3)))
+        return [{"id": i, "from": "default"} for i in ids]
 
     def meet_stranger(self, kind, with_cid, where, now):
         c, src = self.pick_new_face(self.candidates())     # すでにある定義の人 (このワールドでは初対面) か, 新しく作る人

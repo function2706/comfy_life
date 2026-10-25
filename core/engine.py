@@ -36,6 +36,7 @@ from . import knowsched as knowsched_mod
 from . import market as market_mod
 from . import earn as earn_mod
 from . import rumor as rumor_mod
+from . import wardrobe as wardrobe_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -168,6 +169,10 @@ class App:
         self.settings = store.load_settings()
         self.params = store.load(store.wpath("params.json"), [])
         self.actions = store.load(store.wpath("actions.json"), [])
+        if not hasattr(self, "wardrobe"):
+            self.wardrobe = wardrobe_mod.Wardrobe(self)
+        self.wardrobe.load()                   # 服の一覧 (全体で 1 つ)
+        self.wardrobe.migrate()                # 以前のキャラごとの wardrobe を一覧へ (済んでいれば何もしない)
         # 既定に増えた項目 (economy など) も使えるよう, 既定の上に data を重ねる
         self.world = store.deep_merge(store.load(os.path.join(store.DEFAULTS, "world.json"), {}),
                                       store.load(store.wpath("world.json"), {}))
@@ -191,22 +196,19 @@ class App:
         self._sync_defaults("events", self.events, "events.json")
         self._sync_defaults("approaches", self.approaches, "approaches.json")
         for c in self.chars.values():
-            if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []) or "wardrobe" not in c:
+            if "outfit_outing" not in c or "clothes" not in c:
                 store.backup("キャラの定義に後から増えた項目を補う")      # 定義を書き換える前に (一回の起動で一度だけ)
-            # お出かけ着と, 着せ替えの服を外に着ていけるか (既定の服だけ判定. 自作の服は設定で選ぶ)
-            if "outfit_outing" not in c or any("outing_ok" not in o for o in c.get("wardrobe") or []):
-                c.setdefault("outfit_outing", c.get("outfit_default", ""))
-                for o in c.get("wardrobe") or []:
-                    o.setdefault("outing_ok", o.get("id") in ("casual", "onepiece", "yukata"))
+            if "outfit_outing" not in c:          # お出かけ着
+                c["outfit_outing"] = c.get("outfit_default", "")
                 store.save_character(c)
             # 以前は性格を選ぶと呼び方をキャラにコピーしていた. プリセットと同じなら「プリセットに従う」(空欄) に戻す
             p = self.personas.get(c.get("persona_id") or "")
             if p and c.get("player_call") and c["player_call"] == p.get("player_call"):
                 c["player_call"] = ""
                 store.save_character(c)
-            if "wardrobe" not in c:
+            if "clothes" not in c:                # 持っている服 (以前の形式は wardrobe.migrate で移してある)
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
-                c["wardrobe"] = d.get("wardrobe", [])
+                c["clothes"] = d.get("clothes") or [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER]
                 store.save_character(c)
 
     def _migrate_assets(self):
@@ -469,13 +471,12 @@ class App:
                 "dress": None, "source": src}
 
     def wardrobe_item(self, char, oid):
-        for o in char.get("wardrobe") or []:
-            if o.get("id") == oid:
-                return o
-        return None
+        """その人が持っている服 (服の一覧 + その人用の上書き)."""
+        return self.wardrobe.item(char, oid) if oid else None
 
-    def _apply_dress(self, char, st, s):
-        """着せ替え中なら, 服装固定でない場面の服装を差し替える (ミニゲームの服装が最優先)."""
+    def _apply_dress(self, char, st, s, dt=None):
+        """着せ替え中なら, 服装固定でない場面の服装を差し替える (ミニゲームの服装が最優先).
+        頼まれていなければ, 予定どおりの服 (普段着・お出かけ着) のところは本人が選んだ服のことがある (wardrobe.self_pick)."""
         go = (st.get("game") or {}).get("outfit")
         if go:
             s["outfit"], s["outfit_neg"], s["dress"] = go.get("pos", ""), go.get("neg", ""), go.get("label") or None
@@ -484,6 +485,9 @@ class App:
         o = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
         if o and s["outing"] and not o.get("outing_ok"):
             o = None          # 部屋着・パジャマなどは外に着ていかない (お出かけ着のまま)
+        if not o and dt is not None and s.get("plain_outfit") and not s["fixed_outfit"] and not s["asleep"]:
+            o = self.wardrobe.self_pick(char, st, dt, outing=s["outing"])
+            s["self_picked"] = bool(o)
         if o and not s["fixed_outfit"]:
             s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
         return s
@@ -501,6 +505,7 @@ class App:
                 s = self._norm_scene(DEFAULT_SLEEP_SCENE, char, "default_sleep")
             else:
                 s = self._norm_scene(char.get("default_activity") or {}, char, "default")
+        s["plain_outfit"] = not s["outfit"]       # 予定に服の指定が無い (普段着): 本人が選ぶことがある
         s["outfit"] = s["outfit"] or char.get("outfit_default", "")
         return s
 
@@ -509,12 +514,13 @@ class App:
         ov = st.get("override")
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
+            s["plain_outfit"] = s["outfit"] == "@outing" or (not s["outfit"] and (s["outing"] or base.get("plain_outfit")))
             if s["outfit"] == "@outing" or (s["outing"] and not s["outfit"]):
                 s["outfit"] = char.get("outfit_outing") or char.get("outfit_default", "")
             s["outfit"] = s["outfit"] or base["outfit"]
             s["until"] = ov["until"]
-            return self._apply_dress(char, st, s)
-        return self._apply_dress(char, st, base)
+            return self._apply_dress(char, st, s, dt)
+        return self._apply_dress(char, st, base, dt)
 
     def phase_at(self, dt):
         mins = dt.hour * 60 + dt.minute
@@ -608,6 +614,7 @@ class App:
             self._step(char, st, datetime.fromtimestamp(t + STEP_SEC / 2), STEP_SEC / 3600.0)
             self.life.step(char, st, t, t + STEP_SEC, STEP_SEC / 3600.0)   # お金の出入り・キャラ側の出来事
             self.bonds.step(char, st, t + STEP_SEC, STEP_SEC / 3600.0)     # ほかの人との仲に気づく (嫉妬)
+            self.wardrobe.step(char, st, t + STEP_SEC, STEP_SEC / 3600.0)  # ときどき自分で服を買う
             t += STEP_SEC
             changed = True
         st["last_tick"] = t
@@ -881,6 +888,10 @@ class App:
                     if not cond.check(outfit.get("when", ""), ctx):
                         raise ValueError("今は「%s」に着替えられません（%s）" % (outfit.get("name", dress), outfit.get("when", "")))
                 ctx["outfit"] = dress   # 反応の条件では「着替え先」を outfit として参照できる
+                # 大胆な服: 着てくれるか (照れながら・渋々・ノリノリ・断る・しつこくて怒る). 反応の条件 dress_feel / dress_bold
+                ctx["dress_feel"] = self.wardrobe.accept(char, st, outfit, now, others=len(self.bonds.company(now)) > 1) \
+                    if outfit else "ok"
+                ctx["dress_bold"] = int((outfit or {}).get("bold") or 0)
             cd = float(a.get("cooldown", 0)) * 60
             hist = [x for x in st["cooldowns"].get(aid, []) if now - x < cd] if cd else []
             ctx["repeat"] = len(hist)
@@ -955,6 +966,8 @@ class App:
                     item_note = items_mod.MISSING.get(aid)
             if gift_item and (not r.get("override") or r.get("taken")):
                 self.items.add(gift_item, -1)        # 受け取ってもらえた (はっきり断られたら手元に残る)
+                if gift_item.startswith("outfit:"):  # 服: その人の持っている服になる (着るかは本人しだい)
+                    self.wardrobe.give_to(char, gift_item.split(":", 1)[1], "player", now)
             social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
@@ -969,6 +982,7 @@ class App:
                 meal_note = self.body.eat_with(pl, char, now)          # あなたも食べる (払いは上の費用で済んでいる)
             else:
                 meal_note = None
+            dress_note = None
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
@@ -979,6 +993,11 @@ class App:
                     ov["place"] = pl
                     ov["location"] = places_mod.PLACES[pl]["label"]
                 st["override"] = ov
+                worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
+                if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
+                        char, st, worn, now, outside=True, others=1, record=False) in ("refuse", "angry"):
+                    st["dress"] = None            # 外では, 大胆な服は性格と場所しだいで嫌がる
+                    dress_note = "（{name}は「%s」のまま出かけるのは嫌だと、着替えてから出かけた）" % worn["name"]
             if a.get("end_override") and not r.get("override"):
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
@@ -1085,6 +1104,8 @@ class App:
                 text += "\n" + rumor_note
         if home_note:
             text += "\n" + self.format_text(home_note, char, scene, dt)
+        if dress_note:
+            text += "\n" + self.format_text(dress_note, char, scene, dt)
         if meal_note:
             text += "\n" + meal_note
         with self.lock:
@@ -1115,6 +1136,10 @@ class App:
         char = self.char(cid)
         aid = "expensive_gift" if it["price"] >= 10000 else "gift"
         feel = self.items.feel(char, iid)
+        if it.get("outfit"):           # 服: 持っていれば要らない. 大胆すぎると受け取れない (反応の条件 gift_outfit)
+            if it["outfit"] in self.wardrobe.owned_ids(char):
+                raise ValueError("%sは「%s」をもう持っています" % (char.get("name", ""), it["name"]))
+            feel["gift_outfit"] = self.wardrobe.gift_feel(char, self.state(char["id"]), it["outfit"], time.time())
         r = self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
         if feel["liked"] or feel["disliked"]:           # 渡してみて分かった, 好きなもの・苦手なもの (関係性)
             lk, dk = self.items.likes(char)
@@ -1537,6 +1562,18 @@ class App:
             if j["cid"] in self.chars:
                 self.chars[j["cid"]]["icon"], self.chars[j["cid"]]["icon_seed"] = rel, j["seed"]
 
+    def make_sample(self, oid):
+        """服の一覧の, 服装のサンプル画像を作る (サンプルのキャラに着せる. できたら一覧に保存). ジョブ id を返す."""
+        o = self.wardrobe.get(oid)
+        if not o:
+            raise KeyError("服が見つかりません: %s" % oid)
+        cur = next((j["id"] for j in self.jobs.values() if j.get("kind") == "sample" and j["entry"] == oid
+                    and j["status"] in ("queued", "running")), None)
+        if cur:
+            return cur
+        pos, neg = self.wardrobe.sample_prompt(o)
+        return self.enqueue("_outfits", oid, pos, neg, kind="sample")
+
     def generating(self):
         """生成ジョブが実行中か待ち行列にあるか."""
         return any(j["status"] in ("queued", "running") for j in self.jobs.values())
@@ -1753,9 +1790,9 @@ class App:
         jid = uuid.uuid4().hex
         if seed in (None, "", -1):
             seed = random.randint(0, 2 ** 32 - 1)
-        e = (self.find_entry(cid, eid) if eid else None) or {}
+        e = (self.find_entry(cid, eid) if eid and kind == "entry" else None) or {}
         j = {"id": jid, "kind": kind, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
-             "action": "顔アイコン" if kind == "icon" else e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
+             "action": {"icon": "顔アイコン", "sample": "服のサンプル"}.get(kind) or e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
              "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
              "cancel": False, "events": []}
         self.jobs[jid] = j
@@ -1839,7 +1876,7 @@ class App:
                 store.save(f, log)
 
     def _clear_entry_job(self, j, error):
-        if j.get("kind") == "icon":
+        if j.get("kind") in ("icon", "sample"):
             return
         def fn(e):
             if e.get("job") != j["id"]:
@@ -1878,8 +1915,12 @@ class App:
                     self.img_index.setdefault(self.prompt_key(j["pos"], j["neg"]), []).append(
                         {"path": rel, "seed": j["seed"], "t": time.time()})
                     store.save(store.dpath("images", "index.json"), self.img_index)
-                if j.get("kind") == "icon":
-                    self._set_icon(j, rel)
+                if j.get("kind") in ("icon", "sample"):
+                    if j["kind"] == "icon":
+                        self._set_icon(j, rel)
+                    else:
+                        with self.lock:
+                            self.wardrobe.set_sample(j["entry"], rel)
                     j["image"], j["status"] = rel, "done"
                     self._set_stage(j, "done", "完了 %s（%.1f 秒）" % (rel, time.time() - j["started"]))
                     continue
@@ -1992,7 +2033,7 @@ class App:
                 "override_until": scene.get("until"),
                 "tags": [{"param": t["param"], "label": t["label"]} for t in self.active_tags(ctx)],
                 "available": self.available(char, st, dt), "absent": ctx["absent"],
-                "dress": self._dress_view(char, st, scene, ctx), "wardrobe": char.get("wardrobe") or [],
+                "dress": self._dress_view(char, st, scene, ctx), "wardrobe": self.wardrobe.owned(char),
                 "dress_reset_on_sleep": char.get("dress_reset_on_sleep", True),
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
@@ -2005,9 +2046,9 @@ class App:
             can, why = cond.check(da.get("when", ""), ctx), da.get("when", "")
         except KeyError:
             can, why = False, "着せ替え用のコマンド (_dress) がありません"
-        return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"],
+        return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"], "self": bool(scene.get("self_picked")),
                 "outfit": scene["outfit"], "fixed": scene["fixed_outfit"], "can": can, "why": why,
-                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in char.get("wardrobe") or []}}
+                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
     def come_back(self, cid=None, at=None, quiet=False):
@@ -2402,7 +2443,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "outfits": self.wardrobe.catalog_view(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
                 "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL, "meal_how": offline_mod.MEAL_HOW, "meal_places": offline_mod.MEAL_PLACES}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
@@ -2495,6 +2536,7 @@ class App:
                  "persona_id": p.get("id", ""), "persona": p.get("persona", ""),
                  "pos": (pos or "").strip() or "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
                  "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
+                 "clothes": [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER],
                  "prompt_history": [], "origin": {"type": "manual", "t": time.time(), "world": store.WORLD}}
             if stage == "random":
                 ec = self.encounters.cfg()

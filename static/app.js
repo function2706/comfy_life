@@ -595,14 +595,15 @@ function renderDress() {
   }, h('span', { class: 'ic' }, icon), h('span', {}, name));
   $('#tab-dress').replaceChildren(
     h('div', { class: 'dress-now' },
-      h('div', {}, h('b', {}, 'いまの服 '), d.wearing || 'おまかせ（スケジュール通り）'),
+      h('div', {}, h('b', {}, 'いまの服 '), d.wearing || 'おまかせ（スケジュール通り）', d.self ? h('span', { class: 'muted small' }, '（本人が選んだ服）') : ''),
       h('div', {}, h('code', {}, d.outfit || '—')),
       d.fixed ? h('div', { class: 'muted small' }, '※ 今の場面は服装固定（就寝中など）なので、着せ替えは場面が変わってから反映されます') : '',
       !d.can ? h('div', { class: 'muted small' }, `今は着替えられません（${d.why}）`) : ''),
     h('div', { class: 'outfits' },
       card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
-      items.map((o) => card(o.id, o.icon || '👕', o.name || o.id, d.items[o.id], o.when ? '条件: ' + o.when : o.pos))),
-    items.length ? '' : h('p', { class: 'muted small' }, '服が登録されていません。設定 → 着せ替え から追加できます。'),
+      items.map((o) => card(o.id, o.icon || '👕', (o.name || o.id) + boldMark(o.bold), d.items[o.id],
+        (o.when ? '条件: ' + o.when + ' / ' : '') + (o.bold ? `大胆さ ${o.bold}（着てくれるかは仲・気分・性格しだい）` : o.pos)))),
+    items.length ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → 着せ替え で持たせられます。'),
     h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
       ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
   );
@@ -2375,8 +2376,8 @@ SEC.char = () => {
     iconRow(c),
     fld('Positive（外見・固有の特徴）', posEl),
     fld('Negative', negEl),
-    fld('普段の服装（スケジュールで未指定のとき）', inp(c, 'outfit_default')),
-    fld('お出かけ着（散歩などで外に出るとき）', inp(c, 'outfit_outing'), '部屋着やパジャマのまま出かけないよう、外出時はこの服になります（着せ替えで「外に着ていける」服を選んでいればそちら）'),
+    fld('普段の服装（スケジュールで未指定のとき）', outfitInput(c, 'outfit_default')),
+    fld('お出かけ着（散歩などで外に出るとき）', outfitInput(c, 'outfit_outing'), '部屋着やパジャマのまま出かけないよう、外出時はこの服になります（着せ替えで「外に着ていける」服を選んでいればそちら）'),
     h('div', { class: 'sect' }, '性格プリセット（セリフの口調）'),
     personaPicker(c),
     h('div', { class: 'sect' }, '性格・口調の説明（LLM 使用時に参照）'),
@@ -2674,36 +2675,121 @@ SEC.schedule = () => {
   ];
 };
 
-/* ---- 着せ替え */
+/* ---- 着せ替え (その人の持っている服) */
+const boldMark = (b) => (b ? ' ' + '🔥'.repeat(b) : '');
+const OWNED_FROM = { default: '最初から', player: 'あなたが贈った', self: '自分で買った' };
 SEC.wardrobe = () => {
   const c = SE.char;
-  c.wardrobe = c.wardrobe || [];
+  const all = ((S.boot.outfits || {}).items) || [];
+  c.clothes = c.clothes || [];
   c.dress_reset_on_sleep = c.dress_reset_on_sleep !== false;
   const list = h('div');
   const draw = () => {
-    list.replaceChildren(...c.wardrobe.map((o, i) => h('div', { class: 'card' },
-      h('div', { class: 'card-head' }, h('b', {}, `${o.icon || '👕'} ${o.name || o.id}`), h('code', { class: 'muted small' }, o.id),
+    list.replaceChildren(...all.map((o) => {
+      const own = c.clothes.find((x) => x.id === o.id);
+      return h('div', { class: 'card' + (own ? '' : ' off') },
+        h('div', { class: 'card-head', style: 'flex-wrap:wrap' },
+          h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!own, onchange: (ev) => {
+            if (ev.target.checked) c.clothes.push({ id: o.id, from: 'default', t: Date.now() / 1000 });
+            else c.clothes = c.clothes.filter((x) => x.id !== o.id);
+            draw();
+          } }), ` ${o.icon || '👕'} ${o.name}${boldMark(o.bold)}`),
+          h('span', { class: 'muted small' }, (S.boot.outfits.kinds || {})[o.kind] || ''),
+          own ? h('span', { class: 'muted small' }, OWNED_FROM[own.from] || '') : ''),
+        own ? h('details', {}, h('summary', { class: 'muted small' }, `${c.name}用にプロンプトを上書き（体型などで見え方を変えたいときだけ）`),
+          h('div', { class: 'grid4' },
+            fld('Positive（空欄なら一覧のまま）', inp(own, 'pos', { type: 'textarea', rows: 2, ph: o.pos }), null, 'span2'),
+            fld('Negative', inp(own, 'neg', { type: 'textarea', rows: 2, ph: o.neg }), null, 'span2'))) : '');
+    }));
+  };
+  draw();
+  return [
+    saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll('wardrobe'); }),
+    h('p', { class: 'lead' }, `${c.name}が持っている服です。着せ替えタブには、持っている服だけが並びます。服そのもの（名前・プロンプト・大胆さ・季節など）は「服の一覧」で全員共通に編集します。持っている服は、あなたが店で買って贈る（受け取るかは大胆さ・仲・好みしだい）か、本人が自分で買うことでも増えます。頼まれていないときは、本人が気分・季節・天気で普段着や外出の服を選ぶこともあります。`),
+    h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),
+    list,
+  ];
+};
+
+/* ---- 服の一覧 (全体で 1 つ) */
+SEC.outfits = () => {
+  const O = S.boot.outfits || { items: [], kinds: {}, seasons: {}, bold: [] };
+  const items = SE.outfits = SE.outfits || clone(O.items);
+  const st = SE.settings;
+  st.images = st.images || {};
+  const list = h('div');
+  const sampleBox = (o) => {
+    const im = h('div', { class: 'who-face', style: 'width:96px;height:128px;border-radius:8px' });
+    if (o.sample) im.style.backgroundImage = `url("${imgUrl(o.sample)}")`; else im.textContent = o.icon || '👕';
+    return h('div', { class: 'row', style: 'align-items:center;gap:10px;flex-wrap:wrap' }, im,
+      h('button', { class: 'btn', onclick: async () => {
+        try {
+          const r = await api('/api/outfit/sample', { id: o.id });
+          toast('サンプル画像を作っています（保存済みの服装で）', 'ok');
+          watchSample(r.job, o);
+        } catch (e) { toast(e.message, 'err'); }
+      } }, o.sample ? 'サンプル画像を作り直す' : 'サンプル画像を作る'));
+  };
+  const watchSample = (jid, o) => {
+    const tick = async () => {
+      const j = await api('/api/job?id=' + jid).catch(() => null);
+      if (j && j.status === 'done') { o.sample = j.image; toast(`「${o.name}」のサンプル画像ができました`, 'ok'); draw(); return; }
+      if (j && ['error', 'cancelled', 'unknown'].includes(j.status)) { if (j.error) toast('サンプル画像: ' + j.error, 'err'); return; }
+      setTimeout(tick, 1500);
+    };
+    setTimeout(tick, 1500);
+  };
+  const seasons = (o) => h('div', { class: 'row' }, Object.entries(O.seasons).map(([k, label]) => h('label', { class: 'check' },
+    h('input', { type: 'checkbox', checked: (o.seasons || []).includes(k), onchange: (ev) => {
+      o.seasons = (o.seasons || []).filter((x) => x !== k).concat(ev.target.checked ? [k] : []);
+    } }), label)), h('span', { class: 'muted small' }, '（どれも付けなければ通年）'));
+  const draw = () => {
+    list.replaceChildren(...items.map((o, i) => h('div', { class: 'card' },
+      h('div', { class: 'card-head', style: 'flex-wrap:wrap' }, h('b', { style: 'white-space:nowrap' }, `${o.icon || '👕'} ${o.name || o.id}${boldMark(o.bold)}`), h('code', { class: 'muted small' }, o.id),
         h('div', { class: 'spacer' }),
-        h('button', { class: 'btn ghost', onclick: () => { moveIn(c.wardrobe, i, -1); draw(); } }, '↑'),
-        h('button', { class: 'btn ghost', onclick: () => { moveIn(c.wardrobe, i, 1); draw(); } }, '↓'),
-        h('button', { class: 'btn ghost', onclick: () => { const n = clone(o); n.id += '_copy'; n.name += '（複製）'; c.wardrobe.splice(i + 1, 0, n); draw(); } }, '複製'),
-        h('button', { class: 'btn ghost danger', onclick: () => { c.wardrobe.splice(i, 1); draw(); } }, '削除')),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(items, i, -1); draw(); } }, '↑'),
+        h('button', { class: 'btn ghost', onclick: () => { moveIn(items, i, 1); draw(); } }, '↓'),
+        h('button', { class: 'btn ghost', onclick: () => { const n = clone(o); n.id += '_copy'; n.name += '（複製）'; delete n.sample; items.splice(i + 1, 0, n); draw(); } }, '複製'),
+        h('button', { class: 'btn ghost danger', onclick: () => { if (confirm(`「${o.name}」を一覧から消しますか？（持っている人の着せ替えからも外れます）`)) { items.splice(i, 1); draw(); } } }, '削除')),
+      sampleBox(o),
       h('div', { class: 'grid4' },
         fld('id', inp(o, 'id'), '反応の条件 outfit=… で使う'), fld('名前', inp(o, 'name')), fld('アイコン', inp(o, 'icon')),
-        fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
+        fld('種類', inp(o, 'kind', { type: 'select', options: Object.entries(O.kinds) })),
+        fld('大胆さ', inp(o, 'bold', { type: 'select', options: O.bold.map((l, b) => [String(b), `${b} ${l}`]), parse: Number })),
         h('div', { class: 'fld' }, h('span', { class: 'fl' }, '外出'), chk(o, 'outing_ok', '外に着ていける')),
+        fld('値段（0 で店に並べない）', inp(o, 'price', { type: 'number' })),
+        fld('売っている店', inp(o, 'places', { fmt: (v) => (v || []).join(', '), parse: (v) => v.split(/[,、\s]+/).filter(Boolean) }), 'mall, shopping_street など'),
+        h('div', { class: 'fld spanall' }, h('span', { class: 'fl' }, '季節'), seasons(o)),
+        fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
         fld('Positive（服装）', inp(o, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2')))));
   };
   draw();
   return [
-    saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll(); }),
-    h('p', { class: 'lead' }, 'サイドの「着せ替え」タブから選べる服です。選ぶとコマンド「着せ替え」（_dress）の反応が返り、断られなければ服装プロンプトが差し替わります。スケジュールで「服装固定」にした場面（就寝中など）では固定の服が優先されます。反応は 設定 → コマンド →「着せ替え」で、条件に outfit=maid のように着替え先を書いて作れます（outfit= で「おまかせ」）。'),
-    h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),
+    saveBar('服の一覧', async () => {
+      await api('/api/outfits', { items });
+      await api('/api/settings', { settings: { images: st.images } });
+      SE.outfits = null; await reloadAll('outfits');
+    }),
+    h('p', { class: 'lead' }, '服の一覧は全員共通です（コマンドや性格プリセットと同じ考え方）。キャラクターは、この中から「持っている服」を持ちます（設定 → 着せ替え）。大胆さは 0 ふつう〜3 かなり大胆で、大胆な服を着てくれるかは、好感度・信頼・間柄・性格の恥じらい・その日の機嫌・場所しだいです（仲が深くても断られることはあり、しつこく頼むと怒ります）。値段を付けた服は店（売っている店）で買え、持ち物からプレゼントにできます。'),
+    fld('サンプル画像のプロンプト', inp(st.images, 'sample_prompt', { type: 'textarea', rows: 3, ph: O.sample_prompt }),
+      '{outfit} がその服の服装（Positive）に置き換わります。空欄なら既定。共通プロンプトの前置きも付きます'),
     list,
-    h('button', { class: 'btn', onclick: () => { c.wardrobe.push({ id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', when: '', pos: '', neg: '' }); draw(); } }, '＋服を追加'),
+    h('button', { class: 'btn', onclick: () => { items.push({ id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', neg: '' }); draw(); } }, '＋服を追加'),
   ];
 };
+
+// 服装の入力欄: 自由入力と, 服の一覧から選ぶプルダウン (選ぶとその服の服装が入る)
+function outfitInput(obj, key) {
+  const el = inp(obj, key);
+  const items = ((S.boot.outfits || {}).items) || [];
+  const sel = h('select', { style: 'max-width:12em', onchange: (ev) => {
+    const o = items.find((x) => x.id === ev.target.value);
+    if (o) { obj[key] = o.pos; el.value = o.pos; }
+    ev.target.value = '';
+  } }, h('option', { value: '' }, '服の一覧から…'), items.map((o) => h('option', { value: o.id }, `${o.icon || ''} ${o.name}`)));
+  return h('div', { class: 'row', style: 'gap:6px;flex-wrap:nowrap' }, el, sel);
+}
 
 /* ---- ミニゲーム */
 SEC.minigames = () => {

@@ -79,11 +79,12 @@ def main():
         app.act("_dress", dress="")
         print("busy reuse: OK")
 
-        # 着せ替え
+        # 着せ替え (メイド服は少し大胆: 仲がよく機嫌もいいときに頼む)
+        app.set_params({"affection": 90, "trust": 90, "mood": 70})
         r = app.act("_dress", dress="maid")
         print("dress maid:", r["entry"]["text"], "|", app.person_view()["dress"]["wearing"])
         assert "maid" in r["entry"]["pos"]
-        app.set_params({"affection": 10})
+        app.set_params({"affection": 10, "trust": 10})
         r = app.act("_dress", dress="swimsuit")
         print("dress swimsuit (affection 10):", r["entry"]["text"], "| wearing:", app.person_view()["dress"]["wearing"])
         assert app.state("hina")["dress"]["id"] == "maid", "拒否されたら着替えない"

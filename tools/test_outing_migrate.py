@@ -48,7 +48,7 @@ def main():
         assert "photo" in ids, "初回 (seen 無し) は既定にあって data に無いものも追加 (過去の版の data には photo がある想定)"
         assert app.action("walk")["override"].get("outing"), app.action("walk")
         c = app.char()
-        assert c.get("outfit_outing") and any(o.get("outing_ok") for o in c["wardrobe"])
+        assert c.get("outfit_outing") and any(o["outing_ok"] for o in app.wardrobe.owned(c))
         print("migrate: OK (%d commands)" % len(ids))
 
         # 2 回目の起動: 追加・更新は繰り返されない

@@ -10,16 +10,17 @@
  "outfit_default": "casual clothes, knit sweater, long skirt",
  "outfit_outing": "white blouse, cardigan, long skirt, shoulder bag",
  "dress_reset_on_sleep": true,
- "wardrobe": [
-  {"id": "casual", "name": "普段着", "icon": "👚", "when": "", "outing_ok": true, "pos": "casual clothes, knit sweater, long skirt", "neg": ""},
-  {"id": "lounge", "name": "部屋着", "icon": "🧸", "when": "", "outing_ok": false, "pos": "oversized hoodie, short shorts, loungewear, bare legs", "neg": ""},
-  {"id": "onepiece", "name": "よそ行きワンピース", "icon": "👗", "when": "", "outing_ok": true, "pos": "white one-piece dress, cardigan, sun hat", "neg": ""},
-  {"id": "apron", "name": "エプロン", "icon": "🍳", "when": "", "outing_ok": false, "pos": "apron, casual clothes, hair tied", "neg": ""},
-  {"id": "yukata", "name": "浴衣", "icon": "🎐", "when": "", "outing_ok": true, "pos": "yukata, floral print, obi, hair ornament, hair up", "neg": ""},
-  {"id": "maid", "name": "メイド服", "icon": "🎀", "when": "affection>=40", "outing_ok": false, "pos": "maid, maid headdress, maid apron, frills", "neg": ""},
-  {"id": "swimsuit", "name": "水着", "icon": "👙", "when": "", "outing_ok": false, "pos": "one-piece swimsuit, bare shoulders", "neg": ""},
-  {"id": "pajamas", "name": "パジャマ", "icon": "🌙", "when": "", "outing_ok": false, "pos": "pajamas", "neg": ""}
+ "clothes": [
+  {"id": "casual", "from": "default"},
+  {"id": "lounge", "from": "default"},
+  {"id": "onepiece", "from": "default"},
+  {"id": "apron", "from": "default"},
+  {"id": "yukata", "from": "default"},
+  {"id": "maid", "from": "default"},
+  {"id": "swimsuit", "from": "default"},
+  {"id": "pajamas", "from": "default"}
  ],
+
  "prompt_history": [],
  "default_activity": {
   "activity": "relax", "label": "くつろぎ中", "location": "リビング",

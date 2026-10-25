@@ -2517,6 +2517,29 @@
     },
     "pos": "awkward smile, holding gift",
     "neg": ""
+   },
+   {
+    "text": "わ、服……！ ありがとうございます。今度、着てみますね",
+    "when": "gift_outfit=yes, gift_feel>=30",
+    "priority": 2,
+    "effects": {
+     "mood": 4,
+     "heart": 3
+    },
+    "pos": "holding clothes, smile, blush",
+    "neg": ""
+   },
+   {
+    "text": "こ、こういう服は……ごめんなさい、受け取れません",
+    "when": "gift_outfit=bold_no",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "shyness": 15,
+     "trust": -1
+    },
+    "pos": "flustered, blush, waving hands",
+    "neg": "smile"
    }
   ],
   "cost": 3000,
@@ -3755,9 +3778,10 @@
     "neg": ""
    },
    {
+    "key": "outfit_swimsuit__affection_ge_60",
     "text": "み、水着ですか……！？ ……ちょっとだけですよ？",
-    "when": "outfit=swimsuit, affection>=60",
-    "priority": 1,
+    "when": "outfit=swimsuit, dress_feel=shy",
+    "priority": 2,
     "effects": {
      "shyness": 30,
      "heart": 10
@@ -3766,9 +3790,10 @@
     "neg": ""
    },
    {
+    "key": "outfit_swimsuit__affection_lt_60",
     "text": "み、水着はまだ無理です……！",
-    "when": "outfit=swimsuit, affection<60",
-    "priority": 2,
+    "when": "outfit=swimsuit, dress_feel=refuse",
+    "priority": 3,
     "override": true,
     "effects": {
      "shyness": 25,
@@ -3784,6 +3809,64 @@
     "override": true,
     "effects": {},
     "pos": "looking away, annoyed",
+    "neg": "smile"
+   },
+   {
+    "text": "ふふ、こういうのも着てみたかったんです。……どうですか？",
+    "when": "dress_feel=eager",
+    "priority": 1,
+    "effects": {
+     "heart": 6,
+     "mood": 3
+    },
+    "pos": "smile, confident, hand on hip",
+    "neg": ""
+   },
+   {
+    "text": "……ちょっと恥ずかしいですけど、{call}が言うなら。あんまり見ないでくださいね",
+    "when": "dress_feel=shy",
+    "priority": 1,
+    "effects": {
+     "shyness": 20,
+     "heart": 6
+    },
+    "pos": "blush, embarrassed, looking away",
+    "neg": ""
+   },
+   {
+    "text": "……今回だけですよ。",
+    "when": "dress_feel=reluctant",
+    "priority": 1,
+    "effects": {
+     "shyness": 15,
+     "mood": -3
+    },
+    "pos": "pout, blush, arms crossed",
+    "neg": "smile"
+   },
+   {
+    "text": "それはちょっと……着られないです。",
+    "when": "dress_feel=refuse",
+    "priority": 2,
+    "override": true,
+    "effects": {
+     "shyness": 10,
+     "trust": -1
+    },
+    "pos": "flustered, shaking head",
+    "neg": "smile"
+   },
+   {
+    "text": "……さっきから何なんですか。そういうの、嫌です。",
+    "when": "dress_feel=angry",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    },
+    "pos": "angry, glaring",
     "neg": "smile"
    }
   ],
