@@ -2369,10 +2369,12 @@ function planSection(v) {
   if (!P) return null;
   const redraw = () => renderSoloTab();
   const f = S.planForm = S.planForm || { date: P.dates[1] || P.dates[0], at: '09:00', do: 'out', place: 'supermarket' };
+  if (S.planEdit && !P.items.some((y) => y.id === S.planEdit)) S.planEdit = null;      // 書き換え中の予定が消えた (過ぎた・消した)
+  const editing = !!S.planEdit;
   if (!P.dates.includes(f.date)) f.date = P.dates[0];
   const fb = S.fbForm = S.fbForm || { do: 'rest' };
   const md = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
-  const call = async (path, body) => { if (S.busy) return; S.busy = true; try { await api(path, body); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } };
+  const call = async (path, body) => { if (S.busy) return false; S.busy = true; let ok = false; try { await api(path, body); ok = true; } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } return ok; };
   const clash = P.appoints.find((a) => a.date === f.date && Math.abs((+a.at.slice(0, 2) * 60 + +a.at.slice(3)) - (+f.at.slice(0, 2) * 60 + +f.at.slice(3))) < 150);
   const byDate = P.dates.map((d) => [d, P.items.filter((x) => x.date === d), P.appoints.filter((a) => a.date === d)]);
   const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
@@ -2381,13 +2383,17 @@ function planSection(v) {
     h('p', { class: 'hint' }, `${P.horizon}日先まで組めます（段取りのスキル ${P.skill}。上がると先まで）。予定のコマンドができなければ、未指定時コマンドを上から順に、それもできなければ設定の行動パターン。約束の時刻は約束が先です。画面を開いているときは、時刻になっても知らせるだけです。`),
     ...byDate.map(([d, xs, as]) => (xs.length || as.length) ? h('div', { class: 'plan-day' }, h('b', {}, md(d)),
       ...as.map((a) => h('div', { class: 'plan-row muted' }, `📅 ${a.at} ${a.name}との約束（${a.place}）`)),
-      ...xs.map((x) => h('div', { class: 'plan-row' }, h('span', {}, `${x.at} ${x.label}`),
-        h('button', { class: 'btn small ghost danger', disabled: S.busy, onclick: () => call('/api/plan/remove', { id: x.id }) }, '×')))) : ''),
+      ...xs.map((x) => h('div', { class: 'plan-row' + (S.planEdit === x.id ? ' editing' : '') }, h('span', {}, `${x.at} ${x.label}`),
+        h('span', {}, h('button', { class: 'btn small ghost', disabled: S.busy, title: '下の欄に読み込んで書き換える',
+          onclick: () => { S.planEdit = x.id; S.planForm = { date: x.date, at: x.at, do: x.do, place: x.place, how: x.how, skill: x.skill }; redraw(); } }, '✎'),
+        h('button', { class: 'btn small ghost danger', disabled: S.busy, onclick: () => { if (S.planEdit === x.id) S.planEdit = null; call('/api/plan/remove', { id: x.id }); } }, '×'))))) : ''),
     h('div', { class: 'row plan-form', style: 'flex-wrap:wrap;gap:6px' },
       h('select', { onchange: (ev) => { f.date = ev.target.value; redraw(); } }, P.dates.map((d, i) => h('option', { value: d, selected: d === f.date }, `${md(d)}${i === 0 ? '（今日）' : i === 1 ? '（明日）' : ''}`))),
       h('input', { type: 'time', value: f.at, onchange: (ev) => { f.at = ev.target.value; redraw(); } }), ...commandPicker(f, redraw),
       h('button', { class: 'btn small primary', disabled: S.busy || !!clash, title: clash ? `${clash.at}に${clash.name}との約束があります` : '',
-        onclick: () => call('/api/plan/add', { date: f.date, at: f.at, item: { do: f.do, place: f.place, how: f.how, skill: f.skill } }) }, '＋予定に足す')),
+        onclick: async () => { const rep = editing ? S.planEdit : undefined;
+          if (await call('/api/plan/add', { date: f.date, at: f.at, replace: rep, item: { do: f.do, place: f.place, how: f.how, skill: f.skill } }) && rep) { S.planEdit = null; redraw(); } } }, editing ? '✔ 書き換える' : '＋予定に足す'),
+      editing ? h('button', { class: 'btn small ghost', onclick: () => { S.planEdit = null; redraw(); } }, 'やめる') : ''),
     clash ? h('div', { class: 'muted small' }, `⚠ ${clash.at}に${clash.name}との約束（${clash.place}）があります。約束が先です`) : '',
     h('div', { class: 'sect' }, '未指定時コマンド（上から順に）'),
     ...P.fallback.map((x, i) => h('div', { class: 'plan-row' }, h('span', {}, `${i + 1}. ${x.label}`),

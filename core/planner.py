@@ -90,7 +90,8 @@ class Planner:
                 return x
         return None
 
-    def add(self, date, at, b, now=None):
+    def add(self, date, at, b, now=None, replace=None):
+        """予定を足す. replace に予定の id を渡せば, その予定を書き換える (確かめが通ってから入れ替える)."""
         now = now or time.time()
         self.purge(now)
         if date not in self.dates(now):
@@ -107,7 +108,7 @@ class Planner:
             raise ValueError("その時刻は%sとの約束があります" % self.app.chars.get(x["cid"], {}).get("name", ""))
         item = dict(self._norm(b), id=uuid.uuid4().hex[:8], date=date, at=at)
         p = self.rec()
-        p["items"] = sorted([y for y in p["items"] if not (y["date"] == date and y["at"] == at)] + [item],
+        p["items"] = sorted([y for y in p["items"] if not (y["date"] == date and y["at"] == at) and y["id"] != replace] + [item],
                             key=lambda y: (y["date"], _hm(y["at"])))
         self.save()
         return self.view(now)

@@ -218,7 +218,7 @@ def route(method, path, q, body):
                 return {"outfits": a.wardrobe.save_all(b["items"])}
         if path == "/api/plan/add":
             with a.lock:
-                return a.planner.add(b["date"], b["at"], b.get("item") or {})
+                return a.planner.add(b["date"], b["at"], b.get("item") or {}, replace=b.get("replace"))
         if path == "/api/plan/remove":
             with a.lock:
                 return a.planner.remove(b["id"])
