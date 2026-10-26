@@ -26,7 +26,8 @@
   "neat": 8,
   "carer": 0.05,
   "punctual": 0.9,
-  "modesty": 6
+  "modesty": 6,
+  "grudge": 1.25
  },
  "lines": {
   "look.free_true": [

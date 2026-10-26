@@ -341,6 +341,7 @@ class Life:
                     self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
                 hm["a"] -= min(own, max(hm["a"], 0))
             self.money_concern(char, st, t1)
+        self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
         if ctx["asleep"]:
@@ -431,6 +432,7 @@ class Life:
                 self.ledger(t, amount, "borrow", "%sに借りた" % char.get("name", ""))
                 st.setdefault("lent", []).append({"t": t, "amount": amount, "what": what})
                 del st["lent"][:-20]
+                app.manners.favor(st, "lent", t)              # お金を貸してくれた (お礼の心当たり)
                 loans = self.player_state().setdefault("loans", {})
                 if not int(loans.get(cid, 0)):
                     self.player_state().setdefault("loan_t", {})[cid] = t

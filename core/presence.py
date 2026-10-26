@@ -325,6 +325,7 @@ class Presence:
             self.app.life.train(out["skill"], 1.0)
         if ans == "accept" and out.get("care"):          # 看病してくれる (あなたの体調が治りやすい)
             self.app.body.cared(char, now)
+            self.app.manners.favor(st, "care", now)      # 看病してくれた (お礼の心当たり)
         if out.get("reason_good") and deltas.get("mood", 0) > 0:
             self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", self.app.pronouns(char)[2]),
                                      now, told=True, delta=deltas.get("mood", 0), action="_ap_" + a["id"])

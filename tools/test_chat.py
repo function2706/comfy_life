@@ -65,8 +65,11 @@ def main():
         B.set_stage(cid, "contact")
         assert "何が" in send("apology"), "理由を知らずに謝ると戸惑われる"
         L.add_reason(st, "player", "bad", "ユウさんが約束を忘れていた", time.time(), told=True)
-        app.set_params({"mood": 30}, cid)
-        assert "もういい" in send("apology") and not L.dominant(st, time.time(), "bad")
+        app.set_params({"mood": 45, "affection": 60, "trust": 60}, cid)
+        st["apologies"] = []            # 続けて謝ると「もういいって」になるので, 間をあけたことに (許し方の幅は test_manners)
+        g, random.gauss = random.gauss, lambda m, s: 0.0
+        assert "もういいですよ" in send("apology") and not L.dominant(st, time.time(), "bad")
+        random.gauss = g
         L.add_reason(st, "event", "bad", "電車に傘を忘れた", time.time(), told=False)
         assert "傘を忘れた" in send("ask_how", mood=60), "近況を聞くと, まだ話していない出来事を話す"
         # 近況の中身は性格ごとの言い方 (無ければ共通の「〜んです。」/「特に変わりないですよ。」など)
@@ -101,11 +104,12 @@ def main():
         app.set_params({"mood": 35}, cid)
         n0 = len(st.get("contacts") or [])
         st.pop("msg_pending", None)
+        st["apologies"] = []
         C.send(cid, "apology")
         assert len(st.get("contacts") or []) == n0, "謝るメッセージは数えない"
         st["msg_pending"].update(due=time.time() - 1, reply=True)
         r = app.deliver_due()
-        assert r and "連絡多く" not in r[0]["text"] and "もういい" in r[0]["text"], r
+        assert r and "連絡多く" not in r[0]["text"] and C.thread(cid)["items"][-1]["kind"].startswith("apology"), r
         st["contacts"], st["reasons"] = [], []
         night = app.phase_at
         app.phase_at = lambda dt: {"id": "midnight", "label": "深夜", "pos": "", "neg": ""}

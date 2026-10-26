@@ -112,7 +112,14 @@ def main():
         r = app.act("comfort")
         print("原因なのに相談:", r["entry"]["text"])
         st["cooldowns"] = {}
+        # 許し方には幅がある (半分だけ・態度で・受け付けない. 割合は tools/test_manners.py). ここでは, すぐ許してくれる場合
+        st["apologies"] = []            # 上で謝ったばかり (続けて謝ると「もういいって」)
+        app.set_params({"mood": 55, "affection": 60, "trust": 60})
+        for x in rs:
+            x["delta"] = max(x["delta"], -3.0)
+        g, random.gauss = random.gauss, lambda m, sd: 0.0
         r = app.act("apologize")
+        random.gauss = g
         print("謝る:", r["entry"]["text"])
         assert not L.dominant(st, time.time(), "bad")
         # 良い理由も記録される

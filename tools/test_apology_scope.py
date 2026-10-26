@@ -27,10 +27,13 @@ def main():
         char, st = app.char(), app.state("hina")
         now = time.time()
 
+        random.gauss = lambda m, s: 0.0         # 許し方の揺らぎ (幅は tools/test_manners.py). ここでは, すぐ許してくれる場合の範囲を見る
+
         def setup():
-            st["reasons"] = []
-            L.add_reason(st, "event", "bad", "仕事で嫌なことがあった", now - 60, told=True, delta=-6.0)
-            L.add_reason(st, "player", "bad", "連絡が多くて、少し疲れた", now, told=True, delta=-8.0, action="_too_often")
+            st["reasons"], st["apologies"] = [], []
+            st["params"].update(mood=55, affection=60, trust=60)
+            L.add_reason(st, "event", "bad", "仕事で嫌なことがあった", now - 60, told=True, delta=-1.5)
+            L.add_reason(st, "player", "bad", "連絡が多くて、少し疲れた", now, told=True, delta=-2.0, action="_too_often")
 
         def left():
             return sorted(r["kind"] for r in L.reasons(st, time.time()) if r["mood"] == "bad" and not r.get("resolved"))

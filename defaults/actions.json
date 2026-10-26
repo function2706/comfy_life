@@ -737,11 +737,12 @@
     "neg": ""
    },
    {
+    "key": "cause_player",
     "text": "……もう。次は気をつけてくださいね。",
-    "when": "cause=player",
+    "when": "apology=quick",
     "pos": "pout, small smile",
     "neg": "",
-    "priority": 1,
+    "priority": 3,
     "effects": {
      "mood": 12,
      "affection": 1,
@@ -749,11 +750,12 @@
     }
    },
    {
+    "key": "cause_player__mood_lt_25",
     "text": "……謝ればいいってものじゃないです。……でも、ちゃんと聞きました。",
-    "when": "cause=player, mood<25",
+    "when": "apology=half",
     "pos": "pout, looking away",
     "neg": "",
-    "priority": 2,
+    "priority": 3,
     "effects": {
      "mood": 6
     }
@@ -778,6 +780,61 @@
     "priority": 1,
     "effects": {
      "mood": 3
+    }
+   },
+   {
+    "key": "apology_deeds",
+    "text": "……謝るなら、態度で示してください。",
+    "when": "apology=deeds",
+    "pos": "crossed arms, serious, looking at viewer",
+    "neg": "",
+    "priority": 3,
+    "effects": {}
+   },
+   {
+    "key": "apology_refuse",
+    "text": "……今は、聞きたくないです。",
+    "when": "apology=refuse",
+    "pos": "looking away, annoyed",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "mood": -3
+    }
+   },
+   {
+    "key": "apology_late",
+    "text": "……今さらですか？ ……まあ、いいですけど。",
+    "when": "apology=late",
+    "pos": "sigh, half-closed eyes",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "mood": 3
+    }
+   },
+   {
+    "key": "apology_enough",
+    "text": "もういいですって。何回も謝らないでください。",
+    "when": "apology=enough",
+    "pos": "awkward, sweatdrop",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "mood": -3
+    }
+   },
+   {
+    "key": "apology_irritated",
+    "text": "……だから、もういいって言ってるじゃないですか。",
+    "when": "apology=irritated",
+    "pos": "annoyed, frown",
+    "neg": "",
+    "priority": 3,
+    "effects": {
+     "mood": -6,
+     "stress": 4,
+     "affection": -1
     }
    }
   ],

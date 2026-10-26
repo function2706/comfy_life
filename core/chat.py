@@ -5,6 +5,7 @@
 - 送るメッセージの種類 (KINDS). 返信は既存の時間差の仕組み (msg_pending) に乗る: 相手が寝ている・手が離せないなら落ち着いてから,
   機嫌や仲しだいで遅れる・来ない (既読だけ付く). 返信の中身は種類 × 状況 (性格・間柄・機嫌・機嫌の理由・時間帯・頻度) で変わる.
   現実的に: 浅い仲で甘えると引かれる, からかいは逆効果のことも, 理由を知らずに謝ると戸惑われる, 夜中は迷惑, 送りすぎると冷たくなる.
+  謝罪・お礼・あいさつ・スタンプ・「今いい？」などの受け止め方は core/manners.py (許し方の幅・心当たり・習慣・続け方).
   「会おう」に応じてくれたら, 会おうという話になる (date_promise. 半日のうちに約束を持ちかけると受けてもらいやすい).
   日時と行き先を決めて会うのは約束 (core/appoint.py). 約束の誘いの返事も, この時間差で届く.
 - 電話 (出た・出なかった)・折り返し・相手からのメッセージ (働きかけ・オフライン中に届いたもの) も同じトークに並べる.
@@ -29,6 +30,11 @@ KINDS = {
     "photo": ("写真を送る", "📷", "（写真を送った）"),
     "ask_selfie": ("自撮り送って", "🤳", "（自撮りを送ってとお願いした）"),
     "stamp": ("スタンプ", "🐾", "（スタンプを送った）"),
+    "may_call": ("今いい？", "☎", "（電話していいか聞いた）"),
+    "otsukare": ("お疲れさま", "🍵", "（お疲れさまと送った）"),
+    "you_ok": ("大丈夫？", "🩹", "（大丈夫？と気づかった）"),
+    "what_doing": ("今何してる？", "👀", "（今何してるか聞いた）"),
+    "nudge": ("返事まだ？", "⏳", "（返事を催促した）"),
 }
 # 共通の返信 (性格プリセットに無ければ). 鍵は chat.<場面>
 LINES = {
@@ -51,6 +57,31 @@ LINES = {
     "chat.invite_no": "📱『ごめんなさい、しばらくはちょっと……』",
     "chat.photo": "📱『わ、いい写真ですね！』",
     "chat.stamp": "📱『（スタンプが返ってきた）』",
+    "chat.apology_half": "📱『……うん』",
+    "chat.apology_deeds": "📱『謝るなら、態度で示してください』",
+    "chat.apology_refuse": "📱『……今は、そういうのいいです』",
+    "chat.apology_late": "📱『……今さらですか？ ……まあ、いいですけど』",
+    "chat.apology_enough": "📱『もういいですって。何回も謝らないでください』",
+    "chat.apology_irritated": "📱『……だから、もういいって言ってるじゃないですか』",
+    "chat.too_often_again": "📱『……謝ったばかりなのに、またですか？』",
+    "chat.thanks_what": "📱『え、何がですか？』",
+    "chat.thanks_again": "📱『それ、もう聞きましたよ。何回言うんですか』",
+    "chat.greet_odd_morning": "📱『おはよう……って、もうそんな時間じゃないですよ？』",
+    "chat.greet_odd_night": "📱『え、もう寝るんですか？ まだ明るいですよ？』",
+    "chat.greet_again": "📱『さっきも言いましたよね？』",
+    "chat.stamp_only": "📱『……スタンプだけですか？』",
+    "chat.stamp_spam": "📱『スタンプ連打はやめてください……』",
+    "chat.may_call_ok": "📱『はい、大丈夫ですよ』",
+    "chat.may_call_later": "📱『ごめんなさい、今はちょっと……あとでいいですか？』",
+    "chat.otsukare": "📱『ありがとうございます。ちょうど終わったところです』",
+    "chat.otsukare_odd": "📱『？ ……何がですか？』",
+    "chat.you_ok": "📱『……気にしてくれてたんですね。ありがとうございます、少し楽になりました』",
+    "chat.you_ok_what": "📱『え、何がですか？ 別に何もないですけど』",
+    "chat.what_doing": "📱『今ですか？ {doing}ですよ』",
+    "chat.what_doing_much": "📱『……なんで、そんなにいちいち聞くんですか？』",
+    "chat.nudge_ok": "📱『あ、ごめんなさい、今返します』",
+    "chat.nudge_bad": "📱『……ちょっと待っててください。急かさないで』",
+    "chat.nudge_huh": "📱『え？ 返しましたよね？』",
     "chat.selfie_yes": "📱『もう……しょうがないですね。はい、どうぞ』",
     "chat.selfie_no": "📱『え、自撮りですか？ ……今はちょっと』",
     "chat.selfie_pester": "📱『……さっきも言いましたよね？ しつこいです』",
@@ -76,7 +107,21 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "ask_how_nothing": "近況の中身: 特に何もないとき (一文のかけら)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
                "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
-               "stamp": "スタンプ", "selfie_yes": "自撮り送って (送ってくれた. 自撮りが添えられる)",
+               "stamp": "スタンプ",
+               "apology_half": "謝罪 (半分だけ許す. 理由は弱まるが残る)", "apology_deeds": "謝罪 (謝るなら態度で)",
+               "apology_refuse": "謝罪 (受け付けない)", "apology_late": "謝罪 (日が経ってから. 今さら？)",
+               "apology_enough": "謝罪 (続けて謝られて. もういいって)", "apology_irritated": "謝罪 (さらに続けて. 苛立つ)",
+               "too_often_again": "謝ったばかりなのに, また連絡しすぎ",
+               "thanks_what": "お礼 (心当たりがない)", "thanks_again": "お礼 (同じことに何度も)",
+               "greet_odd_morning": "おはよう (昼・夜に)", "greet_odd_night": "おやすみ (朝・昼に)",
+               "greet_again": "あいさつ (同じ朝・夜の 2 回目)", "stamp_only": "メッセージにスタンプだけで返された",
+               "stamp_spam": "スタンプを続けて送られた", "may_call_ok": "今いい？ (いいよ)", "may_call_later": "今いい？ (あとで)",
+               "otsukare": "お疲れさま (ちょうど終わった頃)", "otsukare_odd": "お疲れさま (的外れな時間)",
+               "you_ok": "大丈夫？ (体調・落ち込みを知っていて)", "you_ok_what": "大丈夫？ (心当たりがない)",
+               "what_doing": "今何してる？ ({doing} に今していること)", "what_doing_much": "今何してる？ (聞きすぎ. 束縛っぽい)",
+               "nudge_ok": "返事まだ？ (急ぎの話で. 多少許される)", "nudge_bad": "返事まだ？ (急かされて嫌がる)",
+               "nudge_huh": "返事まだ？ (もう返している)",
+               "selfie_yes": "自撮り送って (送ってくれた. 自撮りが添えられる)",
                "selfie_no": "自撮り送って (断られた)", "selfie_pester": "自撮り送って (続けて頼みすぎ)", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
                "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
                "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)",
@@ -159,19 +204,24 @@ class Chat:
         extra = {}
         if kind == "repaid":                    # 返したお金の受け取り (効き目は返したときに済んでいる)
             return "repaid", {}, extra
-        if kind == "apology":       # 謝るのは, 連絡が多いうちに数えない (連絡しすぎを謝るのも)
-            bad = L.dominant(st, now, "bad")
-            if bad and bad["kind"] == "player":            # あなたのせいで機嫌が悪い理由がある: 謝れば和らぐ
-                L.resolve(st, "bad", now, kind="player")
-                return "apology", {"mood": 4, "trust": 1}, extra
-            return "apology_confused", {"mood": -1}, extra
+        meta = ctx.get("_meta") or {}
+        if kind == "apology":       # 謝るのは, 連絡が多いうちに数えない (連絡しすぎを謝るのも). 許し方は manners
+            return app.manners.reply(char, st, kind, now, ctx, meta)
         if ctx.get("too_often"):
+            if app.manners.again(st, "_too_often", now):      # 謝ったばかりなのに, また連絡しすぎ: ふつうより強く響く
+                st["apology_last"]["out"] = "broken"
+                L.add_reason(st, "player", "bad", "謝ったばかりなのに、%sからまた連絡が多い" % app.pronouns(char)[2], now,
+                             told=True, delta=-4.0, action="_too_often")
+                return "too_often_again", {"mood": -5, "trust": -2, "affection": -1}, extra
             # 連絡が多くて少し疲れた: あなたのせいの理由として覚える (謝れば和らぐ)
             L.add_reason(st, "player", "bad", "%sからの連絡が多くて、少し疲れた" % app.pronouns(char)[2], now, told=True,
                          delta=-2.0, action="_too_often")
             return "too_often", {"mood": -2, "affection": -1}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
             return "late_night", {"mood": -2, "stress": 2}, extra
+        got = app.manners.reply(char, st, kind, now, ctx, meta)
+        if got:
+            return got
         if kind == "ask_selfie":
             # 自撮りを頼む: 仲・機嫌・ドキドキ・恥じらい・間柄しだい (必ずではない). 続けて頼むと嫌がられる
             asks = [t for t in st.get("selfie_asks") or [] if now - t < 3 * 3600]
@@ -183,6 +233,8 @@ class Chat:
             if random.random() < max(0.03, min(0.85, chance)):
                 return "selfie_yes", {"heart": 3, "loneliness": -4}, extra
             return "selfie_no", {"shyness": 3}, extra
+        if kind == "consult":
+            app.manners.favor(st, "consult", now)          # 相談にのってくれた (お礼の心当たり)
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:

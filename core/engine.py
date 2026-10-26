@@ -39,6 +39,7 @@ from . import rumor as rumor_mod
 from . import wardrobe as wardrobe_mod
 from . import posing as posing_mod
 from . import planner as planner_mod
+from . import manners as manners_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -162,6 +163,7 @@ class App:
         self.body = body_mod.Body(self)
         self.presence = presence_mod.Presence(self)
         self.planner = planner_mod.Planner(self)
+        self.manners = manners_mod.Manners(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
         self._load_index()
@@ -882,6 +884,10 @@ class App:
                     return missed
                 called = True
                 st["peek_until"] = now + 600        # 電話のあいだ, 相手がいまどこで何をしているかは少しわかる
+                if st.pop("call_ok_until", 0) > now:     # 「今いい？」と聞いてからかけた: いきなりより少しだけ感じがいい
+                    fx = dict(opts.get("effects") or {})
+                    fx["mood"] = float(fx.get("mood", 0)) + 1.5
+                    opts = dict(opts, effects=fx)
             if apart and not appt and a.get("category") != "system" and not self.bonds.allowed_apart(a, cid):
                 if self.bonds.stage(cid) == "known":
                     raise ValueError("%sの連絡先を知りません（偶然会えたら交換できます）" % char.get("name", ""))
@@ -948,6 +954,10 @@ class App:
             tr = a.get("transfer")
             if tr and tr.get("from") == "p" and self.life.player_state()["money"] < int(tr.get("amount", 0)):
                 raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
+            self._apol = None
+            if a.get("mood_action") == "apologize":       # その場で謝る: 許し方はメッセージと同じ判定 (反応の条件 apology)
+                self._apol = self.manners.apology(char, st, now, face=True)
+                ctx["apology"] = self._apol["out"]
             r = self.pick_reaction(a, ctx)
             invite = apart and (a.get("override") or {}).get("outing")
             promised = st.get("date_promise", 0) > now          # メッセージで「会おう」に応じてくれていた
@@ -1066,6 +1076,12 @@ class App:
             for k, v in (opts.get("money") or {}).items():
                 money[k] = money.get(k, 0) + v
             self._act_reasons(char, st, a, r, deltas, now)
+            if (not apart or called) and a.get("category") not in ("system", "あなたの予定") and not narrate:
+                if not apart:
+                    self.manners.favor(st, "met", now)          # 会ってくれた (お礼の心当たり)
+                self.manners.saw_down(st, now)                  # 具合の悪さ・落ち込みに気づく (「大丈夫？」の心当たり)
+            if plan and plan.get("payer") == "her":
+                self.manners.favor(st, "treat", now)
             skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk else {}
             if aid in CARE_ACTIONS and not r.get("override"):         # 様子を見る・気持ちを聞く: 気配り
                 skill_up["care"] = self.life.train("care", 0.8 * scale)
@@ -1211,8 +1227,8 @@ class App:
             callback = (random.uniform(20, 90) * 60) if random.random() < 0.7 else None
         else:
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.5 if ctx.get("too_often") else 1) \
-                * (0.7 if p.get("affection", 50) < 35 else 1)
-            if random.random() < pr:
+                * (0.7 if p.get("affection", 50) < 35 else 1) * (1.15 if st.get("call_ok_until", 0) > now else 1)
+            if random.random() < min(0.95, pr):
                 return None
             callback = (random.uniform(10, 60) * 60) if random.random() < 0.3 else None
         cid = char["id"]
@@ -1240,10 +1256,14 @@ class App:
         if st.get("approach"):
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
         self.chat.add(cid, "me", chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）", kind=kind, t=now)
+        meta = self.manners.on_send(char, st, kind, now) if kind else {}     # 送った時刻・続け方 (あいさつ・スタンプ など)
         if pend:
             pend["count"] = pend.get("count", 1) + 1
-            if kind:
+            if kind == "nudge":                        # 返事を待っている間の催促: 返信はもとのメッセージに. 急ぎの話なら多少許される
+                pend["nudge"] = "ok" if self.manners.nudge_urgent(char, st, pend, now) else "bad"
+            elif kind:
                 pend["kind"] = kind                    # 返信は, いちばん新しいメッセージに対して
+                pend["meta"] = meta
         else:
             delay = random.uniform(3, 40) * 60
             if p.get("mood", 50) < 35:
@@ -1256,7 +1276,7 @@ class App:
             if quick:
                 delay = random.uniform(10, 90)
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1,
-                                 "kind": kind, "quick": quick}
+                                 "kind": kind, "quick": quick, "meta": meta}
         cd = float(a.get("cooldown", 0)) * 60
         if cd:
             st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
@@ -1290,6 +1310,14 @@ class App:
         st["phone_turns"] = 0
         return False
 
+    def _nudge_seen(self, char, st, pend, now):
+        """返事を待っている間に届いた「返事まだ？」を読んだ (ほぼ逆効果. 急ぎの話なら多少許される)."""
+        key, eff = self.manners.nudge_effect(char, st, pend, now)
+        eff, _ = self.bonds.realize(char, st, eff, "_chat_nudge", now)
+        self.apply_effects(st, self.trait_effects(char, eff))
+        if pend.get("reply"):
+            self.chat.add(char["id"], "her", self.chat.line(char, key, {}), kind=key, t=now - 0.001)
+
     def _chat_reply(self, char, st, pend, now):
         """メッセージの種類と状況で返信を決めて届ける (効果・既読・トーク・ログ)."""
         cid = char["id"]
@@ -1300,6 +1328,7 @@ class App:
             if kind == "appoint":               # 約束の誘いへの返事
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
             else:
+                ctx["_meta"] = pend.get("meta") or {}
                 key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
             self.bonds.touch(st, now)
@@ -1311,6 +1340,9 @@ class App:
                 key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
+            if selfie:
+                self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
+            self.manners.saw_down(st, now)
             if key not in ("too_often", "late_night"):
                 self.picked_up_phone(char, st, now)
             if key == "invite_yes":
@@ -1411,6 +1443,8 @@ class App:
                 continue
             st.pop("msg_pending", None)
             self.chat.mark_read_by_her(cid, now)       # 既読
+            if pend.get("nudge"):
+                self._nudge_seen(char, st, pend, now)
             if not pend.get("reply"):
                 self.save_state(cid)                   # 読んだが, 返事はしなかった (既読だけ)
                 continue
@@ -1496,10 +1530,10 @@ class App:
                 if bad and bad["kind"] == "event":
                     L.mark_told(bad)
                     L.resolve(st, "bad", now, kind="event")       # 相談で和らぐのは出来事の理由だけ (あなたのせいの分は残る)
-            elif ma == "apologize":
-                bad = L.dominant(st, now, "bad")
-                if bad and bad["kind"] == "player":
-                    L.resolve(st, "bad", now, kind="player")      # 謝って消えるのは あなたのせいの理由だけ
+            elif ma == "apologize":     # 許し方 (すぐ / 半分 / 態度で / 受け付けない / 今さら) は manners. 消えるのは あなたのせいの理由だけ
+                v = getattr(self, "_apol", None) or self.manners.apology(char, st, now, face=True)
+                self._apol = None
+                self.manners.apply_apology(char, st, v, now)
             return
         if a.get("request_answer") or a.get("category") == "system":
             return
