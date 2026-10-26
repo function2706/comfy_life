@@ -133,6 +133,32 @@ class Manners:
             return "thanks", {"mood": 3, "trust": 1, "affection": 0.5}
         return "thanks_again", {"mood": 0.5}
 
+    def rejudge_thanks(self):
+        """起動したとき一度: 謝ったあとのお礼が, 以前の判定で「え、何が？」(thanks_what) と返っていたら, 謝罪の結果しだいの
+        本来の効き目を当て直す (トークの文面は書き換えない. 当て直した返信は thanks_rejudged に覚えて二重に当てない)."""
+        app = self.app
+        out = []
+        for cid, char in app.chars.items():
+            st = app.state(cid)
+            al = st.get("apology_last") or {}
+            if not al.get("out") or not al.get("t"):
+                continue
+            done = st.setdefault("thanks_rejudged", [])
+            items = [it for it in app.chat.load(cid)["items"] if it.get("who") == "her" and it.get("kind") == "thanks_what"
+                     and 0 <= it["t"] - al["t"] < FAVOR_SPAN and it["t"] not in done]
+            for it in items:
+                got = self._thanks_forgave(st, al, char)
+                done.append(it["t"])
+                if not got:
+                    continue
+                eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
+                app.apply_effects(st, app.trait_effects(char, eff))
+                out.append((cid, got[0]))
+            if items:
+                del done[:-20]
+                app.save_state(cid)
+        return out
+
     def _thanks_forgave(self, st, al, char):
         """謝ったあとのお礼 (許してくれてありがとう). 謝罪の結果ごと. 扱わない結果 (enough など) なら None."""
         out = al["out"]

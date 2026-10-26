@@ -21,12 +21,13 @@ from testclock import fix_noon  # noqa: E402
 fix_noon(engine)
 
 NEW_KEYS = ("apologies", "apology_last", "favors", "greets", "greet_days", "greet_miss", "stamps", "whatdo", "seen_down",
-            "call_ok_until")
+            "call_ok_until", "thanks_rejudged")
 
 
 def old_state(app, cid, now, pending=None, extra_reasons=()):
     """以前の形の状態を作って保存し, 読み直す (新しい欄は無い)."""
     st = app.state(cid)
+    app.chat.save(cid, {"seen_t": 0, "items": []})
     for k in NEW_KEYS:
         st.pop(k, None)
     st["reasons"] = [
@@ -158,6 +159,39 @@ def main():
         app, st = old_state(app, cid, now)          # 謝罪の記録が無い (欄が無い) なら, 今までどおり
         assert app.chat.reply(app.char(cid), st, "thanks", now, {"_meta": {}})[0] == "thanks_what"
         print("以前の謝罪の記録のあとのお礼: OK")
+
+        # ---- 9. pull する前に送ったお礼: 返事待ちのままなら, 新しい判定で返事が届く
+        for out, want in (("quick", "thanks"), ("refuse", "thanks_unforgiven")):
+            pend = {"aid": "message", "t": now - 300, "due": now - 1, "reply": True, "count": 1, "kind": "thanks"}
+            app, st = old_state(app, cid, now, pend)
+            st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": out}
+            app.save_state(cid)
+            app.deliver_due()
+            assert app.chat.thread(cid)["items"][-1]["kind"] == want, (out, app.chat.thread(cid)["items"][-1])
+        # すでに以前の判定で「え、何が？」と返っていたら: 起動したとき一度だけ当て直す (文面はそのまま)
+        for out, sign in (("quick", 1), ("refuse", -1)):
+            app, st = old_state(app, cid, now)
+            st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": out}
+            st["params"]["mood"] = 50
+            app.chat.add(cid, "me", "（お礼を言った）", kind="thanks", t=now - 1800)
+            app.chat.add(cid, "her", "📱『え、何がですか？』", kind="thanks_what", t=now - 1700)
+            app.save_state(cid)
+            app = engine.App()                   # 起動
+            st = app.state(cid)
+            m1 = st["params"]["mood"]
+            assert (m1 - 50) * sign > 0 and st["thanks_rejudged"], (out, m1)
+            assert app.chat.thread(cid)["items"][-1]["text"] == "📱『え、何がですか？』", "トークの文面は書き換えない"
+            app = engine.App()                   # もう一度起動しても二重に当てない
+            assert app.state(cid)["params"]["mood"] == m1
+        # 謝罪より前の「何が？」・1 日より後の「何が？」は当て直さない
+        app, st = old_state(app, cid, now)
+        st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": "quick"}
+        st["params"]["mood"] = 50
+        app.chat.add(cid, "her", "📱『え、何がですか？』", kind="thanks_what", t=now - 7200)
+        app.save_state(cid)
+        app = engine.App()
+        assert app.state(cid)["params"]["mood"] == 50
+        print("pull する前のお礼 (返事待ち・すでに「何が？」): OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -167,6 +167,7 @@ class App:
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
         self._load_index()
+        self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
         self._ensure_worker()
 
     # ------------------------------------------------------------------ config
@@ -2820,6 +2821,7 @@ class App:
             self._tasks_w = None
             self.life.player = None
             self.reload()
+            self.manners.rejudge_thanks()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
