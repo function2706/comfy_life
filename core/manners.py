@@ -21,6 +21,7 @@ from . import knowsched as ks
 APOLOGY_SPAN = 4 * 3600          # この間に続けて謝ると「もういいって」
 LATE_AFTER = 12 * 3600           # これより前のことを謝ると「今さら？」
 FAULT_DAYS = 4                   # 謝る対象として見る, あなたのせいの理由の古さ
+REPEAT_DAYS = 14                 # 「同じ失敗の何度目か」に数える古さ
 FAVOR_SPAN = 24 * 3600           # お礼が効く「最近」
 DEEDS_QUIET = 8 * 3600           # 「態度で」: 連絡しすぎなら, これだけ連絡を控えると消える
 GREET_OK = {"greet_morning": lambda h: 4 <= h < 12, "greet_night": lambda h: h >= 18 or h < 4}
@@ -61,11 +62,14 @@ class Manners:
         fs = self._faults(st, now)
         if not fs:
             return {"out": "none", "r": None}
-        r = max(fs, key=lambda x: (abs(x.get("delta", 0)), x["t"]))
+        # いま効いている理由 (半日のうち) を先に謝る. それが無いときだけ, 前のことを謝る (「今さら？」)
+        active = [x for x in fs if now - x["t"] <= LATE_AFTER]
+        r = max(active or fs, key=lambda x: (abs(x.get("delta", 0)), x["t"]))
         p = st["params"]
-        late = now - r["t"] > LATE_AFTER
-        nth = sum(1 for x in st.get("reasons") or [] if x["kind"] == "player" and x.get("action") == r.get("action")
-                  and x["mood"] == "bad")
+        late = not active
+        # 同じ失敗の何度目か: 同じ action の理由 (2 週間のうち). action の無い理由 (以前のセーブ・一度きりのこと) は数えない
+        nth = sum(1 for x in st.get("reasons") or [] if x["kind"] == "player" and x["mood"] == "bad" and r.get("action")
+                  and x.get("action") == r.get("action") and now - x["t"] <= REPEAT_DAYS * 86400) or 1
         L = self.app.life
         s = 0.75 - abs(r.get("delta", 0)) / 25.0 - 0.15 * max(0, nth - 1) + (p.get("mood", 50) - 50) / 120.0 \
             + (p.get("affection", 50) - 50) / 250.0 + (p.get("trust", 50) - 50) / 300.0 - (self.grudge(char) - 1) * 0.8 \
