@@ -205,6 +205,8 @@ def main():
             q["found"] = [13] * 4
         elif kind == "spider":
             q["done"] = [12] * 8
+        elif kind == "klondike":
+            q["found"] = [13] * 4
         q["miss"] = miss
         return q
 

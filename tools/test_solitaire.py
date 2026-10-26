@@ -130,7 +130,72 @@ def spider():
     print("スパイダー: 配り・手・自動の行き先・片付け・山・元に戻す・詰み OK")
 
 
+def klondike():
+    # ---- 配り: 確かめた配りの一覧から選ぶ (すぐ配れる). 一覧の配りは解ける (一部を解き直して確かめる)
+    pool = SO.kl_pool()
+    for lv, (draw, passes) in SO.KL_RULES.items():
+        assert len(pool.get(lv) or []) >= 100, (lv, len(pool.get(lv) or []))
+        t = time.time()
+        p = P.new("klondike", lv, random.Random(7))
+        assert time.time() - t < 0.5, "一覧から選ぶので, すぐ配れる"
+        assert p["draw"] == draw and p["passes"] == passes and p["seed"] in pool[lv]
+        assert sum(len(c) for c in p["cols"]) + len(p["talon"]) + sum(p["found"]) == 52
+        for seed in random.Random(lv).sample(pool[lv], 3):
+            assert SO.kl_solve(SO.kl_deal(random.Random(seed), lv), 60000), (lv, seed)
+    print("クロンダイク: 確かめた配り 易 %d・中 %d・難 %d 個 (一部を解き直して OK)" % tuple(len(pool[k]) for k in ("easy", "mid", "hard")))
+
+    def mk(cols, down=None, talon=(), ptr=0, draw=1, passes=None, found=(0, 0, 0, 0)):
+        return {"kind": "klondike", "cols": [[card(x) for x in c] for c in cols] + [[] for _ in range(7 - len(cols))],
+                "down": (down or [0] * len(cols)) + [0] * (7 - len(cols)), "talon": [card(x) for x in talon], "ptr": ptr,
+                "found": list(found), "draw": draw, "passes": passes, "hist": [], "miss": 0, "moves": 0}
+    # ---- 手: 色違いで 1 つ小さいカード. 空いた列には K だけ. 裏は動かせない. 動かすと裏が表に
+    st = mk([["4C", "9H", "8S"], ["TC"], ["5D"], ["QH"]], down=[1, 0, 0, 0])
+    SO.kl_move(st, {"from": {"t": "col", "i": 0, "n": 2}, "to": {"t": "col", "i": 1}})
+    assert [SO.name(c) for c in st["cols"][1]] == ["TC", "9H", "8S"] and st["down"][0] == 0
+    for bad in ({"from": {"t": "col", "i": 2}, "to": {"t": "col", "i": 4}},     # 5 を空き列へ (K だけ)
+                {"from": {"t": "col", "i": 2}, "to": {"t": "col", "i": 3}},     # 5 を Q へ
+                {"from": {"t": "col", "i": 2}, "to": {"t": "found"}}):          # A からでない
+        try:
+            SO.kl_move(st, bad)
+            raise AssertionError("できないはずの手: %s" % bad)
+        except ValueError:
+            pass
+    SO.kl_move(st, {"undo": True})
+    assert [SO.name(c) for c in st["cols"][0]] == ["4C", "9H", "8S"] and st["down"][0] == 1
+    # ---- 山: 1 枚めくり / 3 枚めくり, 山を戻せる回数. 捨て札の一番上を使える
+    st = mk([["KS"]], talon=["2H", "3H", "QD", "5C", "6C"], draw=3, passes=1)
+    SO.kl_move(st, {"stock": True})
+    v = SO.kl_view(st)
+    assert v["waste"] == ["2H", "3H", "QD"] and v["stock"] == 2
+    SO.kl_move(st, {"from": {"t": "waste"}, "auto": True})        # Q♦ を K♠ へ
+    assert [SO.name(c) for c in st["cols"][0]] == ["KS", "QD"] and SO.kl_view(st)["waste"] == ["2H", "3H"]
+    SO.kl_move(st, {"stock": True})
+    SO.kl_move(st, {"stock": True})                                # 戻す (あと 0 回)
+    assert st["ptr"] == 0 and st["passes"] == 0
+    SO.kl_move(st, {"stock": True})
+    SO.kl_move(st, {"stock": True})
+    try:
+        SO.kl_move(st, {"stock": True})
+        raise AssertionError("戻せる回数を超えた")
+    except ValueError:
+        pass
+    # ---- 安全な組札上げは自動 (列と捨て札). 組札から列へ戻せる
+    st = mk([["5S", "AH"]], talon=["AS"], draw=1)
+    SO.kl_move(st, {"stock": True})
+    assert st["found"][0] == 1 and st["found"][1] == 1 and not st["talon"], st
+    st = mk([["5S"]], found=(0, 4, 0, 0))
+    SO.kl_move(st, {"from": {"t": "found", "i": 1}, "to": {"t": "col", "i": 0}})
+    assert [SO.name(c) for c in st["cols"][0]] == ["5S", "4H"] and st["found"][1] == 3
+    # ---- 詰み: 山からも列からも, 意味のある手が無い
+    st = mk([["5S"], ["9D"]], talon=["2C"], draw=1, passes=0, found=(0, 0, 0, 0))
+    assert SO.kl_stuck(st)
+    st["talon"] = [card("8C")]
+    assert not SO.kl_stuck(st), "山の 8♣ は 9♦ へ出せる"
+    print("クロンダイク: 手・山・戻す回数・自動の組札上げ・組札から戻す・元に戻す・詰み OK")
+
+
 def main():
+    klondike()
     spider()
     freecell()
     print("ALL OK")
