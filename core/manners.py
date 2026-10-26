@@ -17,6 +17,7 @@
 どれも確定的にはしない (効き目は bonds.realize を通る).
 """
 import random
+import time
 from datetime import datetime, timedelta
 
 from . import knowsched as ks
@@ -151,6 +152,7 @@ class Manners:
             if not al.get("out") or not al.get("t"):
                 continue
             done = st.setdefault("thanks_rejudged", [])
+            before = {k: float(st["params"].get(k, 0)) for k in ("mood", "trust", "affection")}
             items = [it for it in app.chat.load(cid)["items"] if it.get("who") == "her" and it.get("kind") == "thanks_what"
                      and 0 <= it["t"] - al["t"] < FAVOR_SPAN and it["t"] not in done]
             for it in items:
@@ -167,8 +169,24 @@ class Manners:
             out += regrace
             if items or regrace:
                 del done[:-20]
+                self._rejudge_note(cid, st, before)
+                app.save_state(cid)
+            elif done and not st.get("rejudge_noted"):      # 知らせを出す前の版で当て直し済み: 済んだことだけ知らせる
+                st["rejudge_noted"] = True
+                app.chat.add(cid, "sys", "（以前に送った「ありがとう」は、今の決まりで受け止め直し済み）", kind="rejudge", t=time.time())
                 app.save_state(cid)
         return out
+
+    PARAM_LABEL = {"mood": "機嫌", "trust": "信頼", "affection": "好感度"}
+
+    def _rejudge_note(self, cid, st, before):
+        """当て直したことを, その人のトークとサーバのログに残す (効いたかが分かるように)."""
+        diff = [(k, float(st["params"].get(k, 0)) - v) for k, v in before.items()]
+        parts = ["%s %+.1f" % (self.PARAM_LABEL[k], d) for k, d in diff if abs(d) >= 0.05]
+        text = "（以前に送った「ありがとう」を、今の決まりで受け止め直した%s）" % ("：" + "・".join(parts) if parts else "")
+        st["rejudge_noted"] = True
+        self.app.chat.add(cid, "sys", text, kind="rejudge", t=time.time())
+        self.app.logq.put("%s [INFO] お礼の当て直し %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, "・".join(parts) or "変化なし"))
 
     TOO_OFTEN_EFF = {"too_often": {"mood": -2, "affection": -1}, "too_often_again": {"mood": -5, "trust": -2, "affection": -1}}
     APOLOGY_KEY_OUT = {"apology": "quick", "apology_half": "half", "apology_deeds": "deeds", "apology_late": "late"}

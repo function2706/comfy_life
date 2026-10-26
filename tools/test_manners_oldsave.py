@@ -21,7 +21,7 @@ from testclock import fix_noon  # noqa: E402
 fix_noon(engine)
 
 NEW_KEYS = ("apologies", "apology_last", "favors", "greets", "greet_days", "greet_miss", "stamps", "whatdo", "seen_down",
-            "call_ok_until", "thanks_rejudged")
+            "call_ok_until", "thanks_rejudged", "rejudge_noted")
 
 
 def old_state(app, cid, now, pending=None, extra_reasons=()):
@@ -180,7 +180,9 @@ def main():
             st = app.state(cid)
             m1 = st["params"]["mood"]
             assert (m1 - 50) * sign > 0 and st["thanks_rejudged"], (out, m1)
-            assert app.chat.thread(cid)["items"][-1]["text"] == "📱『え、何がですか？』", "トークの文面は書き換えない"
+            its = app.chat.thread(cid)["items"]
+            assert [x for x in its if x.get("kind") == "thanks_what"][-1]["text"] == "📱『え、何がですか？』", "トークの文面は書き換えない"
+            assert its[-1]["kind"] == "rejudge" and "受け止め直した" in its[-1]["text"], its[-1]       # 当て直したことが分かる
             app = engine.App()                   # もう一度起動しても二重に当てない
             assert app.state(cid)["params"]["mood"] == m1
         # 謝罪より前の「何が？」・1 日より後の「何が？」は当て直さない
@@ -212,9 +214,23 @@ def main():
             assert m1 > 50, (kind, m1)           # 下がった分が戻り, お礼として小さく効く
             assert st["apology_last"]["out"] == "quick" and st["apology_last"].get("grace_used"), st["apology_last"]
             assert all(r.get("resolved") for r in st["reasons"]) and not st["contacts"], (st["reasons"], st["contacts"])
-            assert app.chat.thread(cid)["items"][-1]["kind"] == kind, "トークの文面は書き換えない"
-            app = engine.App()                   # もう一度起動しても二重に当てない
+            its = app.chat.thread(cid)["items"]
+            assert [x for x in its if x.get("kind") == kind][-1]["text"] == "📱『……謝ったばかりなのに』", "トークの文面は書き換えない"
+            assert its[-1]["kind"] == "rejudge" and "機嫌 +" in its[-1]["text"], its[-1]
+            print("トークの知らせ:", its[-1]["text"])
+            app = engine.App()                   # もう一度起動しても二重に当てない (知らせも出ない)
             assert app.state(cid)["params"]["mood"] == m1
+            assert sum(1 for x in app.chat.thread(cid)["items"] if x.get("kind") == "rejudge") == 1
+        # 知らせを出す前の版で当て直し済みだった: 起動したとき, 済んだことだけ一度知らせる
+        app, st = old_state(app, cid, now)
+        st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": "quick", "grace_used": True}
+        st["thanks_rejudged"] = [now - 1700]
+        app.save_state(cid)
+        app = engine.App()
+        its = app.chat.thread(cid)["items"]
+        assert its[-1]["kind"] == "rejudge" and "済み" in its[-1]["text"], its[-1]
+        app = engine.App()
+        assert sum(1 for x in app.chat.thread(cid)["items"] if x.get("kind") == "rejudge") == 1
         print("pull する前のお礼 (すでに「連絡多い」): OK")
         print("ALL OK")
     finally:
