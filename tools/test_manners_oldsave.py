@@ -146,6 +146,18 @@ def main():
             app.chat.reply(app.char(cid), st, kind, now, {"_meta": meta})
         app.manners.settle(app.char(cid), st, now + 12 * 3600)
         print("その場で謝る:", e["text"])
+
+        # ---- 8. この扱いより前に記録された謝罪 (apology_last に s・thanked が無い) のあとのお礼も, 謝罪の結果しだい
+        for out, want in (("quick", "thanks"), ("late", "thanks"), ("half", None), ("deeds", "thanks_unforgiven"),
+                          ("refuse", "thanks_unforgiven")):
+            app, st = old_state(app, cid, now)
+            st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": out}
+            app.save_state(cid)
+            k, _, _ = app.chat.reply(app.char(cid), st, "thanks", now, {"_meta": {}})
+            assert (k in ("thanks", "thanks_not_yet")) if want is None else k == want, (out, k)
+        app, st = old_state(app, cid, now)          # 謝罪の記録が無い (欄が無い) なら, 今までどおり
+        assert app.chat.reply(app.char(cid), st, "thanks", now, {"_meta": {}})[0] == "thanks_what"
+        print("以前の謝罪の記録のあとのお礼: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

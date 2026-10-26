@@ -153,7 +153,26 @@ def main():
         st["cooldowns"], st["override"] = {}, None
         app.act("talk", cid)
         assert any(f["what"] == "met" for f in st["favors"]), st["favors"]
-        print("お礼: OK")
+        # 謝ったあとのお礼: 謝罪の結果しだい
+        def after(out, s=0.6):
+            st["favors"] = []
+            st["apology_last"] = {"t": now - 600, "action": "_x", "out": out, "s": s}
+            return reply("thanks")
+        assert after("quick")[0] == "thanks" and reply("thanks")[0] == "thanks_again"
+        assert after("late", 0.4)[0] == "thanks" and after("late", 0.1)[0] == "thanks_what"
+        assert after("deeds")[0] == "thanks_unforgiven" and after("refuse")[0] == "thanks_unforgiven"
+        assert after("broken")[1]["mood"] < 0
+        tr = app.traits(char)
+        half = {}
+        for g in (0.8, 1.0, 1.25):
+            tr["grudge"] = g
+            half[g] = sum(after("half")[0] == "thanks" for _ in range(400)) / 400.0
+        tr.pop("grudge")
+        assert half[0.8] > half[1.0] > half[1.25] > 0.1, half
+        st["apology_last"]["t"] = now - 2 * 86400
+        st["apology_last"]["thanked"] = 0
+        assert reply("thanks")[0] == "thanks_what", "1 日より前の謝罪は心当たりにならない"
+        print("お礼: OK. 半分だけ許したあとのお礼が効く割合", half)
 
         # ---- 6. あいさつ: 時間外・同じ朝の 2 回目・習慣の途切れ
         st["greets"], st["greet_days"], st["greet_miss"] = {}, {}, {}

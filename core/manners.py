@@ -7,6 +7,9 @@
   メッセージの謝罪 (chat.apology_*) も, その場で謝る (コマンド apologize. 反応の条件 apology=...) も同じ判定.
 - お礼: 最近 (1 日) 相手が何かしてくれた (favors: 会った・お金を貸した・相談にのった・自撮りを送った・おごった・看病した) なら効く.
   心当たりがなければ「え、何が？」, 同じことに何度も言うと「何回言うの」で効き目も薄い.
+  謝ったあと (1 日のうち) のお礼は, 謝罪の結果しだい: 許してもらえた (quick・受け入れた late) → 心当たり (小さく効く) /
+  半分だけ (half) → 効くことも「……まだ許したわけじゃないけど」(thanks_not_yet) のことも / 態度で・受け付けない・また同じこと
+  (deeds・refuse・broken) → 「許してないけど」(thanks_unforgiven). 記録は apology_last (この扱いより前の謝罪の記録にも効く).
 - あいさつ: 時間外 (昼のおはよう・朝のおやすみ) は戸惑われる / からかわれる. 同じ朝・同じ夜の 2 回目は「さっきも言ったよね」.
   毎朝 (毎晩) 送っていると当たり前になり, 急に途切れると性格によっては気にする (機嫌の理由に残る. settle).
 - スタンプ: 相手からのメッセージにスタンプだけで返すと, 性格によっては「スタンプだけ？」. 続けて送ると嫌がられる.
@@ -94,7 +97,7 @@ class Manners:
         elif out == "deeds" and r:
             r["deeds"] = now                                    # 態度で: 理由は残る (連絡しすぎなら, 控えれば消える)
         if r:
-            st["apology_last"] = {"t": now, "action": r.get("action"), "out": out}
+            st["apology_last"] = {"t": now, "action": r.get("action"), "out": out, "s": round(v.get("s", 0.0), 3)}
 
     def again(self, st, action, now):
         """謝ったばかり (1 日以内. 受け入れてもらえた) なのに, また同じこと."""
@@ -112,9 +115,15 @@ class Manners:
             fs.append({"t": now, "what": what, "thanked": 0})
         st["favors"] = fs[-12:]
 
-    def thanks(self, st, now):
-        """お礼を言った: (場面, 効き目)."""
+    def thanks(self, st, now, char=None):
+        """お礼を言った: (場面, 効き目). 謝ったあと (1 日のうち) なら, 謝罪の結果しだい (forgave)."""
         fs = [f for f in st.get("favors") or [] if now - f["t"] < FAVOR_SPAN]
+        al = st.get("apology_last") or {}
+        if al and 0 <= now - al.get("t", 0) < FAVOR_SPAN and al.get("out") and \
+                al["t"] >= max([f["t"] for f in fs if not f["thanked"]] or [0]):
+            got = self._thanks_forgave(st, al, char)
+            if got:
+                return got
         if not fs:
             return "thanks_what", {}
         fresh = [f for f in fs if not f["thanked"]]
@@ -123,6 +132,25 @@ class Manners:
         if fresh:
             return "thanks", {"mood": 3, "trust": 1, "affection": 0.5}
         return "thanks_again", {"mood": 0.5}
+
+    def _thanks_forgave(self, st, al, char):
+        """謝ったあとのお礼 (許してくれてありがとう). 謝罪の結果ごと. 扱わない結果 (enough など) なら None."""
+        out = al["out"]
+        n = int(al.get("thanked", 0))
+        al["thanked"] = n + 1
+        accepted = out == "quick" or (out == "late" and al.get("s", 0.3) >= 0.3)    # 以前の記録 (s なし) の late は受け入れたもの
+        if accepted:
+            return ("thanks", {"mood": 1.5, "trust": 0.5}) if not n else ("thanks_again", {"mood": 0.5})
+        if out == "half":
+            if n:
+                return "thanks_again", {}
+            g = self.grudge(char) if char else 1.0
+            if random.random() < 0.5 - (g - 1) * 1.0:
+                return "thanks", {"mood": 1, "trust": 0.5}
+            return "thanks_not_yet", {"mood": -1}
+        if out in ("deeds", "refuse", "broken"):
+            return "thanks_unforgiven", {"mood": -2, "affection": -0.5}
+        return None
 
     # ------------------------------------------------------------------ 送ったとき (時刻・続け方の記録)
     def on_send(self, char, st, kind, now):
@@ -178,7 +206,7 @@ class Manners:
                 return "apology_late", ({"mood": 1, "trust": 0.5} if v.get("s", 0) >= 0.3 else {"mood": -1}), {}
             return ("apology" if out == "quick" else "apology_" + out), dict(APOLOGY_EFF[out]), {}
         if kind == "thanks":
-            key, eff = self.thanks(st, now)
+            key, eff = self.thanks(st, now, char)
             return key, eff, {}
         if kind in GREET_OK:
             g = meta.get("greet")
