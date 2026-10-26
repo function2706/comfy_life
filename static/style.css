@@ -625,8 +625,8 @@ a.btn { color: inherit; }
 .btn.small { font-size: 12px; padding: 3px 8px; }
 .news { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
 .task-dlg { width: min(560px, 96vw); height: auto; max-height: 92vh; }
-.task-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
-.task-pick { display: grid; gap: 8px; }
+.task-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; overflow-y: auto; min-height: 0; }
+.task-pick { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .task-pick .cmd { flex-direction: column; align-items: flex-start; gap: 2px; }
 .pz-levels { gap: 6px; align-items: center; }
 .pz-stats { text-align: center; font-variant-numeric: tabular-nums; }
