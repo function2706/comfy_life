@@ -183,6 +183,13 @@ def klondike():
     st = mk([["5S", "AH"]], talon=["AS"], draw=1)
     SO.kl_move(st, {"stock": True})
     assert st["found"][0] == 1 and st["found"][1] == 1 and not st["talon"], st
+    # 捨て札の一番上が, あとから (列の札が上がって) 安全になっても自動で上がる. 安全でない札は上がらない
+    st = mk([["9C", "AD"], ["KS"]], talon=["2D", "3H"], ptr=2, draw=1, found=(1, 2, 0, 1))
+    SO.kl_move(st, {"from": {"t": "col", "i": 0}, "auto": True})        # A♦ は上がる. 3♥ は反対の色 (♠♣) が 2 まで来ていないので上がらない
+    assert st["found"][2] == 1 and st["ptr"] == 2 and SO.name(st["talon"][1]) == "3H", st
+    st = mk([["9C", "AD"], ["KS"]], talon=["3H", "2D"], ptr=2, draw=1, found=(2, 2, 0, 2))
+    SO.kl_move(st, {"from": {"t": "col", "i": 0}, "auto": True})        # A♦ → 捨て札の 2♦ も続けて上がり, 3♥ も安全になって上がる
+    assert st["found"] == [2, 3, 2, 2] and not st["talon"], st
     st = mk([["5S"]], found=(0, 4, 0, 0))
     SO.kl_move(st, {"from": {"t": "found", "i": 1}, "to": {"t": "col", "i": 0}})
     assert [SO.name(c) for c in st["cols"][0]] == ["5S", "4H"] and st["found"][1] == 3
