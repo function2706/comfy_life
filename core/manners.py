@@ -31,6 +31,7 @@ GREET_OK = {"greet_morning": lambda h: 4 <= h < 12, "greet_night": lambda h: h >
 GREET_ODD = {"greet_morning": lambda h: 13 <= h < 18 or h >= 21, "greet_night": lambda h: 5 <= h < 17}
 GREET_WORD = {"greet_morning": "おはよう", "greet_night": "おやすみ"}
 # 謝罪の結果ごとの効き目 (メッセージ. その場で謝るのは反応の effects)
+THANKS_GRACE = 1800       # 謝罪の返事のあと, 連絡が多いうちに数えないお礼の間 (秒)
 APOLOGY_EFF = {"quick": {"mood": 4, "trust": 1}, "half": {"mood": 1}, "deeds": {}, "refuse": {"mood": -1},
                "enough": {"mood": -2}, "irritated": {"mood": -4, "stress": 3, "affection": -1}, "confused": {"mood": -1}}
 
@@ -103,6 +104,12 @@ class Manners:
         """謝ったばかり (1 日以内. 受け入れてもらえた) なのに, また同じこと."""
         al = st.get("apology_last") or {}
         return al.get("action") == action and now - al.get("t", 0) < 86400 and al.get("out") in ("quick", "half", "late", "deeds")
+
+    def thanks_grace(self, st, sent):
+        """謝罪の返事が来てから 30 分のうちに送った「ありがとう」1 通目: 連絡が多いうちに数えない
+        (許してくれたことへのお礼で「謝ったばかりなのに」まで言われないように. 2 通目からは今までどおり)."""
+        al = st.get("apology_last") or {}
+        return bool(al.get("t")) and 0 <= sent - al["t"] < THANKS_GRACE and not al.get("grace_used")
 
     # ------------------------------------------------------------------ お礼
     def favor(self, st, what, now):

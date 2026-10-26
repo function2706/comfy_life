@@ -1272,7 +1272,7 @@ class App:
             if p.get("affection", 50) < 40:
                 delay *= 2
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
-                * (0.7 if p.get("stress", 0) > 70 else 1) * (0.6 if ctx.get("too_often") else 1)
+                * (0.7 if p.get("stress", 0) > 70 else 1)                 * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
             quick = self._still_on_phone(char, st, now, scene, ctx)
             if quick:
                 delay = random.uniform(10, 90)
@@ -1330,6 +1330,7 @@ class App:
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
             else:
                 ctx["_meta"] = pend.get("meta") or {}
+                ctx["_sent"] = pend.get("t")
                 key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
             self.bonds.touch(st, now)

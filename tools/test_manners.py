@@ -107,6 +107,18 @@ def main():
         key, eff, _ = reply("smalltalk", t=now + 3600, ctx={"too_often": True})
         assert key == "too_often_again" and eff["mood"] < -2 and eff["trust"] < 0, (key, eff)
         assert reply("smalltalk", t=now + 7200, ctx={"too_often": True})[0] == "too_often", "一度だけ"
+        # 許してもらったすぐあとの「ありがとう」1 通目は, 連絡が多いうちに数えない (2 通目・時間がたってからは今までどおり)
+        r = fault(-2, action="_too_often")
+        M.apply_apology(char, st, {"out": "quick", "r": r}, now)
+        st["contacts"] = [now - 60 * i for i in range(12)] + [now + 600]
+        key, _, _ = reply("thanks", t=now + 900, ctx={"too_often": True, "_sent": now + 600})
+        assert key.startswith("thanks") and key != "thanks_unforgiven", key
+        assert now + 600 not in st["contacts"], "数えない"
+        assert reply("thanks", t=now + 1200, ctx={"too_often": True, "_sent": now + 1000})[0] == "too_often_again", "2 通目は今までどおり"
+        r = fault(-2, action="_too_often")
+        M.apply_apology(char, st, {"out": "quick", "r": r}, now)
+        assert reply("thanks", t=now + 3700, ctx={"too_often": True, "_sent": now + 3600})[0] == "too_often_again", "30 分より後は今までどおり"
+        print("謝罪のすぐあとのお礼: 連絡が多いうちに数えない")
         # 「態度で」: 連絡しすぎなら, しばらく連絡を控えると消える
         r = fault(-6, action="_too_often")
         M.apply_apology(char, st, {"out": "deeds", "r": r}, now)
