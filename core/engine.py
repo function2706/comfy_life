@@ -1495,11 +1495,11 @@ class App:
                 bad = L.dominant(st, now, "bad")
                 if bad and bad["kind"] == "event":
                     L.mark_told(bad)
-                    L.resolve(st, "bad", now)
+                    L.resolve(st, "bad", now, kind="event")       # 相談で和らぐのは出来事の理由だけ (あなたのせいの分は残る)
             elif ma == "apologize":
                 bad = L.dominant(st, now, "bad")
                 if bad and bad["kind"] == "player":
-                    L.resolve(st, "bad", now)
+                    L.resolve(st, "bad", now, kind="player")      # 謝って消えるのは あなたのせいの理由だけ
             return
         if a.get("request_answer") or a.get("category") == "system":
             return

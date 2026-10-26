@@ -162,7 +162,7 @@ class Chat:
         if kind == "apology":       # 謝るのは, 連絡が多いうちに数えない (連絡しすぎを謝るのも)
             bad = L.dominant(st, now, "bad")
             if bad and bad["kind"] == "player":            # あなたのせいで機嫌が悪い理由がある: 謝れば和らぐ
-                L.resolve(st, "bad", now)
+                L.resolve(st, "bad", now, kind="player")
                 return "apology", {"mood": 4, "trust": 1}, extra
             return "apology_confused", {"mood": -1}, extra
         if ctx.get("too_often"):

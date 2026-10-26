@@ -649,10 +649,11 @@ class Life:
             return None
         return max(rs, key=lambda r: (abs(r.get("delta", 0)) + (3 if not r["told"] else 0), r["t"]))
 
-    def resolve(self, st, mood, now):
-        """謝る・相談にのる などで, その向きの理由を解決済みにする."""
+    def resolve(self, st, mood, now, kind=None):
+        """謝る・相談にのる などで, その向きの理由を解決済みにする. kind を渡せば, その出どころの理由だけ
+        (謝って消えるのは あなたのせい (player) の理由だけ. 仕事の疲れなどは謝っても消えない)."""
         for r in self.reasons(st, now):
-            if r["mood"] == mood:
+            if r["mood"] == mood and (kind is None or r["kind"] == kind):
                 r["resolved"] = True
 
     def mark_told(self, r):
