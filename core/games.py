@@ -18,6 +18,7 @@ from .keys import line_keys
 from . import cards as CD
 from . import hanafuda as HF
 from . import mahjong as MJ
+from . import numeron as NM
 from . import yacht as YT
 
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
@@ -25,7 +26,7 @@ HANDS = ("rock", "scissors", "paper")
 DIRS = ("up", "down", "left", "right")
 CARD_KINDS = ("koikoi", "poker", "blackjack", "concentration", "oldmaid", "doubt")
 ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着する (脱衣 or 勝ち数/合計点)
-KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht") + CARD_KINDS
+KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht", "numeron") + CARD_KINDS
 STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
 BOARD_KINDS = ("connect4", "hex", "reversi")
 
@@ -201,6 +202,8 @@ class Games:
                 out["board"] = self._board_view(g, cur)
             if kind == "yacht":
                 out["yacht"] = self._yacht_view(cur)
+            if kind == "numeron":
+                out["nm"] = self._nm_view(cur)
         return {"list": games, "current": out}
 
     def start(self, gid, cid=None):
@@ -243,6 +246,9 @@ class Games:
                 hint = self._board_start(char, st, g, game)
             elif kind == "yacht":
                 hint = self._yacht_start(char, st, g, game)
+            elif kind == "numeron":
+                game["phase"] = "numeron"
+                game["nm"] = {"phase": "secret", "p": [], "a": [], "mine": None, "hers": None}
             elif kind in CARD_KINDS:
                 hint = self._cards_start(cid, char, st, g, game)
             else:
@@ -285,6 +291,8 @@ class Games:
                 r = self._move_board(cid, char, st, g, game, payload)
             elif kind == "yacht":
                 r = self._move_yacht(cid, char, st, g, game, payload)
+            elif kind == "numeron":
+                r = self._move_numeron(cid, char, st, g, game, payload)
             elif kind in CARD_KINDS:
                 r = self._move_cards(cid, char, st, g, game, payload)
             else:
@@ -838,6 +846,50 @@ class Games:
         if not hint and y["round"] % int(g.get("comment_every", 3)) == 0:
             diff = YT.totals(y["sheet"]["p"])["total"] - YT.totals(y["sheet"]["a"])["total"]
             hint = self._say(char, st, g, "mid", game, advantage=diff)
+        return {"entry": None, "job": None, "hint": hint, "ended": None}
+
+    # ================================================================== 数当て (Hit & Blow)
+    def nm_strength(self, char, st):
+        """推理の冴え (0〜1): 性格の traits.reason (控えめ) × 体力・眠気・機嫌."""
+        p = st["params"]
+        s = 0.75 * float(self.app.traits(char).get("reason", 1.0)) - max(0.0, p.get("sleepiness", 0) - 40) / 150.0 \
+            - max(0.0, 40 - p.get("energy", 70)) / 150.0 - (0.1 if p.get("mood", 50) < 30 else 0.0)
+        return max(0.0, min(1.0, s))
+
+    def _nm_view(self, game):
+        m = game.get("nm") or {}
+        return {"phase": m.get("phase"), "mine": m.get("mine"), "p": m.get("p", []), "a": m.get("a", []),
+                "hers": m.get("hers") if game.get("over") else None, "over": game.get("over")}
+
+    def _move_numeron(self, cid, char, st, g, game, payload):
+        m = game["nm"]
+        if game.get("over"):
+            raise ValueError("この勝負は終わっています")
+        act, val = payload.get("act"), str(payload.get("value") or "")
+        if act == "secret":
+            if m["phase"] != "secret" or not NM.valid(val):
+                raise ValueError("違う数字 3 つを選んでください")
+            m["mine"], m["hers"], m["phase"] = val, random.choice(NM.ALL), "guess"
+            return {"entry": None, "job": None, "hint": None, "ended": None}
+        if act != "guess" or m["phase"] != "guess":
+            raise ValueError("不明な操作です: %s" % act)
+        if not NM.valid(val):
+            raise ValueError("違う数字 3 つを言ってください")
+        h, b = NM.hb(m["hers"], val)
+        m["p"].append([val, h, b])
+        _, err = self._skill(g, st)
+        guess, left = NM.ai_guess([tuple(x) for x in m["a"]], self.nm_strength(char, st), err)
+        ah, ab = NM.hb(m["mine"], guess)
+        m["a"].append([guess, ah, ab])
+        hint = self._say(char, st, g, "near" if ah == 2 and h < 3 else "guess", game, guess=guess)
+        if h == 3 or ah == 3:
+            result = "draw" if h == 3 and ah == 3 else "win" if h == 3 else "lose"
+            game["over"] = result
+            m["phase"] = "over"
+            line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+            entry, job = self._record(cid, char, st, g, line, {"turns": len(m["p"])}, "", result,
+                                      "（%d 手目）" % len(m["p"]))
+            return {"entry": entry, "job": job, "ended": result, "hint": None}
         return {"entry": None, "job": None, "hint": hint, "ended": None}
 
     # ================================================================== カード系 共通

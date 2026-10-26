@@ -28,7 +28,8 @@
   "punctual": 0.85,
   "modesty": 0,
   "grudge": 0.85,
-  "poker": 1.2
+  "poker": 1.2,
+  "reason": 1.1
  },
  "lines": {
   "look.free_true": [

@@ -683,6 +683,15 @@ a.btn { color: inherit; }
 .pz-c.g2.v1024 { background: #d8b22c; color: #222; } .pz-c.g2.v2048, .pz-c.g2.v4096 { background: #e6c53a; color: #222; }
 .pz-c.g2.goal { box-shadow: 0 0 0 2px var(--accent); }
 .g2-pad { gap: 6px; justify-content: center; }
+.nm-pad { display: grid; grid-template-columns: repeat(6, 44px); gap: 6px; justify-content: center; margin: 8px 0; }
+.nm-pad .btn { padding: 8px 0; font-size: 16px; }
+.nm-slots { display: flex; gap: 6px; justify-content: center; }
+.nm-slot { width: 40px; height: 46px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-variant-numeric: tabular-nums; background: var(--panel2); }
+.nm-cols { display: flex; gap: 16px; justify-content: center; margin: 8px 0; flex-wrap: wrap; }
+.nm-hist { border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 130px; }
+.nm-hist th, .nm-hist td { padding: 3px 8px; border-bottom: 1px dashed var(--line); text-align: center; }
+.nm-hist tr.hit td { color: var(--accent); font-weight: 700; }
 .sol { --ch: calc(var(--cw) * 1.42); display: flex; flex-direction: column; gap: 10px; user-select: none; touch-action: none; }
 .sol-top { display: flex; gap: 4px; align-items: flex-start; }
 .sol-gap { flex: 1; }

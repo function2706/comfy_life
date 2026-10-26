@@ -1544,5 +1544,84 @@
     }
    ]
   }
+ },
+ {
+  "id": "numeron",
+  "kind": "numeron",
+  "name": "数当て（Hit & Blow）",
+  "icon": "🔢",
+  "desc": "0〜9 の違う数字 3 つを当て合う。数字も場所も合えばヒット、数字だけ合えばブロー。先に 3 ヒットしたほうの勝ち（あなたが先に言うので、同じ手数なら引き分け）。{name}の推理の冴えは性格や疲れしだい。",
+  "require": "free=true",
+  "when": "",
+  "err": 0.05,
+  "pos": "sitting at table, notebook, pencil, thinking, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 1,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 5
+   },
+   "draw": {
+    "mood": 3
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "数当てですね。{fp}の数、当てられますか？",
+     "pos": "smile, holding pencil"
+    }
+   ],
+   "guess": [
+    {
+     "text": "うーん……じゃあ、{guess}で。",
+     "pos": "thinking, finger on chin"
+    }
+   ],
+   "near": [
+    {
+     "text": "あと少しな気がします……{guess}！",
+     "pos": "excited, leaning forward"
+    }
+   ],
+   "win": [
+    {
+     "text": "うぅ、先に当てられちゃいました……。",
+     "pos": "pout"
+    }
+   ],
+   "lose": [
+    {
+     "text": "当たりです！ {fp}の勝ちですね。",
+     "pos": "cheering, v"
+    }
+   ],
+   "draw": [
+    {
+     "text": "同じ手数で当たり……引き分けですね。",
+     "pos": "laughing"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
  }
 ]

@@ -28,6 +28,7 @@ function renderGames() {
   if (cur.kind === 'mahjong') { box.replaceChildren(renderMahjong(cur)); return; }
   if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(renderBoard(cur)); return; }
   if (cur.kind === 'yacht') { box.replaceChildren(renderYacht(cur)); return; }
+  if (cur.kind === 'numeron') { box.replaceChildren(renderNumeron(cur)); return; }
   if (cur.cards) { box.replaceChildren(renderCardGame(cur)); return; }
   const name = S.view.name;
   let score;
@@ -219,6 +220,31 @@ function renderBoard(cur) {
     { win: '🎉 あなたの勝ち！', lose: '😵 あなたの負け…', draw: '🤝 引き分け' }[b.over]) : '';
   return h('div', { class: 'board' }, boardHead(cur), legend, res,
     S.gameHint && !b.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '', grid);
+}
+
+/* ---- 数当て (Hit & Blow): 数字ボタンで 3 つ選ぶ (同じ数字は使えない). 履歴はあなたの言った数と相手の言った数を並べる */
+function renderNumeron(cur) {
+  const m = cur.nm, name = S.view.name;
+  S.nmPick = S.nmPick || '';
+  const pick = S.nmPick, busy = S.busy || m.over;
+  const send = (act) => { const value = S.nmPick; S.nmPick = ''; gameAct('/api/game/move', { act, value }); };
+  const pad = h('div', { class: 'nm-pad' }, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => h('button', { class: 'btn', disabled: busy || pick.includes(String(d)) || pick.length >= 3,
+    onclick: () => { S.nmPick += String(d); renderGames(); } }, String(d))),
+  h('button', { class: 'btn ghost', disabled: busy || !pick, onclick: () => { S.nmPick = S.nmPick.slice(0, -1); renderGames(); } }, '⌫'));
+  const slots = h('div', { class: 'nm-slots' }, [0, 1, 2].map((i) => h('span', { class: 'nm-slot' }, pick[i] || '')));
+  const hist = (rows, who) => h('table', { class: 'nm-hist' }, h('thead', {}, h('tr', {}, h('th', {}, who), h('th', {}, 'H'), h('th', {}, 'B'))),
+    h('tbody', {}, rows.map(([g, hh, b]) => h('tr', { class: hh === 3 ? 'hit' : '' }, h('td', {}, g), h('td', {}, hh), h('td', {}, b)))));
+  const res = m.over ? h('div', { class: 'hint-bubble', style: 'text-align:center' },
+    { win: '🎉 あなたの勝ち！', lose: '😵 あなたの負け…', draw: '🤝 引き分け' }[m.over] + `（${name}の数は ${m.hers}）`) : '';
+  const body = m.phase === 'secret'
+    ? [h('p', { class: 'muted small' }, `まず、${name}に当ててもらうあなたの数（違う数字 3 つ）を決めます`), slots, pad,
+      h('div', { class: 'row', style: 'justify-content:center' }, h('button', { class: 'btn primary', disabled: busy || pick.length !== 3, onclick: () => send('secret') }, 'この数にする'))]
+    : [h('div', { class: 'muted small', style: 'text-align:center' }, `あなたの数：${m.mine}`),
+      h('div', { class: 'nm-cols' }, hist(m.p, 'あなた'), hist(m.a, name)),
+      m.over ? '' : [slots, pad, h('div', { class: 'row', style: 'justify-content:center' },
+        h('button', { class: 'btn primary', disabled: busy || pick.length !== 3, onclick: () => send('guess') }, `${pick.length === 3 ? pick : '3 つ選んで'} と言う`))]];
+  return h('div', { class: 'board' }, boardHead(Object.assign({}, cur, { board: { over: m.over } }), h('span', { class: 'muted small' }, `${m.p.length} 手目`)),
+    res, S.gameHint && !m.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '', body);
 }
 
 /* ---- ヨット */
