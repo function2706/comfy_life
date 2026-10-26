@@ -1095,6 +1095,21 @@
    "{call}のせいじゃないだろう。……だが、ありがとう。",
    "{call}が謝ることじゃない。……その気持ちだけ、受け取っておく。"
   ],
+  "apologize.apology_deeds": [
+   "謝るなら、言葉より行動で示してくれ。"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、その話はいい。"
+  ],
+  "apologize.apology_late": [
+   "今さらか。……まあ、いい。受け取っておく。"
+  ],
+  "apologize.apology_enough": [
+   "もういいと言っただろう。何度も頭を下げるな。"
+  ],
+  "apologize.apology_irritated": [
+   "……だから、もういいと言っている。くどいぞ。"
+  ],
   "comfort.default": [
    "相談？ 今は特に悩みはないぞ。……だが、ありがとう。"
   ],
@@ -1752,6 +1767,81 @@
   ],
   "chat.stamp": [
    "📱『（敬礼のスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……ああ。だが、まだ全部は飲み込めていない』"
+  ],
+  "chat.apology_deeds": [
+   "📱『謝るなら、言葉より行動で示してくれ』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今は、その話はいい』"
+  ],
+  "chat.apology_late": [
+   "📱『今さらか。……まあ、いい。受け取っておく』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいと言っただろう。何度も頭を下げるな』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……だから、もういいと言っている。くどいぞ』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばかりだろう。……またか』"
+  ],
+  "chat.thanks_what": [
+   "📱『何の礼だ？ 覚えがないぞ』"
+  ],
+  "chat.thanks_again": [
+   "📱『それはもう聞いた。何度言うつもりだ』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよう……今何時だと思っている？ 寝ぼけてるのか』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『もう寝るのか？ まだ早いぞ』"
+  ],
+  "chat.greet_again": [
+   "📱『それはさっきも聞いた』"
+  ],
+  "chat.stamp_only": [
+   "📱『……スタンプだけか。言いたいことは言葉で言え』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプを続けて送るな。通知がうるさい』"
+  ],
+  "chat.may_call_ok": [
+   "📱『ああ、いいぞ。かけてこい』"
+  ],
+  "chat.may_call_later": [
+   "📱『すまない、今は手が離せない。あとでこっちからかける』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがとう。ちょうど終わったところだ』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何の話だ？』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にかけてくれていたのか。ありがとう。少し楽になった』"
+  ],
+  "chat.you_ok_what": [
+   "📱『何がだ？ 別に、何ともない』"
+  ],
+  "chat.what_doing": [
+   "📱『今か？ {doing}だ。どうした？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『なぜそういちいち聞く。見張られているようで落ち着かない』"
+  ],
+  "chat.nudge_ok": [
+   "📱『すまない。今返す』"
+  ],
+  "chat.nudge_bad": [
+   "📱『少し待て。急かされても早くはならない』"
+  ],
+  "chat.nudge_huh": [
+   "📱『？ もう返したぞ。確認してくれ』"
   ],
   "chat.selfie_yes": [
    "📱『こんなのでいいのか？ ……ほら』"

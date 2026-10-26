@@ -1370,6 +1370,21 @@
    "{call}のせいじゃないじゃん。……でも、ありがと。",
    "なんで{call}が謝んのさ。……ばーか。ちょっと元気出た。"
   ],
+  "apologize.apology_deeds": [
+   "ごめんで済むと思ってんの？ 次から態度で見せなさいよ。"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、いい。聞きたくない。"
+  ],
+  "apologize.apology_late": [
+   "今さら？ 遅いっての。……まあ、いいけど。"
+  ],
+  "apologize.apology_enough": [
+   "もういいって。何回謝んのよ。"
+  ],
+  "apologize.apology_irritated": [
+   "……だから、もういいって言ってんでしょ。しつこい。"
+  ],
   "comfort.default": [
    "相談？ 今は別に悩みとかないって。……でも、ありがと。"
   ],
@@ -2045,6 +2060,81 @@
   ],
   "chat.stamp": [
    "📱『（あっかんべーのスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……ん。まあ、わかったけど』"
+  ],
+  "chat.apology_deeds": [
+   "📱『ごめんで済むと思ってんの？ 次から態度で見せなさいよ』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今はそういうの、いい』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ 遅いっての。……まあ、いいけど』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいって。何回謝んのよ』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……だから、もういいって言ってんでしょ。しつこい』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばっかでしょ。またなの？』"
+  ],
+  "chat.thanks_what": [
+   "📱『え、なに？ 何のお礼？』"
+  ],
+  "chat.thanks_again": [
+   "📱『それもう聞いた。何回言うのよ』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよ……って、今何時だと思ってんの？ 寝すぎ』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『え、もう寝んの？ 早すぎでしょ』"
+  ],
+  "chat.greet_again": [
+   "📱『さっきも言ったじゃん。ボケてんの？』"
+  ],
+  "chat.stamp_only": [
+   "📱『……スタンプだけ？ なんか言いなさいよ』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプ連打やめて。うるさい』"
+  ],
+  "chat.may_call_ok": [
+   "📱『いいよ。かけてきな』"
+  ],
+  "chat.may_call_later": [
+   "📱『ごめん、今無理。あとで』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがと。ちょうど終わったとこ。よくわかったじゃん』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ なにが？』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてくれてたんだ。……ありがと。ちょっと楽になった』"
+  ],
+  "chat.you_ok_what": [
+   "📱『え、なにが？ べつになんともないけど』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}だけど。なに？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『なんでいちいち聞くのよ。見張ってんの？』"
+  ],
+  "chat.nudge_ok": [
+   "📱『あ、ごめん。今返す』"
+  ],
+  "chat.nudge_bad": [
+   "📱『ちょっと待ってって。急かさないでよ』"
+  ],
+  "chat.nudge_huh": [
+   "📱『は？ 返したじゃん。見てないの？』"
   ],
   "chat.selfie_yes": [
    "📱『はいはい、撮ったよ。……変な顔って言ったら怒るからね』"

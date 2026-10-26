@@ -279,6 +279,21 @@
   "apologize.cause_event__knows_true": [
    "{call}のせいじゃないわよ。……でも、そうやってしおらしい{call}は見てて楽しいわ。"
   ],
+  "apologize.apology_deeds": [
+   "謝るだけなら簡単よね。態度で見せてごらんなさい。"
+  ],
+  "apologize.apology_refuse": [
+   "……今は聞く気分じゃないの。黙ってなさい。"
+  ],
+  "apologize.apology_late": [
+   "今さら？ ずいぶん待たせたわね。……まあ、いいわ。"
+  ],
+  "apologize.apology_enough": [
+   "もういいって言ってるでしょう。何回謝れば気が済むの？"
+  ],
+  "apologize.apology_irritated": [
+   "……しつこいわね。もういいって言ったはずよ。"
+  ],
   "comfort.default": [
    "相談？ 今は悩みなんてないわ。{call}のほうこそ、困ったら{fp}に泣きつきなさい。"
   ],
@@ -1706,6 +1721,81 @@
   ],
   "chat.stamp": [
    "📱『（鞭を振るスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……ふうん。半分だけ、許してあげる』"
+  ],
+  "chat.apology_deeds": [
+   "📱『謝るだけなら簡単よね。態度で見せてごらんなさい』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今は聞く気分じゃないの。黙ってなさい』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ ずいぶん待たせたわね。……まあ、いいわ』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいって言ってるでしょう。何回謝れば気が済むの？』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……しつこいわね。もういいって言ったはずよ』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばかりでしょう？ 躾が足りなかったかしら』"
+  ],
+  "chat.thanks_what": [
+   "📱『何のお礼？ 心当たりのないお礼なんて、気持ち悪いわよ』"
+  ],
+  "chat.thanks_again": [
+   "📱『それはもう聞いたわ。何回言わせたいの？』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよう……って、今何時だと思ってるの？ だらしない子ね』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『もう寝るの？ ずいぶんお子さまね』"
+  ],
+  "chat.greet_again": [
+   "📱『さっきも聞いたわよ。そんなに{fp}に言いたかったの？』"
+  ],
+  "chat.stamp_only": [
+   "📱『スタンプだけ？ {fp}を相手に、ずいぶん手を抜くのね』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプ連打はやめなさい。お行儀が悪いわよ』"
+  ],
+  "chat.may_call_ok": [
+   "📱『いいわ。かけてきなさい』"
+  ],
+  "chat.may_call_later": [
+   "📱『今はだめ。待ってなさい』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがとう。ちょうど終わったところよ。よく見てるじゃない』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何のこと？ 的外れね』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてたの？ ……ふうん。ありがと。少し楽になったわ』"
+  ],
+  "chat.you_ok_what": [
+   "📱『何が？ {fp}は何ともないわよ』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}よ。気になるの？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『いちいち聞かないで。束縛は{fp}の役目よ』"
+  ],
+  "chat.nudge_ok": [
+   "📱『あら、ごめんなさい。今返すわ』"
+  ],
+  "chat.nudge_bad": [
+   "📱『待ちなさい。急かす子は嫌いよ』"
+  ],
+  "chat.nudge_huh": [
+   "📱『？ もう返したわよ。よく見なさい』"
   ],
   "chat.selfie_yes": [
    "📱『ふふ、見たかったんでしょ？ ほら、どうぞ』"

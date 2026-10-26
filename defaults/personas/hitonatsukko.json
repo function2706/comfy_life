@@ -274,6 +274,21 @@
   "apologize.cause_event__knows_true": [
    "{call}のせいじゃないよ。……でも、ありがと。"
   ],
+  "apologize.apology_deeds": [
+   "ごめんだけじゃなくて、次から態度で見せてよね？"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、いいや。聞きたくない。"
+  ],
+  "apologize.apology_late": [
+   "今さら？ ……もー。まあ、いいけど。"
+  ],
+  "apologize.apology_enough": [
+   "もういいってー。何回謝るの？"
+  ],
+  "apologize.apology_irritated": [
+   "……だから、もういいって言ってるじゃん。しつこいよ。"
+  ],
   "comfort.default": [
    "相談？ 今はとくに悩みないよ。……でも、ありがとね。"
   ],
@@ -1697,6 +1712,81 @@
   ],
   "chat.stamp": [
    "📱『（抱きつくスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……うん。……まだちょっと、もやもやしてるけどね』"
+  ],
+  "chat.apology_deeds": [
+   "📱『ごめんだけじゃなくて、次から態度で見せてよね？』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今はそういうの、いいや』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ ……もー。まあ、いいけど』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいってー。何回謝るの？』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……だから、もういいって言ってるじゃん。しつこいよ』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばっかなのに、またー？ ちょっとショック』"
+  ],
+  "chat.thanks_what": [
+   "📱『え、なになに？ {fp}何かしたっけ？』"
+  ],
+  "chat.thanks_again": [
+   "📱『それもう聞いたよー。何回言うの？』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよー……って、もうそんな時間じゃないよ？ 寝坊？』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『え、もう寝ちゃうの？ まだ話したいのにー』"
+  ],
+  "chat.greet_again": [
+   "📱『さっきも言ってくれたよー？ 二回目！』"
+  ],
+  "chat.stamp_only": [
+   "📱『……スタンプだけ？ ちゃんとお返事ほしいなー』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプ連打やめてー！ 通知止まんない！』"
+  ],
+  "chat.may_call_ok": [
+   "📱『いいよー！ かけてかけて！』"
+  ],
+  "chat.may_call_later": [
+   "📱『ごめん、今ちょっと無理！ あとでね！』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがとー！ ちょうど終わったとこ！ {call}もお疲れさま！』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何が？ 今日なんもしてないよ？』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてくれてたの？ ありがと、なんか元気出た』"
+  ],
+  "chat.you_ok_what": [
+   "📱『え、何が？ 元気だよー？』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}だよー。{call}は？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『なんでそんなにいちいち聞くのー？ 見張られてるみたいでやだなぁ』"
+  ],
+  "chat.nudge_ok": [
+   "📱『あ、ごめん！ 今返すね！』"
+  ],
+  "chat.nudge_bad": [
+   "📱『ちょっと待ってってばー。急かさないでよ』"
+  ],
+  "chat.nudge_huh": [
+   "📱『え？ 返したじゃん。見てないの？』"
   ],
   "chat.selfie_yes": [
    "📱『はーい、撮った！ どう？ かわいい？』"

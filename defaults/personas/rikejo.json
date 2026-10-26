@@ -276,6 +276,21 @@
   "apologize.cause_event__knows_true": [
    "{call}のせいじゃないよ。原因は別。……でも、ありがとう。"
   ],
+  "apologize.apology_deeds": [
+   "謝罪は入力。結果は行動で出力して。"
+  ],
+  "apologize.apology_refuse": [
+   "……今はその話、処理できない。"
+  ],
+  "apologize.apology_late": [
+   "今さら？ 応答時間、長すぎ。……まあ、受理する。"
+  ],
+  "apologize.apology_enough": [
+   "もういいって。同じ謝罪の繰り返しは冗長。"
+  ],
+  "apologize.apology_irritated": [
+   "……だから、もういいって言った。ループしてる。"
+  ],
   "comfort.default": [
    "相談？ 今は特に悩みはないよ。……でも、ありがとう。"
   ],
@@ -1700,6 +1715,81 @@
   ],
   "chat.stamp": [
    "📱『（フラスコのスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……了解。ただ、問題は半分しか解決してない』"
+  ],
+  "chat.apology_deeds": [
+   "📱『謝罪は入力。結果は行動で出力して』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今はその話、処理できない』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ 応答時間、長すぎ。……まあ、受理する』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいって。同じ謝罪の繰り返しは冗長』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……だから、もういいって言った。ループしてる』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばかりなのに、同じ条件で同じ失敗。再発防止策は？』"
+  ],
+  "chat.thanks_what": [
+   "📱『何に対するお礼？ 該当する事象が見つからない』"
+  ],
+  "chat.thanks_again": [
+   "📱『それ、もう受信済み。何回言うの』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよう……時刻、確認して。もうそんな時間じゃない』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『もう寝るの？ 就寝には早すぎる』"
+  ],
+  "chat.greet_again": [
+   "📱『それ、さっきも聞いた。同じ入力』"
+  ],
+  "chat.stamp_only": [
+   "📱『スタンプだけ？ 情報量がほぼゼロ』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプ連投やめて。通知が飽和してる』"
+  ],
+  "chat.may_call_ok": [
+   "📱『いいよ。かけて』"
+  ],
+  "chat.may_call_later": [
+   "📱『今は無理。あとで』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがと。ちょうど終わったとこ。……よく把握してたね』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何に対するお疲れさま？ 前提がわからない』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてくれてたんだ。ありがと。数値には出ないけど、少し楽になった』"
+  ],
+  "chat.you_ok_what": [
+   "📱『何が？ 異常なし』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}だよ。{call}は？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『なんで何回も聞くの？ 監視されてるみたいで集中できない』"
+  ],
+  "chat.nudge_ok": [
+   "📱『ごめん、今返す』"
+  ],
+  "chat.nudge_bad": [
+   "📱『待って。催促しても処理速度は上がらない』"
+  ],
+  "chat.nudge_huh": [
+   "📱『？ もう返した。ログを確認して』"
   ],
   "chat.selfie_yes": [
    "📱『サンプル一枚、送付。……そんなに見てどうするの』"

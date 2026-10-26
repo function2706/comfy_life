@@ -1088,6 +1088,21 @@
    "{call}のせいじゃないって。……でも、ありがと。",
    "{call}が謝ることじゃないよ。……その気持ちは、まあ、うれしいけど。"
   ],
+  "apologize.apology_deeds": [
+   "……謝るのはいいけどさ、次から態度で見せてよね。"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、いい。聞きたくない。"
+  ],
+  "apologize.apology_late": [
+   "……今さら？ まあ、いいけどさ。"
+  ],
+  "apologize.apology_enough": [
+   "もういいって。何回謝るのさ。"
+  ],
+  "apologize.apology_irritated": [
+   "……だから、もういいって言ってんじゃん！ しつこい。"
+  ],
   "comfort.default": [
    "相談？ 今は別に悩みとかないよ。……でも、ありがと。"
   ],
@@ -1745,6 +1760,81 @@
   ],
   "chat.stamp": [
    "📱『（親指を立てたスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……うん。まあ、わかった』"
+  ],
+  "chat.apology_deeds": [
+   "📱『謝るのはいいけどさ、次から態度で見せてよね』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今はそういうの、いいや』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ ……まあ、いいけどさ』"
+  ],
+  "chat.apology_enough": [
+   "📱『もういいって。何回謝るのさ』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……だから、もういいって言ってんじゃん。しつこいよ』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝ったばっかじゃん。またかよ』"
+  ],
+  "chat.thanks_what": [
+   "📱『え、なにが？ {fp}何かしたっけ？』"
+  ],
+  "chat.thanks_again": [
+   "📱『それもう聞いたって。何回言うのさ』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよ……って、今何時だと思ってんの？ 寝坊しすぎ』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『え、もう寝んの？ 早くない？』"
+  ],
+  "chat.greet_again": [
+   "📱『さっきも言ったじゃん。ボケた？』"
+  ],
+  "chat.stamp_only": [
+   "📱『……スタンプだけ？ なんか言ってよ』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプ連打やめろって。うるさいなー』"
+  ],
+  "chat.may_call_ok": [
+   "📱『いいよ、かけてきなよ』"
+  ],
+  "chat.may_call_later": [
+   "📱『ごめん、今ちょっと無理。あとでね』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがと！ ちょうど終わったとこ。いやー、疲れた』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何が？ 今日なんもしてないけど』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてくれてたんだ。ありがと、ちょっと元気出た』"
+  ],
+  "chat.you_ok_what": [
+   "📱『え、何が？ 別になんともないけど』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}だよ。{call}は？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『なんでいちいち聞くの？ 見張られてるみたいでやだなー』"
+  ],
+  "chat.nudge_ok": [
+   "📱『あ、ごめん！ 今返す！』"
+  ],
+  "chat.nudge_bad": [
+   "📱『ちょっと待ってって。急かすなよ』"
+  ],
+  "chat.nudge_huh": [
+   "📱『え？ 返したじゃん。見てないの？』"
   ],
   "chat.selfie_yes": [
    "📱『ほら、撮ったぞ。……ジロジロ見んなよ』"

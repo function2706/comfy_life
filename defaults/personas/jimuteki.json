@@ -1093,6 +1093,21 @@
    "{call}のせいじゃないわ。……でも、ありがとう。",
    "{call}が謝る案件じゃない。……その気持ちは、うれしかったわ。"
   ],
+  "apologize.apology_deeds": [
+   "謝罪は受け取った。あとは行動で示して。"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、その件を処理する余裕がないわ。"
+  ],
+  "apologize.apology_late": [
+   "今さら？ 対応が遅いわ。……まあ、受け取っておく。"
+  ],
+  "apologize.apology_enough": [
+   "謝罪は一度で十分よ。繰り返さなくていい。"
+  ],
+  "apologize.apology_irritated": [
+   "……もういいと言ったはずよ。同じやり取りは不要。"
+  ],
   "comfort.default": [
    "相談？ 現時点で懸案事項はないわ。……でも、ありがとう。"
   ],
@@ -1750,6 +1765,81 @@
   ],
   "chat.stamp": [
    "📱『（「了解」のスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……了解。ただ、全部は解消していないわ』"
+  ],
+  "chat.apology_deeds": [
+   "📱『謝罪は受け取った。あとは行動で示して』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今は、その件を処理する余裕がないわ』"
+  ],
+  "chat.apology_late": [
+   "📱『今さら？ 対応が遅いわ。……まあ、受け取っておく』"
+  ],
+  "chat.apology_enough": [
+   "📱『謝罪は一度で十分よ。繰り返さなくていい』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……もういいと言ったはずよ。同じやり取りは不要』"
+  ],
+  "chat.too_often_again": [
+   "📱『謝罪の直後に同じことを繰り返すのは、さすがに看過できないわ』"
+  ],
+  "chat.thanks_what": [
+   "📱『何に対するお礼？ 心当たりがないわ』"
+  ],
+  "chat.thanks_again": [
+   "📱『それは受領済みよ。何回言うの』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『おはよう……時刻を確認して。もうそんな時間じゃないわ』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『もう寝るの？ 就寝には早すぎるわ』"
+  ],
+  "chat.greet_again": [
+   "📱『それ、さっきも受け取ったわ』"
+  ],
+  "chat.stamp_only": [
+   "📱『スタンプだけ？ 返答としては情報が足りないわ』"
+  ],
+  "chat.stamp_spam": [
+   "📱『スタンプの連続送信はやめて。通知が埋まる』"
+  ],
+  "chat.may_call_ok": [
+   "📱『了解。どうぞ』"
+  ],
+  "chat.may_call_later": [
+   "📱『今は対応できないわ。あとで』"
+  ],
+  "chat.otsukare": [
+   "📱『ありがとう。ちょうど終わったところよ』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『？ 何に対するお疲れさま？ 状況が把握できないわ』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にかけてくれてたのね。ありがとう。少し楽になったわ』"
+  ],
+  "chat.you_ok_what": [
+   "📱『何が？ 特に問題はないわ』"
+  ],
+  "chat.what_doing": [
+   "📱『今？ {doing}よ。用件は？』"
+  ],
+  "chat.what_doing_much": [
+   "📱『同じ質問が多いわ。監視されているみたいで落ち着かない』"
+  ],
+  "chat.nudge_ok": [
+   "📱『失礼。今返すわ』"
+  ],
+  "chat.nudge_bad": [
+   "📱『少し待って。催促されても処理は早くならないわ』"
+  ],
+  "chat.nudge_huh": [
+   "📱『？ 返信済みよ。確認して』"
   ],
   "chat.selfie_yes": [
    "📱『要望を受理。画像を送付するわ』"

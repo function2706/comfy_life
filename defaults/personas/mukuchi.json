@@ -1094,6 +1094,21 @@
    "{call}のせいじゃ、ない。……でも、ありがと。（少しだけ、表情がやわらいだ）",
    "{call}が謝ること、ない。……その気持ちは、うれしい。（肩を、こつんと寄せてきた）"
   ],
+  "apologize.apology_deeds": [
+   "……言葉より、態度。（じっとこちらを見ている）"
+  ],
+  "apologize.apology_refuse": [
+   "……今は、いい。（背中を向けたまま）"
+  ],
+  "apologize.apology_late": [
+   "……今さら。……でも、いい。（小さく息をついた）"
+  ],
+  "apologize.apology_enough": [
+   "……もういい。何回も、いらない。"
+  ],
+  "apologize.apology_irritated": [
+   "……もういいって、言った。（眉が少し寄った）"
+  ],
   "comfort.default": [
    "相談……？ いまは、ない。……でも、ありがと。（ちょっとだけ、目元が笑った）"
   ],
@@ -1751,6 +1766,81 @@
   ],
   "chat.stamp": [
    "📱『（小さく手を振るスタンプが返ってきた）』"
+  ],
+  "chat.apology_half": [
+   "📱『……うん』"
+  ],
+  "chat.apology_deeds": [
+   "📱『……言葉より、態度』"
+  ],
+  "chat.apology_refuse": [
+   "📱『……今は、いい』"
+  ],
+  "chat.apology_late": [
+   "📱『……今さら。……でも、いい』"
+  ],
+  "chat.apology_enough": [
+   "📱『……もういい。何回も、いらない』"
+  ],
+  "chat.apology_irritated": [
+   "📱『……もういいって、言った』"
+  ],
+  "chat.too_often_again": [
+   "📱『……謝ったばかり。……また？』"
+  ],
+  "chat.thanks_what": [
+   "📱『……？ 何の？』"
+  ],
+  "chat.thanks_again": [
+   "📱『……聞いた。何回も、いい』"
+  ],
+  "chat.greet_odd_morning": [
+   "📱『……おはよう。……もう、朝じゃない』"
+  ],
+  "chat.greet_odd_night": [
+   "📱『……もう、寝るの？ ……早い』"
+  ],
+  "chat.greet_again": [
+   "📱『……さっきも、聞いた』"
+  ],
+  "chat.stamp_only": [
+   "📱『……スタンプだけ？』"
+  ],
+  "chat.stamp_spam": [
+   "📱『……スタンプ、多い』"
+  ],
+  "chat.may_call_ok": [
+   "📱『……いい。待ってる』"
+  ],
+  "chat.may_call_later": [
+   "📱『……今、無理。……あとで』"
+  ],
+  "chat.otsukare": [
+   "📱『……ありがと。……ちょうど、終わった』"
+  ],
+  "chat.otsukare_odd": [
+   "📱『……？ 何が？』"
+  ],
+  "chat.you_ok": [
+   "📱『……気にしてた？ ……ありがと』"
+  ],
+  "chat.you_ok_what": [
+   "📱『……何が？ ……なにも、ない』"
+  ],
+  "chat.what_doing": [
+   "📱『……{doing}』"
+  ],
+  "chat.what_doing_much": [
+   "📱『……何回も、聞かないで』"
+  ],
+  "chat.nudge_ok": [
+   "📱『……ごめん。今、返す』"
+  ],
+  "chat.nudge_bad": [
+   "📱『……待って。急かさないで』"
+  ],
+  "chat.nudge_huh": [
+   "📱『……返した。……見て』"
   ],
   "chat.selfie_yes": [
    "📱『……とった。（少しだけピースしている）』"
