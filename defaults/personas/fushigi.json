@@ -1399,6 +1399,81 @@
   "mg.oldmaid.interrupted.default": [
    "あ、そろそろ行かないと……。続きは、また今度ね。"
   ],
+  "mg.doubt.start.default": [
+   "ダウト……嘘と本当のあいだを、ふわふわ行き来する遊びだね"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（ふわりと笑ったまま、視線が窓の外へ逃げていった）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（どこか遠くを見るような顔で、札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "あ……ばれた。嘘って、すぐに透けちゃうね"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダウト。……ほら、嘘の匂いがしたの"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト……あれ、本当だった。札がたくさん降ってきた"
+  ],
+  "mg.doubt.you_miss.default": [
+   "本当だよ。全部、{call}のところへ流れていくね"
+  ],
+  "mg.doubt.win.default": [
+   "負けちゃった。{call}の目、よく見えてるね"
+  ],
+  "mg.doubt.lose.default": [
+   "あがり。嘘はね、風の向きでわかるの"
+  ],
+  "mg.doubt.quit.default": [
+   "また遊ぼうね。カードが待ってる"
+  ],
+  "mg.doubt.interrupted.default": [
+   "あ、そろそろ行かなきゃ……続きは、また今度"
+  ],
+  "mg.numeron.start.default": [
+   "数当てだね。{fp}の数、どこに隠れてると思う？"
+  ],
+  "mg.numeron.guess.default": [
+   "なんとなく……{guess}"
+  ],
+  "mg.numeron.near.default": [
+   "近づいてる気がする……{guess}"
+  ],
+  "mg.numeron.win.default": [
+   "先に見つけられちゃった。{call}、勘がいいね"
+  ],
+  "mg.numeron.lose.default": [
+   "当たり。{fp}、数字の声が聞こえたの"
+  ],
+  "mg.numeron.draw.default": [
+   "同じ回数で当たり……数字もおそろいだね"
+  ],
+  "mg.numeron.quit.default": [
+   "数字って、かわいいね。また遊ぼう"
+  ],
+  "mg.numeron.interrupted.default": [
+   "あ、そろそろ行かなきゃ……続きは、また今度"
+  ],
+  "mg.speed.start.default": [
+   "スピード……くるくる回る遊びだね"
+  ],
+  "mg.speed.speed.default": [
+   "スピード！"
+  ],
+  "mg.speed.win.default": [
+   "{call}、風みたいに速い……{fp}の負け"
+  ],
+  "mg.speed.lose.default": [
+   "あがり。今日は指が軽かったの"
+  ],
+  "mg.speed.quit.default": [
+   "目が回っちゃった。でも楽しかった"
+  ],
+  "mg.speed.interrupted.default": [
+   "あ、そろそろ行かなきゃ……続きは、また今度"
+  ],
   "ap.chat.call": [
    "ねえ、{call}。いま、ちょっとお話しない？ 話したいことがね、さっき窓から入ってきたの。",
    "{call}。……ふむ、お話したい気分。少し、いい？"

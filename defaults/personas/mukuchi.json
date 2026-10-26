@@ -870,6 +870,81 @@
   "mg.oldmaid.interrupted.default": [
    "……ごめん、時間。また、続き。（トランプの束を{call}にあずけた）"
   ],
+  "mg.doubt.start.default": [
+   "……ダウト。……見抜く"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（無表情のまま、耳だけが少し赤くなった）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（表情を変えずに、札をそっと置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "……ばれた"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "……ダウト。……嘘"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "……ダウト。……本当だった。……引き取る"
+  ],
+  "mg.doubt.you_miss.default": [
+   "……本当。……全部、あげる"
+  ],
+  "mg.doubt.win.default": [
+   "……負け。……{call}、すごい"
+  ],
+  "mg.doubt.lose.default": [
+   "……あがり。……勝った"
+  ],
+  "mg.doubt.quit.default": [
+   "……また、やる"
+  ],
+  "mg.doubt.interrupted.default": [
+   "……時間。……また今度"
+  ],
+  "mg.numeron.start.default": [
+   "……数当て。……当てて"
+  ],
+  "mg.numeron.guess.default": [
+   "……{guess}"
+  ],
+  "mg.numeron.near.default": [
+   "……近い。……{guess}"
+  ],
+  "mg.numeron.win.default": [
+   "……先に、当てられた"
+  ],
+  "mg.numeron.lose.default": [
+   "……当たり。……勝ち"
+  ],
+  "mg.numeron.draw.default": [
+   "……同じ。……引き分け"
+  ],
+  "mg.numeron.quit.default": [
+   "……楽しかった"
+  ],
+  "mg.numeron.interrupted.default": [
+   "……時間。……また今度"
+  ],
+  "mg.speed.start.default": [
+   "……スピード。……負けない"
+  ],
+  "mg.speed.speed.default": [
+   "……スピード"
+  ],
+  "mg.speed.win.default": [
+   "……速い。……負け"
+  ],
+  "mg.speed.lose.default": [
+   "……あがり。……勝ち"
+  ],
+  "mg.speed.quit.default": [
+   "……いい勝負"
+  ],
+  "mg.speed.interrupted.default": [
+   "……時間。……また今度"
+  ],
   "look.activity_breakfast_or_lunch_or_dinner": [
    "（{name}は{activity_label}。黙々と、でも一口ごとに小さくうなずきながら食べている）"
   ],

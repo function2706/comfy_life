@@ -1396,6 +1396,81 @@
   "mg.oldmaid.interrupted.default": [
    "あ……そろそろ行かないと。続きは、また今度……で、いいですか"
   ],
+  "mg.doubt.start.default": [
+   "ダ、ダウトですか……{fp}なんかで、相手になるでしょうか……"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（うつむいたまま、札を持つ手が小刻みに震えている）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（おずおずと、でも静かに札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "……や、やっぱりばれますよね……すみません……"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダ、ダウト……あ、当たりました……すみません、疑って……"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト……え、本当だったんですか……す、すみません、引き取ります……"
+  ],
+  "mg.doubt.you_miss.default": [
+   "あ、あの……本当です……すみません……"
+  ],
+  "mg.doubt.win.default": [
+   "……{fp}の負けです。{call}、すごいです……"
+  ],
+  "mg.doubt.lose.default": [
+   "あ、あがりました……{fp}なんかが、勝ってしまって……すみません"
+  ],
+  "mg.doubt.quit.default": [
+   "あ、あの……また、遊んでもらえますか……？"
+  ],
+  "mg.doubt.interrupted.default": [
+   "す、すみません、そろそろ行かないと……続きは、また今度……"
+  ],
+  "mg.numeron.start.default": [
+   "か、数当てですね……{fp}の数、当ててください……"
+  ],
+  "mg.numeron.guess.default": [
+   "え、えっと……{guess}、でしょうか……"
+  ],
+  "mg.numeron.near.default": [
+   "た、たぶん近いです……{guess}……"
+  ],
+  "mg.numeron.win.default": [
+   "さ、先に当てられてしまいました……さすがです……"
+  ],
+  "mg.numeron.lose.default": [
+   "あ、当たりました……{fp}の勝ち、みたいです……"
+  ],
+  "mg.numeron.draw.default": [
+   "お、同じ回数で……引き分け、ですね……"
+  ],
+  "mg.numeron.quit.default": [
+   "あ、あの……楽しかったです。ありがとうございました……"
+  ],
+  "mg.numeron.interrupted.default": [
+   "す、すみません、そろそろ行かないと……続きは、また今度……"
+  ],
+  "mg.speed.start.default": [
+   "ス、スピードですか……{fp}、遅いですけど……"
+  ],
+  "mg.speed.speed.default": [
+   "ス、スピード……！"
+  ],
+  "mg.speed.win.default": [
+   "は、速いです……{fp}の負けです……"
+  ],
+  "mg.speed.lose.default": [
+   "あ、あがりました……{fp}が勝っても、いいんでしょうか……"
+  ],
+  "mg.speed.quit.default": [
+   "た、楽しかったです……ありがとうございました……"
+  ],
+  "mg.speed.interrupted.default": [
+   "す、すみません、そろそろ行かないと……続きは、また今度……"
+  ],
   "ap.chat.call": [
    "あ、あの……{call}。もし、迷惑じゃなければ……ちょっとだけ、お話ししませんか……"
   ],

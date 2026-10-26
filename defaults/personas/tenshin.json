@@ -868,6 +868,81 @@
   "mg.oldmaid.interrupted.default": [
    "あ、もう行かなきゃ……続きはまた今度ね！"
   ],
+  "mg.doubt.start.default": [
+   "ダウトだね！ 嘘つきさんは、どっちかな？"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（えへへと笑っているが、足がぱたぱたと落ち着かない）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（鼻歌まじりに、ぽんと札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "あ、ばれちゃった！ えへへ"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダウト！ ほらね、嘘だった！"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト！ ……あれ、本当だった！？ 札がいっぱい！"
+  ],
+  "mg.doubt.you_miss.default": [
+   "本当だよー！ 全部あげるね"
+  ],
+  "mg.doubt.win.default": [
+   "負けちゃった！ でも楽しかった！"
+  ],
+  "mg.doubt.lose.default": [
+   "あがり！ {fp}の勝ちー！"
+  ],
+  "mg.doubt.quit.default": [
+   "またやろうね！"
+  ],
+  "mg.doubt.interrupted.default": [
+   "あ、もう行かなきゃ！ 続きはまた今度ね"
+  ],
+  "mg.numeron.start.default": [
+   "数当てだね！ {fp}の数、当ててみて！"
+  ],
+  "mg.numeron.guess.default": [
+   "ぴんときた！ {guess}！"
+  ],
+  "mg.numeron.near.default": [
+   "あとちょっと！ {guess}！"
+  ],
+  "mg.numeron.win.default": [
+   "先に当てられちゃった！ すごいね！"
+  ],
+  "mg.numeron.lose.default": [
+   "当たり！ {fp}の勝ちだね！"
+  ],
+  "mg.numeron.draw.default": [
+   "同じ回数で当たり！ おそろいだね！"
+  ],
+  "mg.numeron.quit.default": [
+   "数字のパズル、楽しかった！"
+  ],
+  "mg.numeron.interrupted.default": [
+   "あ、もう行かなきゃ！ 続きはまた今度ね"
+  ],
+  "mg.speed.start.default": [
+   "スピードだね！ よーい……"
+  ],
+  "mg.speed.speed.default": [
+   "スピーード！"
+  ],
+  "mg.speed.win.default": [
+   "はやーい！ {fp}の負けー"
+  ],
+  "mg.speed.lose.default": [
+   "あがり！ {fp}の勝ちー！"
+  ],
+  "mg.speed.quit.default": [
+   "いっぱい笑った！ またやろうね"
+  ],
+  "mg.speed.interrupted.default": [
+   "あ、もう行かなきゃ！ 続きはまた今度ね"
+  ],
   "look.activity_breakfast_or_lunch_or_dinner": [
    "（{name}は{activity_label}。一口ごとに「おいしい！」と目を丸くしている）",
    "（{name}は{activity_label}。お箸を持ったまま、何か面白いことを思いついた顔をしている）"

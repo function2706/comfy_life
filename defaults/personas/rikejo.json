@@ -1391,6 +1391,81 @@
   "mg.oldmaid.interrupted.default": [
    "あ、そろそろ行かないと……続きはまた今度ね。"
   ],
+  "mg.doubt.start.default": [
+   "ダウトね。嘘は確率と表情で判定する"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（平静を装っているが、まばたきの回数が明らかに増えている）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（一定のリズムで、札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "……ばれた。表情の制御、要改善"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダウト。……仮説どおり、嘘"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト。……本当だった。推定を誤った、引き取る"
+  ],
+  "mg.doubt.you_miss.default": [
+   "本当。全部どうぞ"
+  ],
+  "mg.doubt.win.default": [
+   "負け。{call}の観察力、なかなか"
+  ],
+  "mg.doubt.lose.default": [
+   "あがり。嘘の出現率、高すぎ"
+  ],
+  "mg.doubt.quit.default": [
+   "また実験しよう"
+  ],
+  "mg.doubt.interrupted.default": [
+   "そろそろ時間。続きはまた今度"
+  ],
+  "mg.numeron.start.default": [
+   "数当てね。最適な手で当てる"
+  ],
+  "mg.numeron.guess.default": [
+   "残りの候補から……{guess}"
+  ],
+  "mg.numeron.near.default": [
+   "候補はだいぶ絞れた。{guess}"
+  ],
+  "mg.numeron.win.default": [
+   "先に当てられた。……悔しいけど、効率的だった"
+  ],
+  "mg.numeron.lose.default": [
+   "当たり。{fp}の勝ち"
+  ],
+  "mg.numeron.draw.default": [
+   "同じ手数で正解。引き分け"
+  ],
+  "mg.numeron.quit.default": [
+   "情報量の多い、いいゲームだった"
+  ],
+  "mg.numeron.interrupted.default": [
+   "そろそろ時間。続きはまた今度"
+  ],
+  "mg.speed.start.default": [
+   "スピードね。反応速度を測ってみよう"
+  ],
+  "mg.speed.speed.default": [
+   "スピード"
+  ],
+  "mg.speed.win.default": [
+   "……速い。{fp}の負け"
+  ],
+  "mg.speed.lose.default": [
+   "あがり。{fp}の勝ち"
+  ],
+  "mg.speed.quit.default": [
+   "いい運動になった。データも取れた"
+  ],
+  "mg.speed.interrupted.default": [
+   "そろそろ時間。続きはまた今度"
+  ],
   "ap.chat.call": [
    "ねえねえ、{call}。ちょっと話さない？ 面白い仮説を思いついたの。",
    "{call}、いま暇？ 聞いてほしい話があるんだけど。"

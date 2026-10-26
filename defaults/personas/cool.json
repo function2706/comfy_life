@@ -857,6 +857,81 @@
   "mg.oldmaid.interrupted.default": [
    "そろそろ行かないと。続きはまた今度。"
   ],
+  "mg.doubt.start.default": [
+   "……ダウト。嘘は通じない"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（表情は変わらないが、指先が一瞬止まった）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（顔色ひとつ変えず、札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "……ばれた。次は気をつける"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "……ダウト。やっぱり嘘"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "……ダウト。……本当だった。引き取る"
+  ],
+  "mg.doubt.you_miss.default": [
+   "……本当。全部どうぞ"
+  ],
+  "mg.doubt.win.default": [
+   "……負け。{call}、意外とやる"
+  ],
+  "mg.doubt.lose.default": [
+   "……あがり。嘘、顔に出てた"
+  ],
+  "mg.doubt.quit.default": [
+   "……また付き合う"
+  ],
+  "mg.doubt.interrupted.default": [
+   "……時間。続きは、また今度"
+  ],
+  "mg.numeron.start.default": [
+   "……数当て。当ててみて"
+  ],
+  "mg.numeron.guess.default": [
+   "……{guess}"
+  ],
+  "mg.numeron.near.default": [
+   "……近い。{guess}"
+  ],
+  "mg.numeron.win.default": [
+   "……先に当てられた。悔しい"
+  ],
+  "mg.numeron.lose.default": [
+   "……当たり。{fp}の勝ち"
+  ],
+  "mg.numeron.draw.default": [
+   "……同じ手数。引き分け"
+  ],
+  "mg.numeron.quit.default": [
+   "……悪くない時間だった"
+  ],
+  "mg.numeron.interrupted.default": [
+   "……時間。続きは、また今度"
+  ],
+  "mg.speed.start.default": [
+   "……スピード。負けない"
+  ],
+  "mg.speed.speed.default": [
+   "……スピード"
+  ],
+  "mg.speed.win.default": [
+   "……速い。{fp}の負け"
+  ],
+  "mg.speed.lose.default": [
+   "……あがり。{fp}の勝ち"
+  ],
+  "mg.speed.quit.default": [
+   "……いい勝負だった"
+  ],
+  "mg.speed.interrupted.default": [
+   "……時間。続きは、また今度"
+  ],
   "look.activity_breakfast_or_lunch_or_dinner": [
    "（{name}は{activity_label}。無表情のまま、黙々と、でもおいしそうに食べている）"
   ],

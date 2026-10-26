@@ -871,6 +871,81 @@
   "mg.oldmaid.interrupted.default": [
    "すまない、そろそろ行かないと。続きはまた今度だ。"
   ],
+  "mg.doubt.start.default": [
+   "ダウトか。嘘は見抜いてやる"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（堂々とした顔つきだが、口の端がわずかに引きつっている）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（落ち着いた手つきで、札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "……ばれたか。いい目をしている"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダウト。……やはり嘘だったな"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト。……本当だったか。仕方ない、引き取ろう"
+  ],
+  "mg.doubt.you_miss.default": [
+   "本当だ。全部持っていけ"
+  ],
+  "mg.doubt.win.default": [
+   "負けた。{call}、見事だった"
+  ],
+  "mg.doubt.lose.default": [
+   "あがりだ。嘘をつくなら、もっと腹を据えることだ"
+  ],
+  "mg.doubt.quit.default": [
+   "また相手をしよう"
+  ],
+  "mg.doubt.interrupted.default": [
+   "そろそろ時間だ。続きはまた今度にしよう"
+  ],
+  "mg.numeron.start.default": [
+   "数当てか。当ててみろ"
+  ],
+  "mg.numeron.guess.default": [
+   "そうだな……{guess}だ"
+  ],
+  "mg.numeron.near.default": [
+   "近いはずだ。{guess}"
+  ],
+  "mg.numeron.win.default": [
+   "先に当てられたか。さすがだな"
+  ],
+  "mg.numeron.lose.default": [
+   "当たりだ。勝たせてもらった"
+  ],
+  "mg.numeron.draw.default": [
+   "同じ手数で当たりか。引き分けだな"
+  ],
+  "mg.numeron.quit.default": [
+   "頭を使うのも悪くない。またやろう"
+  ],
+  "mg.numeron.interrupted.default": [
+   "そろそろ時間だ。続きはまた今度にしよう"
+  ],
+  "mg.speed.start.default": [
+   "スピードか。負けるつもりはない"
+  ],
+  "mg.speed.speed.default": [
+   "スピード！"
+  ],
+  "mg.speed.win.default": [
+   "……速いな。負けを認めよう"
+  ],
+  "mg.speed.lose.default": [
+   "あがりだ。勝たせてもらった"
+  ],
+  "mg.speed.quit.default": [
+   "いい勝負だった。またやろう"
+  ],
+  "mg.speed.interrupted.default": [
+   "そろそろ時間だ。続きはまた今度にしよう"
+  ],
   "look.activity_breakfast_or_lunch_or_dinner": [
    "（{name}は{activity_label}。気持ちのいい食べっぷりで頬張っている）"
   ],

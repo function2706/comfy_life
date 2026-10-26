@@ -1077,6 +1077,81 @@
    "あ、そろそろ行かないと……続きはまた今度ですね。",
    "ごめんなさい、時間なので……続きはまたにしましょう。"
   ],
+  "mg.doubt.start.default": [
+   "ダウトですね。……嘘、見抜いちゃいますよ？"
+  ],
+  "mg.doubt.play_tell.default": [
+   "……（にこにこしようとしているが、頬が赤くなって目が泳いでいる）"
+  ],
+  "mg.doubt.play_calm.default": [
+   "……（すました顔で、そっと札を置いた）"
+  ],
+  "mg.doubt.caught.default": [
+   "あっ……ばれちゃいました。顔に出てましたか？"
+  ],
+  "mg.doubt.doubt_hit.default": [
+   "ダウト！ ……ほら、やっぱり嘘でしたね"
+  ],
+  "mg.doubt.doubt_miss.default": [
+   "ダウト！ ……えっ、本当だったんですか。引き取ります……"
+  ],
+  "mg.doubt.you_miss.default": [
+   "残念でした、本当ですよ。全部どうぞ"
+  ],
+  "mg.doubt.win.default": [
+   "うぅ……負けちゃいました。{call}、すごいです"
+  ],
+  "mg.doubt.lose.default": [
+   "あがりです！ 嘘、気づいてましたよ？"
+  ],
+  "mg.doubt.quit.default": [
+   "また遊びましょうね"
+  ],
+  "mg.doubt.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ですね"
+  ],
+  "mg.numeron.start.default": [
+   "数当てですね。{fp}の数、当てられますか？"
+  ],
+  "mg.numeron.guess.default": [
+   "うーん……じゃあ、{guess}で"
+  ],
+  "mg.numeron.near.default": [
+   "あと少しな気がします……{guess}！"
+  ],
+  "mg.numeron.win.default": [
+   "先に当てられちゃいました……さすがです"
+  ],
+  "mg.numeron.lose.default": [
+   "当たりです！ {fp}の勝ちですね"
+  ],
+  "mg.numeron.draw.default": [
+   "同じ手数で当たり……引き分けですね"
+  ],
+  "mg.numeron.quit.default": [
+   "一緒に考えるの、楽しかったです"
+  ],
+  "mg.numeron.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ですね"
+  ],
+  "mg.speed.start.default": [
+   "スピードですね！ 手加減しませんよ？"
+  ],
+  "mg.speed.speed.default": [
+   "スピード！"
+  ],
+  "mg.speed.win.default": [
+   "はぁ、はぁ……{call}、速すぎます……"
+  ],
+  "mg.speed.lose.default": [
+   "あがりっ！ {fp}の勝ちです！"
+  ],
+  "mg.speed.quit.default": [
+   "息が上がっちゃいました。楽しかったです"
+  ],
+  "mg.speed.interrupted.default": [
+   "あ、そろそろ行かないと……続きはまた今度ですね"
+  ],
   "look.activity_breakfast_or_lunch_or_dinner": [
    "（{name}は{activity_label}。おいしそうに頬張っている）",
    "（{activity_label}の最中だ。ひと口ごとに幸せそうな顔をしている）"
