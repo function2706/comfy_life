@@ -68,11 +68,13 @@ def main():
     # ---- 3. 出題と当て直し
     for lv, n in (("easy", 12), ("mid", 6), ("hard", 3)):
         p = P.new("typing", lv, random.Random(1))
+        p["started"] = True              # 開始前の画面は 7. で確かめる
         assert len(p["items"]) == n and len({x["t"] for x in p["items"]}) == n
         for it in list(p["items"]):
             r = P.move(p, {"i": p["i"], "keys": "!" + R.guide(it["k"])})       # 頭に打ち間違いを一つ
         assert P.solved(p) and r["solved"] and p["miss"] == n, (lv, p["miss"])
     p = P.new("typing", "mid", random.Random(2))
+    p["started"] = True              # 開始前の画面は 7. で確かめる
     try:
         P.move(p, {"i": 1, "keys": "a"})
         raise AssertionError("違う文を受け付けた")
@@ -89,6 +91,7 @@ def main():
     # ---- 4. 稼ぎ: 正確さと速さ. 解けなければ進んだぶんの 2 割
     def run(lv, miss_each, sec):
         p = P.new("typing", lv, random.Random(3))
+        p["started"] = True              # 開始前の画面は 7. で確かめる
         for it in list(p["items"]):
             g = R.guide(it["k"])
             P.move(p, {"i": p["i"], "keys": "!" * miss_each + g})
@@ -100,6 +103,7 @@ def main():
     assert clean_fast > clean_slow and clean_fast > sloppy, (clean_fast, clean_slow, sloppy)
     assert acc1 == 1.0 and acc2 < 0.9
     p = P.new("typing", "mid", random.Random(3))
+    p["started"] = True              # 開始前の画面は 7. で確かめる
     P.move(p, {"i": 0, "keys": R.guide(p["items"][0]["k"])})
     part = P.pay(p, 30, 1.0)
     assert 0 < part < clean_slow
@@ -128,6 +132,29 @@ def main():
         L.player_state()["skills"]["write"] = 20
         tk = app.task_start("typing", "easy")
         v = tk["view"]
+        # 開始前の画面: 始める前は時間を数えず, 手も受け付けない. 始めたら 3 秒のカウントダウン (その間も受け付けない)
+        assert v["started"] is False and tk["elapsed"] == 0
+        for mv in ({"i": 0, "keys": R.guide(v["items"][0]["k"])},):
+            try:
+                app.task_move(tk["token"], mv)
+                raise AssertionError("始める前に打てた")
+            except ValueError:
+                pass
+        r = app.task_move(tk["token"], {"begin": True})
+        assert r["wait"] == P.COUNTDOWN and r["view"]["started"] and r["sec"] == 0
+        try:
+            app.task_move(tk["token"], {"i": 0, "keys": R.guide(v["items"][0]["k"])})
+            raise AssertionError("カウントダウン中に打てた")
+        except ValueError:
+            pass
+        try:
+            app.task_move(tk["token"], {"begin": True})
+            raise AssertionError("二度始められた")
+        except ValueError:
+            pass
+        app.tasks[tk["token"]]["t0"] -= P.COUNTDOWN + 2      # カウントダウンが終わって 2 秒
+        assert 1.5 < P.elapsed(app.tasks[tk["token"]]) < 3
+        print("開始前の画面・カウントダウン: OK")
         assert any(x["t"].startswith("足した語") for x in v["items"]), "設定で足した語も出る"
         w0 = L.skill("write")
         for i, it in enumerate(v["items"]):

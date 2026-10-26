@@ -728,6 +728,8 @@ a.btn { color: inherit; }
 .ty-box { display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; width: 100%; max-width: 560px;
   padding: 16px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); box-sizing: border-box; cursor: text; }
 .ty-box.miss { animation: tyMiss .25s; }
+.ty-box.ty-ready { min-height: 220px; justify-content: center; cursor: pointer; }
+.ty-count-big { font-size: 64px; font-weight: 700; color: var(--accent); line-height: 1; }
 @keyframes tyMiss { 0%, 100% { transform: none; } 30% { transform: translateX(-4px); border-color: var(--bad); } 60% { transform: translateX(4px); } }
 .ty-text { font-size: 22px; line-height: 1.5; word-break: break-all; }
 .ty-yomi { font-size: 14px; word-break: break-all; }

@@ -15,6 +15,8 @@
   core/romaji.py で受け付ける. 一つ打ち終えるごとに, 押したキーの並びをまるごと受け取り, サーバで当て直して打ち間違いを数える
   (画面の申告は信じない). 稼ぎは正確さ (受け付けたキー / (受け付けた + 打ち間違い)) と速さ (目安の時間との比) で決まり,
   仕事スキルに文章のスキル (write) を 1/3 混ぜる (SKILL_MIX. 控えめ). 文章のスキルも少し伸びる.
+  始めたときは「何かキーを押すと 3 秒後に始まります」の画面で待つ (started=False. 時間は数えない). 押すと begin で
+  t0 を 3 秒先 (COUNTDOWN) にし, カウントダウンのあとから時間と稼ぎを数える (カウントダウン中の手は受け付けない).
 - フリーセル: 難しさはフリーセルの数 (易 4・中 3・難 2). 配りは解く仕組みで確かめて, 解けるものだけ (難は確かめに数秒かかる
   ことがあるので, 一つ裏で作っておく). クリックで行き先を自動で (組札 → 重ねられる列 → 空き列 → 空きセル), ドラッグで行き先を
   選んで, 元に戻すもできる. 安全な組札上げは自動. 動かせる手が無くなったら知らせる (stuck). 進み具合は組札に上がった枚数.
@@ -69,6 +71,7 @@ PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, 
        "freecell": {"easy": 360, "mid": 480, "hard": 660}, "spider": {"easy": 480, "mid": 900, "hard": 1500},
        "klondike": {"easy": 420, "mid": 540, "hard": 600}}
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
+COUNTDOWN = 3                                           # 「始める」からの秒 (タイピング)
 SKILL_MIX = {"typing": "write"}                         # 仕事スキルに 1/3 混ぜるスキル (稼ぎの倍率) と, 少し伸びるスキル
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
@@ -728,13 +731,15 @@ def typing_new(level, rng=random, extra=None):
     pool = typing_dict(extra)[part]
     items = rng.sample(pool, min(n, len(pool)))
     return {"kind": "typing", "items": [{"t": x["t"], "y": x["y"], "k": RJ.normalize(x["y"])} for x in items],
-            "i": 0, "keys": 0, "miss": 0, "res": []}
+            "i": 0, "keys": 0, "miss": 0, "res": [], "started": False}
 
 
 def typing_move(p, mv, rng=random):
     """一つ打ち終えた: {i, keys (押したキーの並びをまるごと. 打ち間違いも含む)}. サーバで当て直す."""
     if typing_solved(p):
         return {"done": True}
+    if not p.get("started", True):
+        raise ValueError("まだ始まっていません（何かキーを押すと始まります）")
     if int(mv.get("i", -1)) != p["i"]:
         raise ValueError("打っている文が違います（開き直してください）")
     keys = str(mv.get("keys") or "")[:2000]
@@ -759,7 +764,7 @@ def typing_progress(p):
 
 def typing_view(p, reveal=False):
     return {"items": [{"t": x["t"], "y": x["y"], "k": x["k"]} for x in p["items"]], "i": p["i"], "keys": p["keys"],
-            "n": len(p["items"]), "res": list(p["res"])}
+            "n": len(p["items"]), "res": list(p["res"]), "started": p.get("started", True)}
 
 
 def typing_accuracy(p):
@@ -852,7 +857,9 @@ _F = {k: {f: globals()["%s_%s" % (k, f)] for f in ("new", "move", "solved", "pro
 
 # ====================================================================== 一時停止 (離席用)
 def elapsed(t, now=None):
-    """作業の経過秒 (一時停止していた間は数えない). t: 作業の記録 {t0, paused_at?, paused_total?}."""
+    """作業の経過秒 (一時停止していた間は数えない. 始める前・カウントダウン中は 0). t: 作業の記録 {t0, paused_at?, paused_total?}."""
+    if not (t.get("puzzle") or {}).get("started", True):
+        return 0.0
     now = now or time.time()
     stop = t.get("paused_at")
     return max(0.0, (stop or now) - t["t0"] - float(t.get("paused_total") or 0))
@@ -871,6 +878,31 @@ def unpause(t, now=None):
 
 def paused(t):
     return bool(t.get("paused_at"))
+
+
+def begin(t, now=None):
+    """始める (タイピングの開始前の画面から): COUNTDOWN 秒後を始まりの時刻にする. 時間と稼ぎはそこから."""
+    p = t["puzzle"]
+    if p.get("started", True):
+        raise ValueError("もう始まっています")
+    t["t0"] = (now or time.time()) + COUNTDOWN
+    t["paused_total"], t["paused_at"] = 0, None
+    p["started"] = True
+
+
+def counting(t, now=None):
+    """カウントダウン中か (手は受け付けない)."""
+    return (t.get("puzzle") or {}).get("started", True) and (now or time.time()) < t["t0"]
+
+
+def task_move(t, mv, rng=random):
+    """本体・単独版の共通の一手: 始める (begin) / カウントダウン中は受け付けない / ふつうの手."""
+    if mv.get("begin"):
+        begin(t)
+        return {"begin": True, "wait": COUNTDOWN, "solved": False}
+    if counting(t):
+        raise ValueError("カウントダウン中です")
+    return move(t["puzzle"], mv, rng)
 
 
 def new(kind, level, rng=random, extra=None):

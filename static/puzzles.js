@@ -21,6 +21,10 @@ function beginTask(tk) {
     if (!T || T.done || T.paused || !T.view) return;
     if (T.view.kind === 'typing') {               // タイピング: 打った字 (日本語入力がオンのときは知らせる)
       if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && !ev.target.classList.contains('ty-in')) return;
+      if (!T.view.started) {                        // 開始前の画面: 何かキーを押すと 3 秒後に始まる
+        if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && !['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(ev.key)) { ev.preventDefault(); tyBegin(T); }
+        return;
+      }
       if (ev.isComposing || ev.key === 'Process') { tyImeHint(T); return; }
       if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); T.tyLast = [ev.key, performance.now()]; tyKey(T, ev.key); }
       return;
@@ -75,6 +79,7 @@ function taskStats() {
   else if (v.kind === 'g2048') rest = `最大 ${v.max} / 目標 ${v.target}　${v.moves} 手`;
   else if (SOL_KINDS.includes(v.kind)) rest = `${v.kind === 'spider' ? '片付けた' : '組札'} ${v.up} / ${v.total || 52} 枚${v.kind === 'spider' ? `　山 ${v.stock} 回` : ''}${v.kind === 'klondike' ? `　${v.draw} 枚めくり・山を戻せるのは${v.recycle == null ? '何度でも' : ` あと ${v.recycle} 回`}` : ''}　${v.moves} 手${v.stuck ? '　⚠ もう動かせる手がありません（元に戻すか、やめる）' : ''}`;
   else if (v.kind === 'typing') {
+    if (!v.started || tyCounting(T)) { el.textContent = `⏱ 0:00（目安 ${fmtSec(T.tk.par)}）　${v.n} 個　時間はカウントダウンのあとから数えます`; return; }
     const keys = v.keys + (T.ty ? T.ty.typed.length : 0), miss = v.miss + (T.ty ? T.ty.miss : 0);
     el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　${Math.min(v.i + 1, v.n)} / ${v.n}　打鍵 ${keys}・ミス ${miss}`
       + `（正確さ ${keys + miss ? Math.round(keys * 100 / (keys + miss)) : 100}%・1 分 ${sec > 3 ? Math.round(keys * 60 / sec) : 0} 打）`;
@@ -339,8 +344,39 @@ function rjGuide(k, typed) {         // 見本の打ち方 (打った分に続�
   return go(0, 0) || '';
 }
 function tyReset(T) { T.ty = { typed: '', keys: '', miss: 0, busy: false }; }
+function tyCounting(T) { return T.tyGo && Date.now() < T.tyGo; }
+// 開始前の画面 → 何かキーを押す (スマホは画面を押す) → 3・2・1 → 開始. 始まりの時刻はサーバが決める (時間と稼ぎはそこから)
+async function tyBegin(T) {
+  if (T.tyBeginning || T.view.started || T.paused) return;
+  T.tyBeginning = true;
+  try {
+    const r = await api('/api/task/move', { token: T.tk.token, move: { begin: true } });
+    T.view = r.view;
+    T.tyGo = Date.now() + (r.wait || 3) * 1000;
+    T.t0 = T.tyGo;
+    renderTask();
+    const tick = () => {
+      if (S.task !== T) return;
+      if (tyCounting(T)) { const el = document.querySelector('.ty-count-big'); if (el) el.textContent = String(Math.ceil((T.tyGo - Date.now()) / 1000)); setTimeout(tick, 100); return; }
+      renderTask();
+    };
+    tick();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.tyBeginning = false; }
+}
 function tyBoard(T, v, result) {
   if (!T.ty) tyReset(T);
+  if (!result && (!v.started || tyCounting(T))) {
+    T.tyEls = null;
+    T.tyIn = null;
+    const box = h('div', { class: 'ty-box ty-ready' }, !v.started
+      ? [h('div', { class: 'ty-text' }, '⌨ 準備ができたら'), h('div', {}, '何かキーを押すと 3 秒後に始まります'),
+        h('div', { class: 'muted small' }, 'スマホはここを押すと始まります（半角英数で打ちます。日本語入力はオフに）'),
+        h('div', { class: 'muted small' }, `${v.n} 個打ちます。時間と稼ぎは、カウントダウンのあとから数えます`)]
+      : [h('div', { class: 'muted' }, 'はじまります'), h('div', { class: 'ty-count-big' }, String(Math.ceil((T.tyGo - Date.now()) / 1000)))]);
+    if (!v.started) box.addEventListener('click', () => tyBegin(T));
+    return box;
+  }
   const it = v.items[Math.min(v.i, v.n - 1)];
   const box = h('div', { class: 'ty-box' + (result ? ' done' : '') },
     h('div', { class: 'ty-count muted small' }),
@@ -386,7 +422,7 @@ function tyDraw(T, it) {
 function tyImeHint(T) { if (T.tyEls) T.tyEls.hint.textContent = '⚠ 日本語入力をオフにして（半角英数で）打ってください'; }
 async function tyKey(T, ch) {
   const v = T.view;
-  if (!v || T.done || T.paused || v.i >= v.n || T.ty.busy) return;
+  if (!v || T.done || T.paused || v.i >= v.n || T.ty.busy || !v.started || tyCounting(T)) return;
   const it = v.items[v.i];
   const c = ch.toLowerCase();
   T.ty.keys += c;

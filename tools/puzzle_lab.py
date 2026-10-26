@@ -73,7 +73,7 @@ class Lab:
                 raise ValueError("もう終わった盤面です")
             if puzzles.paused(g):
                 raise ValueError("一時停止中です（再開してから）")
-            r = puzzles.move(g["puzzle"], mv, g["rng"])
+            r = puzzles.task_move(g, mv, g["rng"])
             return dict(r, view=puzzles.view(g["puzzle"]), sec=round(puzzles.elapsed(g), 1))
 
     def pause(self, token, on=True):

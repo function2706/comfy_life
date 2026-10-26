@@ -2529,7 +2529,7 @@ class App:
                 raise ValueError("作業が見つかりません（やり直してください）")
             if puzzles.paused(t):
                 raise ValueError("一時停止中です（再開してから）")
-            r = puzzles.move(t["puzzle"], mv)
+            r = puzzles.task_move(t, mv)
             self._task_save()
             return dict(r, view=puzzles.view(t["puzzle"]), sec=round(puzzles.elapsed(t), 1))
 
