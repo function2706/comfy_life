@@ -167,6 +167,8 @@ class Games:
     def view(self, char, st, ctx):
         games = []
         for g in self.app.minigames:
+            if g.get("hidden"):          # 一覧に出さない (ダウトは既定で. 定義の "hidden" を消すと戻る)
+                continue
             desc = (g.get("desc") or "").replace("{name}", char.get("name", "")).replace(
                 "{target}", str(g.get("target", 3)))
             games.append({"id": g["id"], "name": g.get("name", g["id"]), "icon": g.get("icon", "🎲"), "desc": desc,

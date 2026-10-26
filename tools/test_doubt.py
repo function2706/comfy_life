@@ -27,6 +27,13 @@ def main():
         G = app.games
         g = G.get("doubt")
         char = app.char()
+        # いまはゲームの一覧に出さない (hidden). 定義の hidden を外すと一覧に戻る. 遊ぶ仕組みは残っている (以下)
+        ids = lambda: [x["id"] for x in G.view(char, st, app.context(char, st, datetime.now()))["list"]]  # noqa: E731
+        assert g.get("hidden") and "doubt" not in ids() and "numeron" in ids()
+        g["hidden"] = False
+        assert "doubt" in ids()
+        g["hidden"] = True
+        print("ダウトは一覧に出さない (hidden を外すと戻る): OK")
 
         def view():
             return G.view(char, st, app.context(char, st, datetime.now()))["current"]["cards"]
