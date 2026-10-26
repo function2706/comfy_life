@@ -25,6 +25,10 @@ function beginTask(tk) {
       if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); T.tyLast = [ev.key, performance.now()]; tyKey(T, ev.key); }
       return;
     }
+    if (SOL_KINDS.includes(T.view.kind)) {        // トランプの一人遊び: Ctrl+Z で元に戻す
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); solMove({ undo: true }); }
+      return;
+    }
     if (T.view.kind === 'g2048') {                // 矢印キー・WASD で寄せる
       const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right',
         W: 'up', S: 'down', A: 'left', D: 'right' }[ev.key];
@@ -69,6 +73,7 @@ function taskStats() {
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
   else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
   else if (v.kind === 'g2048') rest = `最大 ${v.max} / 目標 ${v.target}　${v.moves} 手`;
+  else if (SOL_KINDS.includes(v.kind)) rest = `組札 ${v.up} / ${v.total || 52} 枚　${v.moves} 手${v.stuck ? '　⚠ もう動かせる手がありません（元に戻すか、やめる）' : ''}`;
   else if (v.kind === 'typing') {
     const keys = v.keys + (T.ty ? T.ty.typed.length : 0), miss = v.miss + (T.ty ? T.ty.miss : 0);
     el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　${Math.min(v.i + 1, v.n)} / ${v.n}　打鍵 ${keys}・ミス ${miss}`
@@ -404,6 +409,125 @@ async function tyKey(T, ch) {
     tyDraw(T, T.view.items[T.view.i]);
     taskStats();
   } catch (e) { toast(e.message, 'err'); T.ty.busy = false; }
+  if (r && r.solved) await finishTask(false);
+}
+
+// ---- トランプの一人遊び (フリーセル・スパイダー・クロンダイク): 盤の描き方と操作は共通.
+// カードをクリックすると, そのカードから下をまとめて行き先へ自動で (サーバが選ぶ). ドラッグすると, 離したところの列・セル・組札へ.
+// 手の正誤・行き先の自動選択・元に戻す・安全な組札上げはサーバ (core/solitaire.py). 画面は受け取った盤を描くだけ.
+const SOL_KINDS = ['freecell', 'spider', 'klondike'];
+const SOL_SYM = { S: '♠', H: '♥', D: '♦', C: '♣' };
+function solCard(c, o = {}) {
+  if (!c) return h('div', { class: 'sol-card back', style: o.style || '' });
+  const r = c[0] === 'T' ? '10' : c[0], s = c[1];
+  return h('div', { class: 'sol-card' + ('HD'.includes(s) ? ' red' : '') + (o.dim ? ' dim' : ''), style: o.style || '' },
+    h('span', { class: 'r' }, r), h('span', { class: 's' }, SOL_SYM[s]));
+}
+function solSlot(t, i, label, card, attrs = {}) {
+  const el = h('div', Object.assign({ class: 'sol-slot', 'data-t': t, 'data-i': i }, attrs), card ? solCard(card) : h('span', { class: 'lab' }, label || ''));
+  if (card) el.firstChild.dataset.src = JSON.stringify({ t, i });
+  return el;
+}
+function solBoard(T, v, result) {
+  const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 44;
+  const ncol = v.cols.length;
+  const cw = Math.max(26, Math.min(64, Math.floor((room - (ncol - 1) * 4) / ncol)));
+  const board = h('div', { class: `sol sol-${v.kind}`, style: `--cw:${cw}px` });
+  const top = h('div', { class: 'sol-top' });
+  if (v.kind === 'freecell') {
+    v.cells.forEach((c, i) => top.append(solSlot('cell', i, 'セル', c)));
+    top.append(h('div', { class: 'sol-gap' }));
+    v.found.forEach((c, i) => top.append(solSlot('found', i, SOL_SYM['SHDC'[i]], c)));
+  } else if (v.kind === 'spider') {
+    top.append(h('div', { class: 'sol-slot stock' + (v.stock ? '' : ' empty'), 'data-t': 'stock', title: '各列に 1 枚ずつ配る' },
+      v.stock ? [solCard(null), h('span', { class: 'cnt' }, `${v.stock}`)] : h('span', { class: 'lab' }, '山なし')));
+    top.append(h('div', { class: 'sol-gap' }));
+    for (let i = 0; i < 8; i++) top.append(h('div', { class: 'sol-slot done' }, i < v.done.length ? solCard(v.done[i]) : h('span', { class: 'lab' }, '')));
+  } else {
+    top.append(h('div', { class: 'sol-slot stock' + (v.stock ? '' : ' empty'), 'data-t': 'stock', title: v.stock ? '山をめくる' : '捨て札を山に戻す' },
+      v.stock ? [solCard(null), h('span', { class: 'cnt' }, `${v.stock}`)] : h('span', { class: 'lab' }, v.recycle === 0 ? '×' : '↺')));
+    const waste = h('div', { class: 'sol-slot waste', 'data-t': 'waste', 'data-i': 0 });
+    (v.waste || []).forEach((c, k, a) => {
+      const el = solCard(c, { style: `left:${k * cw * 0.28}px` });
+      if (k === a.length - 1) el.dataset.src = JSON.stringify({ t: 'waste', i: 0 });
+      waste.append(el);
+    });
+    top.append(waste, h('div', { class: 'sol-gap' }));
+    v.found.forEach((c, i) => top.append(solSlot('found', i, SOL_SYM['SHDC'[i]], c)));
+  }
+  const tab = h('div', { class: 'sol-tab' });
+  const rowH = cw * 1.42;
+  v.cols.forEach((col, j) => {
+    const colEl = h('div', { class: 'sol-col', 'data-t': 'col', 'data-i': j });
+    let y = 0;
+    const open = cw * (col.length > 14 ? 0.3 : 0.42), shut = cw * 0.16;
+    col.forEach((c, k) => {
+      const el = solCard(c, { style: `top:${y}px` });
+      if (c) el.dataset.src = JSON.stringify({ t: 'col', i: j, n: col.length - k });
+      colEl.append(el);
+      y += c ? open : shut;
+    });
+    colEl.style.height = `${Math.max(rowH, y - (col.length ? (col[col.length - 1] ? open : shut) : 0) + rowH)}px`;
+    tab.append(colEl);
+  });
+  board.append(top, tab);
+  if (!result) solDrag(T, board);
+  return board;
+}
+function solDrag(T, board) {
+  let st = null;
+  board.addEventListener('pointerdown', (ev) => {
+    const card = ev.target.closest('[data-src]');
+    const stock = ev.target.closest('[data-t="stock"]');
+    if (stock && !card) { st = { stock: true }; return; }
+    if (!card) return;
+    ev.preventDefault();
+    const src = JSON.parse(card.dataset.src);
+    const els = [card];
+    for (let n = card.nextElementSibling; n && src.t === 'col'; n = n.nextElementSibling) els.push(n);
+    st = { src, els, x: ev.clientX, y: ev.clientY, drag: false };
+    board.setPointerCapture(ev.pointerId);
+  });
+  board.addEventListener('pointermove', (ev) => {
+    if (!st || st.stock) return;
+    const dx = ev.clientX - st.x, dy = ev.clientY - st.y;
+    if (!st.drag && Math.hypot(dx, dy) < 6) return;
+    st.drag = true;
+    st.els.forEach((el) => { el.classList.add('dragging'); el.style.transform = `translate(${dx}px, ${dy}px)`; });
+  });
+  const end = (ev) => {
+    if (!st) return;
+    const s = st;
+    st = null;
+    if (s.stock) { if (ev.type === 'pointerup') solMove({ stock: true }); return; }
+    s.els.forEach((el) => { el.classList.remove('dragging'); el.style.transform = ''; });
+    if (ev.type !== 'pointerup') return;
+    if (!s.drag) { solMove({ from: s.src, auto: true }); return; }
+    s.els.forEach((el) => { el.style.visibility = 'hidden'; });
+    const under = document.elementFromPoint(ev.clientX, ev.clientY);
+    s.els.forEach((el) => { el.style.visibility = ''; });
+    const tgt = under && under.closest('[data-t]');
+    if (!tgt || !board.contains(tgt)) return;
+    const t = tgt.dataset.t;
+    if (!['col', 'cell', 'found'].includes(t)) return;
+    solMove({ from: s.src, to: t === 'found' ? { t } : { t, i: +tgt.dataset.i } });
+  };
+  board.addEventListener('pointerup', end);
+  board.addEventListener('pointercancel', end);
+}
+async function solMove(mv) {
+  const T = S.task;
+  if (!T || T.done || T.busy || T.paused) return;
+  T.busy = true;
+  let r = null;
+  try {
+    r = await api('/api/task/move', { token: T.tk.token, move: mv });
+    const was = T.view.stuck;
+    T.view = r.view;
+    renderTask();
+    if (r.view.stuck && !was) toast('もう動かせる手がありません（元に戻すか、やめる）', 'err');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { T.busy = false; }
   if (r && r.solved) await finishTask(false);
 }
 
@@ -765,7 +889,7 @@ function renderTask(result) {
   // 盤に収まるマスの大きさ. 押しにくいほど小さい (30px 未満) ときは「拡大」で大きくして, 盤を縦横にずらして遊べる
   const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 40;      // 作業画面の中の実際の幅
   const fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
-  const small = fit < 30 && v.kind !== 'typing';        // タイピングは盤が無い (拡大はいらない)
+  const small = fit < 30 && v.kind !== 'typing' && !SOL_KINDS.includes(v.kind);     // タイピング・トランプは拡大しない (大きさは盤の側で合わせる)
   const cell = small && T.zoom ? '38px' : `${Math.floor(fit)}px`;
   let grid = h('div', { class: `pz-grid pz-${v.kind}`, style: `--cell:${cell}` });
   const key = (r, c) => `${r},${c}`;
@@ -822,6 +946,8 @@ function renderTask(result) {
     grid = h('div', { class: 'pz-slither' }, slBoard(T, v, parseFloat(cell), result));
   } else if (v.kind === 'typing') {
     grid = tyBoard(T, v, result);
+  } else if (SOL_KINDS.includes(v.kind)) {
+    grid = solBoard(T, v, result);
   } else if (v.kind === 'g2048') {
     grid.style.gridTemplateColumns = `repeat(${v.n}, var(--cell))`;
     v.board.forEach((x) => grid.append(h('div', { class: 'pz-c g2 v' + Math.min(x, 4096) + (x >= v.target ? ' goal' : '') }, x ? String(x) : '')));
@@ -840,6 +966,11 @@ function renderTask(result) {
       T.zoom ? '🔍 全体を表示' : '🔍 拡大（盤をずらして遊ぶ）'));
   }
   if (!result && v.kind === 'slither') tools.push(h('div', { class: 'row sl-tools', style: 'gap:6px;flex-wrap:wrap' }));
+  if (!result && SOL_KINDS.includes(v.kind)) {
+    tools.push(h('div', { class: 'row', style: 'gap:6px;justify-content:center' },
+      h('button', { class: 'btn small', disabled: !v.undo, title: 'Ctrl+Z でも', onclick: () => solMove({ undo: true }) }, '↶ 元に戻す'),
+      h('span', { class: 'muted small' }, 'クリックで行き先へ自動で・ドラッグで好きな行き先へ')));
+  }
   if (!result && v.kind === 'g2048') {
     tools.push(h('div', { class: 'row g2-pad' }, [['left', '←'], ['up', '↑'], ['down', '↓'], ['right', '→']].map(([d, l]) =>
       h('button', { class: 'btn small', title: '矢印キー・WASD・スワイプでも', onclick: () => g2048Move(d) }, l))));

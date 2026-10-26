@@ -201,6 +201,8 @@ def main():
             q["board"][0] = q["target"]
         elif kind == "typing":
             q["i"], q["keys"] = len(q["items"]), 100
+        elif kind == "freecell":
+            q["found"] = [13] * 4
         q["miss"] = miss
         return q
 

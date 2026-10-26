@@ -1,4 +1,5 @@
-"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・スリザーリンク・15 パズル・2048・タイピング (データ入力).
+"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・スリザーリンク・15 パズル・2048・タイピング (データ入力)・
+トランプの一人遊び (フリーセル. 配り・手・解ける確かめは core/solitaire.py).
 
 - 盤面はサーバで作る (毎回ランダム). 数独とピクロスは解が一つだけになるように, マインスイーパは最初に開けたマスとその周りに
   地雷を置かない. 答え合わせもサーバでする (手をひとつずつ受け取って判定する. 画面の申告は信じない).
@@ -14,6 +15,9 @@
   core/romaji.py で受け付ける. 一つ打ち終えるごとに, 押したキーの並びをまるごと受け取り, サーバで当て直して打ち間違いを数える
   (画面の申告は信じない). 稼ぎは正確さ (受け付けたキー / (受け付けた + 打ち間違い)) と速さ (目安の時間との比) で決まり,
   仕事スキルに文章のスキル (write) を 1/3 混ぜる (SKILL_MIX. 控えめ). 文章のスキルも少し伸びる.
+- フリーセル: 難しさはフリーセルの数 (易 4・中 3・難 2). 配りは解く仕組みで確かめて, 解けるものだけ (難は確かめに数秒かかる
+  ことがあるので, 一つ裏で作っておく). クリックで行き先を自動で (組札 → 重ねられる列 → 空き列 → 空きセル), ドラッグで行き先を
+  選んで, 元に戻すもできる. 安全な組札上げは自動. 動かせる手が無くなったら知らせる (stuck). 進み具合は組札に上がった枚数.
 - 一時停止 (pause / resume): 離席用. 止めている間は経過時間に数えず, 盤面も返さない (手も受け付けない).
 盤面の状態は App.tasks[token]["puzzle"] (ワールドの tasks.json にも書く. サーバを再起動しても続きから. 1 日で消える).
 """
@@ -26,9 +30,10 @@ import time
 
 from . import romaji as RJ
 from . import slither as SL
+from . import solitaire as SO
 
 KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slither": "スリザーリンク", "slide": "15パズル",
-         "g2048": "2048", "typing": "タイピング（データ入力）"}
+         "g2048": "2048", "typing": "タイピング（データ入力）", "freecell": "フリーセル"}
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
 DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
@@ -36,6 +41,7 @@ DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開け�
         "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます",
         "g2048": "矢印キー・WASD・スワイプで全部のタイルを寄せ、同じ数がぶつかると合わさります。目標の数のタイルを作ったらできあがり（動かせなくなったらそこまで）",
+        "freecell": "カードを組札（右上）へ A から順に同じスートで上げます。列には色違いで 1 つ小さいカードを重ね、空いたセルには何でも 1 枚。クリックで行き先へ自動で、ドラッグで好きな行き先へ（元に戻すも）",
         "typing": "出てくる語・文を、ローマ字で打ち込みます（shi/si・tsu/tu・ん は nn など、どの打ち方でも）。打ち間違いは数えます。正確に速いほど稼ぎが増えます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
         "sudoku": {"easy": 38, "mid": 30, "hard": 23},          # 最初から入っている数の目安 (その難しさの解き方で解けなくなる分は残る)
@@ -43,11 +49,13 @@ SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)}
         "slither": {"easy": (5, 5, 0.55), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py)
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)},       # (一辺, 崩す手数)
         "g2048": {"easy": 512, "mid": 1024, "hard": 2048},                  # 目標のタイル (盤は 4×4 のまま)
-        "typing": {"easy": ("words", 12), "mid": ("short", 6), "hard": ("long", 3)}}     # (辞書の段, 打つ数)
+        "typing": {"easy": ("words", 12), "mid": ("short", 6), "hard": ("long", 3)},     # (辞書の段, 打つ数)
+        "freecell": SO.FC_CELLS}                                                           # フリーセルの数
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
        "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480},
        "g2048": {"easy": 300, "mid": 600, "hard": 1200},        # 2048: 目標が倍になると手数もおよそ倍
-       "typing": {"easy": 100, "mid": 160, "hard": 240}}        # タイピング: 1 分 100 打ほどで目安どおり
+       "typing": {"easy": 100, "mid": 160, "hard": 240},        # タイピング: 1 分 100 打ほどで目安どおり
+       "freecell": {"easy": 360, "mid": 480, "hard": 660}}
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
 SKILL_MIX = {"typing": "write"}                         # 仕事スキルに 1/3 混ぜるスキル (稼ぎの倍率) と, 少し伸びるスキル
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
@@ -744,6 +752,47 @@ def typing_view(p, reveal=False):
 
 def typing_accuracy(p):
     return p["keys"] / float(p["keys"] + p["miss"]) if p["keys"] else 0.0
+
+
+# ====================================================================== トランプの一人遊び (core/solitaire.py)
+_SO_READY = {}                 # 確かめに時間のかかる配り (フリーセルの難など) を一つ, 裏で作っておく
+_SO_LOCK = threading.Lock()
+SO_SLOW = {("freecell", "hard"), ("freecell", "mid")}
+
+
+def _so_prepared(kind, level, make, rng):
+    """解ける配りを出す. 乱数の種を決めたとき (単独版の seed・テスト) はその場で作る. 時間のかかるものは次の分を裏で作っておく."""
+    if rng is not random or (kind, level) not in SO_SLOW:
+        return make(level, rng)
+    with _SO_LOCK:
+        p = _SO_READY.pop((kind, level), None)
+
+    def run():
+        q = make(level, random.Random())
+        with _SO_LOCK:
+            _SO_READY.setdefault((kind, level), q)
+    threading.Thread(target=run, daemon=True, name="solitaire-prepare").start()
+    return p or make(level, rng)
+
+
+def freecell_new(level, rng=random):
+    return _so_prepared("freecell", level, SO.fc_new, rng)
+
+
+def freecell_move(p, mv, rng=random):
+    return SO.fc_move(p, mv)
+
+
+def freecell_solved(p):
+    return sum(p["found"]) == 52
+
+
+def freecell_progress(p):
+    return sum(p["found"]) / 52.0
+
+
+def freecell_view(p, reveal=False):
+    return SO.fc_view(p)
 
 
 _F = {k: {f: globals()["%s_%s" % (k, f)] for f in ("new", "move", "solved", "progress", "view")} for k in KINDS}
