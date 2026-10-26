@@ -1794,6 +1794,12 @@
   "chat.thanks_again": [
    "📱『それもう聞いたよ！ 何回言うの？ ふふっ』"
   ],
+  "chat.thanks_not_yet": [
+   "📱『……まだ許したわけじゃないよ？ はんぶんこ！』"
+  ],
+  "chat.thanks_unforgiven": [
+   "📱『許してないよー。ありがとうはまだ早いの！』"
+  ],
   "chat.greet_odd_morning": [
    "📱『おはよう……って、朝はもうとっくに終わってるよ？』"
   ],

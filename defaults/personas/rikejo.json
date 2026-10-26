@@ -1743,6 +1743,12 @@
   "chat.thanks_again": [
    "📱『それ、もう受信済み。何回言うの』"
   ],
+  "chat.thanks_not_yet": [
+   "📱『……まだ許したわけじゃない。検証中』"
+  ],
+  "chat.thanks_unforgiven": [
+   "📱『許してない。お礼の前提が成立してない』"
+  ],
   "chat.greet_odd_morning": [
    "📱『おはよう……時刻、確認して。もうそんな時間じゃない』"
   ],

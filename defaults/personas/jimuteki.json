@@ -1793,6 +1793,12 @@
   "chat.thanks_again": [
    "📱『それは受領済みよ。何回言うの』"
   ],
+  "chat.thanks_not_yet": [
+   "📱『……まだ許したわけではないわ。保留中よ』"
+  ],
+  "chat.thanks_unforgiven": [
+   "📱『許していないわ。お礼を受け取る段階ではないの』"
+  ],
   "chat.greet_odd_morning": [
    "📱『おはよう……時刻を確認して。もうそんな時間じゃないわ』"
   ],
