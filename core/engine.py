@@ -2424,7 +2424,7 @@ class App:
                 raise ValueError(why["reason"])
             if self.task_active():
                 raise ValueError("やりかけの内職があります（続きから）")
-        pz = puzzles.new(kind, level)            # 盤面づくり (スリザーリンクの難は数秒) の間は, ほかの操作を止めない
+        pz = puzzles.new(kind, level, extra=self.world.get("typing_extra"))      # 盤面づくり (スリザーリンクの難は数秒) の間は, ほかの操作を止めない
         with self.lock:
             if self.task_active():
                 raise ValueError("やりかけの内職があります（続きから）")
@@ -2457,9 +2457,10 @@ class App:
         pz = t["puzzle"]
         kind, level = pz["kind"], pz["level"]
         base = puzzles.base_pay(kind, level, self.world.get("economy", {}).get("side_job_rate_per_min"))
+        mult = puzzles.skill_mult(kind, self.life.skill_mult)
         paused = puzzles.paused(t)       # 一時停止中は盤面を返さない (覗いて考えられないように)
         return {"token": token, "view": None if paused else puzzles.view(pz), "paused": paused, "skill": round(self.life.skill("work"), 1),
-                "base": int(round(float(base) * self.life.skill_mult("work") / 10.0)) * 10, "par": puzzles.PAR[kind][level],
+                "base": int(round(float(base) * mult / 10.0)) * 10, "par": puzzles.PAR[kind][level],
                 "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind],
                 "elapsed": round(puzzles.elapsed(t), 1)}
 
@@ -2535,11 +2536,13 @@ class App:
             pz = t["puzzle"]
             sec = puzzles.elapsed(t)              # 一時停止していた間は数えない
             e = self.world.get("economy", {})
-            pay = puzzles.pay(pz, sec, self.life.skill_mult("work"), e.get("side_job_rate_per_min"))
+            pay = puzzles.pay(pz, sec, puzzles.skill_mult(pz["kind"], self.life.skill_mult), e.get("side_job_rate_per_min"))
             mv = self.life.move(None, dp=pay, cat="income", note="内職") if pay else {}
             self.life.player_state()["side_job_t"] = time.time()
             solved = puzzles.solved(pz)
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
+            k2 = puzzles.SKILL_MIX.get(pz["kind"])          # タイピングは文章のスキルも少し伸びる
+            gain2 = self.life.train(k2, 0.5 * puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz))) if k2 else 0
             self.life.tire(float(e.get("stamina_per_side_job", 10)))
             p = self.presence.rec()
             if p["mode"] == "busy":
@@ -2551,13 +2554,13 @@ class App:
         if not near:                # 一人で: 黙々と. あなたの記録だけ
             r = self.my_entry("side_job", "内職", "🧵", "%sの内職を%s。%s円になった" % (
                 puzzles.KINDS[pz["kind"]], "仕上げた" if solved else "途中でやめた", format(pay, ",")),
-                money=mv, skill={"work": gain} if gain else None)
+                money=mv, skill={k: v for k, v in (("work", gain), (k2, gain2)) if k and v} or None)
             r["task"] = task
             return r
         r = self.act("side_job", near, opts={
             "money": mv, "extra": {"amount": format(pay, ","), "ng": pz["miss"], "puzzle": puzzles.KINDS[pz["kind"]]},
             "ctx": {"task_solved": solved, "task_fast": fast, "task_miss": pz["miss"], "task_level": pz["level"], "pay": pay},
-            "skill": {"work": gain}})
+            "skill": {k: v for k, v in (("work", gain), (k2, gain2)) if k and v}})
         r["task"] = task
         return r
 

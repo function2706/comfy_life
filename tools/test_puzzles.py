@@ -199,6 +199,8 @@ def main():
             q["cur"] = list(q["solution"])
         elif kind == "g2048":
             q["board"][0] = q["target"]
+        elif kind == "typing":
+            q["i"], q["keys"] = len(q["items"]), 100
         q["miss"] = miss
         return q
 

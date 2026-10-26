@@ -1804,6 +1804,7 @@ async function finishTask(gaveUp) {
       h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}${k.fast ? '・速い！' : ''}・ミス ${k.miss}）` : `${k.view && k.view.stuck ? '動かせなくなった' : '途中でやめた'}（${fmtSec(k.sec)}・ミス ${k.miss}）`),
       h('div', { class: 'big' }, yen(k.pay)),
       r.entry && r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
+      r.entry && r.entry.skill && r.entry.skill.write ? h('div', { class: 'muted' }, `文章スキル +${r.entry.skill.write}`) : '',
       h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));
     handleActResult(r);
   } catch (e) { toast(e.message, 'err'); $('#task-dlg').close(); }
@@ -3413,6 +3414,15 @@ SEC.worldnums = () => {
         n('news_rate_per_hour', '株のニュースの出やすさ（1時間あたり）', '0.25 ≒ 1日に6回ほど（全銘柄で）', '0.01'),
         n('news_accuracy', 'ニュースの当たりやすさ', '0.7 = 7割はニュースどおりに動く', '0.05'),
         n('event_rate_per_hour', '出来事の起きやすさ（1時間あたり）', '0.08 ≒ 起きている間に1日1〜2回', '0.01'));
+    })(),
+    h('div', { class: 'sect' }, '内職のタイピング（データ入力）に足す語・文'),
+    (() => {
+      const t = w.typing_extra = w.typing_extra || {};
+      const hint = '1 行に「表記|よみ」。よみはひらがな（カタカナ・数字・記号もそのまま打てます）。打てない字のある行は使いません';
+      return h('div', { class: 'grid3' },
+        fld('単語（易）', inp(t, 'words', { type: 'textarea', rows: 4, ph: '買い物袋|かいものぶくろ' }), hint),
+        fld('短い文（中）', inp(t, 'short', { type: 'textarea', rows: 4, ph: '洗濯物を取り込む。|せんたくものをとりこむ。' })),
+        fld('長めの文（難）', inp(t, 'long', { type: 'textarea', rows: 4, ph: '伝票番号 1234-5678、3個口。|でんぴょうばんごう1234-5678、3こぐち。' })));
     })(),
     h('div', { class: 'sect' }, '在席・働きかけ'),
     (() => {

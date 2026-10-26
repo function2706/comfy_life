@@ -1,4 +1,4 @@
-"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・スリザーリンク・15 パズル・2048.
+"""内職のパズル: マインスイーパ・数独・ピクロス (お絵かきロジック)・スリザーリンク・15 パズル・2048・タイピング (データ入力).
 
 - 盤面はサーバで作る (毎回ランダム). 数独とピクロスは解が一つだけになるように, マインスイーパは最初に開けたマスとその周りに
   地雷を置かない. 答え合わせもサーバでする (手をひとつずつ受け取って判定する. 画面の申告は信じない).
@@ -9,35 +9,47 @@
 - 2048: 難しさは目標のタイル (易 512 / 中 1024 / 難 2048). 盤の大きさ・出るタイルは変えない (変えると別物になる).
   目標に届いたらそこでできあがり. 動かせなくなったら (詰み) そこまで. 元に戻すは無し. 出るタイルはサーバで決める.
   進み具合は最大のタイル (log2(最大) − 2) / (log2(目標) − 2) で, 詰んだ・やめたときはそのぶんの 2 割 (ほかと同じ).
+- タイピング (データ入力): 易 = 単語 12・中 = 短い文 6・難 = 長めの文 3 (伝票・住所のような数字・記号まじり). 辞書は
+  defaults/typing.json (表記とよみ) に, 設定 (ワールドの typing_extra) で足した分を加える. ローマ字で打ち, かなの打ち方の揺れは
+  core/romaji.py で受け付ける. 一つ打ち終えるごとに, 押したキーの並びをまるごと受け取り, サーバで当て直して打ち間違いを数える
+  (画面の申告は信じない). 稼ぎは正確さ (受け付けたキー / (受け付けた + 打ち間違い)) と速さ (目安の時間との比) で決まり,
+  仕事スキルに文章のスキル (write) を 1/3 混ぜる (SKILL_MIX. 控えめ). 文章のスキルも少し伸びる.
 - 一時停止 (pause / resume): 離席用. 止めている間は経過時間に数えず, 盤面も返さない (手も受け付けない).
 盤面の状態は App.tasks[token]["puzzle"] (ワールドの tasks.json にも書く. サーバを再起動しても続きから. 1 日で消える).
 """
+import json
 import math
+import os
 import random
 import threading
 import time
 
+from . import romaji as RJ
 from . import slither as SL
 
 KINDS = {"mines": "マインスイーパ", "sudoku": "数独", "picross": "ピクロス", "slither": "スリザーリンク", "slide": "15パズル",
-         "g2048": "2048"}
+         "g2048": "2048", "typing": "タイピング（データ入力）"}
 LEVEL_LABEL = {"easy": "易", "mid": "中", "hard": "難"}
 DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開けたらできあがり（右クリック・長押しで旗。旗の数がそろった数字をダブルクリックで周りをまとめて開ける）",
         "sudoku": "縦・横・3×3 のどこにも 1〜9 が一つずつ。間違えた数字は入りません",
         "slither": "点と点の間に線を引いて、全体で一つの輪を作る。数字はそのマスの周りに引く線の数（なぞって線、クリックで×。仮置き・元に戻すも）",
         "picross": "数字は、その列に続けて塗るマスの数。答えどおりに塗れたらできあがり（クリックで塗る・もう一度で消す。右クリック・長押しで×）",
         "slide": "空いているマスの隣を押して動かし、1 から順に並べます",
-        "g2048": "矢印キー・WASD・スワイプで全部のタイルを寄せ、同じ数がぶつかると合わさります。目標の数のタイルを作ったらできあがり（動かせなくなったらそこまで）"}
+        "g2048": "矢印キー・WASD・スワイプで全部のタイルを寄せ、同じ数がぶつかると合わさります。目標の数のタイルを作ったらできあがり（動かせなくなったらそこまで）",
+        "typing": "出てくる語・文を、ローマ字で打ち込みます（shi/si・tsu/tu・ん は nn など、どの打ち方でも）。打ち間違いは数えます。正確に速いほど稼ぎが増えます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
         "sudoku": {"easy": 38, "mid": 30, "hard": 23},          # 最初から入っている数の目安 (その難しさの解き方で解けなくなる分は残る)
         "picross": {"easy": 5, "mid": 8, "hard": 10},
         "slither": {"easy": (5, 5, 0.55), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py)
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)},       # (一辺, 崩す手数)
-        "g2048": {"easy": 512, "mid": 1024, "hard": 2048}}                  # 目標のタイル (盤は 4×4 のまま)
+        "g2048": {"easy": 512, "mid": 1024, "hard": 2048},                  # 目標のタイル (盤は 4×4 のまま)
+        "typing": {"easy": ("words", 12), "mid": ("short", 6), "hard": ("long", 3)}}     # (辞書の段, 打つ数)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
        "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480},
-       "g2048": {"easy": 300, "mid": 600, "hard": 1200}}        # 2048: 目標が倍になると手数もおよそ倍
+       "g2048": {"easy": 300, "mid": 600, "hard": 1200},        # 2048: 目標が倍になると手数もおよそ倍
+       "typing": {"easy": 100, "mid": 160, "hard": 240}}        # タイピング: 1 分 100 打ほどで目安どおり
 RATE_PER_MIN = 50                                       # 目安の時間 1 分あたりの額
+SKILL_MIX = {"typing": "write"}                         # 仕事スキルに 1/3 混ぜるスキル (稼ぎの倍率) と, 少し伸びるスキル
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
 
@@ -661,6 +673,79 @@ def g2048_view(p, reveal=False):
             "max": max(p["board"]), "stuck": g2048_stuck(p)}
 
 
+# ====================================================================== タイピング (データ入力)
+TYPING_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "defaults", "typing.json")
+_TYPING = {}
+
+
+def typing_dict(extra=None):
+    """辞書 {段: [{t, y}]}: 既定 (defaults/typing.json) と, 設定で足した分 (extra = {段: "表記|よみ" の行})."""
+    if not _TYPING:
+        with open(TYPING_FILE, encoding="utf-8") as f:
+            _TYPING.update(json.load(f))
+    out = {k: list(v) for k, v in _TYPING.items()}
+    for k, text in (extra or {}).items():
+        if k in out:
+            out[k] += typing_parse(text)
+    return out
+
+
+def typing_parse(text):
+    """設定の行 (表記|よみ. 全角の｜・タブも可) → [{t, y}]. 打てない読みの行は飛ばす."""
+    out = []
+    for line in str(text or "").splitlines():
+        line = line.replace("｜", "|").replace("\t", "|").strip()
+        if "|" not in line:
+            continue
+        t, y = [x.strip() for x in line.split("|", 1)]
+        if t and y and RJ.typeable(y):
+            out.append({"t": t, "y": y})
+    return out
+
+
+def typing_new(level, rng=random, extra=None):
+    part, n = SIZE["typing"][level]
+    pool = typing_dict(extra)[part]
+    items = rng.sample(pool, min(n, len(pool)))
+    return {"kind": "typing", "items": [{"t": x["t"], "y": x["y"], "k": RJ.normalize(x["y"])} for x in items],
+            "i": 0, "keys": 0, "miss": 0, "res": []}
+
+
+def typing_move(p, mv, rng=random):
+    """一つ打ち終えた: {i, keys (押したキーの並びをまるごと. 打ち間違いも含む)}. サーバで当て直す."""
+    if typing_solved(p):
+        return {"done": True}
+    if int(mv.get("i", -1)) != p["i"]:
+        raise ValueError("打っている文が違います（開き直してください）")
+    keys = str(mv.get("keys") or "")[:2000]
+    it = p["items"][p["i"]]
+    typed, miss = RJ.replay(it["k"], keys)
+    if not RJ.complete(it["k"], typed):
+        raise ValueError("最後まで打てていません")
+    p["keys"] += len(typed)
+    p["miss"] += miss
+    p["res"].append({"keys": len(typed), "miss": miss})
+    p["i"] += 1
+    return {"miss": miss}
+
+
+def typing_solved(p):
+    return p["i"] >= len(p["items"])
+
+
+def typing_progress(p):
+    return p["i"] / float(len(p["items"]) or 1)
+
+
+def typing_view(p, reveal=False):
+    return {"items": [{"t": x["t"], "y": x["y"], "k": x["k"]} for x in p["items"]], "i": p["i"], "keys": p["keys"],
+            "n": len(p["items"]), "res": list(p["res"])}
+
+
+def typing_accuracy(p):
+    return p["keys"] / float(p["keys"] + p["miss"]) if p["keys"] else 0.0
+
+
 _F = {k: {f: globals()["%s_%s" % (k, f)] for f in ("new", "move", "solved", "progress", "view")} for k in KINDS}
 
 
@@ -687,10 +772,11 @@ def paused(t):
     return bool(t.get("paused_at"))
 
 
-def new(kind, level, rng=random):
+def new(kind, level, rng=random, extra=None):
+    """extra: タイピングで設定から足した語・文 (ワールドの typing_extra)."""
     if kind not in KINDS or level not in LEVEL_LABEL:
         raise ValueError("パズルの種類か難しさが違います")
-    p = _F[kind]["new"](level, rng)
+    p = typing_new(level, rng, extra) if kind == "typing" else _F[kind]["new"](level, rng)
     p["level"] = level
     return p
 
@@ -726,8 +812,18 @@ def pay(p, sec, mult=1.0, rate=None):
     if not solved(p):
         return int(round(b * progress(p) * 0.2 / 10.0)) * 10
     par = PAR[p["kind"]][p["level"]]
+    if p["kind"] == "typing":           # 速さは目安の時間との比で 0.7〜1.4 倍 (目安どおりで 1.2 倍. ほかの内職と同じ), 正確さは 97% 以上で満額 (5 割まで)
+        speed = max(0.7, min(1.4, 0.6 + 0.6 * par / max(sec, 1.0)))
+        acc = max(0.5, min(1.0, 1 - (0.97 - typing_accuracy(p)) * 4))
+        return int(round(b * speed * acc / 10.0)) * 10
     speed = 1.2 if sec <= par else 0.8 if sec > 2 * par else 1.0
     return int(round(b * speed * max(0.4, 1 - 0.1 * p["miss"]) / 10.0)) * 10
+
+
+def skill_mult(kind, mult_of):
+    """稼ぎにかけるスキルの倍率. mult_of(スキル) → 倍率. 仕事スキルに, 種類によって別のスキルを 1/3 混ぜる (SKILL_MIX)."""
+    k2 = SKILL_MIX.get(kind)
+    return (2 * mult_of("work") + mult_of(k2)) / 3.0 if k2 else mult_of("work")
 
 
 def fast(p, sec):

@@ -19,6 +19,12 @@ function beginTask(tk) {
   S.task.key = (ev) => {
     const T = S.task;
     if (!T || T.done || T.paused || !T.view) return;
+    if (T.view.kind === 'typing') {               // タイピング: 打った字 (日本語入力がオンのときは知らせる)
+      if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && !ev.target.classList.contains('ty-in')) return;
+      if (ev.isComposing || ev.key === 'Process') { tyImeHint(T); return; }
+      if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); T.tyLast = [ev.key, performance.now()]; tyKey(T, ev.key); }
+      return;
+    }
     if (T.view.kind === 'g2048') {                // 矢印キー・WASD で寄せる
       const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right',
         W: 'up', S: 'down', A: 'left', D: 'right' }[ev.key];
@@ -63,6 +69,12 @@ function taskStats() {
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
   else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
   else if (v.kind === 'g2048') rest = `最大 ${v.max} / 目標 ${v.target}　${v.moves} 手`;
+  else if (v.kind === 'typing') {
+    const keys = v.keys + (T.ty ? T.ty.typed.length : 0), miss = v.miss + (T.ty ? T.ty.miss : 0);
+    el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　${Math.min(v.i + 1, v.n)} / ${v.n}　打鍵 ${keys}・ミス ${miss}`
+      + `（正確さ ${keys + miss ? Math.round(keys * 100 / (keys + miss)) : 100}%・1 分 ${sec > 3 ? Math.round(keys * 60 / sec) : 0} 打）`;
+    return;
+  }
   else if (v.kind === 'slither') rest = `線 ${(T.sl ? T.sl.st : v.st).filter((x) => x === 1).length} 本${T.sl && T.sl.trials.length ? `　✎ 仮置き中${T.sl.trials.length > 1 ? `（${T.sl.trials.length} 段目）` : ''}` : ''}`;
   else rest = `${v.moves} 手`;
   el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　ミス ${v.miss}　${rest}`;
@@ -226,6 +238,173 @@ async function taskPause(on) {
     renderTask();
   } catch (e) { toast(e.message, 'err'); }
   finally { T.busy = false; }
+}
+
+// ---- タイピング (データ入力): ローマ字で打つ. かなの打ち方の揺れは core/romaji.py と同じ表・同じ判定 (表を変えたら両方).
+// 打った字はその場で当て, 受け付けない字は打ち間違いとして数える (入れない). 一つ打ち終えたら押したキーの並びをまるごとサーバへ送り,
+// サーバで当て直して数える (画面の申告は信じない). 一つごとに盤を作り直さず, 表示だけ書き換える (スマホのキーボードを閉じないように).
+const RJ_TABLE = {
+  あ: ['a'], い: ['i', 'yi'], う: ['u', 'wu', 'whu'], え: ['e'], お: ['o'],
+  か: ['ka', 'ca'], き: ['ki'], く: ['ku', 'cu', 'qu'], け: ['ke'], こ: ['ko', 'co'],
+  さ: ['sa'], し: ['shi', 'si', 'ci'], す: ['su'], せ: ['se', 'ce'], そ: ['so'],
+  た: ['ta'], ち: ['chi', 'ti'], つ: ['tsu', 'tu'], て: ['te'], と: ['to'],
+  な: ['na'], に: ['ni'], ぬ: ['nu'], ね: ['ne'], の: ['no'],
+  は: ['ha'], ひ: ['hi'], ふ: ['fu', 'hu'], へ: ['he'], ほ: ['ho'],
+  ま: ['ma'], み: ['mi'], む: ['mu'], め: ['me'], も: ['mo'],
+  や: ['ya'], ゆ: ['yu'], よ: ['yo'],
+  ら: ['ra'], り: ['ri'], る: ['ru'], れ: ['re'], ろ: ['ro'],
+  わ: ['wa'], を: ['wo'],
+  が: ['ga'], ぎ: ['gi'], ぐ: ['gu'], げ: ['ge'], ご: ['go'],
+  ざ: ['za'], じ: ['ji', 'zi'], ず: ['zu'], ぜ: ['ze'], ぞ: ['zo'],
+  だ: ['da'], ぢ: ['di'], づ: ['du'], で: ['de'], ど: ['do'],
+  ば: ['ba'], び: ['bi'], ぶ: ['bu'], べ: ['be'], ぼ: ['bo'],
+  ぱ: ['pa'], ぴ: ['pi'], ぷ: ['pu'], ぺ: ['pe'], ぽ: ['po'],
+  ゔ: ['vu'],
+  ぁ: ['xa', 'la'], ぃ: ['xi', 'li'], ぅ: ['xu', 'lu'], ぇ: ['xe', 'le'], ぉ: ['xo', 'lo'],
+  ゃ: ['xya', 'lya'], ゅ: ['xyu', 'lyu'], ょ: ['xyo', 'lyo'], ゎ: ['xwa', 'lwa'],
+  っ: ['xtu', 'ltu', 'xtsu', 'ltsu'],
+  きゃ: ['kya'], きゅ: ['kyu'], きょ: ['kyo'], きぇ: ['kye'],
+  しゃ: ['sha', 'sya'], しゅ: ['shu', 'syu'], しょ: ['sho', 'syo'], しぇ: ['she', 'sye'],
+  ちゃ: ['cha', 'tya', 'cya'], ちゅ: ['chu', 'tyu', 'cyu'], ちょ: ['cho', 'tyo', 'cyo'], ちぇ: ['che', 'tye', 'cye'],
+  にゃ: ['nya'], にゅ: ['nyu'], にょ: ['nyo'], にぇ: ['nye'],
+  ひゃ: ['hya'], ひゅ: ['hyu'], ひょ: ['hyo'],
+  みゃ: ['mya'], みゅ: ['myu'], みょ: ['myo'],
+  りゃ: ['rya'], りゅ: ['ryu'], りょ: ['ryo'],
+  ぎゃ: ['gya'], ぎゅ: ['gyu'], ぎょ: ['gyo'],
+  じゃ: ['ja', 'zya', 'jya'], じゅ: ['ju', 'zyu', 'jyu'], じょ: ['jo', 'zyo', 'jyo'], じぇ: ['je', 'zye', 'jye'],
+  ぢゃ: ['dya'], ぢゅ: ['dyu'], ぢょ: ['dyo'],
+  びゃ: ['bya'], びゅ: ['byu'], びょ: ['byo'],
+  ぴゃ: ['pya'], ぴゅ: ['pyu'], ぴょ: ['pyo'],
+  ふぁ: ['fa'], ふぃ: ['fi'], ふぇ: ['fe'], ふぉ: ['fo'],
+  てぃ: ['thi'], でぃ: ['dhi'], でゅ: ['dhu'], とぅ: ['twu'], どぅ: ['dwu'],
+  うぃ: ['wi'], うぇ: ['we'], いぇ: ['ye'], ゔぁ: ['va'], ゔぃ: ['vi'], ゔぇ: ['ve'], ゔぉ: ['vo'],
+  'ー': ['-'], '、': [','], '。': ['.'], '・': ['/'], '「': ['['], '」': [']'], '〜': ['~'],
+};
+function rjOptions(k, i) {          // 読みの i 文字目からの打ち方 [[ローマ字, 進むかなの数]]
+  const ch = k[i], two = k.slice(i, i + 2), out = [];
+  if (two.length === 2 && RJ_TABLE[two]) RJ_TABLE[two].forEach((r) => out.push([r, 2]));
+  if (ch === 'ん') {
+    const nxt = i + 1 < k.length ? rjOptions(k, i + 1) : [];
+    if (nxt.length && !nxt.some(([r]) => 'aiueoyn'.includes(r[0]))) out.push(['n', 1]);
+    return out.concat([['nn', 1], ['xn', 1]]);
+  }
+  if (ch === 'っ') {
+    if (i + 1 < k.length && k[i + 1] !== 'っ') {
+      const heads = [];
+      rjOptions(k, i + 1).forEach(([r]) => { if (!'aiueon'.includes(r[0]) && /[a-z]/.test(r[0]) && !heads.includes(r[0])) heads.push(r[0]); });
+      heads.forEach((c) => out.push([c, 1]));
+    }
+    return out.concat(RJ_TABLE['っ'].map((r) => [r, 1]));
+  }
+  if (RJ_TABLE[ch]) return out.concat(RJ_TABLE[ch].map((r) => [r, 1]));
+  return [[ch, 1]];
+}
+function rjMatch(k, typed, full) {
+  const n = k.length, m = typed.length, memo = new Map();
+  const go = (i, j) => {
+    if (j === m) return full ? i === n : true;
+    if (i === n) return false;
+    const key = i * 4096 + j;
+    if (memo.has(key)) return memo.get(key);
+    let ok = false;
+    for (const [r, c] of rjOptions(k, i)) {
+      const seg = typed.slice(j, j + r.length);
+      if (j + r.length <= m) { if (seg === r && go(i + c, j + r.length)) { ok = true; break; } }
+      else if (!full && r.startsWith(seg)) { ok = true; break; }
+    }
+    memo.set(key, ok);
+    return ok;
+  };
+  return go(0, 0);
+}
+function rjGuide(k, typed) {         // 見本の打ち方 (打った分に続けて, いちばん素直な打ち方)
+  const n = k.length;
+  const go = (i, j) => {
+    if (i === n) return j >= typed.length ? '' : null;
+    for (const [r, c] of rjOptions(k, i)) {
+      if (j < typed.length) {
+        const seg = typed.slice(j, j + r.length);
+        if (!(j + r.length > typed.length ? r.startsWith(seg) : seg === r)) continue;
+      }
+      const rest = go(i + c, j + r.length);
+      if (rest !== null) return r + rest;
+    }
+    return null;
+  };
+  return go(0, 0) || '';
+}
+function tyReset(T) { T.ty = { typed: '', keys: '', miss: 0, busy: false }; }
+function tyBoard(T, v, result) {
+  if (!T.ty) tyReset(T);
+  const it = v.items[Math.min(v.i, v.n - 1)];
+  const box = h('div', { class: 'ty-box' + (result ? ' done' : '') },
+    h('div', { class: 'ty-count muted small' }),
+    h('div', { class: 'ty-text' }), h('div', { class: 'ty-yomi muted' }),
+    h('div', { class: 'ty-roma' }, h('span', { class: 'ok' }), h('span', { class: 'rest' })),
+    h('div', { class: 'ty-hint muted small' }, ''));
+  T.tyEls = { box, count: box.children[0], text: box.children[1], yomi: box.children[2], ok: box.children[3].children[0],
+    rest: box.children[3].children[1], hint: box.children[4] };
+  if (!result) {
+    // スマホのキーボードを出すための入力欄 (パソコンではキーを直接受け取る. 入った字はすぐ消す)
+    const inp = h('input', { class: 'ty-in', type: 'text', inputmode: 'url', autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off',
+      spellcheck: 'false', 'aria-label': 'ここに打つ', placeholder: 'ここをタップして打つ（半角英数）' });
+    inp.addEventListener('input', () => {       // キーで受け取った字が入力欄にも入ったとき (ブラウザによって) は二重に数えない
+      const s = inp.value;
+      inp.value = '';
+      for (const ch of s) {
+        if (T.tyLast && T.tyLast[0] === ch && performance.now() - T.tyLast[1] < 80) { T.tyLast = null; continue; }
+        tyKey(T, ch);
+      }
+    });
+    inp.addEventListener('compositionstart', () => tyImeHint(T));
+    T.tyIn = inp;
+    box.append(inp);
+    box.addEventListener('click', () => inp.focus());
+  }
+  tyDraw(T, result ? null : it);
+  return box;
+}
+function tyDraw(T, it) {
+  const E = T.tyEls, v = T.view;
+  if (!E) return;
+  if (!it) {
+    E.count.textContent = `${v.n} / ${v.n} 打ち終えた`;
+    E.text.textContent = '✔'; E.yomi.textContent = ''; E.ok.textContent = ''; E.rest.textContent = '';
+    return;
+  }
+  E.count.textContent = `${v.i + 1} / ${v.n}`;
+  E.text.textContent = it.t;
+  E.yomi.textContent = it.y;
+  E.ok.textContent = T.ty.typed;
+  E.rest.textContent = rjGuide(it.k, T.ty.typed).slice(T.ty.typed.length);
+}
+function tyImeHint(T) { if (T.tyEls) T.tyEls.hint.textContent = '⚠ 日本語入力をオフにして（半角英数で）打ってください'; }
+async function tyKey(T, ch) {
+  const v = T.view;
+  if (!v || T.done || T.paused || v.i >= v.n || T.ty.busy) return;
+  const it = v.items[v.i];
+  const c = ch.toLowerCase();
+  T.ty.keys += c;
+  if (rjMatch(it.k, T.ty.typed + c, false)) {
+    T.ty.typed += c;
+    if (T.tyEls) T.tyEls.hint.textContent = '';
+  } else {
+    T.ty.miss += 1;
+    if (T.tyEls) { T.tyEls.box.classList.remove('miss'); void T.tyEls.box.offsetWidth; T.tyEls.box.classList.add('miss'); }
+  }
+  tyDraw(T, it);
+  taskStats();
+  if (!rjMatch(it.k, T.ty.typed, true)) return;
+  T.ty.busy = true;           // 打ち終えた: サーバで当て直す
+  let r = null;
+  try {
+    r = await api('/api/task/move', { token: T.tk.token, move: { i: v.i, keys: T.ty.keys } });
+    T.view = r.view;
+    tyReset(T);
+    tyDraw(T, T.view.items[T.view.i]);
+    taskStats();
+  } catch (e) { toast(e.message, 'err'); T.ty.busy = false; }
+  if (r && r.solved) await finishTask(false);
 }
 
 // 2048: 寄せる. 動かせなくなったらそこまで (稼ぎは最大のタイルの進み具合のぶん)
@@ -586,7 +765,7 @@ function renderTask(result) {
   // 盤に収まるマスの大きさ. 押しにくいほど小さい (30px 未満) ときは「拡大」で大きくして, 盤を縦横にずらして遊べる
   const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 40;      // 作業画面の中の実際の幅
   const fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
-  const small = fit < 30;
+  const small = fit < 30 && v.kind !== 'typing';        // タイピングは盤が無い (拡大はいらない)
   const cell = small && T.zoom ? '38px' : `${Math.floor(fit)}px`;
   let grid = h('div', { class: `pz-grid pz-${v.kind}`, style: `--cell:${cell}` });
   const key = (r, c) => `${r},${c}`;
@@ -641,6 +820,8 @@ function renderTask(result) {
     if (!result) picrossDrag(grid);
   } else if (v.kind === 'slither') {
     grid = h('div', { class: 'pz-slither' }, slBoard(T, v, parseFloat(cell), result));
+  } else if (v.kind === 'typing') {
+    grid = tyBoard(T, v, result);
   } else if (v.kind === 'g2048') {
     grid.style.gridTemplateColumns = `repeat(${v.n}, var(--cell))`;
     v.board.forEach((x) => grid.append(h('div', { class: 'pz-c g2 v' + Math.min(x, 4096) + (x >= v.target ? ' goal' : '') }, x ? String(x) : '')));
@@ -687,5 +868,6 @@ function renderTask(result) {
       h('button', { class: 'btn small ghost', onclick: () => closeTask() }, 'やめる')));
   taskStats();
   if (!result && v.kind === 'slither') slTools(T);
+  if (!result && v.kind === 'typing' && T.tyIn) T.tyIn.focus({ preventScroll: true });
   function toggle(set, k) { if (set.has(k)) set.delete(k); else set.add(k); renderTask(); }
 }
