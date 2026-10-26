@@ -282,7 +282,11 @@ async function spSend(body) {
 function renderSpeed(cur) {
   const v = cur.speed, name = S.view.name;
   const card = (c, attrs = {}) => c ? pcardEl(c) : h('div', Object.assign({ class: 'pcard sp-empty' }, attrs));
-  const center = h('div', { class: 'sp-center' }, v.center.map((c, j) => h('div', { class: 'sp-pile', 'data-j': j }, pcardEl(c))));
+  const flipped = v.flip_ago != null && v.flip_ago < 1.6;          // 山から台札へ出した直後: 台札を光らせる
+  const center = h('div', { class: 'sp-center' + (v.speed_in > 0 ? ' counting' : '') },
+    v.center.map((c, j) => h('div', { class: 'sp-pile' + (flipped ? ' flip' : ''), 'data-j': j }, pcardEl(c),
+      flipped ? h('div', { class: 'sp-from' }, j === 0 ? 'あなたの山から' : `${name}の山から`) : '')),
+    v.speed_in > 0 ? h('div', { class: 'sp-speed-count' }, h('div', {}, 'どちらも出せません'), h('b', {}, `スピード！まで ${Math.ceil(v.speed_in)}`)) : '');
   const mine = h('div', { class: 'sp-field' }, v.mine.map((c, i) => {
     const el = card(c);
     if (c && !v.over) { el.dataset.i = i; el.classList.add('sp-mine'); }

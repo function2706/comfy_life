@@ -2,7 +2,8 @@
 
 - あなたは赤 (♥♦), キャラは黒 (♠♣) の 26 枚ずつ. 手元に 4 枚の場札を表で並べ, 残りは自分の山. 真ん中に台札が 2 つ.
 - 場札を, 台札の一番上と 1 つ違い (A と K もつながる) なら, どちらの台札にも出せる. 出したら自分の山から場札を補う.
-- どちらも出せなくなったら「スピード！」: お互いの山 (無ければ場札) から 1 枚ずつ台札に出して, また始める.
+- どちらも出せなくなったら, 3 秒のカウントダウン (SPEED_WAIT. speed_at) のあと「スピード！」: お互いの山 (無ければ場札) から
+  1 枚ずつ台札に出して, また始める (出した時刻 flip_t. 画面はしばらく台札を光らせて「山から」と出す).
 - 先に手札 (場札と山) を出し切ったほうの勝ち.
 - 同時に動く: キャラは時刻の予定 (ai_next) で動く. 画面は少しずつ問い合わせ (tick), あなたの手もその時刻で当てる (advance).
   キャラの速さ (delay) は体力・眠気・機嫌で変わり, ときどき出せる札を見落とす (いつも最速ではない).
@@ -10,6 +11,7 @@
 import random
 
 RED, BLACK = (1, 2), (0, 3)
+SPEED_WAIT = 3.0             # どちらも出せなくなってから「スピード！」までの秒
 
 
 def rank(c):
@@ -97,7 +99,13 @@ def advance(st, now, quick, rng=random, miss=0.12):
                 break
             st["ai_next"] = t + delay(quick, rng)
         elif not mine and not playable(st, "p"):
+            if not st.get("speed_at"):               # どちらも出せない: カウントダウンを始める
+                st["speed_at"] = t + SPEED_WAIT
+                st["ai_next"] = st["speed_at"]
+                out.append("count")
+                continue
             speed(st)
+            st["speed_at"], st["flip_t"] = None, t
             out.append("speed")
             st["ai_next"] = t + 1.0 + delay(quick, rng)
         else:
@@ -105,8 +113,11 @@ def advance(st, now, quick, rng=random, miss=0.12):
     return out
 
 
-def view(st):
+def view(st, now=None):
+    now = now if now is not None else st.get("ai_next", 0)
     return {"center": [name(c) for c in st["center"]],
+            "speed_in": round(max(0.0, (st.get("speed_at") or 0) - now), 2) if st.get("speed_at") else 0,
+            "flip_ago": round(now - st["flip_t"], 2) if st.get("flip_t") else None,
             "mine": [name(c) if c is not None else None for c in st["p"]["field"]], "my_stock": len(st["p"]["stock"]),
             "hers": [name(c) if c is not None else None for c in st["a"]["field"]], "her_stock": len(st["a"]["stock"]),
             "left": {"p": left(st, "p"), "a": left(st, "a")}, "speeds": st["speeds"], "over": st.get("over"),

@@ -907,7 +907,7 @@ class Games:
     # ================================================================== スピード (core/speedcards.py)
     def _speed_view(self, game):
         sp = game.get("sp") or {}
-        v = SC.view(sp) if sp else {}
+        v = SC.view(sp, time.time()) if sp else {}
         v["start_in"] = max(0.0, round(sp.get("start_at", 0) - time.time(), 2)) if sp else 0
         return v
 

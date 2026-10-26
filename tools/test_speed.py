@@ -59,7 +59,13 @@ def main():
     st = {"p": {"field": [c("2H"), None, None, None], "stock": [c("9H")]}, "a": {"field": [c("2S"), None, None, None], "stock": []},
           "center": [c("6C"), c("6D")], "speeds": 0, "ai_next": 0.0}
     SC.advance(st, 1.0, 0.5, random.Random(0))
+    assert st["speeds"] == 0 and st["speed_at"] == 0.0 + SC.SPEED_WAIT, "まずカウントダウン (予定の時刻 0.0 から)"
+    assert SC.view(st, 1.0)["speed_in"] == 2.0
+    SC.advance(st, 2.5, 0.5, random.Random(0))
+    assert st["speeds"] == 0, "カウントダウン中は出さない"
+    SC.advance(st, 3.1, 0.5, random.Random(0))
     assert st["speeds"] == 1 and st["center"] == [c("9H"), c("2S")] and st["a"]["field"][0] is None, st
+    assert SC.view(st, 3.5)["flip_ago"] == 0.5 and SC.view(st, 3.5)["speed_in"] == 0, "山から出した直後 (画面が台札を光らせる)"
     print("出せる札・補充・スピード！: OK")
 
     # ---- 2. キャラの速さ: 体力・眠気・機嫌しだい (いつも最速ではない. ときどき見落とす)

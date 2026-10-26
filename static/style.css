@@ -688,6 +688,15 @@ a.btn { color: inherit; }
 .sp-field.her { opacity: .9; }
 .sp-center { display: flex; gap: 22px; justify-content: center; margin: 14px 0; }
 .sp-pile { padding: 6px; border: 1px dashed var(--line); border-radius: 10px; }
+.sp-center { position: relative; }
+.sp-center.counting .sp-pile { opacity: .45; }
+.sp-speed-count { position: absolute; inset: -4px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; font-size: 13px; color: var(--text); pointer-events: none; background: rgba(19, 17, 23, .78); border-radius: 12px; }
+.sp-speed-count b { font-size: 26px; color: var(--accent); }
+.sp-pile { position: relative; }
+.sp-pile.flip .pcard { animation: spFlip .6s ease-out; box-shadow: 0 0 0 3px var(--accent2); }
+@keyframes spFlip { 0% { transform: translateY(-46px) scale(.8); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.sp-from { position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--accent2); }
 .sp-count { text-align: center; font-size: 22px; margin: 26px 0; color: var(--accent); }
 .sp-mine { cursor: pointer; }
 .pcard.sp-empty { background: transparent; border: 1px dashed var(--line); box-shadow: none; }
