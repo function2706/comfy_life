@@ -124,6 +124,9 @@ async function refresh() {
   const cb = $('#chat-badge');
   cb.hidden = !v.chat_unread;
   cb.textContent = v.chat_unread > 99 ? '99+' : String(v.chat_unread || '');
+  const tb = $('#task-chat-badge');      // 内職の画面の 📱 (内職中も届いたメッセージが分かるように)
+  tb.hidden = cb.hidden;
+  tb.textContent = cb.textContent;
   if (S.chatDlg && S.chatDlg.open) drawChat();
   renderTabs();
   renderSoloTab();
@@ -3600,6 +3603,7 @@ function bind() {
   });
   $('#task-close').addEventListener('click', closeTask);
   $('#task-dlg').addEventListener('cancel', (ev) => { ev.preventDefault(); closeTask(); });
+  $('#task-chat').addEventListener('click', () => openChat());     // 内職の画面の上にスマホを開く (閉じれば内職に戻る)
   for (const t of ['mouseover', 'focusin']) document.addEventListener(t, (ev) => { const el = ev.target.closest?.('.tip'); if (el) showTip(el); });
   for (const t of ['mouseout', 'focusout']) document.addEventListener(t, (ev) => { if (ev.target.closest?.('.tip')) hideTip(); });
   // ⓘ は label の中にあるので, 押してもチェックや入力欄が反応しないようにする
