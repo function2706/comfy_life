@@ -31,7 +31,7 @@ STATIC = os.path.join(BASE, "static")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".svg": "image/svg+xml", ".png": "image/png"}
 OPPONENT = "相手"
-KEEP = ("ended", "refused", "error")               # 応答のうち画面に返すもの (セリフ・画像・ヒントは返さない)
+KEEP = ("ended", "refused", "error", "speed")      # 応答のうち画面に返すもの (セリフ・画像・ヒントは返さない. speed はスピードの盤)
 
 
 class Lab:

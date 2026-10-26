@@ -1623,5 +1623,70 @@
     }
    ]
   }
+ },
+ {
+  "id": "speed",
+  "kind": "speed",
+  "name": "スピード",
+  "icon": "⚡",
+  "desc": "二人で同時に出していく早さ勝負。台札と 1 つ違い（A と K もつながる）の場札を、どんどん出す。先に手札を出し切ったほうの勝ち。{name}の速さは体力・眠気・機嫌しだい。",
+  "require": "free=true",
+  "when": "",
+  "err": 0.05,
+  "countdown": 2.0,
+  "pos": "playing cards, table, leaning forward, focused, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -12,
+    "mood": 2
+   },
+   "win": {
+    "affection": 1,
+    "mood": 1
+   },
+   "lose": {
+    "mood": 6
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "スピードですね！ 手加減しませんよ？",
+     "pos": "smile, holding cards"
+    }
+   ],
+   "speed": [
+    {
+     "text": "スピード！",
+     "pos": "excited, slapping cards"
+    }
+   ],
+   "win": [
+    {
+     "text": "はぁ、はぁ……{call}、速すぎます……。",
+     "pos": "out of breath, pout"
+    }
+   ],
+   "lose": [
+    {
+     "text": "あがりっ！ {fp}の勝ちです！",
+     "pos": "cheering, v"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
  }
 ]

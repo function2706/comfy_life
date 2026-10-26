@@ -683,6 +683,14 @@ a.btn { color: inherit; }
 .pz-c.g2.v1024 { background: #d8b22c; color: #222; } .pz-c.g2.v2048, .pz-c.g2.v4096 { background: #e6c53a; color: #222; }
 .pz-c.g2.goal { box-shadow: 0 0 0 2px var(--accent); }
 .g2-pad { gap: 6px; justify-content: center; }
+.sp-board { user-select: none; }
+.sp-field { display: flex; gap: 8px; justify-content: center; touch-action: none; }
+.sp-field.her { opacity: .9; }
+.sp-center { display: flex; gap: 22px; justify-content: center; margin: 14px 0; }
+.sp-pile { padding: 6px; border: 1px dashed var(--line); border-radius: 10px; }
+.sp-count { text-align: center; font-size: 22px; margin: 26px 0; color: var(--accent); }
+.sp-mine { cursor: pointer; }
+.pcard.sp-empty { background: transparent; border: 1px dashed var(--line); box-shadow: none; }
 .nm-pad { display: grid; grid-template-columns: repeat(6, 44px); gap: 6px; justify-content: center; margin: 8px 0; }
 .nm-pad .btn { padding: 8px 0; font-size: 16px; }
 .nm-slots { display: flex; gap: 6px; justify-content: center; }

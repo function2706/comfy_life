@@ -29,6 +29,7 @@ function renderGames() {
   if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(renderBoard(cur)); return; }
   if (cur.kind === 'yacht') { box.replaceChildren(renderYacht(cur)); return; }
   if (cur.kind === 'numeron') { box.replaceChildren(renderNumeron(cur)); return; }
+  if (cur.kind === 'speed') { box.replaceChildren(renderSpeed(cur)); spPoll(); return; }
   if (cur.cards) { box.replaceChildren(renderCardGame(cur)); return; }
   const name = S.view.name;
   let score;
@@ -245,6 +246,92 @@ function renderNumeron(cur) {
         h('button', { class: 'btn primary', disabled: busy || pick.length !== 3, onclick: () => send('guess') }, `${pick.length === 3 ? pick : '3 つ選んで'} と言う`))]];
   return h('div', { class: 'board' }, boardHead(Object.assign({}, cur, { board: { over: m.over } }), h('span', { class: 'muted small' }, `${m.p.length} 手目`)),
     res, S.gameHint && !m.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '', body);
+}
+
+/* ---- スピード: 二人で同時に出す. キャラの動きはサーバの時刻で進むので, 0.3 秒ごとに様子を問い合わせる (spPoll).
+   場札をクリックすると出せる台札へ, ドラッグすると離したところの台札へ. 出すのも問い合わせも, 盤だけを描き直す (gameAct は使わない) */
+function spPoll() {
+  if (S.spTimer) return;
+  S.spTimer = setInterval(() => {
+    const cur = S.view && S.view.games && S.view.games.current;
+    if (!cur || cur.kind !== 'speed' || !cur.speed || cur.speed.over || !document.querySelector('.sp-board')) {
+      clearInterval(S.spTimer); S.spTimer = null; return;
+    }
+    spSend({ act: 'tick' });
+  }, 300);
+}
+async function spSend(body) {
+  if (S.spBusy) return;
+  S.spBusy = true;
+  try {
+    const r = await api('/api/game/move', typeof withT === 'function' ? withT(body) : body);
+    const cur = S.view.games.current;
+    if (cur && r.speed) cur.speed = r.speed;
+    if (r.hint) S.gameHint = r.hint;
+    if (r.error) toast(r.error, 'err');
+    if (r.ended) {
+      S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : '😵 あなたの負け…';
+      if (r.entry && typeof handleActResult === 'function') handleActResult(r);
+      if (r.view) S.view = r.view;
+      else if (typeof refresh === 'function') await refresh();
+    }
+    renderGames();
+  } catch (e) { if (body.act !== 'tick') toast(e.message, 'err'); }
+  finally { S.spBusy = false; }
+}
+function renderSpeed(cur) {
+  const v = cur.speed, name = S.view.name;
+  const card = (c, attrs = {}) => c ? pcardEl(c) : h('div', Object.assign({ class: 'pcard sp-empty' }, attrs));
+  const center = h('div', { class: 'sp-center' }, v.center.map((c, j) => h('div', { class: 'sp-pile', 'data-j': j }, pcardEl(c))));
+  const mine = h('div', { class: 'sp-field' }, v.mine.map((c, i) => {
+    const el = card(c);
+    if (c && !v.over) { el.dataset.i = i; el.classList.add('sp-mine'); }
+    return el;
+  }));
+  if (!v.over) spDrag(mine);
+  const res = v.over ? h('div', { class: 'hint-bubble', style: 'text-align:center' }, v.over === 'win' ? '🎉 あなたの勝ち！' : '😵 あなたの負け…') : '';
+  return h('div', { class: 'board sp-board' },
+    boardHead(Object.assign({}, cur, { board: { over: v.over } }), h('span', { class: 'muted small' }, `スピード！ ${v.speeds} 回`)),
+    res, S.gameHint && !v.over ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '',
+    h('div', { class: 'sc-who' }, `${name}（残り ${v.left.a} 枚・山 ${v.her_stock}）`),
+    h('div', { class: 'sp-field her' }, v.hers.map((c) => card(c))),
+    v.start_in > 0 ? h('div', { class: 'sp-count' }, `せーの… ${Math.ceil(v.start_in)}`) : center,
+    mine,
+    h('div', { class: 'sc-who' }, `あなた（残り ${v.left.p} 枚・山 ${v.my_stock}）`,
+      v.stuck && !v.over && !(v.start_in > 0) ? h('span', { class: 'muted small' }, '　出せる札がありません（どちらも出せなくなったら「スピード！」）') : ''));
+}
+function spDrag(field) {
+  let st = null;
+  field.addEventListener('pointerdown', (ev) => {
+    const el = ev.target.closest('.sp-mine');
+    if (!el) return;
+    ev.preventDefault();
+    st = { el, i: +el.dataset.i, x: ev.clientX, y: ev.clientY, drag: false };
+    field.setPointerCapture(ev.pointerId);
+  });
+  field.addEventListener('pointermove', (ev) => {
+    if (!st) return;
+    const dx = ev.clientX - st.x, dy = ev.clientY - st.y;
+    if (!st.drag && Math.hypot(dx, dy) < 6) return;
+    st.drag = true;
+    st.el.style.transform = `translate(${dx}px, ${dy}px)`;
+    st.el.style.zIndex = 5;
+  });
+  const end = (ev) => {
+    if (!st) return;
+    const s = st;
+    st = null;
+    s.el.style.transform = '';
+    if (ev.type !== 'pointerup') return;
+    if (!s.drag) { spSend({ act: 'play', i: s.i }); return; }
+    s.el.style.visibility = 'hidden';
+    const pile = document.elementFromPoint(ev.clientX, ev.clientY);
+    s.el.style.visibility = '';
+    const p = pile && pile.closest('.sp-pile');
+    if (p) spSend({ act: 'play', i: s.i, j: +p.dataset.j });
+  };
+  field.addEventListener('pointerup', end);
+  field.addEventListener('pointercancel', end);
 }
 
 /* ---- ヨット */

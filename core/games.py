@@ -19,6 +19,7 @@ from . import cards as CD
 from . import hanafuda as HF
 from . import mahjong as MJ
 from . import numeron as NM
+from . import speedcards as SC
 from . import yacht as YT
 
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
@@ -26,7 +27,7 @@ HANDS = ("rock", "scissors", "paper")
 DIRS = ("up", "down", "left", "right")
 CARD_KINDS = ("koikoi", "poker", "blackjack", "concentration", "oldmaid", "doubt")
 ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着する (脱衣 or 勝ち数/合計点)
-KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht", "numeron") + CARD_KINDS
+KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht", "numeron", "speed") + CARD_KINDS
 STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
 BOARD_KINDS = ("connect4", "hex", "reversi")
 
@@ -204,6 +205,8 @@ class Games:
                 out["yacht"] = self._yacht_view(cur)
             if kind == "numeron":
                 out["nm"] = self._nm_view(cur)
+            if kind == "speed":
+                out["speed"] = self._speed_view(cur)
         return {"list": games, "current": out}
 
     def start(self, gid, cid=None):
@@ -249,6 +252,11 @@ class Games:
             elif kind == "numeron":
                 game["phase"] = "numeron"
                 game["nm"] = {"phase": "secret", "p": [], "a": [], "mine": None, "hers": None}
+            elif kind == "speed":
+                game["phase"] = "speed"
+                game["sp"] = SC.new()
+                game["sp"]["start_at"] = time.time() + float(g.get("countdown", 2.0))        # 「せーの」で同時に始める
+                game["sp"]["ai_next"] = game["sp"]["start_at"] + SC.delay(SC.quickness(st["params"]))
             elif kind in CARD_KINDS:
                 hint = self._cards_start(cid, char, st, g, game)
             else:
@@ -293,6 +301,10 @@ class Games:
                 r = self._move_yacht(cid, char, st, g, game, payload)
             elif kind == "numeron":
                 r = self._move_numeron(cid, char, st, g, game, payload)
+            elif kind == "speed":
+                r = self._move_speed(cid, char, st, g, game, payload)
+                if r.pop("_quiet", False):        # 様子の問い合わせで何も起きていない: 書き込まない
+                    return r
             elif kind in CARD_KINDS:
                 r = self._move_cards(cid, char, st, g, game, payload)
             else:
@@ -891,6 +903,50 @@ class Games:
                                       "（%d 手目）" % len(m["p"]))
             return {"entry": entry, "job": job, "ended": result, "hint": None}
         return {"entry": None, "job": None, "hint": hint, "ended": None}
+
+    # ================================================================== スピード (core/speedcards.py)
+    def _speed_view(self, game):
+        sp = game.get("sp") or {}
+        v = SC.view(sp) if sp else {}
+        v["start_in"] = max(0.0, round(sp.get("start_at", 0) - time.time(), 2)) if sp else 0
+        return v
+
+    def _move_speed(self, cid, char, st, g, game, payload):
+        sp = game["sp"]
+        if game.get("over"):
+            raise ValueError("この勝負は終わっています")
+        now = time.time()
+        _, err = self._skill(g, st)
+        ev = SC.advance(sp, now, SC.quickness(st["params"]), miss=min(0.5, 0.08 + err))
+        act = payload.get("act")
+        hint = self._say(char, st, g, "speed", game) if "speed" in ev else None
+        if act == "play" and not sp.get("over"):
+            if now < sp.get("start_at", 0):
+                raise ValueError("まだです（「せーの」まで待って）")
+            i = int(payload.get("i", -1))
+            if not 0 <= i < 4:
+                raise ValueError("その札は出せません")
+            j = payload.get("j")
+            if j is None:
+                c = sp["p"]["field"][i]
+                j = next((k for k, top in enumerate(sp["center"]) if c is not None and SC.fits(c, top)), None)
+                if j is None:
+                    return {"entry": None, "job": None, "hint": hint, "ended": None, "speed": self._speed_view(game),
+                            "error": "その札はどちらの台札にも出せません"}
+            SC.play(sp, "p", i, int(j))
+            if not SC.left(sp, "p"):
+                sp["over"] = "win"
+        elif act != "tick":
+            raise ValueError("不明な操作です: %s" % act)
+        if sp.get("over"):
+            result = sp["over"]
+            game["over"] = result
+            line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+            entry, job = self._record(cid, char, st, g, line, {}, "playing cards, table", result,
+                                      "（%s）" % ("あなたの勝ち" if result == "win" else "あなたの負け"))
+            return {"entry": entry, "job": job, "ended": result, "hint": None, "speed": self._speed_view(game)}
+        return {"entry": None, "job": None, "hint": hint, "ended": None, "speed": self._speed_view(game),
+                "_quiet": act == "tick" and not ev}
 
     # ================================================================== カード系 共通
     # game["cd"] にゲームごとの状態を持つ. phase = "round_end" で局の結果を見せ, act=next で次へ.
