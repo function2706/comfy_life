@@ -442,6 +442,33 @@ function renderCardGame(cur) {
         h('span', { class: 'muted small' }, 'はずれ…'), h('button', { class: 'btn primary', disabled: busy, onclick: () => act({ act: 'ok' }) }, `ふせて${name}の番へ`)) : '',
       c.phase === 'round_end' ? nextBtn() : '',
     ];
+  } else if (cur.kind === 'doubt') {
+    // ダウト: 出す札を選んで (1〜4 枚)「◯ として出す」. 相手が出したら「ダウト！」か「通す」
+    const sel = S.dtSel || (S.dtSel = new Set());
+    const canPlay = c.phase === 'p_play' && !busy, judge = c.phase === 'p_judge' && !busy;
+    const L = c.last;
+    const rankName = (r) => (r === 'T' ? '10' : r);
+    body = [
+      h('div', { class: 'sc-who' }, `${name}の手札（${c.her_count}枚）・場 ${c.pile}枚`),
+      h('div', { class: 'cardrow fan room' }, c.her_hand ? c.her_hand.map((x) => pcardEl(x, { small: true }))
+        : Array.from({ length: Math.min(c.her_count, 26) }, () => pcardEl(null, { small: true }))),
+      L ? h('div', { class: 'card-res' }, `${L.who === 'p' ? 'あなた' : name}が「${rankName(L.rank)}」を ${L.n} 枚出した`,
+        L.cards ? h('span', { class: 'cc-step' }, L.cards.map((x) => pcardEl(x, { small: true }))) : '') : '',
+      judge ? h('div', { class: 'row', style: 'justify-content:center;gap:8px' },
+        h('button', { class: 'btn primary', onclick: () => { S.dtSel = new Set(); act({ act: 'doubt' }); } }, 'ダウト！'),
+        h('button', { class: 'btn', onclick: () => { S.dtSel = new Set(); act({ act: 'pass' }); } }, '通す')) : '',
+      c.log.length ? h('details', { class: 'kk-log' }, h('summary', { class: 'muted small' }, `流れ：${c.log[c.log.length - 1]}`),
+        h('ul', {}, c.log.map((l) => h('li', {}, l)))) : '',
+      h('div', { class: 'sc-who', style: 'margin-top:8px' }, `あなたの手札（${c.hand.length}枚）`,
+        c.phase === 'p_play' ? h('span', { class: 'muted small' }, `　次は「${rankName(c.rank)}」。1〜4 枚選んで出す（嘘でもいい）`) : ''),
+      h('div', { class: 'cardrow wrap' }, c.hand.map((x, i) => pcardEl(x, { sel: sel.has(i), hl: x[0] === c.rank && c.phase === 'p_play',
+        onclick: canPlay ? () => { if (sel.has(i)) sel.delete(i); else if (sel.size < 4) sel.add(i); renderGames(); } : null }))),
+      c.phase === 'p_play' ? h('div', { class: 'row', style: 'justify-content:center' },
+        h('button', { class: 'btn primary', disabled: !canPlay || !sel.size,
+          onclick: () => { const idx = [...sel]; S.dtSel = new Set(); act({ act: 'play', idx }); } },
+        `「${rankName(c.rank)}」として ${sel.size} 枚出す`)) : '',
+      c.phase === 'round_end' ? nextBtn() : '',
+    ];
   } else if (cur.kind === 'oldmaid') {
     const can = c.phase === 'p_draw' && !busy;
     body = [

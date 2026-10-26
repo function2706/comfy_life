@@ -39,9 +39,9 @@
    "73058d9d5490ac546249c9bef4fed3d6"
   ],
   "apologize": [
+   "3d7221fdc7b0fd6f10056d3f3cdc2cd9",
    "e557a5a6e0f921a72a1ff01bfa047e31",
-   "f104ed45d336a8a3da6e06da901311ac",
-   "3d7221fdc7b0fd6f10056d3f3cdc2cd9"
+   "f104ed45d336a8a3da6e06da901311ac"
   ],
   "aquarium": [
    "e1a665ca534356c8392ba191d9669dc0",
@@ -488,6 +488,9 @@
   "connect4": [
    "22444e6826a4bb98a3878337cd999bf7",
    "081275f9dbbd4219d80dad15f2a4ea13"
+  ],
+  "doubt": [
+   "6872e5212462b401ba679d27a0cc7686"
   ],
   "hex": [
    "0b9ef42621d89a5cac3a4cf6b2cc68ec",

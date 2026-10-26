@@ -7,6 +7,7 @@ kind ごとの遊び方:
 ゲームの状態はキャラの state["game"] に持つ. 要所ごとにログ記録 (セリフ・効果・画像) を作る.
 セリフ・効果・プロンプト・段階は data/minigames.json で編集できる.
 """
+import math
 import random
 import time
 from datetime import datetime
@@ -22,7 +23,7 @@ from . import yacht as YT
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
 HANDS = ("rock", "scissors", "paper")
 DIRS = ("up", "down", "left", "right")
-CARD_KINDS = ("koikoi", "poker", "blackjack", "concentration", "oldmaid")
+CARD_KINDS = ("koikoi", "poker", "blackjack", "concentration", "oldmaid", "doubt")
 ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着する (脱衣 or 勝ち数/合計点)
 KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht") + CARD_KINDS
 STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
@@ -1272,6 +1273,170 @@ class Games:
         game["_entry"], game["_job"] = entry, job
         return None
 
+    # ================================================================== ダウト
+    # 二人で 26 枚ずつ. 順番に A, 2, 3 … K, A … と数を言いながら札を伏せて出す (1〜4 枚. 嘘でもよい).
+    # 相手は「ダウト」か「通す」. ダウトで嘘なら出した側が, 本当なら言った側が, 場の札をぜんぶ引き取る. 先に手札が無くなったら勝ち.
+    # キャラの嘘のつき方・表情は性格の poker (顔に出る ↔ ポーカーフェイス) で, 見抜き方は機嫌・眠気 (_skill) で揺らぐ.
+    DT_RANKS = "A23456789TJQK"
+
+    def _doubt_deal(self, cid, char, st, g, game):
+        d = game["cd"]
+        deck = CD.new_deck()
+        d.update(round=1, hands={"p": deck[:26], "a": deck[26:]}, pile=[], rank=0, phase="p_play", last=None, log=[],
+                 face=None, result=None, a_seen=[], known_p=[])
+        return None
+
+    def _doubt_view(self, g, game, d):
+        hands = d.get("hands", {"p": [], "a": []})
+        last = d.get("last")
+        return {"phase": d.get("phase"), "hand": sorted(hands["p"], key=lambda c: (self.DT_RANKS.index(c[0]), c[1])),
+                "her_count": len(hands["a"]), "pile": len(d.get("pile", [])), "rank": self.DT_RANKS[d.get("rank", 0)],
+                "last": {"who": last["who"], "n": len(last["cards"]), "rank": last["rank"],
+                         "cards": last["cards"] if last.get("open") else None} if last else None,
+                "face": d.get("face"), "log": d.get("log", [])[-5:], "over": game.get("over"),
+                "her_hand": hands["a"] if game.get("over") else None}
+
+    def _dt_lie(self, last):
+        return any(c[0] != last["rank"] for c in last["cards"])
+
+    def _dt_resolve(self, char, st, g, game, d, caller):
+        """ダウト: 出した札をめくる. 嘘なら出した側が, 本当ならダウトした側が場を引き取る. (嘘だったか, 一言)."""
+        last = d["last"]
+        last["open"] = True
+        lie = self._dt_lie(last)
+        taker = last["who"] if lie else caller
+        d["hands"][taker] += d["pile"]
+        if taker == "p":            # キャラは, 自分が出した札と, いまめくった札があなたの手に入ったと覚えている
+            d.setdefault("known_p", []).extend(set(d.get("a_seen") or []) | set(last["cards"]))
+        d["a_seen"] = []
+        name = char.get("name", "")
+        who = {"p": "あなた", "a": name}
+        d["log"].append("%s「ダウト！」→ %s（%s）。%sが場の %d 枚を引き取った" % (
+            who[caller], " ".join(last["cards"]), "嘘" if lie else "本当", who[taker], len(d["pile"])))
+        d["pile"] = []
+        if caller == "a":
+            event = "doubt_hit" if lie else "doubt_miss"
+        else:
+            event = "caught" if lie else "you_miss"
+        return lie, self._say(char, st, g, event, game)
+
+    @staticmethod
+    def _dt_p_honest(d, r, n):
+        """あなたが「r を n 枚」と出したのが本当である見込み. キャラに分かること (自分の手札・自分が場に出した札・
+        あなたの手に入ったと覚えている札) から, 残りの札の中にあなたがそれだけ持っていた確率 (超幾何分布) で数える."""
+        a = d["hands"]["a"]
+        seen = d.get("a_seen") or []
+        kp = [c for c in d.get("known_p") or []]
+        kp_r = sum(1 for c in kp if c[0] == r)
+        K = max(0, 4 - sum(1 for c in a if c[0] == r) - sum(1 for c in seen if c[0] == r) - kp_r)
+        before = len(d["hands"]["p"]) + n
+        pool = max(1, 52 - len(a) - len(seen) - len(kp))
+        draws = max(0, min(pool, before - len(kp)))
+        need = n - kp_r
+        if need <= 0:
+            return 1.0
+        if need > K:
+            return 0.0
+        total = math.comb(pool, draws)
+        return sum(math.comb(K, x) * math.comb(pool - K, draws - x) for x in range(need, min(K, draws) + 1)) / float(total)
+
+    def _dt_her_call(self, char, st, g, game, d):
+        """あなたが出した札に, キャラがダウトするか. 分かっていることから本当である見込みを数え, 場の札が多いほど慎重に
+        (外れたら自分が引き取るので). 眠い・不機嫌だと揺らぎと読み違いが増える (いつも正しくはない)."""
+        last = d["last"]
+        n = len(last["cards"])
+        skill, err = self._skill(g, st)
+        if not d["hands"]["p"]:
+            return random.random() < 0.97                # これで上がられる: ダウトするしかない
+        est = 1 - self._dt_p_honest(d, last["rank"], n)
+        est = max(0.0, min(1.0, est + random.uniform(-0.3, 0.3) * (1.1 - skill)))
+        call = est > 0.5 + 0.012 * len(d["pile"])
+        if random.random() < err:
+            call = not call                               # 眠い・不機嫌だと読み違える
+        return call
+
+    def _dt_her_play(self, char, st, g, game, d):
+        """キャラが出す: 持っていれば本当に (ポーカーフェイスほど 1 枚まぜて嘘も), 無ければ嘘で. 表情の一言を返す."""
+        a = d["hands"]["a"]
+        r = self.DT_RANKS[d["rank"]]
+        pf = self.poker_face(char)
+        mine = [c for c in a if c[0] == r]
+        others = [c for c in a if c[0] != r]
+        cards = list(mine)
+        if mine and others and len(cards) < 4 and random.random() < 0.08 + 0.15 * max(0.0, pf - 0.8):
+            cards.append(random.choice(others))           # まぜて嘘
+        if not mine:
+            cards = random.sample(others, min(len(others), 2 if len(others) > 3 and random.random() < 0.25 else 1))
+        for c in cards:
+            a.remove(c)
+        d["pile"] += cards
+        d.setdefault("a_seen", []).extend(cards)
+        d["last"] = {"who": "a", "cards": cards, "rank": r}
+        d["rank"] = (d["rank"] + 1) % 13
+        lie = self._dt_lie(d["last"])
+        _, err = self._skill(g, st)
+        tell = (random.random() < max(0.15, min(0.85, 0.55 - 0.45 * (pf - 1) + err))) if lie else (random.random() < 0.12)
+        d["face"] = self._say(char, st, g, "play_tell" if tell else "play_calm", game)
+        d["log"].append("%s: 「%s」を %d 枚" % (char.get("name", ""), r, len(cards)))
+        d["phase"] = "p_judge"
+
+    def _dt_end(self, cid, char, st, g, game, d, winner):
+        game["over"] = "win" if winner == "p" else "lose"
+        d["phase"] = "round_end"
+        result = game["over"]
+        line = self._line(g, result, self._ctx(char, st, datetime.now(), game))
+        entry, job = self._record(cid, char, st, g, line, {}, "playing cards", result,
+                                  "（%s）" % ("あなたの勝ち" if result == "win" else "あなたの負け"))
+        game["_entry"], game["_job"] = entry, job
+        return result
+
+    def _doubt_move(self, cid, char, st, g, game, d, act, payload):
+        p, a = d["hands"]["p"], d["hands"]["a"]
+        if act == "play":
+            if d["phase"] != "p_play":
+                raise ValueError("今は出せません")
+            idx = sorted({int(x) for x in payload.get("idx") or []})
+            hand = self._doubt_view(g, game, d)["hand"]           # 画面と同じ並び
+            if not 1 <= len(idx) <= 4 or any(not 0 <= i < len(hand) for i in idx):
+                raise ValueError("1〜4 枚選んでください")
+            cards = [hand[i] for i in idx]
+            for c in cards:
+                p.remove(c)
+            d["pile"] += cards
+            r = self.DT_RANKS[d["rank"]]
+            d["last"] = {"who": "p", "cards": cards, "rank": r}
+            d["rank"] = (d["rank"] + 1) % 13
+            d["log"].append("あなた: 「%s」を %d 枚" % (r, len(cards)))
+            d["face"] = None
+            hint = None
+            if self._dt_her_call(char, st, g, game, d):
+                lie, hint = self._dt_resolve(char, st, g, game, d, "a")
+                if not p:
+                    self._dt_end(cid, char, st, g, game, d, "p")
+                    return hint
+            else:
+                if not p:
+                    self._dt_end(cid, char, st, g, game, d, "p")
+                    return hint
+                kp = d.setdefault("known_p", [])        # 通した: 覚えていた札を出したのかもしれない (本当とみて, その数だけ忘れる)
+                for c in [x for x in kp if x[0] == r][:len(cards)]:
+                    kp.remove(c)
+            self._dt_her_play(char, st, g, game, d)
+            return hint or d["face"]
+        if act in ("doubt", "pass"):
+            if d["phase"] != "p_judge":
+                raise ValueError("今は選べません")
+            hint = None
+            if act == "doubt":
+                _, hint = self._dt_resolve(char, st, g, game, d, "p")
+            if not a:
+                self._dt_end(cid, char, st, g, game, d, "a")
+                return hint
+            d["phase"] = "p_play"
+            d["face"] = None
+            return hint
+        raise ValueError("不明な操作です: %s" % act)
+
     # ================================================================== ババ抜き
     def _oldmaid_deal(self, cid, char, st, g, game):
         d = game["cd"]
@@ -1298,7 +1463,7 @@ class Games:
         if act == "peek":
             d["peek"] = i
             joker = a[i] == CD.JOKER
-            if random.random() >= float(g.get("hint_honesty", 0.65)):
+            if random.random() >= self.honesty(char, g):
                 joker = not joker            # 表情でごまかす
             return self._say(char, st, g, "peek_joker" if joker else "peek_safe", game)
         if act != "draw":
@@ -1323,6 +1488,15 @@ class Games:
             hint = self._say(char, st, g, "her_joker", game)
         self._om_check_end(cid, char, st, g, game, d)
         return hint
+
+    def poker_face(self, char):
+        """顔に出る (<1) ↔ ポーカーフェイス (>1). 性格の traits.poker (控えめ. 無ければ 1)."""
+        return float(self.app.traits(char).get("poker", 1.0))
+
+    def honesty(self, char, g):
+        """表情が本当のことを表す確率 (ババ抜きの札に指をかけたとき). ポーカーフェイスほど当てにならない (半々に近づく)."""
+        base = float(g.get("hint_honesty", 0.65))
+        return max(0.5, min(0.9, base - 0.25 * (self.poker_face(char) - 1)))
 
     def _om_check_end(self, cid, char, st, g, game, d):
         p, a = d["hands"]["p"], d["hands"]["a"]

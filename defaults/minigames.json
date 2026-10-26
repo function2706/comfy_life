@@ -1449,5 +1449,100 @@
     }
    ]
   }
+ },
+ {
+  "id": "doubt",
+  "kind": "doubt",
+  "name": "ダウト",
+  "icon": "🤥",
+  "desc": "二人でダウト。A から順に数を言いながら札を伏せて出し、嘘だと思ったら「ダウト！」。{name}の顔に出るかどうかは性格しだい。先に手札が無くなったほうの勝ち。",
+  "require": "free=true",
+  "when": "",
+  "skill": 0.6,
+  "err": 0.06,
+  "pos": "playing cards, holding cards, fan of cards, sitting, looking at viewer, upper body",
+  "neg": "",
+  "effects": {
+   "start": {
+    "boredom": -10,
+    "mood": 2
+   },
+   "win": {
+    "affection": 2,
+    "mood": 2
+   },
+   "lose": {
+    "mood": 6
+   },
+   "quit": {}
+  },
+  "lines": {
+   "start": [
+    {
+     "text": "ダウトですね。……嘘、見抜いちゃいますよ？",
+     "pos": "smile, holding cards"
+    }
+   ],
+   "play_tell": [
+    {
+     "text": "……（目が泳いでいる）",
+     "pos": "nervous, looking away, holding cards"
+    }
+   ],
+   "play_calm": [
+    {
+     "text": "……（すました顔で札を置いた）",
+     "pos": "calm, holding cards"
+    }
+   ],
+   "caught": [
+    {
+     "text": "あっ……ばれちゃいました。",
+     "pos": "embarrassed, sweat, holding cards"
+    }
+   ],
+   "doubt_hit": [
+    {
+     "text": "ダウト！ ……ほら、やっぱり嘘でしたね。",
+     "pos": "pointing, triumphant smile"
+    }
+   ],
+   "doubt_miss": [
+    {
+     "text": "ダウト！ ……えっ、本当だったんですか。",
+     "pos": "surprised, holding many cards"
+    }
+   ],
+   "you_miss": [
+    {
+     "text": "残念でした、本当ですよ♪ 全部どうぞ。",
+     "pos": "teasing smile"
+    }
+   ],
+   "win": [
+    {
+     "text": "うぅ……最後まで見抜かれちゃいました。",
+     "pos": "pout, holding cards"
+    }
+   ],
+   "lose": [
+    {
+     "text": "あがりです！ 嘘、気づきませんでしたね？",
+     "pos": "cheering, v"
+    }
+   ],
+   "quit": [
+    {
+     "text": "また遊びましょうね。",
+     "pos": "smile, waving"
+    }
+   ],
+   "interrupted": [
+    {
+     "text": "あ、そろそろ行かないと……続きはまた今度ですね。",
+     "pos": ""
+    }
+   ]
+  }
  }
 ]

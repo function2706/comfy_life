@@ -32,7 +32,8 @@
   "carer": 0.1,
   "punctual": 0.5,
   "modesty": -2,
-  "grudge": 0.85
+  "grudge": 0.85,
+  "poker": 1.2
  },
  "lines": {
   "look.free_true": [
