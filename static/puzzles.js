@@ -428,10 +428,19 @@ function solSlot(t, i, label, card, attrs = {}) {
   if (card) el.firstChild.dataset.src = JSON.stringify({ t, i });
   return el;
 }
-function solBoard(T, v, result) {
-  const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 44;
+// 盤の枠: カードの大きさと盤の高さは, 始めたときの作業画面の幅で決めて, 遊んでいる途中は変えない (T.solCw).
+// 列が伸びたら枠の中で重なりを詰め, それでも収まらなければ枠の中でスクロールする. 本体と単独版で同じ広さ (sol-wide) にする.
+function solSize(T, v) {
+  if (T.solCw) return T.solCw;
+  const body = $('#task-body');
+  const cs = body ? getComputedStyle(body) : null;
+  const inner = body && body.clientWidth ? body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) : Math.min(720, window.innerWidth * 0.92);
   const ncol = v.cols.length;
-  const cw = Math.max(26, Math.min(64, Math.floor((room - (ncol - 1) * 4) / ncol)));
+  T.solCw = Math.max(26, Math.min(80, Math.floor((inner - 6 - (ncol - 1) * 4) / ncol)));
+  return T.solCw;
+}
+function solBoard(T, v, result) {
+  const cw = solSize(T, v);
   const board = h('div', { class: `sol sol-${v.kind}`, style: `--cw:${cw}px` });
   const top = h('div', { class: 'sol-top' });
   if (v.kind === 'freecell') {
@@ -455,19 +464,24 @@ function solBoard(T, v, result) {
     top.append(waste, h('div', { class: 'sol-gap' }));
     v.found.forEach((c, i) => top.append(solSlot('found', i, SOL_SYM['SHDC'[i]], c)));
   }
-  const tab = h('div', { class: 'sol-tab' });
-  const rowH = cw * 1.42;
+  const ch = Math.round(cw * 1.42);
+  const H = Math.round(cw * (v.kind === 'spider' ? 6.4 : 5.6));        // 盤 (列の並び) の高さ. 途中で変えない
+  const tab = h('div', { class: 'sol-tab', style: `height:${H + 2}px` });       // 枠線のぶん + 2
   v.cols.forEach((col, j) => {
     const colEl = h('div', { class: 'sol-col', 'data-t': 'col', 'data-i': j });
+    const dn = col.filter((c) => !c).length, up = Math.max(0, col.length - dn - 1);
+    let shut = cw * 0.16, open = cw * 0.42;
+    if (ch + dn * shut + up * open > H) open = Math.max(cw * 0.24, (H - ch - dn * shut) / Math.max(1, up));     // 重なりを詰める
+    if (ch + dn * shut + up * open > H) shut = Math.max(cw * 0.07, (H - ch - up * open) / Math.max(1, dn));
     let y = 0;
-    const open = cw * (col.length > 14 ? 0.3 : 0.42), shut = cw * 0.16;
     col.forEach((c, k) => {
-      const el = solCard(c, { style: `top:${y}px` });
+      const el = solCard(c, { style: `top:${Math.round(y)}px` });
       if (c) el.dataset.src = JSON.stringify({ t: 'col', i: j, n: col.length - k });
       colEl.append(el);
       y += c ? open : shut;
     });
-    colEl.style.height = `${Math.max(rowH, y - (col.length ? (col[col.length - 1] ? open : shut) : 0) + rowH)}px`;
+    const need = col.length ? Math.round(y - (col[col.length - 1] ? open : shut) + ch) : ch;
+    colEl.style.height = `${Math.max(H, need)}px`;          // それでも収まらなければ, 枠の中でスクロール
     tab.append(colEl);
   });
   board.append(top, tab);
@@ -889,7 +903,9 @@ function renderTask(result) {
   // 盤に収まるマスの大きさ. 押しにくいほど小さい (30px 未満) ときは「拡大」で大きくして, 盤を縦横にずらして遊べる
   const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 40;      // 作業画面の中の実際の幅
   const fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
-  const small = fit < 30 && v.kind !== 'typing' && !SOL_KINDS.includes(v.kind);     // タイピング・トランプは拡大しない (大きさは盤の側で合わせる)
+  const small = fit < 30 && v.kind !== 'typing' && !SOL_KINDS.includes(v.kind);
+  const host = $('#task-dlg') || document.querySelector('.lab');        // トランプは本体と単独版で同じ広さに
+  if (host) host.classList.toggle('sol-wide', SOL_KINDS.includes(v.kind));     // タイピング・トランプは拡大しない (大きさは盤の側で合わせる)
   const cell = small && T.zoom ? '38px' : `${Math.floor(fit)}px`;
   let grid = h('div', { class: `pz-grid pz-${v.kind}`, style: `--cell:${cell}` });
   const key = (r, c) => `${r},${c}`;

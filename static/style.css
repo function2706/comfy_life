@@ -710,7 +710,11 @@ a.btn { color: inherit; }
 .sol-slot.stock { cursor: pointer; border-style: solid; }
 .sol-slot.waste { border: none; width: calc(var(--cw) * 1.6); justify-content: flex-start; }
 .sol-slot > .sol-card { position: absolute; left: 0; top: 0; }
-.sol-tab { display: flex; gap: 4px; justify-content: center; }
+.sol-tab { display: flex; gap: 4px; justify-content: center; align-items: flex-start; overflow-y: auto; overflow-x: hidden;
+  border: 1px solid var(--line); border-radius: 10px; box-sizing: border-box; background: rgba(255, 255, 255, .015); }
+.task-dlg.sol-wide { width: min(760px, 96vw); }
+.lab.sol-wide { max-width: 760px; }
+.sol-wide .task-body { padding: 14px; }
 .sol-col { position: relative; width: var(--cw); flex: none; border-radius: 6px; background: rgba(255, 255, 255, .02); }
 .sol-col > .sol-card { position: absolute; left: 0; }
 .sol-card { width: var(--cw); height: var(--ch); border-radius: 6px; background: #fdfcf9; border: 1px solid #cfc8d6; color: #1d1a22;
