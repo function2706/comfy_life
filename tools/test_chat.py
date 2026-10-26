@@ -154,7 +154,8 @@ def main():
         st["ap_last"] = {}
         app.set_params({"loneliness": 90, "affection": 80}, cid)
         e = app.presence.fire(app.char(cid), st, time.time(), app.context(app.char(cid), st, __import__("datetime").datetime.now()))
-        assert e and C.thread(cid)["items"][-1]["who"] == "her", "相手から届いたメッセージ"
+        # 今日のこと・噂が添えられることがある (流す時刻しだい) ので, 最後の 1 件ではなく本文で探す
+        assert e and any(it["who"] == "her" and it["text"] == e["text"] for it in C.thread(cid)["items"][-3:]), "相手から届いたメッセージ"
         assert ctx["apart"]
         lst = C.list_view()
         assert lst[0]["id"] == cid and lst[0]["unread"] >= 1
