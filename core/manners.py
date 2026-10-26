@@ -32,7 +32,7 @@ GREET_OK = {"greet_morning": lambda h: 4 <= h < 12, "greet_night": lambda h: h >
 GREET_ODD = {"greet_morning": lambda h: 13 <= h < 18 or h >= 21, "greet_night": lambda h: 5 <= h < 17}
 GREET_WORD = {"greet_morning": "おはよう", "greet_night": "おやすみ"}
 # 謝罪の結果ごとの効き目 (メッセージ. その場で謝るのは反応の effects)
-THANKS_GRACE = 1800       # 謝罪の返事のあと, 連絡が多いうちに数えないお礼の間 (秒)
+THANKS_GRACE = FAVOR_SPAN  # 謝罪の返事のあと, 連絡が多いうちに数えないお礼の間 (お礼が効く「最近」と同じ 1 日)
 APOLOGY_EFF = {"quick": {"mood": 4, "trust": 1}, "half": {"mood": 1}, "deeds": {}, "refuse": {"mood": -1},
                "enough": {"mood": -2}, "irritated": {"mood": -4, "stress": 3, "affection": -1}, "confused": {"mood": -1}}
 
@@ -107,7 +107,7 @@ class Manners:
         return al.get("action") == action and now - al.get("t", 0) < 86400 and al.get("out") in ("quick", "half", "late", "deeds")
 
     def thanks_grace(self, st, sent):
-        """謝罪の返事が来てから 30 分のうちに送った「ありがとう」1 通目: 連絡が多いうちに数えない
+        """謝罪の返事が来てから 1 日のうちに送った「ありがとう」1 通目: 連絡が多いうちに数えない
         (許してくれたことへのお礼で「謝ったばかりなのに」まで言われないように. 2 通目からは今までどおり)."""
         al = st.get("apology_last") or {}
         return bool(al.get("t")) and 0 <= sent - al["t"] < THANKS_GRACE and not al.get("grace_used")
@@ -149,12 +149,10 @@ class Manners:
         for cid, char in app.chars.items():
             st = app.state(cid)
             al = st.get("apology_last") or {}
-            if not al.get("out") or not al.get("t"):
-                continue
             done = st.setdefault("thanks_rejudged", [])
             before = {k: float(st["params"].get(k, 0)) for k in ("mood", "trust", "affection")}
             items = [it for it in app.chat.load(cid)["items"] if it.get("who") == "her" and it.get("kind") == "thanks_what"
-                     and 0 <= it["t"] - al["t"] < FAVOR_SPAN and it["t"] not in done]
+                     and 0 <= it["t"] - al["t"] < FAVOR_SPAN and it["t"] not in done] if al.get("out") and al.get("t") else []
             for it in items:
                 got = self._thanks_forgave(st, al, char)
                 done.append(it["t"])
@@ -163,7 +161,7 @@ class Manners:
                 eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
                 app.apply_effects(st, app.trait_effects(char, eff))
                 out.append((cid, got[0]))
-            # 許してもらった直後 (30 分のうち) のお礼 1 通目に, 以前の判定で「連絡多くない？」「謝ったばかりなのに」が返っていた:
+            # 許してもらったあと (1 日のうち) のお礼 1 通目に, 以前の判定で「連絡多くない？」「謝ったばかりなのに」が返っていた:
             # その分の機嫌の下がり・理由・連絡の回数を戻し, お礼として当て直す (文面は書き換えない)
             regrace = self._regrace(cid, char, st, al, done)
             out += regrace
@@ -192,21 +190,28 @@ class Manners:
     APOLOGY_KEY_OUT = {"apology": "quick", "apology_half": "half", "apology_deeds": "deeds", "apology_late": "late"}
 
     def _regrace(self, cid, char, st, al, done):
+        """許してもらった直後のお礼に, 以前の判定で「連絡多くない？」「謝ったばかりなのに」が返っていたら当て直す.
+        ・謝罪の返事のあと 1 日のうちに送ったお礼 1 通目
+        ・謝罪の返事を待っている間に送ったお礼 (以前は謝罪が上書きされて, 謝罪そのものが判定されていなかった):
+          謝罪をいま判定し直してから, お礼として当て直す."""
         app = self.app
-        if al.get("grace_used"):
-            return []
         items = app.chat.load(cid)["items"]
-        last_me, out = None, []
+        seq, out = [], []                 # 相手の返事のあとに続けて送ったもの
         for it in items:
             if it.get("who") == "me":
-                last_me = it
+                seq.append(it)
                 continue
-            if it.get("who") != "her" or it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done:
+            if it.get("who") != "her":
                 continue
-            if not last_me or last_me.get("kind") != "thanks" or not (0 <= last_me["t"] - al["t"] < THANKS_GRACE):
+            run, seq = seq, []
+            if it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done or not run or run[-1].get("kind") != "thanks":
+                continue
+            last_me = run[-1]
+            lost = any(x.get("kind") == "apology" for x in run[:-1])
+            graced = al.get("t") and 0 <= last_me["t"] - al["t"] < THANKS_GRACE and not al.get("grace_used")
+            if not (lost or graced):
                 continue
             done.append(it["t"])
-            al["grace_used"] = True
             if it["kind"] == "too_often_again" and al.get("out") == "broken":
                 before = al.get("out_before")
                 if not before:            # 以前の記録: 謝罪への返信の種類から
@@ -219,11 +224,20 @@ class Manners:
                 if r.get("action") == "_too_often" and abs(r.get("t", 0) - it["t"]) < 2:
                     r["resolved"] = True
             st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - last_me["t"]) >= 1]
-            got = self._thanks_forgave(st, al, char)
-            if got:
-                eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
+            if lost:                      # 判定されていなかった謝罪を, 届いた時刻のこととして判定する (バグで遅れた分を「今さら」にしない)
+                ap_t = [x for x in run[:-1] if x.get("kind") == "apology"][-1]["t"]
+                v = self.apology(char, st, ap_t)
+                self.apply_apology(char, st, v, ap_t)
+                eff, _ = app.bonds.realize(char, st, dict(APOLOGY_EFF.get(v["out"], {})), "_chat_apology", ap_t)
                 app.apply_effects(st, app.trait_effects(char, eff))
-                out.append((cid, got[0]))
+                al = st.get("apology_last") or al
+            al["grace_used"] = True
+            if al.get("out"):
+                got = self._thanks_forgave(st, al, char)
+                if got:
+                    eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
+                    app.apply_effects(st, app.trait_effects(char, eff))
+                    out.append((cid, got[0]))
             break                         # 当て直すのは 1 通目だけ
         return out
 

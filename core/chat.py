@@ -212,7 +212,8 @@ class Chat:
         if kind == "apology":       # 謝るのは, 連絡が多いうちに数えない (連絡しすぎを謝るのも). 許し方は manners
             return app.manners.reply(char, st, kind, now, ctx, meta)
         sent = ctx.get("_sent") or now
-        if kind == "thanks" and app.manners.thanks_grace(st, sent):
+        if kind == "thanks" and (ctx.get("_after_apology") and not (st.get("apology_last") or {}).get("grace_used")
+                                 or app.manners.thanks_grace(st, sent)):
             st["apology_last"]["grace_used"] = True          # 謝罪の返事のすぐあとのお礼 1 通目: 連絡が多いうちに数えない
             st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - sent) > 1e-6]
         elif ctx.get("too_often"):

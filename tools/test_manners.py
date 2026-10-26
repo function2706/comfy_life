@@ -117,7 +117,10 @@ def main():
         assert reply("thanks", t=now + 1200, ctx={"too_often": True, "_sent": now + 1000})[0] == "too_often_again", "2 通目は今までどおり"
         r = fault(-2, action="_too_often")
         M.apply_apology(char, st, {"out": "quick", "r": r}, now)
-        assert reply("thanks", t=now + 3700, ctx={"too_often": True, "_sent": now + 3600})[0] == "too_often_again", "30 分より後は今までどおり"
+        assert not reply("thanks", t=now + 3 * 3600, ctx={"too_often": True, "_sent": now + 2.5 * 3600})[0].startswith("too_often"), "2 時間半後でも 1 通目は数えない"
+        r = fault(-2, action="_too_often")
+        M.apply_apology(char, st, {"out": "quick", "r": r}, now)
+        assert reply("thanks", t=now + 86400 + 120, ctx={"too_often": True, "_sent": now + 86400 + 60})[0].startswith("too_often"), "1 日より後は今までどおり"
         print("謝罪のすぐあとのお礼: 連絡が多いうちに数えない")
         # 「態度で」: 連絡しすぎなら, しばらく連絡を控えると消える
         r = fault(-6, action="_too_often")
@@ -300,6 +303,25 @@ def main():
         assert M.nudge_urgent(char, st, {"kind": "appoint"}, now)
         assert reply("nudge")[0] == "nudge_huh"
         print("返事まだ？: 気分 %.1f → %.1f" % (mood0, st["params"]["mood"]))
+
+        # ---- 13. 連絡しすぎを「ごめんね」→ 返事を待っている間に「ありがとう」: 謝罪を上書きせず, 2 つに返す
+        random.gauss = lambda m, s: 0.0
+        for _ in range(3):
+            st.pop("msg_pending", None)
+            st["cooldowns"], st["apology_last"], st["apologies"] = {}, None, []
+            st["reasons"] = []
+            L.add_reason(st, "player", "bad", "連絡が多くて、少し疲れた", time.time() - 600, told=True, delta=-2.0, action="_too_often")
+            st["contacts"] = [time.time() - 60 * i for i in range(14)]
+            st["params"].update(mood=55, affection=60, trust=60)
+            C.save(cid, {"seen_t": 0, "items": []})      # 前の節のトーク (先の時刻のものもある) を片付けて
+            C.send(cid, "apology")
+            C.send(cid, "thanks")
+            st["msg_pending"].update(due=time.time() - 1, reply=True)
+            app.deliver_due()
+            kinds = [it["kind"] for it in C.thread(cid)["items"] if it["who"] == "her"]
+            assert kinds[0].startswith("apology") and kinds[1].startswith("thanks"), kinds
+            assert "too_often" not in " ".join(kinds), kinds
+        print("謝罪の返事待ちの間のお礼:", kinds)
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

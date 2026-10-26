@@ -1263,8 +1263,12 @@ class App:
             if kind == "nudge":                        # 返事を待っている間の催促: 返信はもとのメッセージに. 急ぎの話なら多少許される
                 pend["nudge"] = "ok" if self.manners.nudge_urgent(char, st, pend, now) else "bad"
             elif kind:
+                if pend.get("kind") == "apology" and kind != "apology" and not pend.get("apology_first"):
+                    # 謝罪の返事を待っている間に別のメッセージ: 謝罪を上書きしない (返事は謝罪への分と, 新しい方への分の 2 つ)
+                    pend["apology_first"] = {"t": pend.get("kind_t") or pend["t"], "meta": pend.get("meta") or {}}
                 pend["kind"] = kind                    # 返信は, いちばん新しいメッセージに対して
                 pend["meta"] = meta
+                pend["kind_t"] = now
         else:
             delay = random.uniform(3, 40) * 60
             if p.get("mood", 50) < 35:
@@ -1325,12 +1329,16 @@ class App:
         dt = datetime.fromtimestamp(now)
         kind = pend["kind"]
         with self.lock:
+            first = pend.get("apology_first")
+            if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
+                self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"]}, now - 1)
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
             else:
                 ctx["_meta"] = pend.get("meta") or {}
-                ctx["_sent"] = pend.get("t")
+                ctx["_sent"] = pend.get("kind_t") or pend.get("t")
+                ctx["_after_apology"] = bool(first)       # 謝罪と同じ返事待ちのうちに送ったお礼
                 key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
             self.bonds.touch(st, now)

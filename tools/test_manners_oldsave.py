@@ -221,6 +221,24 @@ def main():
             app = engine.App()                   # もう一度起動しても二重に当てない (知らせも出ない)
             assert app.state(cid)["params"]["mood"] == m1
             assert sum(1 for x in app.chat.thread(cid)["items"] if x.get("kind") == "rejudge") == 1
+        # 「ごめんね」の返事を待っている間に「ありがとう」: 以前は謝罪が上書きされて「謝ったばかりなのに」になっていた. 起動したとき当て直す
+        app, st = old_state(app, cid, now)
+        t0 = now - 3600
+        st["apology_last"] = {"t": now - 20 * 3600, "action": "_too_often", "out": "broken"}     # 前の日の謝罪
+        st["params"]["mood"] = 45
+        app.chat.add(cid, "her", "📱『……うん、もういいですよ』", kind="apology", t=now - 20 * 3600)
+        app.chat.add(cid, "me", "（謝った）", kind="apology", t=t0)
+        app.chat.add(cid, "me", "（お礼を言った）", kind="thanks", t=t0 + 60)
+        app.chat.add(cid, "her", "📱『……謝ったばかりなのに』", kind="too_often_again", t=t0 + 900)
+        app.save_state(cid)
+        app = engine.App()
+        st = app.state(cid)
+        al = st["apology_last"]
+        assert abs(al["t"] - t0) < 1 and al["out"] != "broken" and al.get("grace_used"), al      # 謝罪は送った時刻のこととして判定
+        assert st["params"]["mood"] > 45, st["params"]["mood"]
+        assert app.chat.thread(cid)["items"][-1]["kind"] == "rejudge"
+        print("返事待ちの間の謝罪→お礼 (以前の判定):", al["out"], app.chat.thread(cid)["items"][-1]["text"])
+
         # 知らせを出す前の版で当て直し済みだった: 起動したとき, 済んだことだけ一度知らせる
         app, st = old_state(app, cid, now)
         st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": "quick", "grace_used": True}
