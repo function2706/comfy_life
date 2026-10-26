@@ -192,6 +192,30 @@ def main():
         app = engine.App()
         assert app.state(cid)["params"]["mood"] == 50
         print("pull する前のお礼 (返事待ち・すでに「何が？」): OK")
+
+        # ---- 10. 許してもらった直後のお礼に, 以前の判定で「謝ったばかりなのに」「連絡多くない？」が返っていた: 起動したとき当て直す
+        for kind, eff in (("too_often_again", -5), ("too_often", -2)):
+            app, st = old_state(app, cid, now)
+            t0 = now - 3600
+            st["apology_last"] = {"t": t0, "action": "_too_often", "out": "broken" if kind == "too_often_again" else "quick"}
+            st["params"]["mood"] = 50 + eff
+            st["contacts"] = [t0 + 600]
+            st["reasons"] = [{"kind": "player", "mood": "bad", "tell": "連絡", "t": t0 + 900, "told": True, "delta": -4.0,
+                              "action": "_too_often"}]
+            app.chat.add(cid, "her", "📱『……うん、もういいですよ』", kind="apology", t=t0)
+            app.chat.add(cid, "me", "（お礼を言った）", kind="thanks", t=t0 + 600)
+            app.chat.add(cid, "her", "📱『……謝ったばかりなのに』", kind=kind, t=t0 + 900)
+            app.save_state(cid)
+            app = engine.App()                   # 起動
+            st = app.state(cid)
+            m1 = st["params"]["mood"]
+            assert m1 > 50, (kind, m1)           # 下がった分が戻り, お礼として小さく効く
+            assert st["apology_last"]["out"] == "quick" and st["apology_last"].get("grace_used"), st["apology_last"]
+            assert all(r.get("resolved") for r in st["reasons"]) and not st["contacts"], (st["reasons"], st["contacts"])
+            assert app.chat.thread(cid)["items"][-1]["kind"] == kind, "トークの文面は書き換えない"
+            app = engine.App()                   # もう一度起動しても二重に当てない
+            assert app.state(cid)["params"]["mood"] == m1
+        print("pull する前のお礼 (すでに「連絡多い」): OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

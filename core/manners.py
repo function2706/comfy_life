@@ -161,9 +161,52 @@ class Manners:
                 eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
                 app.apply_effects(st, app.trait_effects(char, eff))
                 out.append((cid, got[0]))
-            if items:
+            # 許してもらった直後 (30 分のうち) のお礼 1 通目に, 以前の判定で「連絡多くない？」「謝ったばかりなのに」が返っていた:
+            # その分の機嫌の下がり・理由・連絡の回数を戻し, お礼として当て直す (文面は書き換えない)
+            regrace = self._regrace(cid, char, st, al, done)
+            out += regrace
+            if items or regrace:
                 del done[:-20]
                 app.save_state(cid)
+        return out
+
+    TOO_OFTEN_EFF = {"too_often": {"mood": -2, "affection": -1}, "too_often_again": {"mood": -5, "trust": -2, "affection": -1}}
+    APOLOGY_KEY_OUT = {"apology": "quick", "apology_half": "half", "apology_deeds": "deeds", "apology_late": "late"}
+
+    def _regrace(self, cid, char, st, al, done):
+        app = self.app
+        if al.get("grace_used"):
+            return []
+        items = app.chat.load(cid)["items"]
+        last_me, out = None, []
+        for it in items:
+            if it.get("who") == "me":
+                last_me = it
+                continue
+            if it.get("who") != "her" or it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done:
+                continue
+            if not last_me or last_me.get("kind") != "thanks" or not (0 <= last_me["t"] - al["t"] < THANKS_GRACE):
+                continue
+            done.append(it["t"])
+            al["grace_used"] = True
+            if it["kind"] == "too_often_again" and al.get("out") == "broken":
+                before = al.get("out_before")
+                if not before:            # 以前の記録: 謝罪への返信の種類から
+                    prev = [x for x in items if x.get("who") == "her" and x["t"] <= al["t"] + 1
+                            and (x.get("kind") or "") in self.APOLOGY_KEY_OUT]
+                    before = self.APOLOGY_KEY_OUT[prev[-1]["kind"]] if prev else "quick"
+                al["out"] = before
+            app.apply_effects(st, {k: -v for k, v in self.TOO_OFTEN_EFF[it["kind"]].items()})
+            for r in st.get("reasons") or []:
+                if r.get("action") == "_too_often" and abs(r.get("t", 0) - it["t"]) < 2:
+                    r["resolved"] = True
+            st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - last_me["t"]) >= 1]
+            got = self._thanks_forgave(st, al, char)
+            if got:
+                eff, _ = app.bonds.realize(char, st, got[1], "_chat_thanks", it["t"])
+                app.apply_effects(st, app.trait_effects(char, eff))
+                out.append((cid, got[0]))
+            break                         # 当て直すのは 1 通目だけ
         return out
 
     def _thanks_forgave(self, st, al, char):

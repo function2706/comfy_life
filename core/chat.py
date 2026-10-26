@@ -217,6 +217,7 @@ class Chat:
             st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - sent) > 1e-6]
         elif ctx.get("too_often"):
             if app.manners.again(st, "_too_often", now):      # 謝ったばかりなのに, また連絡しすぎ: ふつうより強く響く
+                st["apology_last"]["out_before"] = st["apology_last"].get("out")      # 謝罪の結果 (あとで当て直すとき用)
                 st["apology_last"]["out"] = "broken"
                 L.add_reason(st, "player", "bad", "謝ったばかりなのに、%sからまた連絡が多い" % app.pronouns(char)[2], now,
                              told=True, delta=-4.0, action="_too_often")
