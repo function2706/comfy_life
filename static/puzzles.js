@@ -73,7 +73,7 @@ function taskStats() {
   else if (v.kind === 'sudoku') rest = `残り ${v.cur.filter((x) => !x).length} マス`;
   else if (v.kind === 'picross') rest = `塗った ${v.filled.length} / ${v.rows.flat().reduce((a, b) => a + b, 0)} マス`;
   else if (v.kind === 'g2048') rest = `最大 ${v.max} / 目標 ${v.target}　${v.moves} 手`;
-  else if (SOL_KINDS.includes(v.kind)) rest = `組札 ${v.up} / ${v.total || 52} 枚　${v.moves} 手${v.stuck ? '　⚠ もう動かせる手がありません（元に戻すか、やめる）' : ''}`;
+  else if (SOL_KINDS.includes(v.kind)) rest = `${v.kind === 'spider' ? '片付けた' : '組札'} ${v.up} / ${v.total || 52} 枚${v.kind === 'spider' ? `　山 ${v.stock} 回` : ''}　${v.moves} 手${v.stuck ? '　⚠ もう動かせる手がありません（元に戻すか、やめる）' : ''}`;
   else if (v.kind === 'typing') {
     const keys = v.keys + (T.ty ? T.ty.typed.length : 0), miss = v.miss + (T.ty ? T.ty.miss : 0);
     el.textContent = `⏱ ${fmtSec(sec)}（目安 ${fmtSec(T.tk.par)}）　${Math.min(v.i + 1, v.n)} / ${v.n}　打鍵 ${keys}・ミス ${miss}`

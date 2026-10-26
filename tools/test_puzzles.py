@@ -203,6 +203,8 @@ def main():
             q["i"], q["keys"] = len(q["items"]), 100
         elif kind == "freecell":
             q["found"] = [13] * 4
+        elif kind == "spider":
+            q["done"] = [12] * 8
         q["miss"] = miss
         return q
 

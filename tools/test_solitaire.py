@@ -71,7 +71,67 @@ def freecell():
     print("フリーセル: 手・自動の行き先・元に戻す・詰み・稼ぎ OK")
 
 
+def spider():
+    # ---- 配り: 104 枚. スートの数が難しさ
+    for lv, ns in (("easy", 1), ("mid", 2), ("hard", 4)):
+        p = P.new("spider", lv, random.Random(2))
+        allc = [c for col in p["cols"] for c in col] + p["stock"]
+        assert len(allc) == 104 and len({SO.suit(c) for c in allc}) == ns and len(p["stock"]) == 50
+        assert [len(c) for c in p["cols"]] == [6] * 4 + [5] * 6 and all(p["down"][i] == len(c) - 1 for i, c in enumerate(p["cols"]))
+    v = P.view(p)
+    assert v["cols"][0][:5] == [None] * 5 and v["cols"][0][5], "表は一番上だけ"
+
+    def mk(cols, down=None, stock=()):
+        return {"kind": "spider", "cols": [[card(x) for x in c] for c in cols] + [[] for _ in range(10 - len(cols))],
+                "down": (down or [0] * len(cols)) + [0] * (10 - len(cols)), "stock": [card(x) for x in stock], "done": [], "hist": [],
+                "miss": 0, "moves": 0, "level": "mid"}
+    # ---- 手: 1 つ大きいカードの上へ. 同じスートのひと続きだけまとめて. 裏は動かせない. 動かすと下の裏が表に
+    st = mk([["9S", "8H", "7S", "6S"], ["8D"], ["KC", "QH"]], down=[1, 0, 1])
+    SO.sp_move(st, {"from": {"t": "col", "i": 0, "n": 2}, "to": {"t": "col", "i": 1}})       # 7♠6♠ を 8♦ へ (スートは問わない)
+    assert [SO.name(c) for c in st["cols"][1]] == ["8D", "7S", "6S"]
+    for bad in ({"from": {"t": "col", "i": 1, "n": 3}, "to": {"t": "col", "i": 2}},            # 8♦7♠ はスート違いでまとめられない
+                {"from": {"t": "col", "i": 2, "n": 2}, "to": {"t": "col", "i": 5}},            # 裏の K♣ は動かせない
+                {"from": {"t": "col", "i": 1, "n": 1}, "to": {"t": "col", "i": 0}}):           # 6 を 8 に
+        try:
+            SO.sp_move(st, bad)
+            raise AssertionError("できないはずの手: %s" % bad)
+        except ValueError:
+            pass
+    SO.sp_move(st, {"from": {"t": "col", "i": 0, "n": 1}, "to": {"t": "col", "i": 4}})           # 8♥ を空き列へ → 9♠ が表に
+    assert st["down"][0] == 0 and P.view(dict(st, level="mid"))["cols"][0] == ["9S"]
+    SO.sp_move(st, {"undo": True})
+    assert [SO.name(c) for c in st["cols"][0]] == ["9S", "8H"] and st["down"][0] == 1
+    # クリックの行き先: 同じスートで続く列が先
+    st = mk([["5H"], ["6S"], ["6H"], ["9C"]])
+    assert SO.sp_auto_dst(st, 0, 1) == 2
+    # ---- K から A まで同じスートで揃ったら片付く
+    run = ["KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"]
+    st = mk([["5D"] + run, ["AS"]], down=[1, 0])
+    SO.sp_move(st, {"from": {"t": "col", "i": 1, "n": 1}, "to": {"t": "col", "i": 0}})
+    assert len(st["done"]) == 1 and [SO.name(c) for c in st["cols"][0]] == ["5D"] and st["down"][0] == 0
+    # ---- 山から配る: 空いた列があると配れない
+    st = mk([["5D"]] * 10, stock=["AS"] * 10)
+    SO.sp_move(st, {"stock": True})
+    assert all(len(c) == 2 for c in st["cols"]) and not st["stock"]
+    st = mk([["5D"]] * 9, stock=["AS"] * 10)
+    try:
+        SO.sp_move(st, {"stock": True})
+        raise AssertionError("空き列があるのに配れた")
+    except ValueError:
+        pass
+    # ---- 詰み: 山が無く, 意味のある手が無い (行き来するだけの手は数えない)
+    st = mk([["9S", "8S"], ["2C"], ["5D"], ["JS"], ["KD"], ["9H"], ["2H"], ["5C"], ["JD"], ["KS"]])
+    assert SO.sp_stuck(st), "8♠ を 9♥ へ動かすのは, 自分の 9♠ から離すだけ (意味が無い)"
+    st["cols"][1] = [card("3D")]
+    assert not SO.sp_stuck(st), "2♥ は 3♦ へ動かせる"
+    st["cols"][1] = [card("2C")]
+    st["stock"] = [card("AS")] * 10
+    assert not SO.sp_stuck(st), "山があれば配れる"
+    print("スパイダー: 配り・手・自動の行き先・片付け・山・元に戻す・詰み OK")
+
+
 def main():
+    spider()
     freecell()
     print("ALL OK")
 

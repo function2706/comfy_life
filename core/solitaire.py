@@ -302,3 +302,149 @@ def fc_view(st, reveal=False):
     return {"cols": [[name(c) for c in col] for col in st["cols"]], "cells": [name(c) if c is not None else None for c in st["cells"]],
             "found": [name(s * 13 + n - 1) if n else None for s, n in enumerate(st["found"])], "up": sum(st["found"]),
             "moves": st["moves"], "undo": len(st["hist"]), "stuck": fc_stuck(st)}
+
+
+# ====================================================================== スパイダーソリティア
+SP_SUITS = {"easy": 1, "mid": 2, "hard": 4}
+
+
+def sp_new(level, rng=random):
+    """2 組ぶん (104 枚) を 10 列に 54 枚 (左の 4 列は 6 枚, 残りは 5 枚. 一番上だけ表), 山に 50 枚 (5 回ぶん)."""
+    d = deck(rng, SP_SUITS[level], copies=2)
+    cols = [[] for _ in range(10)]
+    for i in range(54):
+        cols[i % 10].append(d.pop())
+    return {"kind": "spider", "cols": cols, "down": [len(c) - 1 for c in cols], "stock": d, "done": [], "hist": [], "miss": 0, "moves": 0}
+
+
+def sp_run_start(st, i):
+    """列 i の上から, 同じスートで 1 つずつ小さいひと続きの始まり (動かせる一番下の位置)."""
+    col = st["cols"][i]
+    k = len(col) - 1
+    while k > st["down"][i] and suit(col[k - 1]) == suit(col[k]) and rank(col[k - 1]) == rank(col[k]) + 1:
+        k -= 1
+    return k
+
+
+def _sp_flip(st, i):
+    if st["cols"][i] and st["down"][i] >= len(st["cols"][i]):
+        st["down"][i] = len(st["cols"][i]) - 1
+
+
+def _sp_complete(st, i):
+    """K から A まで同じスートで揃ったら片付ける."""
+    col = st["cols"][i]
+    if len(col) >= 13 and sp_run_start(st, i) <= len(col) - 13 and rank(col[-13]) == 13:
+        st["done"].append(col[-13])
+        del col[-13:]
+        st["down"][i] = min(st["down"][i], max(0, len(col) - 1))
+        _sp_flip(st, i)
+        return True
+    return False
+
+
+def sp_try(st, i, n, j):
+    col, to = st["cols"][i], st["cols"][j]
+    if i == j:
+        raise ValueError("同じ列です")
+    if n < 1 or n > len(col) or len(col) - n < st["down"][i]:
+        raise ValueError("裏のカードは動かせません")
+    if len(col) - n < sp_run_start(st, i):
+        raise ValueError("同じスートのひと続きだけ、まとめて動かせます")
+    if to and rank(to[-1]) != rank(col[-n]) + 1:
+        raise ValueError("1 つ大きいカードの上にだけ重ねられます")
+    to.extend(col[-n:])
+    del col[-n:]
+    _sp_flip(st, i)
+    _sp_complete(st, j)
+
+
+def sp_auto_dst(st, i, n):
+    """クリックの行き先: 同じスートで続く列 → 1 つ大きいカードの列 → 空き列."""
+    c = st["cols"][i][-n]
+    same, other, empty = [], [], []
+    for j, to in enumerate(st["cols"]):
+        if j == i:
+            continue
+        if not to:
+            empty.append(j)
+        elif rank(to[-1]) == rank(c) + 1:
+            (same if suit(to[-1]) == suit(c) else other).append(j)
+    if len(st["cols"][i]) == n:
+        empty = []                     # 列ごと空き列へ動かしても意味がない
+    for j in same + other + empty:
+        return j
+    return None
+
+
+def sp_deal(st):
+    if not st["stock"]:
+        raise ValueError("山がもうありません")
+    if any(not c for c in st["cols"]):
+        raise ValueError("空いている列があると配れません（何か置いてから）")
+    for i in range(10):
+        st["cols"][i].append(st["stock"].pop())
+    for i in range(10):
+        _sp_complete(st, i)
+
+
+def sp_useful(st):
+    """意味のある手があるか (同じところへ行き来するだけの手は数えない)."""
+    for i, col in enumerate(st["cols"]):
+        if not col:
+            continue
+        for k in range(sp_run_start(st, i), len(col)):
+            below = col[k - 1] if k > 0 else None
+            down_below = k - 1 < st["down"][i]
+            for j, to in enumerate(st["cols"]):
+                if j == i:
+                    continue
+                if to and rank(to[-1]) != rank(col[k]) + 1:
+                    continue
+                if not to and k == 0:
+                    continue
+                if below is None or down_below or rank(below) != rank(col[k]) + 1 \
+                        or (suit(below) != suit(col[k]) and to and suit(to[-1]) == suit(col[k])):
+                    return True
+    return False
+
+
+def sp_stuck(st):
+    return len(st["done"]) < 8 and not st["stock"] and not sp_useful(st)
+
+
+def sp_move(st, mv):
+    if mv.get("undo"):
+        if not st["hist"]:
+            raise ValueError("戻せる手がありません")
+        st.update(st["hist"].pop())
+        return {"undo": True}
+    before = _snap(st, ("cols", "down", "stock", "done"))
+    if mv.get("stock"):
+        sp_deal(st)
+    else:
+        src = mv.get("from") or {}
+        if src.get("t") != "col":
+            raise ValueError("動かすカードが違います")
+        i, n = int(src["i"]), max(1, int(src.get("n") or 1))
+        if mv.get("auto"):
+            if n > len(st["cols"][i]) or len(st["cols"][i]) - n < sp_run_start(st, i):
+                raise ValueError("同じスートのひと続きだけ、まとめて動かせます")
+            j = sp_auto_dst(st, i, n)
+            if j is None:
+                raise ValueError("動かせる行き先がありません")
+        else:
+            dst = mv.get("to") or {}
+            if dst.get("t") != "col":
+                raise ValueError("列にだけ動かせます")
+            j = int(dst["i"])
+        sp_try(st, i, n, j)
+    st["hist"] = (st["hist"] + [before])[-300:]
+    st["moves"] += 1
+    return {}
+
+
+def sp_view(st):
+    return {"cols": [[name(c) if k >= st["down"][i] else None for k, c in enumerate(col)] for i, col in enumerate(st["cols"])],
+            "stock": len(st["stock"]) // 10, "done": [name(c) for c in st["done"]], "up": len(st["done"]) * 13, "total": 104,
+            "moves": st["moves"], "undo": len(st["hist"]), "stuck": sp_stuck(st)}
