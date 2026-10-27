@@ -217,8 +217,10 @@ class Bonds:
                 "rivals_known": sum(1 for o in rv if o in known),
                 # 現実的な深まり方: 最近の交流日数 / ご無沙汰の日数 / 提案を受ける気持ち / 贈り物・お金の受け止め方
                 "met_14d": self.freq(st, now), "gap_d": round(self.gap_days(st, now), 2),
-                # 連絡しすぎ: 24 時間の連絡回数が, 性格 (approach) と間柄で決まる許容を超えた
-                "contacts_24h": self._contacts(st, now), "too_often": self._contacts(st, now) > self._tolerance(char, cid),
+                # 連絡しすぎ: 24 時間の連絡 (種類ごとの重み. 会話の返事は数えず, 追いメッセージは重め) が,
+                # 性格 (approach)・間柄・相手からの連絡の多さ・相手の状況で決まる許容を超えた
+                "contacts_24h": round(self._contacts(st, now), 1),
+                "too_often": self._contacts(st, now) > self.tolerance(char, cid, st, now),
                 "ready": self.readiness(char, st, now), "gift_feel": self.gift_feel(char, st, now),
                 "money_feel": self.gift_feel(char, st, now, money=True)}
 
@@ -327,13 +329,56 @@ class Bonds:
             eff[k] = v
         return eff, note
 
-    @staticmethod
-    def _contacts(st, now):
-        return sum(1 for t in st.get("contacts") or [] if now - t < 86400)
+    # ---- 連絡しすぎ. st["contacts"] は あなたから送った連絡 [{t, w}] (以前の記録は時刻だけ: 1 回と数える)
+    CONTACT_W = {"greet_morning": 0.5, "greet_night": 0.5, "stamp": 0.5, "_phone": 1.5}     # 種類ごとの重み (ほかは 1)
+    FOLLOWUP_W = 1.5         # 返事がないのに続けて送った (追いメッセージ) ときの倍率
+    HER_BONUS_MAX = 4        # 相手からよく来るときに増える, 我慢できる回数の上限
 
-    def _tolerance(self, char, cid):
-        base = 2 + 2 * float(self.app.traits(char).get("approach", 1))     # 甘えたがりほど連絡が多くても平気
-        return base + {"known": 0, "contact": 0, "visit": 2, "live": 4}.get(self.stage(cid), 0)
+    @staticmethod
+    def contact_t(x):
+        return x["t"] if isinstance(x, dict) else float(x)
+
+    @staticmethod
+    def contact_w(x):
+        return float(x.get("w", 1.0)) if isinstance(x, dict) else 1.0
+
+    @classmethod
+    def _contacts(cls, st, now):
+        """直近 24 時間の連絡の多さ (重みの合計)."""
+        return sum(cls.contact_w(x) for x in st.get("contacts") or [] if now - cls.contact_t(x) < 86400)
+
+    def contact_weight(self, char, st, kind, now, phone=False):
+        """これから送る連絡の重み: 挨拶・スタンプは軽く, 電話は重め. 相手から返事 (・メッセージ) が来たあとの 1 通は会話なので
+        数えない (0). 返事がないのに続けて送る (返事待ちの間・既読のまま 6 時間のうち) と重め (追いメッセージ)."""
+        w = self.CONTACT_W["_phone" if phone else kind] if (phone or kind in self.CONTACT_W) else 1.0
+        items = [it for it in self.app.chat.load(char["id"])["items"] if it.get("who") in ("me", "her")]
+        mine = [self.contact_t(x) for x in st.get("contacts") or []]
+        last_me = max(mine) if mine else 0
+        last_her = max([it["t"] for it in items if it["who"] == "her"] or [0])
+        if not phone and (st.get("approach") or last_her > last_me):
+            return 0.0                                   # 相手が話しかけてきた・返事をくれたあとの返事
+        if st.get("msg_pending") or (last_me and last_me > last_her and now - last_me < 6 * 3600):
+            w *= self.FOLLOWUP_W                         # 返事がないのに続けて送る
+        return w
+
+    def tolerance(self, char, cid, st=None, now=None):
+        """我慢できる連絡の多さ: 性格 (甘えたがりほど平気)・間柄・相手からの連絡の多さ (上限あり)・相手の状況
+        (仕事中・手が離せないと減り, 機嫌がいい・寂しいと少し増える)・その日の揺らぎ."""
+        base = 2 + 2 * float(self.app.traits(char).get("approach", 1)) \
+            + {"known": 0, "contact": 0, "visit": 2, "live": 4}.get(self.stage(cid), 0)
+        if st is None:
+            return base
+        now = now or time.time()
+        her = sum(1 for it in self.app.chat.load(cid)["items"] if it.get("who") == "her" and now - it["t"] < 86400)
+        base += min(self.HER_BONUS_MAX, her)
+        p = st["params"]
+        scene = self.app.scene_at(char, st, _dt.datetime.fromtimestamp(now))
+        if scene.get("busy"):
+            base *= 0.6
+        base += (1.0 if p.get("mood", 50) >= 65 else 0.0) + (1.0 if p.get("loneliness", 0) >= 60 else 0.0)
+        day = _dt.datetime.fromtimestamp(now).strftime("%Y%m%d")
+        jitter = random.Random("%s:%s" % (cid, day)).uniform(-0.75, 0.75)      # その日の揺らぎ (一日のうちは同じ)
+        return base + jitter
 
     def readiness(self, char, st, now):
         """段階の提案を受ける気持ち (目安 0〜100). 数値だけでなく, 最近の交流・ご無沙汰・性格・その日の気分で揺れる."""

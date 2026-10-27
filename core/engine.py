@@ -874,7 +874,7 @@ class App:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             apart = ctx["apart"]
             if apart and a.get("category") == "連絡" and not opts.get("deliver") and opts.get("msg_kind") != "apology":
-                self._phoned(st, now)            # スマホで連絡した (頻度・仕事中かどうか. 謝るメッセージは数えない)
+                self._phoned(st, now, char, opts.get("msg_kind"), phone=bool(a.get("phone")))      # スマホで連絡した (謝るメッセージは数えない)
             if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
                 # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
                 return self._send_later(char, st, a, now, dt, scene, ctx, opts.get("msg_kind"))
@@ -1211,9 +1211,10 @@ class App:
             return a.get("apart_when") or ""
         return a.get("when", "")
 
-    def _phoned(self, st, now):
-        """スマホで連絡した記録: 相手ごとの頻度と, 仕事中の連絡 (多いと仕事に響く)."""
-        st["contacts"] = [t for t in st.get("contacts") or [] if now - t < 86400] + [now]
+    def _phoned(self, st, now, char=None, kind=None, phone=False):
+        """スマホで連絡した記録: 相手ごとの頻度 (種類ごとの重み. bonds.contact_weight) と, 仕事中の連絡 (多いと仕事に響く)."""
+        w = self.bonds.contact_weight(char, st, kind, now, phone) if char else 1.0
+        st["contacts"] = [x for x in st.get("contacts") or [] if now - self.bonds.contact_t(x) < 86400] + [{"t": now, "w": round(w, 2)}]
         p = self.presence.rec()
         if p.get("mode") == "work":
             p["work_contacts"] = p.get("work_contacts", 0) + 1

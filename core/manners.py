@@ -223,7 +223,7 @@ class Manners:
             for r in st.get("reasons") or []:
                 if r.get("action") == "_too_often" and abs(r.get("t", 0) - it["t"]) < 2:
                     r["resolved"] = True
-            st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - last_me["t"]) >= 1]
+            st["contacts"] = [x for x in st.get("contacts") or [] if abs(app.bonds.contact_t(x) - last_me["t"]) >= 1]
             if lost:                      # 判定されていなかった謝罪を, 届いた時刻のこととして判定する (バグで遅れた分を「今さら」にしない)
                 ap_t = [x for x in run[:-1] if x.get("kind") == "apology"][-1]["t"]
                 v = self.apology(char, st, ap_t)
@@ -397,7 +397,7 @@ class Manners:
         app, L = self.app, self.app.life
         for r in self._faults(st, now):
             if r.get("deeds") and r.get("action") == "_too_often" and now - r["deeds"] >= DEEDS_QUIET \
-                    and not any(t > r["deeds"] for t in st.get("contacts") or []):
+                    and not any(app.bonds.contact_t(x) > r["deeds"] for x in st.get("contacts") or []):
                 r["resolved"] = True
         dt = datetime.fromtimestamp(now)
         for kind in GREET_OK:

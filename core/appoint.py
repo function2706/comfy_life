@@ -360,7 +360,7 @@ class Appoint:
             st = app.state(cid)
             scene = app.scene_at(char, st, datetime.fromtimestamp(now))
             ctx = app.context(char, st, datetime.fromtimestamp(now), scene)
-            app._phoned(st, now)
+            app._phoned(st, now, char, "appoint")
             app.chat.add(cid, "me", text, kind="appoint", t=now)
             pend = st.get("msg_pending")
             if pend:            # 返信は, いちばん新しいメッセージに対して

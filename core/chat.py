@@ -215,7 +215,7 @@ class Chat:
         if kind == "thanks" and (ctx.get("_after_apology") and not (st.get("apology_last") or {}).get("grace_used")
                                  or app.manners.thanks_grace(st, sent)):
             st["apology_last"]["grace_used"] = True          # 謝罪の返事のすぐあとのお礼 1 通目: 連絡が多いうちに数えない
-            st["contacts"] = [t for t in st.get("contacts") or [] if abs(t - sent) > 1e-6]
+            st["contacts"] = [x for x in st.get("contacts") or [] if abs(app.bonds.contact_t(x) - sent) > 1e-6]
         elif ctx.get("too_often"):
             if app.manners.again(st, "_too_often", now):      # 謝ったばかりなのに, また連絡しすぎ: ふつうより強く響く
                 st["apology_last"]["out_before"] = st["apology_last"].get("out")      # 謝罪の結果 (あとで当て直すとき用)

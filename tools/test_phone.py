@@ -77,7 +77,8 @@ def main():
         char = app.char(cid)
         char["persona_id"] = "cool"
         reset()
-        for _ in range(4):
+        n = int(B.tolerance(char, cid, st, time.time())) + 1       # クールが我慢できる回数 + 1 (相手から届いた分・状況・揺らぎ込み)
+        for _ in range(n):
             st["contacts"].append(time.time())
         assert B.ctx(cid, st)["too_often"], "クールは連絡が多いのが苦手"
         char["persona_id"] = "amaenbo"
