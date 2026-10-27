@@ -187,6 +187,68 @@ class Manners:
         self.app.logq.put("%s [INFO] お礼の当て直し %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, "・".join(parts) or "変化なし"))
 
     TOO_OFTEN_EFF = {"too_often": {"mood": -2, "affection": -1}, "too_often_again": {"mood": -5, "trust": -2, "affection": -1}}
+    RETRO_DAYS = 4           # 以前の「連絡多くない？」を判定し直す古さ (これより前でも, 理由がまだ解決していなければ)
+
+    def retro_contacts(self):
+        """起動したとき一度: 連絡しすぎの数え方 (重み) を以前の記録にも遡って効かせる.
+        1. 以前の contacts (時刻だけ) を, トークの記録と突き合わせて {t, w, k} に置き換える (突き合わせられない分は 1 回のまま).
+        2. 以前の判定で返った「連絡多くない？」「謝ったばかりなのに」(今も効いている分) を, その時点の記録で今の判定にかけ直し,
+           「多い」にならなかったものは 下がった機嫌・信頼・好感度を戻し, そのとき足された理由を解決済みにする
+           (トークの文面は書き換えず, 知らせを一度. contacts_rejudged に覚えて二重に当てない. お礼の当て直しで戻した分は除く)."""
+        app, B = self.app, self.app.bonds
+        now = time.time()
+        out = []
+        for cid, char in app.chars.items():
+            st = app.state(cid)
+            items = app.chat.load(cid)["items"]
+            hist = B.history_weights(items)
+            changed = False
+            cs = st.get("contacts") or []
+            if any(not isinstance(x, dict) for x in cs):
+                new = []
+                for x in cs:
+                    if isinstance(x, dict):
+                        new.append(x)
+                        continue
+                    hit = next((h for h in hist if abs(h[0] - float(x)) < 2), None)
+                    new.append({"t": float(x), "w": round(hit[1], 2), "k": hit[2], "retro": True} if hit else x)
+                st["contacts"] = new
+                changed = True
+            done = st.setdefault("contacts_rejudged", [])
+            since = st.setdefault("contacts_v2", now)       # この数え方になった時刻: これより前の判定だけ判定し直す
+            graced = set(st.get("thanks_rejudged") or [])
+            before = {k: float(st["params"].get(k, 0)) for k in ("mood", "trust", "affection")}
+            fixed = 0
+            for it in items:
+                if it.get("who") != "her" or it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done or it["t"] in graced                         or it["t"] >= since:
+                    continue
+                live = [r for r in st.get("reasons") or [] if r.get("action") == "_too_often" and abs(r.get("t", 0) - it["t"]) < 2]
+                if now - it["t"] > self.RETRO_DAYS * 86400 and not any(not r.get("resolved") for r in live):
+                    continue
+                done.append(it["t"])
+                changed = True
+                total = sum(w for t, w, _ in hist if it["t"] - 86400 < t <= it["t"])
+                if total > B.tolerance(char, cid, st, it["t"]):
+                    continue                                  # 今の数え方でも多かった: そのまま
+                app.apply_effects(st, {k: -v for k, v in self.TOO_OFTEN_EFF[it["kind"]].items()})
+                for r in live:
+                    r["resolved"] = True
+                al = st.get("apology_last") or {}
+                if it["kind"] == "too_often_again" and al.get("out") == "broken" and al.get("out_before"):
+                    al["out"] = al["out_before"]
+                fixed += 1
+                out.append((cid, it["kind"]))
+            if fixed:
+                diff = {k: round(float(st["params"].get(k, 0)) - before[k], 1) for k in before}
+                names = {"mood": "機嫌", "trust": "信頼", "affection": "好感度"}
+                parts = ["%s %+g" % (names[k], v) for k, v in diff.items() if v]
+                app.chat.add(cid, "sys", "（以前の「連絡が多い」を、今の数え方で受け止め直した%s）" % ("：" + "・".join(parts) if parts else ""),
+                             kind="rejudge", t=now)
+                app.logq.put("%s [INFO] 連絡しすぎの当て直し %s: %d 件 %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, fixed, "・".join(parts)))
+            if changed or since == now:
+                del done[:-40]
+                app.save_state(cid)
+        return out
     APOLOGY_KEY_OUT = {"apology": "quick", "apology_half": "half", "apology_deeds": "deeds", "apology_late": "late"}
 
     def _regrace(self, cid, char, st, al, done):
@@ -204,7 +266,8 @@ class Manners:
             if it.get("who") != "her":
                 continue
             run, seq = seq, []
-            if it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done or not run or run[-1].get("kind") != "thanks":
+            if it.get("kind") not in self.TOO_OFTEN_EFF or it["t"] in done or it["t"] in (st.get("contacts_rejudged") or []) \
+                    or not run or run[-1].get("kind") != "thanks":
                 continue
             last_me = run[-1]
             lost = any(x.get("kind") == "apology" for x in run[:-1])

@@ -361,6 +361,28 @@ class Bonds:
             w *= self.FOLLOWUP_W                         # 返事がないのに続けて送る
         return w
 
+    def history_weights(self, items):
+        """トークの記録から, あなたが送った連絡を時刻順に組み直す: [(時刻, 重み, 種類)] (以前の記録の置き換え・判定し直し用).
+        あなたの発言 (謝るは除く) と, あなたがかけた電話 (📞). 重みの決まりは contact_weight と同じ (相手の発言のあとの 1 通は会話で 0,
+        相手の返事がないまま 6 時間のうちに続けて送ると追いメッセージで重め)."""
+        out, last_me, last_her = [], 0.0, 0.0
+        for it in sorted(items, key=lambda x: x["t"]):
+            who, kind = it.get("who"), it.get("kind")
+            if who == "her":
+                last_her = it["t"]
+                continue
+            phone = who == "sys" and kind == "call" and str(it.get("text", "")).startswith("📞")
+            if not (who == "me" and kind != "apology") and not phone:
+                continue
+            w = self.CONTACT_W["_phone" if phone else kind] if (phone or kind in self.CONTACT_W) else 1.0
+            if not phone and last_her > last_me:
+                w = 0.0
+            elif last_me and last_me > last_her and it["t"] - last_me < 6 * 3600:
+                w *= self.FOLLOWUP_W
+            out.append((it["t"], w, "_phone" if phone else kind))
+            last_me = it["t"]
+        return out
+
     def tolerance(self, char, cid, st=None, now=None):
         """我慢できる連絡の多さ: 性格 (甘えたがりほど平気)・間柄・相手からの連絡の多さ (上限あり)・相手の状況
         (仕事中・手が離せないと減り, 機嫌がいい・寂しいと少し増える)・その日の揺らぎ."""
@@ -369,7 +391,7 @@ class Bonds:
         if st is None:
             return base
         now = now or time.time()
-        her = sum(1 for it in self.app.chat.load(cid)["items"] if it.get("who") == "her" and now - it["t"] < 86400)
+        her = sum(1 for it in self.app.chat.load(cid)["items"] if it.get("who") == "her" and 0 <= now - it["t"] < 86400)
         base += min(self.HER_BONUS_MAX, her)
         p = st["params"]
         scene = self.app.scene_at(char, st, _dt.datetime.fromtimestamp(now))

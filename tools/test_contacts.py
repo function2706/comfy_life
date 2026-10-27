@@ -117,6 +117,55 @@ def main():
                     row.append("%s %.1f（%d 通）" % (label, tol, k))
                 print("  %-8s approach %.1f %-7s %s" % (persona, ap, stage, " / ".join(row)))
         B.set_stage(cid, "contact")
+
+        # ---- 7. 以前の記録にも遡る (起動したとき一度): contacts の置き換えと, 以前の「連絡多くない？」の判定し直し
+        def old_save(lines, contacts, rejudged=()):
+            """以前の形で保存して起動し直す. lines: [(何秒前, who, kind)] (her の too_often は「連絡多くない？」)."""
+            reset()
+            now = time.time()
+            for ago, who, kind in lines:
+                C.add(cid, who, "📱『……』" if who == "her" else "（送った）", kind=kind, t=now - ago)
+                if kind in ("too_often", "too_often_again"):
+                    app.life.add_reason(st, "player", "bad", "連絡が多くて、少し疲れた", now - ago, told=True, delta=-2.0, action="_too_often")
+            st["contacts"] = [now - a for a in contacts]
+            for k in ("contacts_rejudged", "contacts_v2", "thanks_rejudged"):
+                st.pop(k, None)
+            if rejudged:
+                st["thanks_rejudged"] = [now - a for a in rejudged]
+            st["params"].update(mood=40, affection=50, trust=50)
+            app.save_state(cid)
+            return now
+
+        def restart():
+            a2 = engine.App()
+            return a2, a2.state(cid)
+        # 挨拶とひと言だけで「多い」と言われていた (以前の数え方): 戻る. 時刻だけの contacts は置き換わる
+        now = old_save([(7200, "me", "greet_morning"), (7100, "her", "reply"), (3600, "me", "smalltalk"),
+                        (3500, "her", "too_often")], [7200, 3600, 99999 % 80000])
+        app, st = restart()
+        B, C = app.bonds, app.chat
+        cs = st["contacts"]
+        assert cs[0]["w"] == 0.5 and cs[0]["k"] == "greet_morning" and cs[1]["w"] == 0.0 and not isinstance(cs[2], dict), cs
+        assert st["params"]["mood"] > 40 and st["params"]["affection"] > 50, st["params"]
+        assert all(r["resolved"] for r in st["reasons"] if r.get("action") == "_too_often")
+        note = [it for it in C.load(cid)["items"] if it.get("kind") == "rejudge"]
+        assert len(note) == 1 and "受け止め直した" in note[0]["text"], note
+        mood1 = st["params"]["mood"]
+        app, st = restart()                      # 二重に当てない
+        assert st["params"]["mood"] == mood1 and len([it for it in app.chat.load(cid)["items"] if it.get("kind") == "rejudge"]) == 1
+        print("以前の記録の置き換え・挨拶だけで「多い」と言われた分が戻る (%s)・二重に当てない: OK" % note[0]["text"])
+        # 本当に多かった (返事のないまま続けて 5 通): 戻らない
+        B, C = app.bonds, app.chat
+        old_save([(9000 - 300 * i, "me", "smalltalk") for i in range(5)] + [(7000, "her", "too_often")], [])
+        app, st = restart()
+        assert st["params"]["mood"] == 40 and not all(r["resolved"] for r in st["reasons"] if r.get("action") == "_too_often")
+        assert not [it for it in app.chat.load(cid)["items"] if it.get("kind") == "rejudge"]
+        # お礼の当て直しで戻した分とは重ならない
+        B, C = app.bonds, app.chat
+        old_save([(3700, "me", "greet_morning"), (3500, "her", "too_often")], [], rejudged=[3500])
+        app, st = restart()
+        assert st["params"]["mood"] == 40, "お礼の当て直しで戻した分は当てない"
+        print("本当に多かった分は戻らない・お礼の当て直しと重ならない: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

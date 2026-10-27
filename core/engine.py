@@ -168,6 +168,7 @@ class App:
         self._tasks_w = None
         self._load_index()
         self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
+        self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
         self._ensure_worker()
 
     # ------------------------------------------------------------------ config
@@ -2835,6 +2836,7 @@ class App:
             self.life.player = None
             self.reload()
             self.manners.rejudge_thanks()
+            self.manners.retro_contacts()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
