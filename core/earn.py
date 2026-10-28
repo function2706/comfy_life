@@ -662,7 +662,8 @@ class Earn:
                 continue
             out["favors"].append(dict(f, name=(self.app.chars.get(f["cid"]) or {}).get("name", ""),
                                       status=x["status"] if x else "", status_label=self.app.appoint.favor_status(x, now) if x else "",
-                                      appoint=x["id"] if x else None))
+                                      appoint=x["id"] if x else None,
+                                      at=x["t"] if x and not x.get("ask") else None))      # カレンダーで開く日 (日時の決まっていないものは今日)
         mo = self.career()["months"].get(datetime.fromtimestamp(now).strftime("%Y-%m")) or {}
         out["month_h"] = round(float(mo.get("h", 0)), 1)
         if pt:

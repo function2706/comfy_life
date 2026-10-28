@@ -247,6 +247,17 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 同居相手（`Home.live_check`、同居相手と家で交流したとき、20 時間に一度・35%）: 片付いていれば `home.live_clean`、散らかっていれば `home.live_messy`（機嫌の理由）か `home.live_messy_help`（片付けてくれる）。
 - セリフは `home.LINES`（共通）と性格プリセットの `home.<場面>`（7 場面 × 23 性格）。表示は `state_view.home`（目安・ことば）、トップバーの 🏠 の札から「家の様子」。
 
+### カレンダー（スマホ）
+
+`core/calview.py`・`GET /api/calendar?y=&m=`（どちらも 0 なら今月）。アプリ内だけのカレンダーで、カレンダー用の記録は持たず、もとの記録を読むだけ（以前のセーブもそのまま出る）。月の表（`first_wd` は月曜 0・`ndays`・`prev` / `next`）と日ごとの `days[YYYY-MM-DD]` = `{kind, at, ...}`:
+
+- `appoint` / `favor`: 約束の記録（`appoints`）の全部（終わったものも、記録の残っている 30 日）。`appoint` に `Appoint.row`（トークの約束の欄・ホームと同じ形。欠けた項目は既定で）。頼まれごとの水やりは `t`〜`until` の毎日、都合を聞かれている（`ask`）ものは日時がまだ無いので `undated` に。
+- `plan`: `planner` の予定（`text` は `Planner.label`、`id` で `/api/plan/remove`）。
+- `sched`: 知っている相手の予定（`known` の kind `schedule` の `key` = `days|from|to|label|workplace` から。今日から先の、曜日の合う日に `day_match`）。いまの予定に同じものが無ければ `stale`（聞いたときの中身で出す）、`STALE_DAYS` より前に聞いたものは `old`。知らない予定は出さない。
+- `people`（誘える相手: contact / visit）、`plan_dates`（予定を組める日）、`invite_to`（約束は 2 週間先まで）。
+
+登録は新しい仕組みを作らず、画面（`static/app.js` の `calendarView`。スマホのトーク一覧の 🗓、トークの約束の欄と稼ぎ方の頼まれごとの 🗓 → `openCal(t)`）から既存の処理を呼ぶ: 誘う（`appointForm` を選んだ日で → `/api/appoint`）、頼まれごとの日時の案（`/api/appoint/answer {counter}`）、答える（`/api/appoint/answer {yes}`）、予定を足す（`/api/plan/add`）。
+
 ### 約束（アポ）
 
 `core/appoint.py`。同居していない相手とは、約束してから会う（約束なしのお出かけ・訪問・招待は `act` で断る。同居相手はいらない）。記録は `player.json` の `appoints`。
@@ -569,6 +580,7 @@ tools/test_puzzles.py  内職のパズル（盤面の生成と一意解・答え
 tools/test_places.py  行き先の表（家・店ごとの品ぞろえ・外出で決まること・約束なしの訪問・お出かけの行き先・行動パターンの移行）のテスト
 tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会おう・電話や相手からのメッセージ・すぐの返信）のテスト
 tools/test_appoint.py  約束（決まりごと・誘う・誘われる・当日の来る/遅れる/来ない・体調不良のキャンセル・すっぽかし・家）のテスト
+tools/test_calendar.py  スマホのカレンダー（約束の全員分・状態、頼まれごとの決まったもの/すり合わせ中/水やりの期間、予定、知っている相手の予定だけ・もう違うかも、以前のセーブ、月送り）のテスト
 tools/test_favor_appoint.py  頼まれごとの日時のすり合わせ（決め打ち・都合を聞かれる・別の日時・重なり・水やりと枯れ・流れ・すっぽかし・日がずれる/取りやめ・旧セーブ・対面・オフライン）のテスト
 tools/test_routine.py  あなたの行動パターン（曜日ごとの流れ・予定どおりにいかないこと・時系列のまとめ・以前の設定の読み替え）のテスト
 tools/test_home.py  家の様子（たまる・家事で片付く・一人暮らしで作業なし・招いた相手と同居相手の反応）のテスト

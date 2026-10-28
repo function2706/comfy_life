@@ -83,6 +83,9 @@ def route(method, path, q, body):
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
         if path == "/api/chat":
             return a.chat.thread(_q(q, "id", ""))
+        if path == "/api/calendar":
+            with a.lock:
+                return a.calview.month(int(_q(q, "y", "0") or 0), int(_q(q, "m", "0") or 0))
         if path == "/api/worlds":
             return a.worlds_view()
         if path == "/api/persona":

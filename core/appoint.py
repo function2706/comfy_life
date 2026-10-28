@@ -816,14 +816,22 @@ class Appoint:
         for x in sorted(self.all(), key=lambda x: x["t"]):
             if x["status"] not in OPEN or x["cid"] not in app.chars:
                 continue
-            due = x["status"] in ("set", "waiting") and x["t"] - EARLY <= now <= x["t"] + GRACE
-            out.append({"here": x["status"] in ("set", "waiting") and self.here(x["place"], now),
-                        "home_me": x["place"] == places_mod.HOME_ME, "remain": int(x["t"] - now), "id": x["id"], "cid": x["cid"], "name": app.chars[x["cid"]].get("name", ""), "t": x["t"],
-                        "when": fmt_when(x["t"], now), "place": x["place"], "place_label": app.places.label(x["place"]),
-                        "do": x["do"], "do_label": x.get("label") if x.get("favor") else app.action(x["do"]).get("name", x["do"]),
-                        "by": x["by"], "status": x["status"],
-                        "status_label": self.favor_status(x, now) if x.get("favor") else STATUS_LABEL[x["status"]], "due": due,
-                        "favor": bool(x.get("favor")), "fixed": bool(x.get("fixed")), "ask": bool(x.get("ask")),
-                        "plants": bool(x.get("plants")), "until": x.get("until"),
-                        "when_label": self.when_of(x, now)})
+            out.append(self.row(x, now))
         return out
+
+    def row(self, x, now=None):
+        """画面に出す一件 (トークの約束の欄・ホーム・カレンダーで共通). 以前のセーブの欠けた項目は既定で."""
+        app = self.app
+        now = now or time.time()
+        st = x.get("status", "lapsed")
+        due = st in ("set", "waiting") and x["t"] - EARLY <= now <= x["t"] + GRACE
+        return {"here": st in ("set", "waiting") and self.here(x["place"], now),
+                "home_me": x["place"] == places_mod.HOME_ME, "remain": int(x["t"] - now), "id": x["id"], "cid": x["cid"],
+                "name": app.chars[x["cid"]].get("name", "") if x["cid"] in app.chars else "", "t": x["t"],
+                "when": fmt_when(x["t"], now), "place": x["place"], "place_label": app.places.label(x["place"]),
+                "do": x.get("do"), "do_label": x.get("label") if x.get("favor") else app.action(x.get("do")).get("name", x.get("do")),
+                "by": x.get("by", "me"), "status": st,
+                "status_label": self.favor_status(x, now) if x.get("favor") else STATUS_LABEL.get(st, st), "due": due,
+                "favor": bool(x.get("favor")), "fixed": bool(x.get("fixed")), "ask": bool(x.get("ask")),
+                "plants": bool(x.get("plants")), "until": x.get("until"),
+                "when_label": self.when_of(x, now)}

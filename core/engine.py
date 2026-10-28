@@ -40,6 +40,7 @@ from . import wardrobe as wardrobe_mod
 from . import posing as posing_mod
 from . import planner as planner_mod
 from . import manners as manners_mod
+from . import calview as calview_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -164,6 +165,7 @@ class App:
         self.presence = presence_mod.Presence(self)
         self.planner = planner_mod.Planner(self)
         self.manners = manners_mod.Manners(self)
+        self.calview = calview_mod.CalView(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
         self._load_index()

@@ -1015,13 +1015,14 @@ function giftPicker(aid) {
 }
 
 /* ---- メッセージアプリ: トーク一覧 → トーク画面. 自分は右 (要約), 相手は左 (本文). 送受信の時刻・日付の区切り・既読・返信待ち */
-function openChat(cid) {
+function openChat(cid, cal) {
   if (!S.chatDlg) {
     S.chatDlg = h('dialog', { class: 'modal chat-dlg' });
     S.chatDlg.addEventListener('close', () => { S.chatCid = null; });
     document.body.append(S.chatDlg);
   }
   S.chatCid = cid || null;
+  S.calOn = !!cal;
   S.chatSeen = {};                    // 開いたときは一番下から
   if (!S.chatDlg.open) S.chatDlg.showModal();
   drawChat();
@@ -1049,6 +1050,11 @@ async function drawChat(auto) {
       th = await api('/api/chat?id=' + encodeURIComponent(S.chatCid));
       if (th.items.some((x) => x.who === 'her' && x.t > th.seen_t)) { await api('/api/chat/seen', { id: S.chatCid }); list = (await api('/api/chats')).chats; }
     }
+    if (S.calOn && !S.chatCid) {
+      const [y, m] = S.calMonth || [0, 0];
+      S.cal = await api(`/api/calendar?y=${y}&m=${m}`);
+      if (S.apForm && S.apForm.cal && S.apForm.cid && (!S.calTh || S.calTh.id !== S.apForm.cid)) S.calTh = await api('/api/chat?id=' + encodeURIComponent(S.apForm.cid));
+    }
   } catch (e) { toast(e.message, 'err'); return; }
   const total = list.reduce((n, c) => n + (c.unread || 0), 0);        // 読んだら, すぐ未読の数に反映
   $('#chat-badge').hidden = !total;
@@ -1059,8 +1065,10 @@ async function drawChat(auto) {
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
     h('div', { class: 'chat-head' }, h('b', { title: '相手を選んで、メッセージか電話' }, '📱 スマホ'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small' + (S.calOn && !S.chatCid ? ' on' : ''), title: '約束・頼まれごと・予定・知っている相手の予定を月の表で',
+        onclick: () => openCal() }, '🗓 カレンダー'),
       h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
-    list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; drawChat(); } },
+    list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; S.calOn = false; S.apForm = null; drawChat(); } },
       avatar(c.face, c.name),
       h('div', { class: 'chat-row-main' },
         h('div', { class: 'chat-row-top' }, h('b', {}, c.name), h('span', { class: 'muted small' }, c.last ? hhmm(c.last.t) : '')),
@@ -1068,6 +1076,7 @@ async function drawChat(auto) {
       c.unread ? h('span', { class: 'chat-unread' }, String(c.unread)) : ''))
       : h('p', { class: 'muted small', style: 'padding:12px' }, '連絡先を知っている人がいません。'));
   let threadEl = h('div', { class: 'chat-thread empty' }, h('p', { class: 'muted' }, '左のトークを選んでください'));
+  if (!th && S.calOn && S.cal) threadEl = calendarView(S.cal, dlg);
   if (th) {
     let lastDay = '';
     const body = [];
@@ -1085,7 +1094,7 @@ async function drawChat(auto) {
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
     for (const x of th.appoints || []) {
       if (x.favor) {              // 頼まれごと: 決め打ちの日 (受ける / 断る)・都合を聞かれている (日時を返す)・案 (受ける / 断る / 別の日時なら)
-        body.push(h('div', { class: 'chat-sys' }, `🤝 ${x.do_label}${x.ask ? '' : `（${x.when_label}）`}・${x.status_label}`,
+        body.push(h('div', { class: 'chat-sys' }, `🤝 ${x.do_label}${x.ask ? '' : `（${x.when_label}）`}・${x.status_label}`, calBtn(x.t),
           x.status === 'offered' ? h('span', {}, '　',
             x.ask ? '' : h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '引き受ける'), ' ',
             x.fixed ? '' : h('button', { class: x.ask ? 'btn small' : 'btn small ghost', disabled: S.busy, title: '行ける日時を返す。相手の予定と重なれば、別の日時が返ってくるか断られる',
@@ -1096,7 +1105,7 @@ async function drawChat(auto) {
                 x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : ''));
         continue;
       }
-      body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`,
+      body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`, calBtn(x.t),
         x.status === 'offered' ? h('span', {}, '　',
           h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く'), ' ',
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'), ' ',
@@ -1130,7 +1139,7 @@ async function drawChat(auto) {
             S.apForm && S.apForm.favor ? appointForm(th) : '']));          // 頼まれごとの日時は, そばにいても返せる (対面で頼まれたとき)
     void lastMine;
   }
-  dlg.classList.toggle('thread-open', !!th);
+  dlg.classList.toggle('thread-open', !!th || !!(S.calOn && S.cal));
   dlg.replaceChildren(h('div', { class: 'chat-wrap' }, listEl, threadEl));
   // 開いたとき・新しく届いた/送ったときは一番下へ (読み返している途中で何も増えていなければ, その位置のまま)
   const lastT = th && th.items.length ? th.items[th.items.length - 1].t : 0;
@@ -1145,6 +1154,116 @@ async function drawChat(auto) {
   S.chatJump = false;
   clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
   if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(true); }, 8000);
+}
+/* ---- スマホのカレンダー (アプリ内. core/calview.py): 月の表 + 選んだ日の一覧. 登録は既存の処理 (約束の誘い・日時の案・予定) を呼ぶだけ */
+const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function openCal(t) {
+  const d = t ? new Date(t * 1000) : new Date();
+  S.calOn = true; S.chatCid = null; S.apForm = null;
+  S.calSel = isoDay(d); S.calMonth = [d.getFullYear(), d.getMonth() + 1];
+  openChat(null, true);
+}
+const calBtn = (t) => h('button', { class: 'btn ghost small', title: 'カレンダーでこの日を見る', onclick: () => openCal(t) }, '🗓');
+const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤' };
+function dayOffset(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((new Date(y, m - 1, d) - t) / 86400000);
+}
+function calEntry(e) {
+  const x = e.appoint;
+  if (e.kind === 'plan') {
+    return h('div', { class: 'cal-ent' }, h('span', {}, `📌 ${e.at} ${e.text}`),
+      h('button', { class: 'btn small ghost danger', disabled: S.busy, title: '予定から消す',
+        onclick: async () => { try { await api('/api/plan/remove', { id: e.id }); } catch (er) { toast(er.message, 'err'); } await drawChat(); refresh(); } }, '×'));
+  }
+  if (e.kind === 'sched') {
+    return h('div', { class: 'cal-ent muted' }, `👤 ${e.name} ${e.at}${e.to ? '〜' + e.to : ''} ${e.text}${e.stale ? '（もう違うかも）' : e.old ? '（だいぶ前に聞いた）' : ''}`);
+  }
+  const open = x.status === 'offered', set = x.status === 'set' || x.status === 'waiting';
+  const talk = h('button', { class: 'btn small ghost', onclick: () => { S.calOn = false; S.apForm = null; S.chatCid = x.cid; drawChat(); } }, '📱 トーク');
+  if (x.favor) {
+    return h('div', { class: 'cal-ent' },
+      h('span', {}, `🤝 ${x.plants ? x.when_label : x.ask ? '日時未定' : e.at} ${x.name}の家で「${x.do_label}」・${x.status_label}`),
+      h('span', { class: 'row', style: 'gap:4px;flex-wrap:wrap' },
+        open && !x.ask ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '引き受ける') : '',
+        open && !x.fixed ? h('button', { class: 'btn small' + (x.ask ? '' : ' ghost'), disabled: S.busy,
+          title: '選んでいる日で、行ける日時を返す（相手の予定と重なれば、別の日時が返ってくるか断られる）',
+          onclick: () => { S.apForm = { counter: x.id, favor: true, cal: true, cid: x.cid, day: Math.max(0, Math.min(13, dayOffset(S.calSel))) }; drawChat(); } },
+          x.ask ? '行ける日時を返す' : '別の日時なら') : '',
+        open ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る') : '',
+        set && !x.here ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, x.plants ? '水やりに行く' : '出かける') : '',
+        talk));
+  }
+  return h('div', { class: 'cal-ent' + (open || set ? '' : ' muted') },
+    h('span', {}, `📅 ${e.at} ${x.name}と${x.place_label}で「${x.do_label}」・${x.status_label}`),
+    h('span', { class: 'row', style: 'gap:4px;flex-wrap:wrap' },
+      open ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く') : '',
+      open ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る') : '',
+      set && !x.here && !x.home_me ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, '出かける') : '',
+      talk));
+}
+function calendarView(C, dlg) {
+  const sel = S.calSel && S.calSel.slice(0, 7) === `${C.y}-${String(C.m).padStart(2, '0')}` ? S.calSel
+    : C.today.slice(0, 7) === `${C.y}-${String(C.m).padStart(2, '0')}` ? C.today : `${C.y}-${String(C.m).padStart(2, '0')}-01`;
+  S.calSel = sel;
+  const go = (ym) => { S.calMonth = ym; S.calSel = null; S.apForm = null; drawChat(); };
+  const cells = [];
+  for (let i = 0; i < C.first_wd; i++) cells.push(h('div', { class: 'cal-cell blank' }));
+  for (let d = 1; d <= C.ndays; d++) {
+    const iso = `${C.y}-${String(C.m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const es = C.days[iso] || [];
+    const kinds = {};
+    for (const e of es) kinds[e.kind] = (kinds[e.kind] || 0) + 1;
+    const wd = (C.first_wd + d - 1) % 7;
+    cells.push(h('div', { class: 'cal-cell' + (iso === sel ? ' on' : '') + (iso === C.today ? ' today' : '') + (iso < C.today ? ' past' : '') + (wd === 5 ? ' sat' : wd === 6 ? ' sun' : ''),
+      onclick: () => { S.calSel = iso; if (S.apForm && S.apForm.cal) S.apForm.day = Math.max(0, Math.min(13, dayOffset(iso))); drawChat(); } },
+      h('div', { class: 'cal-num' }, String(d)),
+      h('div', { class: 'cal-marks' }, ...['appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
+  }
+  const es = C.days[sel] || [];
+  const [, mm, dd] = sel.split('-').map(Number);
+  const wdSel = '日月火水木金土'[new Date(C.y, mm - 1, dd).getDay()];
+  const off = dayOffset(sel);
+  const f = S.apForm && S.apForm.cal ? S.apForm : null;
+  const pf = S.calPlan = S.calPlan || { at: '09:00', do: 'out', place: 'supermarket' };
+  const canPlan = (C.plan_dates || []).includes(sel);
+  const reg = [];
+  if (off >= 0) {
+    // 誘う: 相手を選ぶと, トークの「📅 約束する」と同じ欄 (日付は選んだ日)
+    if (C.people.length && off <= 13) {
+      reg.push(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px;align-items:center' }, h('span', { class: 'small' }, '📅 誘う'),
+        h('select', { onchange: (ev) => { const cid = ev.target.value; S.apForm = cid ? { cal: true, cid, day: Math.max(0, Math.min(13, off)) } : null; S.calTh = null; drawChat(); } },
+          h('option', { value: '' }, '相手を選ぶ'), ...C.people.map((p) => h('option', { value: p.id, selected: !!(f && !f.counter && f.cid === p.id) }, p.name)))));
+    } else if (C.people.length) reg.push(h('div', { class: 'muted small' }, '約束は 2 週間先までです。'));
+    if (canPlan) {
+      reg.push(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px;align-items:center' }, h('span', { class: 'small' }, '📌 予定を足す'),
+        h('input', { type: 'time', value: pf.at, onchange: (ev) => { pf.at = ev.target.value; } }), ...commandPicker(pf, () => drawChat()),
+        h('button', { class: 'btn small primary', disabled: S.busy, onclick: async () => {
+          if (S.busy) return; S.busy = true;
+          try { await api('/api/plan/add', { date: sel, at: pf.at, item: { do: pf.do, place: pf.place, how: pf.how, skill: pf.skill } }); toast('予定に足した', 'ok'); }
+          catch (er) { toast(er.message, 'err'); } finally { S.busy = false; await drawChat(); refresh(); } } }, '＋足す')));
+    } else reg.push(h('div', { class: 'muted small' }, `予定（画面を閉じている間の過ごし方）は ${(C.plan_dates || []).length - 1} 日先まで組めます。`));
+  }
+  if (f && (f.counter || (S.calTh && S.calTh.id === f.cid))) reg.push(appointForm(f.counter ? { id: f.cid, appoint_choices: [] } : S.calTh));
+  return h('div', { class: 'chat-thread cal' },
+    h('div', { class: 'chat-head' },
+      h('button', { class: 'btn ghost small chat-back', onclick: () => { S.calOn = false; S.apForm = null; drawChat(); } }, '‹'),
+      h('b', {}, '🗓 カレンダー'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
+    h('div', { class: 'chat-body cal-body' },
+      h('div', { class: 'row cal-nav' },
+        h('button', { class: 'btn ghost small', onclick: () => go(C.prev) }, '‹'), h('b', {}, `${C.y}年${C.m}月`),
+        h('button', { class: 'btn ghost small', onclick: () => go(C.next) }, '›'),
+        h('button', { class: 'btn ghost small', onclick: () => { S.calMonth = null; S.calSel = C.today; S.apForm = null; drawChat(); } }, '今日'),
+        h('span', { class: 'muted small' }, '📅約束 🤝頼まれごと 📌予定 👤相手の予定（知っている分）')),
+      h('div', { class: 'cal-grid' }, ...'月火水木金土日'.split('').map((w, i) => h('div', { class: 'cal-wd' + (i === 5 ? ' sat' : i === 6 ? ' sun' : '') }, w)), ...cells),
+      h('div', { class: 'cal-day' },
+        h('b', {}, `${mm}/${dd}（${wdSel}）${sel === C.today ? '・今日' : ''}`),
+        es.length ? es.map(calEntry) : h('div', { class: 'muted small' }, 'この日に載っていることはありません'),
+        C.undated.length ? [h('div', { class: 'muted small', style: 'margin-top:6px' }, '日時のまだ決まっていない頼まれごと（選んでいる日で、行ける日時を返せます）'),
+          ...C.undated.map(calEntry)] : '',
+        reg.length ? h('div', { class: 'cal-reg' }, ...reg) : '')));
 }
 // 約束の誘い: 日時・行き先・何をするか
 function appointForm(th) {
@@ -1669,7 +1788,8 @@ function sideWorkPanel(EA, v) {
         f.appoint && (f.status === 'set' || f.status === 'waiting')
           ? h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => goAppoint(f.appoint) }, f.kind === 'plants' ? '水やりに行く' : '相手の家へ')
           : '',
-        h('button', { class: 'btn small', disabled: S.busy, title: 'トークの約束の欄で、引き受ける・日時を返す・断る', onclick: () => openChat(f.cid) }, '📱 トークで答える')))));
+        h('button', { class: 'btn small', disabled: S.busy, title: 'トークの約束の欄で、引き受ける・日時を返す・断る', onclick: () => openChat(f.cid) }, '📱 トークで答える'),
+        h('button', { class: 'btn small ghost', title: 'カレンダーで見る（予定と見比べて、日時を返せます）', onclick: () => openCal(f.at || null) }, '🗓')))));
 }
 // フリマ: 使わない持ち物を出品 (売れるかと値段は, 品物と時期しだい)
 function fleaPanel(EA) {
