@@ -127,7 +127,7 @@ async function refresh() {
   const tb = $('#task-chat-badge');      // 内職の画面の 📱 (内職中も届いたメッセージが分かるように)
   tb.hidden = cb.hidden;
   tb.textContent = cb.textContent;
-  if (S.chatDlg && S.chatDlg.open) drawChat();
+  if (S.chatDlg && S.chatDlg.open) drawChat(true);
   renderTabs();
   renderSoloTab();
   renderWith();
@@ -1034,8 +1034,14 @@ function avatar(face, name, cls) {
   if (face) a.style.backgroundImage = `url("${imgUrl(face)}")`; else a.textContent = (name || '?').slice(0, 1);
   return a;
 }
-async function drawChat() {
+async function drawChat(auto) {
   const dlg = S.chatDlg;
+  // 裏での描き直し (届いた返信の確認など) は, プルダウンを選んでいる間は待つ (描き直すと開いたプルダウンが閉じる)
+  if (auto && dlg && dlg.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') {
+    clearTimeout(S.chatPoll);
+    S.chatPoll = setTimeout(() => { if (dlg.open) drawChat(true); }, 3000);
+    return;
+  }
   let list, th = null;
   try {
     list = (await api('/api/chats')).chats;
@@ -1125,7 +1131,7 @@ async function drawChat() {
   S.chatDrawn = th ? th.id : null;
   S.chatJump = false;
   clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
-  if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(); }, 8000);
+  if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(true); }, 8000);
 }
 // 約束の誘い: 日時・行き先・何をするか
 function appointForm(th) {
