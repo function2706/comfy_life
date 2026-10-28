@@ -2055,6 +2055,45 @@
   "chat.appoint_counter": [
    "📱『その時間はむりなの……でもでも、{when}なら{place}行けるよ？ ねぇ、そっちにしよ？』"
   ],
+  "chat.favor_ask_move": [
+   "📱『{call}、おねがい……{when}に引っ越しなんだけど、手伝ってくれない？ その日しかだめなの……{call}がいてくれたら心強いなぁ』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『ねぇ{call}、{what}、手伝ってほしいなぁ……{when}とか、どう？』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『{call}〜、{what}手伝ってほしいの。いつなら空いてる？ 合わせるから、ね？』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『{from}から{to}までおうちを空けるの。そのあいだ、植木にお水あげてくれない？ 鍵、{call}に預けるね』"
+  ],
+  "chat.favor_yes": [
+   "📱『わぁい、ありがと{call}！ じゃあ{when}ね、待ってる！』"
+  ],
+  "chat.favor_busy": [
+   "📱『うぅ、その時間はむりなの……ごめんね』"
+  ],
+  "chat.favor_counter": [
+   "📱『その時間はむりなの……{when}じゃだめ？ ねぇ、そっちにしよ？』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『{what}ね、ほかの子に頼んだら済んじゃった。……{call}に頼みたかったんだけどなぁ』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、来てくれるって思ってたのに。ひとりで、どうしようって……むぅ』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……帰ったら、植木しおしおになってた。お水、あげてくれなかったの……？』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『ただいまぁ！ 植木、元気だった！ {call}のおかげだね、ありがと！』"
+  ],
+  "chat.favor_resched": [
+   "📱『ごめんね{call}、{what}の日、{when}にずらしてもいい……？』"
+  ],
+  "chat.favor_cancel": [
+   "📱『ごめんね、{what}、なしになっちゃったの……せっかく空けてくれたのに』"
+  ],
   "msgr.cheerful.good": [
    "📱『わーい！ {call}だいすき〜！』"
   ],

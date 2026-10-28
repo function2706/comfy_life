@@ -2046,6 +2046,45 @@
   "chat.appoint_counter": [
    "📱『その時間は都合がつかないの。{when}なら{place}に付き合ってあげてもよくてよ』"
   ],
+  "chat.favor_ask_move": [
+   "📱『{call}、頼みがあるの。{when}に引っ越すのだけれど、手伝ってもらえるかしら。その日しか都合がつかないのよ』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『{what}を手伝ってもらえるかしら。{when}はいかが？』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『{what}を手伝ってほしいの。{call}の都合のいい日を教えてちょうだい』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『{from}から{to}まで家を空けるの。そのあいだ、植木の水やりを任せてもよくて？ 鍵は預けるわ』"
+  ],
+  "chat.favor_yes": [
+   "📱『助かるわ。では{when}に。待っているわね』"
+  ],
+  "chat.favor_busy": [
+   "📱『その時間は都合がつかないの。ごめんなさい』"
+  ],
+  "chat.favor_counter": [
+   "📱『その時間は都合がつかないの。{when}ならよくてよ』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『{what}なら、ほかの者に頼んで済んだわ。返事くらいはするものよ』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、来るものと思って待っていたのだけれど。当てにしていたのよ』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……戻ったら、植木が枯れていたわ。任せたつもりだったのだけれど』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『戻ったわ。植木は元気だったわね。……礼を言うわ、ありがとう』"
+  ],
+  "chat.favor_resched": [
+   "📱『悪いのだけれど、{what}の日を{when}にずらしてもらえるかしら』"
+  ],
+  "chat.favor_cancel": [
+   "📱『{what}は取りやめになったの。空けてもらっていたのに、ごめんなさい』"
+  ],
   "msgr.cheerful.good": [
    "📱『ふふ、悪くない返事ね』"
   ],

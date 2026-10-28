@@ -2059,6 +2059,45 @@
   "chat.appoint_counter": [
    "📱『その時間は都合がつかないわ。代案: {when}、{place}。検討して』"
   ],
+  "chat.favor_ask_move": [
+   "📱『依頼があるの。{when}、引っ越しの手伝い。日程は動かせないわ。可否を教えて』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『{what}の手伝いをお願いしたいの。候補は{when}。どうかしら』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『{what}の手伝いをお願いしたいの。{call}の空いている日時を教えて』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『{from}から{to}まで不在にするわ。その間、植木の水やりをお願いできる？ 鍵は預けるわ』"
+  ],
+  "chat.favor_yes": [
+   "📱『助かるわ。では{when}に。よろしく』"
+  ],
+  "chat.favor_busy": [
+   "📱『その時間は都合がつかないわ。ごめんなさい』"
+  ],
+  "chat.favor_counter": [
+   "📱『その時間は都合がつかないわ。代案: {when}。どう？』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『{what}は別の人に頼んで完了したわ。この件は終わり』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、来ると思って段取りを組んでいたのよ。連絡くらいは入れて』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……戻ったら植木が枯れていたわ。引き受けたなら、やってほしかった』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『戻ったわ。植木は問題なし。ありがとう、助かったわ』"
+  ],
+  "chat.favor_resched": [
+   "📱『{what}の日程、{when}に変更させてもらえる？ こちらの都合でごめんなさい』"
+  ],
+  "chat.favor_cancel": [
+   "📱『{what}は中止になったわ。予定を空けてくれていたのに、ごめんなさい』"
+  ],
   "msgr.cheerful.good": [
    "📱『了解。前向きな返答は、悪くないわ』"
   ],

@@ -2060,6 +2060,45 @@
   "chat.appoint_counter": [
    "📱『……その時間、むり。{when}なら、{place}。……いける』"
   ],
+  "chat.favor_ask_move": [
+   "📱『……頼みがある。{when}、引っ越し。……手伝って、ほしい。その日しか、だめ』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『……{what}、手伝ってほしい。{when}。……どう？』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『……{what}、手伝ってほしい。いつ、空いてる？』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『……{from}から{to}まで、留守。植木の水、お願いしたい。鍵、渡す』"
+  ],
+  "chat.favor_yes": [
+   "📱『……助かる。{when}に』"
+  ],
+  "chat.favor_busy": [
+   "📱『……その時間、むり。ごめん』"
+  ],
+  "chat.favor_counter": [
+   "📱『……その時間、むり。{when}なら』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『……{what}、ほかの人がやってくれた。……もう、いい』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、待ってた。……来ると、思ってた』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……植木、枯れてた』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『……戻った。植木、元気。……ありがとう』"
+  ],
+  "chat.favor_resched": [
+   "📱『……{what}の日、{when}に、ずらしたい。……ごめん』"
+  ],
+  "chat.favor_cancel": [
+   "📱『……{what}、なくなった。……ごめん』"
+  ],
   "msgr.cheerful.good": [
    "📱『……うん。うれしい』"
   ],

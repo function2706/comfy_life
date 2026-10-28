@@ -2009,6 +2009,45 @@
   "chat.appoint_counter": [
    "📱『その時間は予定が重なってて……。{when}なら{place}行ける。条件を変えて再実験、ってことで』"
   ],
+  "chat.favor_ask_move": [
+   "📱『{call}、頼みがあるんだけど。{when}に引っ越しで、人手が足りない。日程は固定、動かせないの』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『{what}の手伝いをお願いしたいんだけど、{when}でどう？ 二人なら所要時間は半分の見込み』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『{what}を手伝ってほしいんだけど、{call}の空き時間を教えて。こっちで合わせる』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『{from}から{to}まで家を空けるの。そのあいだ植木の水やり、お願いできる？ 鍵は預ける』"
+  ],
+  "chat.favor_yes": [
+   "📱『助かる。じゃあ{when}に。段取りは組んでおくね』"
+  ],
+  "chat.favor_busy": [
+   "📱『その時間は予定が重なってて……ごめん』"
+  ],
+  "chat.favor_counter": [
+   "📱『その時間は予定が重なってる。{when}なら空いてるけど、どう？』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『{what}は別の人に頼んで完了。返事がないから、そう判断した』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、来る前提で段取りしてたんだけど。何かあった？』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……帰ったら植木が枯れてた。水分不足、だね』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『ただいま。植木、状態良好だった。ありがとう、助かった』"
+  ],
+  "chat.favor_resched": [
+   "📱『ごめん、{what}の日、{when}にずらせる？ こっちの予定が変わって』"
+  ],
+  "chat.favor_cancel": [
+   "📱『ごめん、{what}は中止になった。空けてくれてたのに』"
+  ],
   "msgr.cheerful.good": [
    "📱『いい反応。こっちのテンションも有意に上がった』"
   ],

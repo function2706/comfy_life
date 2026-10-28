@@ -2017,6 +2017,45 @@
   "chat.appoint_counter": [
    "📱『その時間は、時計が首を振ってる。{when}なら、{place}がこっちおいでって言ってるよ』"
   ],
+  "chat.favor_ask_move": [
+   "📱『{call}、お引っ越しするの。{when}。その日しか、おうちが待ってくれないんだって。手伝ってくれる？』"
+  ],
+  "chat.favor_ask_offer": [
+   "📱『{call}、{what}、いっしょにしてくれる？ {when}がいいって、カレンダーが言ってる』"
+  ],
+  "chat.favor_ask_when": [
+   "📱『{what}、手伝ってほしいな。{call}の空いてる日は、いつ？』"
+  ],
+  "chat.favor_ask_plants": [
+   "📱『{from}から{to}まで、おうちを留守にするの。植木たちにお水をあげてくれる？ 鍵、預けるね』"
+  ],
+  "chat.favor_yes": [
+   "📱『ありがとう。{when}、待ってるね。おうちも喜んでる』"
+  ],
+  "chat.favor_busy": [
+   "📱『その時間は、だめみたい。ごめんね』"
+  ],
+  "chat.favor_counter": [
+   "📱『その時間は、時計が首を振ってる。{when}なら、うなずいてるよ』"
+  ],
+  "chat.favor_lapsed": [
+   "📱『{what}、ほかの人が来てくれて、終わっちゃった。気にしないでね』"
+  ],
+  "chat.favor_missed": [
+   "📱『……今日、ずっと待ってたよ。来てくれると思って、ドアの前で』"
+  ],
+  "chat.favor_plants_dead": [
+   "📱『……帰ったら、植木が眠ったまま起きなかった。……お水、ほしかったみたい』"
+  ],
+  "chat.favor_plants_thanks": [
+   "📱『ただいま。植木たち、元気だった。{call}にありがとうって、言ってたよ』"
+  ],
+  "chat.favor_resched": [
+   "📱『ごめんね、{what}の日、{when}にずらしてもいい？ 風向きが変わったの』"
+  ],
+  "chat.favor_cancel": [
+   "📱『ごめんね、{what}、なくなっちゃった。せっかく空けてくれたのに』"
+  ],
   "msgr.cheerful.good": [
    "📱『ふふ……{call}の言葉、ぽかぽかしてる』"
   ],
