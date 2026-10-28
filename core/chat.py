@@ -100,6 +100,19 @@ LINES = {
     "chat.appoint_cancel": "📱『ごめんなさい、ちょっと体調を崩しちゃって……今日の約束、また今度にしてもらえますか』",
     "chat.appoint_sorry": "📱『今日は本当にごめんなさい……行けなくて』",
     "chat.appoint_missed": "📱『……今日、どうしたんですか？ ずっと待ってたんですけど』",
+    "chat.favor_ask_move": "📱『{call}、お願いがあって……{when}に引っ越しなんですけど、手伝ってもらえませんか？ その日しか無理で……』",
+    "chat.favor_ask_offer": "📱『{call}、{what}をお願いできませんか？ {when}はどうでしょう』",
+    "chat.favor_ask_when": "📱『{call}、{what}をお願いしたいんですけど……いつなら空いてますか？』",
+    "chat.favor_ask_plants": "📱『{from}から{to}まで家を空けるので、そのあいだに植木の水やりをお願いできませんか？ 鍵は預けますね』",
+    "chat.favor_yes": "📱『助かります！ じゃあ{when}にお願いします』",
+    "chat.favor_busy": "📱『ごめんなさい、その時間はちょっと……』",
+    "chat.favor_counter": "📱『その時間はちょっと……{when}ならどうですか？』",
+    "chat.favor_lapsed": "📱『{what}のこと、ほかの人に頼んだら片付きました。気にしないでくださいね』",
+    "chat.favor_missed": "📱『……今日、来てくれると思って待ってたんですけど』",
+    "chat.favor_plants_dead": "📱『……帰ったら、植木が枯れてました』",
+    "chat.favor_plants_thanks": "📱『ただいま戻りました。植木、元気でした！ 水やり、ありがとうございました』",
+    "chat.favor_resched": "📱『ごめんなさい、{what}の日、{when}にずらしてもらえませんか？』",
+    "chat.favor_cancel": "📱『ごめんなさい、{what}は取りやめになりました。せっかくだったのに……』",
 }
 # 何もないときの共通の言い方 (性格プリセットに chat.ask_how_nothing が無ければ, ここから選ぶ)
 NOTHING = ("特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。")
@@ -133,7 +146,15 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "appoint_busy": "約束の誘い (その時間は予定がある)", "appoint_invite": "相手から約束に誘う ({when} {place})",
                "appoint_counter": "約束のやりとりで, 相手が別の日時を返す ({when} {place})",
                "appoint_cancel": "約束の当日, 体調を崩してキャンセル", "appoint_sorry": "約束をすっぽかしたあとで謝る",
-               "appoint_missed": "あなたが約束をすっぽかした"}
+               "appoint_missed": "あなたが約束をすっぽかした",
+               "favor_ask_move": "頼まれごと: 引っ越しの手伝い ({when} その日しか無理)", "favor_ask_offer": "頼まれごと: 日時の案つき ({what} {when})",
+               "favor_ask_when": "頼まれごと: いつなら空いているか聞く ({what})", "favor_ask_plants": "頼まれごと: 留守中の植木の水やり ({from}〜{to})",
+               "favor_yes": "頼まれごとの日時を返した / 受けてくれた ({when})", "favor_busy": "頼まれごとの日時を返した / その時間は無理",
+               "favor_counter": "頼まれごとの日時を返した / 別の日時を返してくる ({when})",
+               "favor_lapsed": "頼まれごとの返事を放っておいた / ほかの人に頼んで済んだ ({what})",
+               "favor_missed": "頼まれごとの約束をすっぽかした", "favor_plants_dead": "植木の水やりに行かず, 枯れていた",
+               "favor_plants_thanks": "留守中の植木の水やりをした / 帰ってきてからのお礼",
+               "favor_resched": "相手の都合で, 頼まれごとの日をずらしたい ({what} {when})", "favor_cancel": "相手の都合で, 頼まれごとが取りやめ ({what})"}
 
 
 class Chat:

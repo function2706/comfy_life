@@ -124,6 +124,16 @@ class Solo:
             kind = "out"
         if kind == "out" and places_mod.is_home(place):      # 相手の家を訪ねる
             self._place(kind, place)
+            done = app.appoint.water_plants(place)            # 留守中の植木の水やり (会わない. 鍵を預かっている)
+            if done:
+                now = time.time()
+                app.presence.declare("out", now)
+                pr = app.presence.rec()
+                pr["solo"] = {"kind": "out", "skill": None, "t": now}
+                pr["place"] = place
+                app.presence.save()
+                app.solo.note("out", done.strip("（）"), now)
+                return {"started": "out", "label": "%sへ" % app.places.label(place), "act": None, "done": done}
             if app.appoint.due_at(place):                     # 約束の訪問: 玄関先で約束の時刻を待つ
                 return app.appoint.arrive_home_of(place)
             return app.drop_in(places_mod.home_of(place))

@@ -96,16 +96,30 @@ def main():
                 break
         assert fs and fs[0]["cid"] in app.chars
         f = fs[0]
-        assert any(x.get("kind") == "favor" for x in app.chat.load(f["cid"])["items"])
+        # 頼まれ方はメッセージ (相手の発言). 日時のすり合わせは約束の欄で (core/appoint.py. 詳しくは tools/test_favor_appoint.py)
+        assert any(x.get("kind") == "favor_ask" and x["who"] == "her" for x in app.chat.load(f["cid"])["items"])
         cst = app.state(f["cid"])
         a0 = cst["params"]["affection"]
         ps["stamina"] = 100
-        app.earn_api("favor", {"id": f["id"], "yes": True})
-        assert P.rec()["job"] == "favor" and not E.favors()
+        x = app.appoint.find(f["appoint"])
+        if x.get("plants"):                  # 水やりは会わないので, 手伝いの流れを見るために家での手伝いに
+            x.update(plants=False, fixed=False)
+            f["kind"] = "clean"
+        if x.get("ask"):
+            app.appoint.counter(x["id"], time.time() + 86400)
+            x["status"] = "offered"
+            x["ask"] = False
+        app.appoint.answer(x["id"], True)
+        assert x["status"] == "set"
+        x["t"] = time.time() - 60          # 当日: 相手の家に出向くと, 会えて手伝いに取りかかる
+        app.presence.declare("out", time.time())
+        P.rec()["place"] = x["place"]
+        app.appoint._tick(x, time.time(), [])
+        assert P.rec()["job"] == "favor" and x["status"] == "met"
         P.rec()["since"] -= f["h"] * 3600
         r = app.come_back()
         print("頼まれごと:", r["entry"]["text"])
-        assert "終えた" in r["entry"]["text"] and app.state(f["cid"])["params"]["affection"] > a0
+        assert "終えた" in r["entry"]["text"] and app.state(f["cid"])["params"]["affection"] >= a0 and not E.favors()
         # お礼: お金のことも, そうでないことも
         moneys = 0
         for i in range(200):

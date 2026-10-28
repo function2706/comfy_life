@@ -1084,6 +1084,18 @@ async function drawChat(auto) {
     }
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
     for (const x of th.appoints || []) {
+      if (x.favor) {              // 頼まれごと: 決め打ちの日 (受ける / 断る)・都合を聞かれている (日時を返す)・案 (受ける / 断る / 別の日時なら)
+        body.push(h('div', { class: 'chat-sys' }, `🤝 ${x.do_label}${x.ask ? '' : `（${x.when_label}）`}・${x.status_label}`,
+          x.status === 'offered' ? h('span', {}, '　',
+            x.ask ? '' : h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '引き受ける'), ' ',
+            x.fixed ? '' : h('button', { class: x.ask ? 'btn small' : 'btn small ghost', disabled: S.busy, title: '行ける日時を返す。相手の予定と重なれば、別の日時が返ってくるか断られる',
+              onclick: () => { S.apForm = { counter: x.id, favor: true }; drawChat(); } }, x.ask ? '行ける日時を返す' : '別の日時なら'), ' ',
+            h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'))
+            : (x.status === 'set' || x.status === 'waiting') && !x.here
+              ? h('span', {}, '　', h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) },
+                x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : ''));
+        continue;
+      }
       body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`,
         x.status === 'offered' ? h('span', {}, '　',
           h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く'), ' ',
@@ -1114,7 +1126,8 @@ async function drawChat(auto) {
           (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
           ...(th.actions || []).map((a) => h('button', { class: 'chat-kind', disabled: S.busy || !a.ok, onclick: () => phoneAct(th.id, a.id) }, `${a.icon} ${a.name}`)),
           S.apForm ? appointForm(th) : '']
-          : h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。')));
+          : [h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。'),
+            S.apForm && S.apForm.favor ? appointForm(th) : '']));          // 頼まれごとの日時は, そばにいても返せる (対面で頼まれたとき)
     void lastMine;
   }
   dlg.classList.toggle('thread-open', !!th);
@@ -1149,8 +1162,9 @@ function appointForm(th) {
   const G = ((S.view || {}).outdoor || {}).groups || {};
   return h('div', { class: 'appoint-form', style: 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center' },
     sel('day', days), sel('time', times.map((t) => [t, t])),
-    sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
-    sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
+    f.favor ? h('span', { class: 'muted small' }, '（頼まれごと: 相手の家で）') : '',
+    f.favor ? '' : sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
+    f.favor ? '' : sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
     h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, f.counter ? 'この日時なら、と返す' : '誘う'),
     f.counter ? h('button', { class: 'btn small ghost', onclick: () => { S.apForm = null; drawChat(); } }, 'やめる') : '',
     h('span', { class: 'muted small' }, '返事は時間差で届きます。その時間に予定があれば断られます'));
@@ -1322,13 +1336,14 @@ function appointLine(x, withBtn) {
   const set = x.status === 'set' || x.status === 'waiting';
   return h('div', { class: 'appoint-line' },
     h('div', {}, x.status === 'waiting' ? `📍 ${x.place_label}で待っている（${x.name}はまだ来ていない）`
-      : `📅 ${x.when}に${x.place_label}で${x.name}と「${x.do_label}」`, set ? h('span', { class: 'muted small' }, `（${remainText(x.remain)}）`) : ''),
+      : x.plants ? `🪴 ${x.when_label}のうちに${x.place_label}へ「${x.do_label}」（会わない。鍵を預かっている）`
+        : `📅 ${x.when}に${x.place_label}で${x.name}と「${x.do_label}」`, set && !x.plants ? h('span', { class: 'muted small' }, `（${remainText(x.remain)}）`) : ''),
     withBtn && set ? h('div', { class: 'row' },
       x.here ? h('span', { class: 'muted small' }, x.home_me ? '家にいれば、時間に来てくれます' : 'もう着いている。時間まで、ここで待つ')
         : x.home_me ? h('span', { class: 'muted small' }, 'あなたの家に来てもらう約束（その時間に家にいる）')
           : h('button', { class: 'btn small', disabled: S.busy || ((S.view.presence || {}).mode !== 'none' && (S.view.presence || {}).mode !== 'out'),
             title: '行き先を約束の場所にして出かけます（すぐ着きます）。画面を閉じると家に帰るので、約束の場所にいないことになります',
-            onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`)) : '');
+            onclick: () => goAppoint(x.id) }, x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : '');
 }
 // 約束の時刻が近い: 出かける (着いていれば, 時間まで待つ)
 function appointCard() {
@@ -1647,12 +1662,14 @@ function sideWorkPanel(EA, v) {
       h('span', {}, `${o.icon} ${o.label}・${o.client}（${o.h}時間ほど・${yen(o.pay)}くらい・${until(o.until)}）`),
       h('button', { class: 'btn small', disabled: S.busy || !free, title: '取りかかります（終わったら戻る）。時間と出来ばえで報酬と評判が決まります',
         onclick: () => earnApi('/api/earn/gig', withT({ id: o.id }), '取りかかった') }, '取りかかる'))),
-    (EA.favors || []).length ? h('div', { class: 'muted small', style: 'margin-top:4px' }, '🤝 頼まれごと（お礼をもらえるかは仲しだい）') : '',
+    (EA.favors || []).length ? h('div', { class: 'muted small', style: 'margin-top:4px' }, '🤝 頼まれごと（日時はトークの約束の欄で決めます。当日は相手の家へ。お礼をもらえるかは仲しだい）') : '',
     ...(EA.favors || []).map((f) => h('div', { class: 'money-row small' },
-      h('span', {}, `${f.name}から: ${f.label}（${f.h}時間ほど・${until(f.until)}）`),
+      h('span', {}, `${f.name}から: ${f.label}（${f.h}時間ほど）・${f.status_label || until(f.until)}`),
       h('div', { class: 'row' },
-        h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => earnApi('/api/earn/favor', withT({ id: f.id, yes: true }), '手伝いに行った') }, '引き受ける'),
-        h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => earnApi('/api/earn/favor', { id: f.id, yes: false }) }, '断る')))));
+        f.appoint && (f.status === 'set' || f.status === 'waiting')
+          ? h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => goAppoint(f.appoint) }, f.kind === 'plants' ? '水やりに行く' : '相手の家へ')
+          : '',
+        h('button', { class: 'btn small', disabled: S.busy, title: 'トークの約束の欄で、引き受ける・日時を返す・断る', onclick: () => openChat(f.cid) }, '📱 トークで答える')))));
 }
 // フリマ: 使わない持ち物を出品 (売れるかと値段は, 品物と時期しだい)
 function fleaPanel(EA) {

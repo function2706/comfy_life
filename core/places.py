@@ -239,8 +239,9 @@ class Places:
         app = self.app
         out = {HOME_ME: {"label": "あなたの家", "icon": "🏠", "group": "home", "outdoor": False, "crowd": {}, "does": ["home"],
                          "fee": 0}}
+        fav = app.appoint.favor_homes() if hasattr(app, "appoint") else set()     # 頼まれごとの約束がある相手の家 (連絡先でも)
         for cid, c in app.chars.items():
-            if app.bonds.stage(cid) == "visit":
+            if app.bonds.stage(cid) == "visit" or (cid in fav and app.bonds.stage(cid) == "contact"):
                 out["home:" + cid] = {"label": "%sの家" % c.get("name", cid), "icon": "🚪", "group": "home", "outdoor": False,
                                       "crowd": {}, "does": ["visit"], "fee": 0, "owner": cid}
         return out
@@ -255,6 +256,8 @@ class Places:
 
     def label(self, pid):
         p = self.get(pid)
+        if not p and is_home(pid) and home_of(pid) in self.app.chars:      # 表に無い相手の家 (頼まれごとの約束など)
+            return "%sの家" % self.app.chars[home_of(pid)].get("name", "")
         return p["label"] if p else pid
 
     def out_choices(self):

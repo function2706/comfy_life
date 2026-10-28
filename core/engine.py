@@ -169,6 +169,7 @@ class App:
         self._load_index()
         self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
         self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
+        self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
         self._ensure_worker()
 
     # ------------------------------------------------------------------ config
@@ -1359,6 +1360,9 @@ class App:
                 self.picked_up_phone(char, st, now)
             if key == "invite_yes":
                 self.chat.add(cid, "sys", "📅 会おうという話になった（半日のうちに約束すれば、応じてもらいやすい）", kind="promise", t=now + 0.001)
+            if key == "favor_yes":
+                self.chat.add(cid, "sys", "📅 約束した: %s %sの家で%s" % (extra["when"], char.get("name", ""), extra.get("what", "")),
+                              kind="promise", t=now + 0.001)
             if key == "appoint_yes":
                 self.chat.add(cid, "sys", "📅 約束した: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)
@@ -1374,6 +1378,19 @@ class App:
             self.save_state(cid)
             self.save_log(cid)
         return {"cid": cid, "name": char.get("name", ""), "text": text, "late": now - pend["t"] > 3600}
+
+    def her_says(self, cid, text, name, icon, now=None):
+        """そばにいる相手が話しかけてきた一言を記録に残す (頼まれごとを対面で頼まれた など)."""
+        now = now or time.time()
+        char = self.chars[cid]
+        st = self.state(cid)
+        dt = datetime.fromtimestamp(now)
+        scene = self.scene_at(char, st, dt)
+        act = {"id": "_say", "name": name, "icon": icon, "pos": "talking, looking at viewer", "neg": ""}
+        pos, neg, parts = self.build_prompt(char, st, dt, act)
+        e = self._new_entry(cid, now, act, text, {}, scene, dt, pos, neg, parts)
+        self.save_log(cid)
+        return e
 
     def _contacts_view(self):
         """スマホの連絡先 (連絡先を知っていて, いまそばにいない人. 出かけている同居相手も)."""

@@ -45,9 +45,13 @@ GIGS = {
     "write": {"label": "文章の仕事", "skill": "write", "min": 20, "h": (1, 3), "rate": 1300, "icon": "✍",
               "clients": ["地域の情報サイト", "小さな会社のブログ", "お店の紹介ページ", "町内会の会報"]},
 }
-# 頼まれごと (知り合いから): (名前, 時間, 疲れ)
-FAVORS = [("引っ越しの手伝い", 4.0, 30), ("大掃除の手伝い", 3.0, 20), ("家具の組み立て", 2.0, 12), ("留守中の植木の水やり", 0.5, 2),
-          ("パソコンの設定", 1.0, 4), ("荷物運び", 1.5, 14)]
+# 頼まれごと (知り合いから): (種類, 名前, 時間, 疲れ). 日時の決め方は core/appoint.py (favor_offer):
+#   move = 相手が日時を決めてくる (その日しか無理) / plants = 相手の留守中の数日のうちに, 自分で家へ行く (会わない) /
+#   ほか = 相手が案を出すことも, こちらに都合を聞いてくることもある (「別の日時なら」でやりとり)
+FAVORS = [("move", "引っ越しの手伝い", 4.0, 30), ("clean", "大掃除の手伝い", 3.0, 20), ("furniture", "家具の組み立て", 2.0, 12),
+          ("plants", "留守中の植木の水やり", 0.5, 2), ("pc", "パソコンの設定", 1.0, 4), ("carry", "荷物運び", 1.5, 14)]
+FAVOR_KIND = {k: (k, n, h, t) for k, n, h, t in FAVORS}
+FAVOR_BY_LABEL = {n: k for k, n, h, t in FAVORS}
 # フリマ: 売れない種類 (食べ物・消耗品). 送料 (種類ごと). 手数料 10%
 FLEA_NG = ("food", "meal", "tea", "sweets", "medicine", "detergent")
 FLEA_SHIP = {"books": 230, "clothes": 450}         # 本は安い送り方で. ほかは 350
@@ -350,14 +354,19 @@ class Earn:
         return self.ps().setdefault("favors", [])
 
     def favor_offers(self, t):
-        """日付が替わった: 知り合い (連絡先を知っている・家に行ける仲) から, ときどき頼まれごとが来る (2 件まで). 古いものは流れる."""
+        """日付が替わった: 知り合い (連絡先を知っている・家に行ける仲) から, ときどき頼まれごとが来る (2 件まで).
+        頼まれ方と日時のすり合わせは約束の仕組み (core/appoint.py の favor_offer): 離れていればメッセージ, そばにいれば対面で.
+        返事を放っておくと流れる (ほかの人に頼んで済んでしまう. appoint.live). 約束していないまま期限が過ぎたものも消す."""
         app = self.app
         fs = self.favors()
         keep = []
         for f in fs:
-            if f["until"] > t:
+            x = app.appoint.find(f.get("appoint")) if f.get("appoint") else None
+            if x and x["status"] in ("asked", "offered", "set", "waiting"):
                 keep.append(f)
-            elif f["cid"] in app.chars:          # 返事をしないまま流れた: 少しがっかり
+            elif not x and f["until"] > t:
+                keep.append(f)
+            elif not x and f["cid"] in app.chars:          # 返事をしないまま流れた: 少しがっかり
                 st = app.state(f["cid"])
                 app.apply_effects(st, {"trust": -1})
                 app.save_state(f["cid"])
@@ -369,21 +378,51 @@ class Earn:
             st = app.state(cid)
             if random.random() >= 0.012 + float(st["params"].get("affection", 50)) / 5000.0:
                 continue
-            name, h, tire = random.choice(FAVORS)
-            f = {"id": "f%d%s" % (int(t * 1000), cid), "cid": cid, "label": name, "h": h, "tire": tire, "t": t, "until": t + 3 * 86400}
+            kind, name, h, tire = random.choice(FAVORS)
+            f = {"id": "f%d%s" % (int(t * 1000), cid), "cid": cid, "kind": kind, "label": name, "h": h, "tire": tire, "t": t,
+                 "until": t + 3 * 86400}
             fs.append(f)
             out.append(f)
-            app.chat.add(cid, "sys", "（%sから、%sを頼まれた）" % (char.get("name", ""), name), kind="favor", t=t)
+            app.appoint.favor_offer(f, t)
         return out
 
+    def favor(self, fid):
+        return next((f for f in self.favors() if f["id"] == fid), None)
+
+    def migrate_favors(self, now=None):
+        """以前から「頼まれている」もの (日時のすり合わせの前の形): 新しい流れ (トークの約束の欄で日時を決める) で答えられるように,
+        相手から都合を聞かれている形の約束にする (起動したとき一度. 期限が過ぎていれば, そのまま流れる)."""
+        app = self.app
+        now = now or time.time()
+        n = 0
+        for f in self.favors():
+            if f.get("appoint") or f["cid"] not in app.chars or f["until"] <= now:
+                continue
+            f.setdefault("kind", FAVOR_BY_LABEL.get(f["label"], "clean"))
+            app.appoint.favor_offer(f, now, legacy=True)
+            n += 1
+        if n:
+            self.L.save_player()
+        return n
+
     def favor_answer(self, fid, yes, now=None):
-        """頼まれごとに答える. 引き受けたら, 取りかかる (在席は work). 断ったら少しがっかりされる."""
+        """頼まれごとに答える. 日時のすり合わせのある頼まれごと (いまはすべて) は, 約束の答えとして (トークの約束の欄と同じ).
+        引き受けるには日時を決める (相手が日時を出していれば「行く」, 都合を聞かれていれば「別の日時なら」で日時を返す)."""
         now = now or time.time()
         app = self.app
         fs = self.favors()
         f = next((x for x in fs if x["id"] == fid), None)
         if not f:
             raise KeyError("頼まれごとが見つかりません（期限が過ぎたかもしれません）")
+        if f.get("appoint"):
+            x = app.appoint.find(f["appoint"])
+            if x and x["status"] == "offered":
+                if yes and x.get("ask"):
+                    raise ValueError("いつなら行けるか、トークの約束の欄で日時を返してください")
+                app.appoint.answer(x["id"], yes, now)
+                return f, ("%sの%sは断った" % (app.chars[f["cid"]].get("name", ""), f["label"]) if not yes else
+                           "%sの%sを引き受けた（%s）" % (app.chars[f["cid"]].get("name", ""), f["label"], app.appoint.when_of(x, now)))
+            raise ValueError("日時は、トークの約束の欄で決めましょう")
         char = app.chars.get(f["cid"]) or {}
         if yes:
             if app.presence.rec().get("mode") != "none":
@@ -414,12 +453,20 @@ class Earn:
             return 0, "%sの%sに行ったが、途中で帰ってきてしまった" % (name, f["label"])
         stage = app.bonds.stage(cid)
         aff = float(st["params"].get("affection", 50))
-        app.apply_effects(st, app.trait_effects(char, {"affection": 2, "trust": 3, "mood": 3}))
+        eff, _ = app.bonds.realize(char, st, {"affection": 2, "trust": 3, "mood": 3}, "_favor_done", t)    # 必ず深まる, ではない
+        app.apply_effects(st, app.trait_effects(char, eff))
         app.bonds.met(st, t)
         app.bonds.touch(st, t)
         p_money = (0.6 if stage == "contact" else 0.35) - (aff - 50) / 250.0       # 仲がいいほど, お金よりほかの形で
         her = self.L.her_money(st)
         amt = 0
+        if f.get("kind") == "plants":          # 留守中の水やり: 会っていないので, お礼は帰ってきてからのメッセージで
+            app.save_state(cid)
+            app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
+            app.chat.add(cid, "her", app.chat.line(char, "favor_plants_thanks", {}), kind="favor_plants_thanks", t=t + 3600)
+            if f in self.favors():
+                self.favors().remove(f)
+            return 0, "%sの%sを終えた。鍵をかけて帰った（お礼は、帰ってきてからメッセージで）" % (name, f["label"])
         if random.random() < p_money and her["a"] > 3000:
             amt = min(int(her["a"] * 0.3), int(1000 * f["h"] * random.uniform(0.8, 1.5) / 500) * 500)
         if amt > 0:
@@ -432,6 +479,8 @@ class Earn:
                                  "お礼に、お菓子を持たせてくれた"))
         app.save_state(cid)
         app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
+        if f in self.favors():
+            self.favors().remove(f)
         return amt, "%sの%sを終えた。%s" % (name, f["label"], how)
 
     # ================================================================== フリマ
@@ -606,7 +655,14 @@ class Earn:
         p = self.app.presence.rec()
         out["lotto"] = {"price": LOTTO_PRICE, "tickets": lt["tickets"], "results": list(reversed(lt["results"][-3:])),
                         "can": p.get("mode") == "out" and p.get("place") in LOTTO_PLACES}
-        out["favors"] = [dict(f, name=(self.app.chars.get(f["cid"]) or {}).get("name", "")) for f in self.favors() if f["until"] > now]
+        out["favors"] = []
+        for f in self.favors():
+            x = self.app.appoint.find(f.get("appoint")) if f.get("appoint") else None
+            if not x and f["until"] <= now:
+                continue
+            out["favors"].append(dict(f, name=(self.app.chars.get(f["cid"]) or {}).get("name", ""),
+                                      status=x["status"] if x else "", status_label=self.app.appoint.favor_status(x, now) if x else "",
+                                      appoint=x["id"] if x else None))
         mo = self.career()["months"].get(datetime.fromtimestamp(now).strftime("%Y-%m")) or {}
         out["month_h"] = round(float(mo.get("h", 0)), 1)
         if pt:

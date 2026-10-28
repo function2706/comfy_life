@@ -18,6 +18,12 @@
 - あなたが約束の時刻に約束の場所にいなければ遅刻: 遅れて着けば少し機嫌を損ね, 45 分たってもいなければ (画面を閉じていても)
   すっぽかしたことになる (相手は傷つく). 画面を開いたまま放置していても, 行動パターンでは出向かない (手動で).
 - 会ったら, 約束したお出かけのコマンドを実行する (条件は約束したときに済んでいる). 新しい交流は bonds.realize を通る (act の中).
+- 頼まれごと (core/earn.py の favors) も約束に乗せる (favor: 頼まれごとの id, do は "_favor", 行き先は相手の家. 家に行ける仲の前
+  (連絡先) でも, 頼まれごとの約束なら相手の家で約束できる例外). 引っ越しは相手が日時を決めてくる (fixed: 受けるか断るかだけ),
+  大掃除・家具の組み立てなどは 相手が案を出す / こちらに都合を聞く (ask: 日時を返すまで受けられない) のどちらか. 植木の水やりは,
+  相手の留守中 (t〜until) に自分で家へ行く (会わない. 期間内に行かなければ枯れてがっかり). 当日は自分で出向き, 会えたら手伝いに
+  取りかかる (f["h"] 時間ほど. 戻ると earn.favor_done). すっぽかしは普段の約束より重い (当てにしていた). 返事を丸一日放っておくと
+  流れる (ほかの人に頼んで済んでしまう). 相手の都合で日がずれる・取りやめになることも, まれにある.
 記録は player.json の appoints ([{id, cid, t, place, do, by, status, plan, made, ...}]).
 status: asked (返事待ち) / offered (相手からの誘い) / set (約束した) / waiting (着いて待っている) / met / stood_up (相手が来なかった) /
         missed (あなたが行かなかった) / declined / cancelled.
@@ -45,6 +51,8 @@ STATUS_LABEL = {"asked": "返事待ち", "offered": "誘われている", "set":
                 "stood_up": "来なかった", "missed": "行かなかった", "declined": "断られた", "cancelled": "キャンセル",
                 "refused": "断った", "lapsed": "流れた"}
 HOME_DO = {"visit": "visit_home", "guest": "invite_home"}
+FAVOR_DO = "_favor"
+FAVOR_RESCHED = 0.04     # 約束の 3 時間前ごろに, 相手の都合で日がずれる・取りやめになる確率 (頼まれごと)
 
 
 def fmt_when(t, now=None):
@@ -85,6 +93,102 @@ class Appoint:
     def open_with(self, cid):
         return [x for x in self.all() if x["cid"] == cid and x["status"] in OPEN]
 
+    def find(self, aid):
+        return next((x for x in self.all() if x["id"] == aid), None) if aid else None
+
+    def when_of(self, x, now=None):
+        if x.get("plants"):
+            return "%s〜%s" % (fmt_when(x["t"], now).split(" ")[0], fmt_when(x["until"], now).split(" ")[0])
+        return fmt_when(x["t"], now)
+
+    def favor_homes(self):
+        """頼まれごとの約束がある相手の家 (家に行ける仲の前でも, 行き先の表に加える)."""
+        return {places_mod.home_of(x["place"]) for x in self.all() if x.get("favor") and x["status"] in OPEN}
+
+    def favor_status(self, x, now=None):
+        if not x:
+            return ""
+        if x["status"] == "offered":
+            return "都合を聞かれている" if x.get("ask") else ("日時が決まっている（受けるか断るか）" if x.get("fixed") else "日時の案が来ている")
+        if x["status"] == "asked":
+            return "返事待ち"
+        if x.get("plants"):
+            return "留守中に水やりに行く"
+        return "%sに約束" % fmt_when(x["t"], now)
+
+    # ------------------------------------------------------------------ 頼まれごと
+    def favor_offer(self, f, now, legacy=False):
+        """頼まれごとが来た: 種類ごとに日時の決め方を変えて, 約束 (offered) にする. 離れていればメッセージで, そばにいれば対面で頼まれる.
+        legacy: 以前から頼まれていたもの (日時を決める前の形) を, 都合を聞かれている形にする (頼まれ直すのではない)."""
+        app = self.app
+        cid = f["cid"]
+        char = app.chars[cid]
+        st = app.state(cid)
+        kind = f.get("kind") or "clean"
+        x = {"id": uuid.uuid4().hex[:8], "cid": cid, "place": "home:" + cid, "do": FAVOR_DO, "by": "her", "status": "offered",
+             "made": now, "favor": f["id"], "fkind": kind, "label": f["label"]}
+        line, extra = "favor_ask_offer", {"what": f["label"]}
+        if kind == "plants":
+            start = self._free_time(char, now, days=(1, 3), hours=(9,)) or now + 86400
+            x.update(t=start, until=start + random.randint(2, 4) * 86400, plants=True, fixed=True, rounds=COUNTER_MAX)
+            line = "favor_ask_plants"
+            extra.update({"from": fmt_when(x["t"], now).split(" ")[0], "to": fmt_when(x["until"], now).split(" ")[0]})
+        elif kind == "move":
+            t = self._free_time(char, now, days=(2, 6), hours=(9, 10)) or now + 3 * 86400
+            x.update(t=t, fixed=True, rounds=COUNTER_MAX)
+            line = "favor_ask_move"
+        elif legacy or random.random() < 0.4:       # いつなら空いているか, こちらに聞いてくる
+            x.update(t=now + 2 * 86400, ask=True)
+            line = "favor_ask_when"
+        else:
+            x["t"] = self._free_time(char, now, days=(1, 5), hours=(10, 13, 15)) or now + 2 * 86400
+        extra["when"] = self.when_of(x, now)
+        f["appoint"] = x["id"]
+        f["until"] = max(f.get("until", 0), (x.get("until") or x["t"]) + 86400)
+        self.all().append(x)
+        self.save()
+        if legacy:
+            app.chat.add(cid, "sys", "（頼まれていた%sは、日時を決めて答えられるようになった。約束の欄から）" % f["label"], kind="favor", t=now)
+            return x
+        text = app.chat.line(char, line, extra)
+        if app.bonds.together(cid):                  # そばにいる: 対面で頼まれる (記録にも残す)
+            app.her_says(cid, text.replace("📱『", "「").replace("』", "」"), "頼まれごと", "🤝", now)
+        app.chat.add(cid, "her", text, kind="favor_ask", t=now, appoint=x["id"])
+        app.picked_up_phone(char, st, now)
+        app.save_state(cid)
+        return x
+
+    def _free_time(self, char, now, days=(1, 5), hours=(10, 13, 15)):
+        """相手の予定が空いている日時 (頼まれごとの案)."""
+        dt0 = datetime.fromtimestamp(now)
+        for _ in range(12):
+            d = (dt0 + timedelta(days=random.randint(*days))).replace(hour=random.choice(hours), minute=0, second=0, microsecond=0)
+            sc = self.app.scheduled_scene(char, d)
+            if not (sc["away"] or sc["busy"] or sc["asleep"]):
+                return d.timestamp()
+        return None
+
+    def _favor_plan(self):
+        """頼まれごとの当日の相手の側: 頼んだ側なので, すっぽかしも遅刻もまずない (日がずれる・取りやめは前日ごろに決まる)."""
+        return {"noshow": False, "late": 0, "cancel_checked": False}
+
+    def water_plants(self, place, now=None):
+        """植木の水やり: 相手の留守中の期間に, 相手の家へ行った (会わない. 鍵を預かっている). 終わればお礼はあとで."""
+        app = self.app
+        now = now or time.time()
+        x = next((x for x in self.all() if x.get("plants") and x["place"] == place and x["status"] == "set"
+                  and x["t"] - 3600 <= now <= x["until"]), None)
+        if not x:
+            return None
+        f = app.earn.favor(x.get("favor"))
+        x["status"] = "met"
+        self.save()
+        if not f:
+            return "（%sの植木に水をやった）" % app.places.label(place)
+        _, text = app.earn.favor_done(f, f["h"], now)
+        app.life.save_player()
+        return "（%s）" % text
+
     # ------------------------------------------------------------------ 何ができるか
     def needs(self, a, cid):
         """離れている相手と, このコマンドで会うのに約束がいるか (お出かけ・訪問・招く. 同居相手は いらない)."""
@@ -93,7 +197,7 @@ class Appoint:
         return bool((a.get("override") or {}).get("outing")) or a.get("bond") in ("visit_start", "guest_start")
 
     def dos_at(self, cid, pid):
-        """その行き先で, その相手と約束できること (コマンド)."""
+        """その行き先で, その相手と約束できること (コマンド). 頼まれごとの約束 (FAVOR_DO) はここには出さない (相手から頼まれるもの)."""
         app = self.app
         if pid == places_mod.HOME_ME:
             return [app.action("invite_home")] if app.bonds.stage(cid) == "visit" else []
@@ -162,6 +266,22 @@ class Appoint:
         if x["status"] != "asked":
             return "appoint_no", {}, extra
         p = st["params"]
+        if x.get("favor"):                    # 頼まれごとの日時: 頼んだ側なので, 予定が空いていればまず受ける
+            extra["what"] = x.get("label", "")
+            busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
+            if busy["away"] or busy["busy"] or busy["asleep"]:
+                alt = self._alt_time(char, x, now) if int(x.get("rounds", 0)) < COUNTER_MAX else None
+                if alt:
+                    x.update(t=alt, status="offered", made=now, rounds=int(x.get("rounds", 0)) + 1, ask=False)
+                    self.save()
+                    return "favor_counter", {}, dict(extra, when=fmt_when(alt, now))
+                x["status"] = "declined"
+                self.save()
+                return "favor_busy", {}, extra
+            x["status"] = "set"
+            x["plan"] = self._favor_plan()
+            self.save()
+            return "favor_yes", {"mood": 2, "trust": 1}, extra
         busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
         if (busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8:
             alt = self._alt_time(char, x, now) if int(x.get("rounds", 0)) < COUNTER_MAX else None
@@ -233,8 +353,28 @@ class Appoint:
         if x["status"] != "offered":
             raise ValueError("いまは誘われていません")
         char = app.char(x["cid"])
+        if yes and x.get("ask"):
+            raise ValueError("いつなら行けるか、日時を返してください（「別の日時なら」から）")
         with app.lock:
             st = app.state(x["cid"])
+            if x.get("favor"):               # 頼まれごと: 引き受ける / 断る (引き受ければ必ず喜ばれる, ではない. 効果は realize を通る)
+                if yes:
+                    x["status"] = "set"
+                    x["plan"] = self._favor_plan()
+                    eff, _ = app.bonds.realize(char, st, {"mood": 2, "trust": 1}, "_favor_yes", now)
+                    app.chat.add(x["cid"], "me", "（%sを引き受けた: %s）" % (x.get("label", ""), self.when_of(x, now)), kind="appoint", t=now)
+                else:
+                    x["status"] = "refused"
+                    eff = {"mood": -1}
+                    app.chat.add(x["cid"], "me", "（%sは断った）" % x.get("label", ""), kind="appoint", t=now)
+                    f = app.earn.favor(x["favor"])
+                    if f:
+                        app.earn.favors().remove(f)
+                app.apply_effects(st, app.trait_effects(char, eff))
+                app.chat.mark_read_by_her(x["cid"], now)
+                app.save_state(x["cid"])
+                self.save()
+                return {"ok": True, "status": x["status"]}
             if yes:
                 x["status"] = "set"
                 x["plan"] = self._plan(char, st)
@@ -331,8 +471,18 @@ class Appoint:
         x = self.get(aid)
         if x["status"] != "offered":
             raise ValueError("いまは誘われていません")
+        if x.get("fixed"):
+            raise ValueError("その日しか無理だそうです（受けるか断るかで答えましょう）")
         if int(x.get("rounds", 0)) >= COUNTER_MAX:
             raise ValueError("もう何度もやりとりしているので、受けるか断るかにしましょう")
+        if x.get("favor"):
+            t = float(t)
+            if t < now + 30 * 60 or t > now + 14 * 86400:
+                raise ValueError("約束は 30 分後から 2 週間先までです")
+            x.update(t=t, status="asked", made=now, rounds=int(x.get("rounds", 0)) + 1, counter=True, ask=False)
+            self.save()
+            self._send(x, now, "（%sは、%sなら行ける、と返した）" % (x.get("label", ""), fmt_when(t, now)))
+            return dict(x, label=STATUS_LABEL[x["status"]])
         place = place or x["place"]
         do = do or x["do"]
         t = float(t)
@@ -380,7 +530,7 @@ class Appoint:
         """相手が返す別の案: あなたの案の近く (前後の日・時間) で, 相手の予定が空いていて, 行き先が開いている時間. 無ければ None."""
         app = self.app
         base = datetime.fromtimestamp(x["t"])
-        a = app.action(x["do"])
+        a = app.action(x["do"]) if x["do"] != FAVOR_DO else {}
         for _ in range(12):
             d = (base + timedelta(days=random.choice((0, 0, 1, -1, 2)))).replace(
                 hour=random.choice((10, 11, 13, 14, 15, 16, 17, 18, 19)), minute=0, second=0, microsecond=0)
@@ -485,12 +635,17 @@ class Appoint:
         if now > x["t"] + GRACE:                  # 約束の時刻を過ぎても, その場所にいなかった
             x["status"] = "missed"
             st = app.state(x["cid"])
+            fav = bool(x.get("favor"))            # 頼まれごと: 当てにしていたので, 普段の約束より重い
             with app.lock:
-                d = app.apply_effects(st, app.trait_effects(char, {"mood": -8, "trust": -4, "affection": -2}))
-                app.life.add_reason(st, "player", "bad", "%sが約束をすっぽかした" % app.pronouns(char)[2], now,
+                d = app.apply_effects(st, app.trait_effects(char, {"mood": -12, "trust": -8, "affection": -3} if fav
+                                                            else {"mood": -8, "trust": -4, "affection": -2}))
+                app.life.add_reason(st, "player", "bad", ("当てにしていたのに、%sが%sに来なかった" % (app.pronouns(char)[2], x.get("label", ""))
+                                                          if fav else "%sが約束をすっぽかした" % app.pronouns(char)[2]), now,
                                     told=True, delta=d.get("mood", 0), action="_appoint")
-                app.chat.add(x["cid"], "her", app.chat.line(char, "appoint_missed", {}), kind="appoint_missed", t=x["t"] + GRACE)
+                app.chat.add(x["cid"], "her", app.chat.line(char, "favor_missed" if fav else "appoint_missed", {"what": x.get("label", "")}),
+                             kind="favor_missed" if fav else "appoint_missed", t=x["t"] + GRACE)
                 app.save_state(x["cid"])
+                self._favor_drop(x)
             out.append("%sとの約束（%s）に行かなかった" % (char.get("name", ""), fmt_when(x["t"], now)))
             return True
         return False
@@ -506,6 +661,8 @@ class Appoint:
         late = (x.get("plan") or {}).get("late", 0) if x.get("status") == "waiting" else 0
         x["status"] = "met"
         self.save()
+        if x.get("favor"):
+            return self._favor_meet(x, now, me_late, extra_opts or {})
         opts = dict({"appointment": x["id"]}, **(extra_opts or {}))
         if x["place"] in places_mod.PLACES:
             opts["place"] = x["place"]
@@ -528,6 +685,35 @@ class Appoint:
             app.save_log(cid)
         return dict(r, status="met")
 
+    def _favor_drop(self, x):
+        f = self.app.earn.favor(x.get("favor"))
+        if f:
+            self.app.earn.favors().remove(f)
+            self.app.life.save_player()
+
+    def _favor_meet(self, x, now, me_late, opts):
+        """頼まれごとの約束で会えた: 手伝いに取りかかる (戻ると earn.favor_done). 閉じていた間 (auto_weak) なら, その場でひと通り済ませる."""
+        app = self.app
+        cid = x["cid"]
+        char = app.chars[cid]
+        f = app.earn.favor(x.get("favor"))
+        if not f:
+            return {"status": "met", "entry": None, "text": "%sの家に行ったが、頼まれごとはもう済んでいた" % char.get("name", "")}
+        if me_late:
+            with app.lock:
+                st = app.state(cid)
+                d = app.apply_effects(st, app.trait_effects(char, {"mood": -3}))
+                app.life.add_reason(st, "player", "bad", "%sが%sに遅れてきた" % (app.pronouns(char)[2], f["label"]), now, told=False,
+                                    delta=d.get("mood", 0), action="_appoint")
+                app.save_state(cid)
+        if opts.get("auto_weak"):
+            _, text = app.earn.favor_done(f, f["h"], now + f["h"] * 3600)
+            app.life.save_player()
+            return {"status": "met", "entry": {"text": text}}
+        r = app._go_task("favor", f, "%sの家で%sに取りかかった（%s時間ほど）%s" % (char.get("name", ""), f["label"], f["h"],
+                                                                         "。約束に遅れてしまった" if me_late else ""))
+        return dict(r, status="met", entry={"text": r.get("label", "")})
+
     def live(self, now=None):
         """画面を開いている間 (state_view のたび). 期限・キャンセル・遅れて来た相手・相手からの誘い・すっぽかしを進める.
         何か起きたら [テキスト] を返す."""
@@ -545,14 +731,52 @@ class Appoint:
                 continue
             char = app.chars[cid]
             st = app.state(cid)
+            if x.get("plants") and x["status"] == "set":
+                if now > x["until"]:                  # 留守のあいだに水やりに行かなかった: 枯れてがっかり
+                    x["status"] = "missed"
+                    with app.lock:
+                        d = app.apply_effects(st, app.trait_effects(char, {"mood": -4, "trust": -3, "affection": -1}))
+                        app.life.add_reason(st, "player", "bad", "頼んでいた植木が枯れていた", now, told=True, delta=d.get("mood", 0),
+                                            action="_appoint")
+                        app.chat.add(cid, "her", app.chat.line(char, "favor_plants_dead", {}), kind="favor_plants_dead", t=now)
+                        app.save_state(cid)
+                    self._favor_drop(x)
+                    out.append("%sの植木の水やりに行かないまま、留守が終わった" % char.get("name", ""))
+                    changed = True
+                continue
             if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or now > x["t"]):
-                if x["status"] == "offered":          # 誘ったのに返事がなかった
+                if x["status"] == "offered" and x.get("favor"):     # 頼まれごとの返事を放っておいた: ほかの人に頼んで済んでしまう
+                    app.apply_effects(st, app.trait_effects(char, {"trust": -1}))
+                    app.chat.add(cid, "her", app.chat.line(char, "favor_lapsed", {"what": x.get("label", "")}), kind="favor_lapsed", t=now)
+                    app.save_state(cid)
+                    self._favor_drop(x)
+                elif x["status"] == "offered":          # 誘ったのに返事がなかった
                     app.apply_effects(st, app.trait_effects(char, {"mood": -3, "loneliness": 4}))
                     app.save_state(cid)
+                elif x.get("favor"):
+                    self._favor_drop(x)
                 x["status"] = "lapsed"
                 changed = True
             elif x["status"] == "set":
                 plan = x.setdefault("plan", {})
+                if x.get("favor") and not plan.get("cancel_checked") and now >= x["t"] - 3 * 3600:
+                    plan["cancel_checked"] = True
+                    changed = True
+                    if random.random() < FAVOR_RESCHED and not x.get("fixed"):       # 相手の都合で, 日がずれる / 取りやめになる
+                        alt = self._alt_time(char, x, now) if random.random() < 0.6 else None
+                        if alt:
+                            x.update(t=alt, status="offered", made=now, ask=False)
+                            app.chat.add(cid, "her", app.chat.line(char, "favor_resched", {"what": x.get("label", ""), "when": fmt_when(alt, now)}),
+                                         kind="favor_resched", t=now, appoint=x["id"])
+                            out.append("%sから、%sの日をずらしたいと連絡が来た" % (char.get("name", ""), x.get("label", "")))
+                        else:
+                            x["status"] = "cancelled"
+                            app.chat.add(cid, "her", app.chat.line(char, "favor_cancel", {"what": x.get("label", "")}), kind="favor_cancel", t=now)
+                            self._favor_drop(x)
+                            out.append("%sから、%sは取りやめになったと連絡が来た" % (char.get("name", ""), x.get("label", "")))
+                        app.picked_up_phone(char, st, now)
+                        app.save_state(cid)
+                        continue
                 if not plan.get("cancel_checked") and now >= x["t"] - 3 * 3600:
                     plan["cancel_checked"] = True
                     changed = True
@@ -596,6 +820,10 @@ class Appoint:
             out.append({"here": x["status"] in ("set", "waiting") and self.here(x["place"], now),
                         "home_me": x["place"] == places_mod.HOME_ME, "remain": int(x["t"] - now), "id": x["id"], "cid": x["cid"], "name": app.chars[x["cid"]].get("name", ""), "t": x["t"],
                         "when": fmt_when(x["t"], now), "place": x["place"], "place_label": app.places.label(x["place"]),
-                        "do": x["do"], "do_label": app.action(x["do"]).get("name", x["do"]), "by": x["by"], "status": x["status"],
-                        "status_label": STATUS_LABEL[x["status"]], "due": due})
+                        "do": x["do"], "do_label": x.get("label") if x.get("favor") else app.action(x["do"]).get("name", x["do"]),
+                        "by": x["by"], "status": x["status"],
+                        "status_label": self.favor_status(x, now) if x.get("favor") else STATUS_LABEL[x["status"]], "due": due,
+                        "favor": bool(x.get("favor")), "fixed": bool(x.get("fixed")), "ask": bool(x.get("ask")),
+                        "plants": bool(x.get("plants")), "until": x.get("until"),
+                        "when_label": self.when_of(x, now)})
         return out
