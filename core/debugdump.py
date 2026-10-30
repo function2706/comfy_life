@@ -4,7 +4,9 @@
 - 要点: バージョン (git のコミット)・ワールド・いまの時刻・範囲 / あなた (お金・体力・在席・予定・行動パターン) /
   相手ごとの状態 (params・返信待ち msg_pending・働きかけ approach・謝罪 apology_last・連絡の多さと許容・機嫌の理由・約束・頼まれごと) /
   閉じていた間のまとめ (いちばん新しいもの)
-- 詳細: 判断の記録 (core/trace.py)・トーク・ログ (画像のプロンプトは省く)・一人の時間・日記・server.log (範囲の分)
+- エラー: API・生成ワーカー・裏のスレッドの例外 (トレースバックつき)・画面側 (ブラウザ) のエラー・server.log のエラー.
+  上限 (MAX_CHARS・server.log の行数) とは別枠で, 要点のすぐ後に必ず入れる (件数と最新の 1 行は要点にも)
+- 詳細: 判断の記録とあなたの操作 (core/trace.py. 同じ時系列)・トーク・ログ (画像のプロンプトは省く)・一人の時間・日記・server.log (範囲の分)
 遊ぶ人がうっかり見てしまわないように (チートにならないように), 画面には中身を出さず, 符号化した 1 つのブロックだけを渡す
 (先頭の目印・長さ・チェックサムつき. 途中で切れていれば分かる). 開くのは開発側 (tools/debug_decode.py).
 """
@@ -18,12 +20,14 @@ import zlib
 from datetime import datetime
 
 from . import store
-from .trace import _xor
+from .trace import ERROR_CATS, _xor
 
 BEGIN = "-----BEGIN KURASHI-DUMP v1"
 END = "-----END KURASHI-DUMP-----"
 WIDTH = 76
 MAX_CHARS = 400000          # 詳細が多すぎるときは, 古い方から省く (要点は必ず残す)
+MAX_ERRORS = 100            # エラーの欄 (別枠) に入れる件数
+MAX_TB_LINES = 40           # 1 件のトレースバックの行数
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -107,7 +111,7 @@ class DebugDump:
         if day:
             t0 = datetime.strptime(day, "%Y-%m-%d").timestamp()
             return t0, t0 + 86400
-        return now - float(hours or 24) * 3600, now
+        return now - float(hours or 24) * 3600, now + 1      # 記録の時刻は 0.1 秒に丸めてあるので, 直前のものが外れないように
 
     def build(self, hours=24, day=None, cid=None, brief=False, now=None):
         """書き出しの本文 (読める形) を返す."""
@@ -128,9 +132,16 @@ class DebugDump:
         for c in cids:
             top += self._char(c, now) + [""]
         top += self._offline_report(t0, t1)
+        errs = self._errors(t0, t1)
+        top[top.index("") if "" in top else len(top):0] = ["errors: %d 件%s" % (len(errs), "（最新: %s）" % errs[-1][0] if errs else "")]
+        if errs:
+            top += ["", "== エラー (%d 件. 新しい %d 件) ==" % (len(errs), min(len(errs), MAX_ERRORS))]
+            for head, body in errs[-MAX_ERRORS:]:
+                top.append(head)
+                top += ["    " + x for x in body[-MAX_TB_LINES:]]
         detail = []
         if not brief:
-            detail += self._section("判断の記録", self._trace(t0, t1, cid))
+            detail += self._section("判断の記録とあなたの操作", self._trace(t0, t1, cid))
             for c in cids:
                 detail += self._section("トーク: %s" % app.chars[c].get("name", c), self._chat(c, t0, t1))
                 detail += self._section("ログ: %s" % app.chars[c].get("name", c), self._log(c, t0, t1))
@@ -216,8 +227,75 @@ class DebugDump:
     def _trace(self, t0, t1, cid):
         out = []
         for r in self.app.trace.read(t0, t1, cid):
-            out.append("%s [%s]%s %s %s" % (_ts(r["t"]), r["c"], " (%s)" % r["id"] if r.get("id") else "", r["m"], _j(r.get("v")) if r.get("v") else ""))
+            v = r.get("v") or {}
+            if r["c"] == "op":                 # あなたの操作: 押したもの → 結果
+                out.append("%s [操作] %s %s → %s" % (_ts(r["t"]), r["m"], _j(v.get("args") or {}), v.get("result")))
+            elif r["c"] in ERROR_CATS:         # 中身はエラーの欄に. ここは時系列の目印だけ
+                out.append("%s [%s] %s%s" % (_ts(r["t"]), "エラー" if r["c"] == "error" else "画面のエラー", r["m"],
+                                             " ×%d" % v["count"] if v.get("count", 1) > 1 else ""))
+            else:
+                out.append("%s [%s]%s %s %s" % (_ts(r["t"]), r["c"], " (%s)" % r["id"] if r.get("id") else "", r["m"], _j(v) if v else ""))
         return out
+
+    def _errors(self, t0, t1):
+        """エラーの欄: [(見出し, トレースバックなどの行)] 時刻順. 判断の記録の error / client と, server.log のエラー
+        (時刻の付いていない以前の [API ERROR] も, 前の行の時刻で範囲に入れる. 判断の記録にあるものは重ねない)."""
+        out = []
+        for r in self.app.trace.read(t0, t1):
+            if r["c"] not in ERROR_CATS:
+                continue
+            v = r.get("v") or {}
+            if r["c"] == "error":
+                head = "%s [エラー] %s" % (_ts(r["t"]), r["m"])
+                body = (v.get("tb") or "").splitlines() + (["args=%s" % _j(v["args"])] if v.get("args") else [])
+            else:
+                head = "%s [画面のエラー] %s%s (screen=%s %s:%s:%s)" % (_ts(r["t"]), r["m"], " ×%d" % v["count"] if v.get("count", 1) > 1 else "",
+                                                                       v.get("screen"), v.get("src"), v.get("line"), v.get("col"))
+                body = (v.get("stack") or "").splitlines()[:8]
+            out.append((r["t"], head, body))
+        traced = " ".join(h for _, h, _ in out)
+        for t, block in self._server_log_errors(t0, t1):
+            m = re.search(r"\] job (\w+)", block[0])
+            if m and "job " + m.group(1) in traced:      # 生成ジョブの失敗: 判断の記録 (トレースバックつき) にあるものは重ねない
+                continue
+            out.append((t, "%s [server.log] %s" % (_ts(t), block[0][:300]), block[1:]))
+        out.sort(key=lambda x: x[0])
+        return [(h, b) for _, h, b in out]
+
+    @staticmethod
+    def _log_blocks(t0, t1):
+        """server.log を [(時刻, [行...])] のかたまりに (時刻の無い行は前のかたまりに続ける). 範囲の分だけ."""
+        try:
+            with open(store.dpath("server.log"), encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()[-20000:]
+        except OSError:
+            return []
+        blocks, cur, t = [], None, 0
+        y = datetime.fromtimestamp(t1).year
+        for ln in lines:
+            ln = ln.rstrip("\n")
+            m = re.match(r"(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)", ln)
+            if m:
+                try:
+                    t = datetime(y, *(int(x) for x in m.groups())).timestamp()
+                except ValueError:
+                    t = 0
+                if t > t1 + 86400:            # 年をまたいだ
+                    t = datetime(y - 1, *(int(x) for x in m.groups())).timestamp()
+            if m or ln.startswith("[API ERROR]") or cur is None:
+                cur = (t, [ln])
+                blocks.append(cur)
+            else:
+                cur[1].append(ln)
+        return [b for b in blocks if t0 <= b[0] <= t1]
+
+    @staticmethod
+    def _is_error(block):
+        return "[API ERROR]" in block[0] or "[ERROR]" in block[0] or "Traceback" in "\n".join(block[1:2])
+
+    def _server_log_errors(self, t0, t1):
+        # 判断の記録に残っている新しい形 (時刻つきの [API ERROR]) は重ねない. 以前の時刻なし・[ERROR] (ワーカーの再起動など) は入れる
+        return [(t, b) for t, b in self._log_blocks(t0, t1) if self._is_error(b) and not re.match(r"\d\d-\d\d .*\[API ERROR\]", b[0])]
 
     def _chat(self, cid, t0, t1):
         d = self.app.chat.load(cid)
@@ -245,23 +323,8 @@ class DebugDump:
         return ["%s (%s) %s" % (d["day"], d.get("src"), _trim(d.get("text"), 600)) for d in self.app.solo.diary_list() if d0 <= d["day"] <= d1]
 
     def _server_log(self, t0, t1, limit=300):
-        try:
-            with open(store.dpath("server.log"), encoding="utf-8", errors="replace") as f:
-                lines = f.readlines()[-20000:]
-        except OSError:
-            return []
-        out, keep = [], False
-        y = datetime.fromtimestamp(t1).year
-        for ln in lines:
-            m = re.match(r"(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)", ln)
-            if m:
-                try:
-                    t = datetime(y, *(int(x) for x in m.groups())).timestamp()
-                except ValueError:
-                    t = 0
-                if t > t1 + 86400:            # 年をまたいだ
-                    t = datetime(y - 1, *(int(x) for x in m.groups())).timestamp()
-                keep = t0 <= t <= t1
-            if keep:
-                out.append(_trim(ln.rstrip("\n"), 400))
+        """server.log の範囲の分 (新しい limit 行). エラーはエラーの欄に入れたので, ここでは 1 行目だけ."""
+        out = []
+        for _, b in self._log_blocks(t0, t1):
+            out += [_trim(b[0], 400)] if self._is_error(b) else [_trim(x, 400) for x in b]
         return out[-limit:]

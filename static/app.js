@@ -25,6 +25,40 @@ function h(tag, attrs, ...kids) {
   return el;
 }
 
+// 画面側のエラー: 拾ってサーバへ (不具合の書き出しに入る. 中身は画面に出さない). 同じエラーの連発は件数にまとめて, 少し待ってから送る.
+// 送れなくても遊ぶのは止めない
+const CLIENT_ERR = { pend: new Map(), timer: null, sent: 0 };
+function screenNow() {
+  const d = [...document.querySelectorAll('dialog[open]')].map((x) => x.id || x.className.split(' ').filter((c) => c !== 'modal')[0] || 'dialog');
+  const sec = typeof SE !== 'undefined' && SE && SE.sec && $('#settings-dlg[open]') ? 'settings:' + SE.sec : '';
+  return [d.join('+'), sec, (typeof S !== 'undefined' && S && S.chatCid) ? 'chat:' + S.chatCid : ''].filter(Boolean).join(' ') || 'main';
+}
+function reportClientError(msg, src, line, col, stack) {
+  try {
+    const key = `${msg}|${src}|${line}`;
+    const x = CLIENT_ERR.pend.get(key);
+    if (x) { x.count += 1; return; }
+    if (CLIENT_ERR.sent > 200) return;            // 止まらないエラーで送り続けない
+    CLIENT_ERR.pend.set(key, { msg: String(msg || '').slice(0, 300), src: String(src || '').replace(location.origin, ''), line, col,
+      stack: String(stack || '').split('\n').slice(0, 8).join('\n'), screen: screenNow(), count: 1, first: Date.now() / 1000 });
+    if (!CLIENT_ERR.timer) CLIENT_ERR.timer = setTimeout(flushClientErrors, 3000);
+  } catch (e) { /* 拾うほうで失敗しても, 何もしない */ }
+}
+function flushClientErrors() {
+  CLIENT_ERR.timer = null;
+  const xs = [...CLIENT_ERR.pend.values()];
+  CLIENT_ERR.pend.clear();
+  for (const x of xs) {
+    CLIENT_ERR.sent += 1;
+    fetch('/api/client_error', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(x) }).catch(() => {});
+  }
+}
+window.addEventListener('error', (ev) => reportClientError(ev.message, ev.filename, ev.lineno, ev.colno, ev.error && ev.error.stack));
+window.addEventListener('unhandledrejection', (ev) => {
+  const r = ev.reason || {};
+  reportClientError('(promise) ' + (r.message || String(r)), '', 0, 0, r.stack);
+});
+
 async function api(path, body) {
   const opt = body === undefined ? {} :
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };

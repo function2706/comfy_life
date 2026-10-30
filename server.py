@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import comfy, engine, llm, store  # noqa: E402
+from core.trace import brief_args  # noqa: E402
 
 STATIC = os.path.join(store.BASE, "static")
 APP = None
@@ -33,18 +34,35 @@ def _q(q, k, default=None):
     return v[0] if v else default
 
 
+# あなたの操作として残さない POST (画面が自動で送るもの・書き出しそのもの)
+QUIET_POST = ("/api/chat/seen", "/api/offline/ack", "/api/debug/dump", "/api/client_error", "/api/task/move")
+
+
 def call_api(method, path, q, body):
     """API を呼んで (応答, 状態コード) を返す. 利用者へのお断り (ValueError: 休憩中・お金が足りない など) は 400 で返し,
-    ログは 1 行だけ (トレースバックなし). 見つからないものは 404. 想定外の例外はトレースバックをログに残して 400."""
+    ログは 1 行だけ (トレースバックなし). 見つからないものは 404. 想定外の例外はトレースバックをログに残して 400.
+    状態を変える API (POST) は, あなたの操作として判断の記録に 1 行 (時刻・パス・引数の要点・結果)."""
+    op = method == "POST" and path not in QUIET_POST
     try:
-        return route(method, path, q, body), 200
+        res = route(method, path, q, body), 200
+        if op:
+            APP.trace.op(path, body, "ok")
+        return res
     except LookupError as e:
+        if op:
+            APP.trace.op(path, body, "見つからない: %s" % e)
         return {"error": str(e)}, 404
     except ValueError as e:
         APP.logq.put("%s [INFO] お断り %s %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), method, path, e))
+        if op:
+            APP.trace.op(path, body, "お断り: %s" % e)
         return {"error": str(e)}, 400
     except Exception as e:  # noqa: BLE001
-        APP.logq.put("[API ERROR] %s %s: %s\n%s" % (method, path, e, traceback.format_exc().rstrip()))
+        tb = traceback.format_exc().rstrip()
+        APP.logq.put("%s [API ERROR] %s %s: %s\n%s" % (datetime.now().strftime("%m-%d %H:%M:%S"), method, path, e, tb))
+        APP.trace.error("API %s %s" % (method, path), "%s: %s" % (type(e).__name__, e), tb=tb, args=brief_args(body) if body else None)
+        if op:
+            APP.trace.op(path, body, "エラー: %s" % e)
         return {"error": str(e)}, 400
 
 
@@ -219,6 +237,10 @@ def route(method, path, q, body):
         if path == "/api/outfits":
             with a.lock:
                 return {"outfits": a.wardrobe.save_all(b["items"])}
+        if path == "/api/client_error":         # 画面側 (ブラウザ) のエラー: 判断の記録に (連発はまとめて件数で届く)
+            a.trace.add("client", "%s" % (b.get("msg") or "")[:300], src=b.get("src"), line=b.get("line"), col=b.get("col"),
+                        stack=(b.get("stack") or "")[:2000], screen=b.get("screen"), count=int(b.get("count") or 1), first=b.get("first"))
+            return {"ok": True}
         if path == "/api/debug/dump":           # 不具合を報告するときの書き出し (符号化した 1 つのブロック. 中身は画面に出さない)
             with a.lock:
                 return a.debugdump.dump(hours=b.get("hours") or 24, day=b.get("day") or None, cid=b.get("cid") or None,

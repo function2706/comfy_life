@@ -15,6 +15,7 @@ import re
 import shutil
 import threading
 import time
+import traceback
 import uuid
 from datetime import datetime
 
@@ -145,6 +146,15 @@ class App:
         self._icon_tried = set()
         self.logq = queue.Queue()
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
+        prev_hook = threading.excepthook
+
+        def hook(args):              # 裏のスレッドで捕まえきれなかった例外: 時刻つきでログと判断の記録に (書き出しのエラーの欄)
+            tb = "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)).rstrip()
+            self.logq.put("%s [ERROR] スレッド %s: %s\n%s" % (datetime.now().strftime("%m-%d %H:%M:%S"),
+                                                            getattr(args.thread, "name", "?"), args.exc_value, tb))
+            self.trace.error("スレッド %s" % getattr(args.thread, "name", "?"), "%s: %s" % (args.exc_type.__name__, args.exc_value), tb=tb)
+            prev_hook(args)
+        threading.excepthook = hook
         self.reload()
         self.games = games.Games(self)
         self.life = life.Life(self)
@@ -2107,6 +2117,8 @@ class App:
             except Exception as ex:  # noqa: BLE001 - どんな失敗でもワーカーは止めない
                 j["error"], j["status"] = str(ex), "error"
                 self._set_stage(j, "error", "失敗: %s" % ex, level="error")
+                self.trace.error("生成ワーカー job %s" % j.get("id", "")[:8], "%s: %s" % (type(ex).__name__, ex),
+                                 tb=traceback.format_exc().rstrip(), cid=None, stage=j.get("stage"))
                 self._clear_entry_job(j, str(ex))
             finally:
                 self.worker.update(current=None, since=time.time())

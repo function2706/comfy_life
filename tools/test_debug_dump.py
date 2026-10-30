@@ -114,9 +114,64 @@ def main():
             st.pop(k, None)
         app.appoint.all().append({"id": "old", "cid": cid, "t": now - 3600, "place": "park"})
         text = app.debugdump.build(hours=24, now=now)
-        assert "params=" in text and "--- 判断の記録 (0) ---" in text
+        assert "params=" in text and "--- 判断の記録とあなたの操作 (0) ---" in text
         assert encode_block("")
+        app.appoint.all()[:] = [x for x in app.appoint.all() if x["id"] != "old"]
         print("古いセーブ: OK")
+
+        # ---- 7. エラー: 時刻の無い以前の [API ERROR] も範囲に入る. 生成ジョブの行がたくさんあっても, エラーの欄から押し出されない
+        t_ = time.time()
+        stamp = time.strftime("%m-%d %H:%M:%S", time.localtime(t_ - 600))
+        with io.open(store.dpath("server.log"), "a", encoding="utf-8") as f:
+            f.write("%s [INFO] 何かの行\n[API ERROR] POST /api/act: 以前のエラー\nTraceback (most recent call last):\n  File \"x.py\", line 1\nKeyError: 'x'\n" % stamp)
+            for i in range(500):
+                f.write("%s [INFO] job %06d (顔アイコン): ComfyUI で生成中\n" % (stamp, i))
+        text = app.debugdump.build(hours=1, now=t_)
+        head = text.split("=== 詳細 ===")[0]
+        assert "以前のエラー" in head and "KeyError: 'x'" in head, head[-800:]
+        assert "errors: 1 件" in head
+        print("時刻の無いエラー・押し出されない: OK")
+
+        # ---- 8. あなたの操作: POST は記録 (結果つき), GET は残さない. API の想定外の例外は時刻とトレースバックつきで
+        import server
+        server.APP = app
+
+        class Cap:
+            def __init__(self):
+                self.lines = []
+
+            def put(self, x):
+                self.lines.append(x)
+        app.logq = Cap()
+        n0 = len(app.trace.read())
+        server.call_api("GET", "/api/state", {}, None)
+        server.call_api("GET", "/api/chats", {}, None)
+        assert not [r for r in app.trace.read() if r["c"] == "op"][n0:], "GET が残った"
+        server.call_api("POST", "/api/act", {}, {"action": "no_such", "character": cid})
+        server.call_api("POST", "/api/plan/remove", {}, {"id": "zz", "image": "data:image/png;base64," + "A" * 5000})
+        ops = [r for r in app.trace.read() if r["c"] == "op"]
+        assert ops and ops[-2]["m"] == "/api/act" and "見つからない" in ops[-2]["v"]["result"], ops[-2:]
+        assert ops[-1]["v"]["args"]["image"] == "(省略)" and ops[-1]["v"]["result"] == "ok", ops[-1]
+        real = server.route
+        server.route = lambda *a: (_ for _ in ()).throw(RuntimeError("こわれた"))
+        try:
+            obj, code = server.call_api("POST", "/api/act", {}, {"action": "x"})
+        finally:
+            server.route = real
+        assert code == 400 and app.logq.lines and app.logq.lines[-1][:5].replace("-", "").isdigit(), app.logq.lines[-1:]
+        er = [r for r in app.trace.read() if r["c"] == "error"][-1]
+        assert "こわれた" in er["m"] and "Traceback" in er["v"]["tb"], er
+        print("操作の記録・API のエラー: OK |", ops[-2]["m"], "→", ops[-2]["v"]["result"][:20])
+
+        # ---- 9. 画面側のエラー: 受け取って残す (連発は画面の側で件数にまとめて届く). 書き出しのエラーの欄に件数つきで
+        server.call_api("POST", "/api/client_error", {}, {"msg": "TypeError: x is undefined", "src": "/static/app.js", "line": 120, "col": 5,
+                                                          "stack": "TypeError\n at drawChat (app.js:120)", "screen": "chat-dlg", "count": 4})
+        assert not [r for r in app.trace.read() if r["c"] == "op" and r["m"] == "/api/client_error"], "画面のエラーの送信を操作に数えた"
+        text = app.debugdump.build(hours=1)
+        head = text.split("=== 詳細 ===")[0]
+        assert "[画面のエラー] TypeError: x is undefined ×4 (screen=chat-dlg /static/app.js:120:5)" in head, head[-600:]
+        assert "[エラー] API POST /api/act" in head and "RuntimeError" in head
+        print("画面のエラー: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

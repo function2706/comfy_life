@@ -36,16 +36,42 @@ def dec(line):
     return json.loads(zlib.decompress(_xor(base64.b64decode(line.strip()))).decode("utf-8"))
 
 
-def _clean(v):
+LONG = ("tb", "stack")      # トレースバック・スタックは長くても残す (LONG_MAX まで)
+LONG_MAX = 4000
+ERROR_CATS = ("error", "client")
+
+
+def _clean(v, n=160):
     if isinstance(v, float):
         return round(v, 3)
     if isinstance(v, dict):
-        return {str(k): _clean(x) for k, x in v.items()}
+        return {str(k): _clean(x, LONG_MAX if k in LONG else n) for k, x in v.items()}
     if isinstance(v, (list, tuple)):
-        return [_clean(x) for x in v][:20]
-    if isinstance(v, str) and len(v) > 160:
-        return v[:160] + "…"
+        return [_clean(x, n) for x in v][:20]
+    if isinstance(v, str) and len(v) > n:
+        return v[:n] + "…"
     return v
+
+
+SKIP_ARGS = ("image", "images", "data", "file", "zip", "values", "items", "actions", "params", "workflow", "prompt", "pos", "neg")
+
+
+def brief_args(b):
+    """操作の引数の要点: 短い値はそのまま, 長い文字列は頭だけ, 一覧は件数, 画像や定義まるごとは省く."""
+    out = {}
+    for k, v in (b or {}).items():
+        if k in SKIP_ARGS:
+            out[k] = "(省略)"
+        elif isinstance(v, (list, tuple)):
+            out[k] = "[%d 件]" % len(v)
+        elif isinstance(v, dict):
+            out[k] = {kk: vv for kk, vv in v.items() if isinstance(vv, (int, float, bool)) or (isinstance(vv, str) and len(vv) <= 40)} \
+                if len(v) <= 8 else "{%d 項目}" % len(v)
+        elif isinstance(v, str) and len(v) > 60:
+            out[k] = v[:60] + "…"
+        else:
+            out[k] = v
+    return out
 
 
 class Trace:
@@ -77,6 +103,14 @@ class Trace:
                     self.trim()
         except Exception:  # noqa: BLE001 - 記録できなくても遊ぶのは止めない
             pass
+
+    def error(self, where, exc_text, tb=None, t=None, **vals):
+        """例外 (API・生成ワーカー・裏のスレッド) を残す. 書き出しでは, 上限とは別枠のエラーの欄に必ず入る."""
+        self.add("error", "%s: %s" % (where, exc_text), t=t, tb=tb, **vals)
+
+    def op(self, path, args, result, t=None):
+        """あなたの操作 (状態を変える API). 引数は要点だけ (長いもの・画像は省く)."""
+        self.add("op", path, t=t, args=brief_args(args), result=result)
 
     def every(self, key, sec, now=None):
         """同じ種類の記録を間引く (抽せんの外れなど, 数秒おきに起きるもの). 残してよければ True."""
