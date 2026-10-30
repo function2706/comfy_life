@@ -64,6 +64,9 @@ def all_keys(actions, minigames, approaches=()):
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}
+    from .nori import LINES as NORI_LINES, SCENE_LABEL as NORI_SCENES     # メッセージのやりとりのノリが下がって切り上げる
+    for k, t in NORI_LINES.items():
+        out[k] = {"scene": "メッセージの返信 / %s" % NORI_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
     from .posing import LINES as PO_LINES, SCENE_LABEL as PO_SCENES     # 相手からのポーズ・見せて・持ちかけ・感想への返し
     for k, t in PO_LINES.items():
         out[k] = {"scene": "ポーズ・見せて / %s" % PO_SCENES[k], "when": "", "text": t}
