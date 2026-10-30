@@ -215,7 +215,7 @@ class Presence:
         """キャラが自分から話しかけたくなる度合い. 寂しさ・退屈・好感度しだい.
         作業中と告げていれば遠慮する (ただし, とても寂しければ来る). いま構っている最中なら来にくい."""
         f = (0.3 + ctx.get("loneliness", 30) / 100.0 + ctx.get("boredom", 30) / 150.0 + (ctx.get("affection", 50) - 50) / 200.0) \
-            * (1 + 0.4 * (ctx.get("dependence", 50) - 50) / 50.0)       # 依存しているほど構いに来る
+            * (1 + 0.4 * (ctx.get("dependence", 50) - 50) / 50.0) * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど構いに来る (言い争いのあとは来ない)
         if ctx.get("presence") == "busy":
             f *= 0.7 if ctx.get("loneliness", 0) >= 75 else 0.25
         elif ctx.get("presence") == "here" and ctx.get("absent", 1) < 5 / 60.0:
@@ -225,7 +225,7 @@ class Presence:
     def eagerness_apart(self, ctx):
         """離れている相手がメッセージを送りたくなる度合い. 寂しさ・好感度・機嫌しだい (仲が浅いうちはほとんど来ない)."""
         f = (ctx.get("loneliness", 30) / 80.0 + (ctx.get("affection", 50) - 50) / 80.0 + (ctx.get("mood", 50) - 50) / 200.0) \
-            * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0)       # 依存しているほど送ってくる
+            * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0) * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど送ってくる (言い争いのあとは来ない)
         return max(0.05, min(1.5, f))
 
     def fire(self, char, st, now, ctx, force=None):

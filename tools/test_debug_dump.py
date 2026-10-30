@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -42,7 +43,8 @@ def main():
         st["msg_pending"]["due"] = now - 60
         app.deliver_due(now + 1)
         app.manners.apology(app.chars[cid], st, now)
-        app.appoint.propose(cid, now + 2 * 86400, "park", "walk", now)
+        noon2 = datetime.fromtimestamp(now + 2 * 86400).replace(hour=13, minute=0, second=0, microsecond=0).timestamp()
+        app.appoint.propose(cid, noon2, "park", "walk", now)          # 2 日後の昼 (夜中に流しても通るように)
         app.offline.simulate(now - 6 * 3600, now - 60)
         recs = app.trace.read()
         cats = {r["c"] for r in recs}

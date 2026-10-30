@@ -272,6 +272,8 @@ class Chat:
             return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
             return app.topics.phone_reply(char, st, meta, now)
+        if app.quarrel.cold_reply(st, kind, now):              # 言い争いのあと: 素っ気ない
+            return "fight_cold", {"mood": -0.5}, {}
         if kind in ("ask_bday", "tell_bday", "congrats"):      # 誕生日・おめでとう (送った日で見る)
             return app.anniv.reply(char, st, kind, ctx.get("_sent") or now)
         space = self._space(char, st, kind, now, ctx)
@@ -344,6 +346,8 @@ class Chat:
         app = self.app
         if key.startswith("topic_"):            # 話題への返し: 会って振ったときと同じ性格別のセリフを 📱 で
             return app.topics.phone_line(char, key[6:], extra)
+        if key == "fight_cold":
+            return app.quarrel.line(char, "cold", phone=True)
         if key in ANNIV_SCENES:                  # 誕生日・記念日: 会ったときと同じセリフを 📱 で
             return app.anniv.line(char, key, extra, phone=True)
         t = app.persona_text(char, "chat." + key) or LINES["chat." + key]

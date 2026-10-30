@@ -980,6 +980,16 @@ function sparkline(vals, title) {
 function renderRequest() {
   const box = $('#request-box');
   const req = T() && T().life && T().life.request;      // おねがいは, そばにいるときに言われる
+  const qv = S.view.quarrel;                            // 意見が割れた / 相手から謝ってきた: どう応じるか
+  if (!req && qv) {
+    box.hidden = false;
+    box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `💢 ${qv.name}と`), h('div', { class: 'muted small' }, qv.text)),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...qv.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
+        onclick: async () => { if (S.busy) return; S.busy = true;
+          try { const r = await api('/api/quarrel/respond', { choice: c.id }); handleActResult(r); if (r.act) handleActResult(r.act); }
+          catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
+    return;
+  }
   const cs = S.view.chores_slack;                       // 同居相手が家事をさぼっている: 出方を選ぶ
   if (!req && cs) {
     box.hidden = false;

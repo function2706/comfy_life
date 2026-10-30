@@ -32,6 +32,7 @@ from . import topics as topics_mod
 from . import anniv as anniv_mod
 from . import quals as quals_mod
 from . import chores as chores_mod
+from . import quarrel as quarrel_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -165,6 +166,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.quarrel = quarrel_mod.Quarrel(self)      # 意見が割れる・言い争い・仲直り
         self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
         self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
@@ -601,6 +603,7 @@ class App:
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence
+        ctx["fight"] = self.quarrel.active(st, dt.timestamp())                            # 言い争いのあと (素っ気ない)
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
         ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)
@@ -674,6 +677,9 @@ class App:
             changed = True
         if self.bonds.living() == cid:
             self.chores.tick(char, st, now)    # 同居相手の家事 (自分の担当・あなたの担当を気にする・さぼりの知らせ)
+        if st.get("fight") or st.get("chores_fight"):
+            self.quarrel.tick(char, st, now)   # 言い争い (始まる・収まる・相手から謝る)
+            changed = True
         ov = st.get("override")
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
@@ -941,6 +947,12 @@ class App:
                 if why:
                     raise ValueError(why)
             ctx.update(opts.get("ctx") or {})
+            if not apart and not appt and not replay and ovp.get("outing") and len(a.get("places") or []) > 1 \
+                    and opts.get("place") in (a.get("places") or []) and not opts.get("quarrel_ok") and not opts.get("deliver"):
+                dis = self.quarrel.disagree(char, st, a, opts["place"], now, dt)      # 「そこじゃなくて〇〇がいい」
+                if dis:
+                    self.save_state(cid)
+                    return {"entry": dis, "job": None, "llm_error": None, "disagree": True}
             outfit = None
             if dress is not None:
                 if dress:
@@ -2247,7 +2259,7 @@ class App:
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
-                "chores": self.chores.view(), "chores_slack": self.chores.pending(),
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

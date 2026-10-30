@@ -190,6 +190,8 @@ class DebugDump:
         out.append("params=%s" % _j({k: round(v, 1) for k, v in (st.get("params") or {}).items()}))
         out.append("attach(献身・依存)=%s nori=%s" % (_j({k: v for k, v in (st.get("attach") or {}).items() if k != "day"} or None),
                                                      _j(st.get("nori"))))
+        out.append("fight=%s disagree=%s fight_sorry=%s chores_share=%s slack=%s" % (
+            _j(st.get("fight")), _j(st.get("disagree")), st.get("fight_sorry"), _j(st.get("chores_share")), st.get("slack")))
         out.append("celeb=%s celeb_last=%s anniv_msgs=%s bday_known=%s knows_my_bday=%s" % (
             _j(st.get("celeb")), _j(st.get("celeb_last")), _j(st.get("anniv_msgs")), st.get("bday_known"), st.get("knows_my_bday")))
         out.append("tastes(話題の好み)=%s topic_tags=%s" % (_j(st.get("tastes")), _j((st.get("topic_tags") or [])[-8:])))

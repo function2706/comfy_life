@@ -44,7 +44,7 @@ def base(app, char, st, now, boost=0.0):
     h = datetime.fromtimestamp(now).hour
     v = 40 + 0.35 * (p.get("boredom", 30) - 30) + 0.3 * (p.get("loneliness", 30) - 30) + 0.3 * (p.get("mood", 50) - 50) \
         + 0.35 * (p.get("affection", 50) - 50) + 20 * (float(app.traits(char).get("approach", 1)) - 1) \
-        + 8 * app.attach.factor(char, st, "dependence") - (12 if h >= 23 or h < 6 else 0) - (0.2 * max(0.0, p.get("stress", 0) - 50)) + boost + random.uniform(-12, 12)
+        + 8 * app.attach.factor(char, st, "dependence") - (25 if app.quarrel.active(st, now) else 0) - (12 if h >= 23 or h < 6 else 0) - (0.2 * max(0.0, p.get("stress", 0) - 50)) + boost + random.uniform(-12, 12)
     return max(0.0, min(100.0, v))
 
 
