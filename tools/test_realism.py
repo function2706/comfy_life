@@ -117,8 +117,16 @@ def main():
         mc["persona_id"] = "kedakai"
         app.life.player_state()["money"] = 200000
         app.set_params({"affection": 45, "trust": 45, "mood": 60}, mio["id"])
-        m0 = app.life.player_state()["money"]
-        e = app.act("expensive_gift", mio["id"])["entry"]
+        # 受け止め方には揺らぎがあるので, 平均で「重い」側にあることと, 実際に断られうること (揺らぎで受け取ることもある) を見る
+        assert sum(B.gift_feel(mc, sm, time.time(), money=True) for _ in range(200)) / 200 < 45
+        for _ in range(10):
+            sm["gifts"], sm["cooldowns"] = [], {}
+            app.life.player_state()["money"] = 200000
+            app.set_params({"affection": 45, "trust": 45, "mood": 60}, mio["id"])
+            m0 = app.life.player_state()["money"]
+            e = app.act("expensive_gift", mio["id"])["entry"]
+            if "受け取れない" in e["text"]:
+                break
         assert "受け取れない" in e["text"] and app.life.player_state()["money"] == m0, ("気高い人・浅い仲には重い", e["text"])
         sm["cooldowns"] = {}
         e = app.act("allowance", mio["id"])["entry"]

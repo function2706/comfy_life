@@ -291,6 +291,15 @@ class Appoint:
         busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
         if (busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8:
             alt = self._alt_time(char, x, now) if int(x.get("rounds", 0)) < COUNTER_MAX else None
+            fv = app.attach.factor(char, st, "devotion")
+            if fv > 0 and random.random() < 0.4 * fv:          # 献身的なら, 自分の予定のほうを動かして合わせてくれることも
+                x["status"] = "set"
+                x["plan"] = self._plan(char, st)
+                x["rearranged"] = True
+                st.pop("date_promise", None)
+                self.save()
+                app.attach.give(char, st, "her", 2, "予定を動かして合わせてくれた")
+                return "appoint_yes", {"heart": 2, "mood": 1}, extra
             if alt and random.random() < self.counter_chance(char, p, busy=True):
                 return self._counter_back(char, st, x, alt, now, extra)        # その時間は無理だけど, この時間なら
             x["status"] = "declined"
@@ -299,7 +308,8 @@ class Appoint:
         promised = st.get("date_promise", 0) > now or bool(x.get("counter"))        # 自分から誘った話の続き
         pa = 0.35 + (p.get("affection", 50) - 50) / 80.0 + (p.get("mood", 50) - 50) / 150.0 \
             - float(app.traits(char).get("caution", 0)) / 50.0 + (0.1 if app.bonds.stage(char["id"]) == "visit" else 0.0) \
-            + (0.3 if promised else 0.0) - (0.3 if ctx.get("too_often") else 0.0)
+            + (0.3 if promised else 0.0) - (0.3 if ctx.get("too_often") else 0.0) \
+            + 0.2 * app.attach.factor(char, st, "devotion")
         if places_mod.is_home(x["place"]) and app.bonds.stage(char["id"]) != "visit":
             pa = 0
         if random.random() < max(0.03, min(0.95, pa)):
@@ -322,6 +332,7 @@ class Appoint:
         仲・機嫌・性格 (話しかけてくる多さ・慎重さ) しだい. 必ずではない."""
         tr = self.app.traits(char)
         f = (0.3 if busy else 0.12) + (p.get("affection", 50) - 50) / (100.0 if busy else 150.0) \
+            + 0.1 * self.app.attach.factor(char, self.app.state(char["id"]), "devotion") \
             + (p.get("mood", 50) - 50) / (200.0 if busy else 250.0) + 0.15 * (float(tr.get("approach", 1)) - 1) \
             - float(tr.get("caution", 0)) / 60.0
         return max(0.02, min(0.7, f))
@@ -344,8 +355,9 @@ class Appoint:
     def _plan(self, char, st):
         """相手の側の, 当日のこと (約束したときに決まる. 画面には出さない). 体調不良のキャンセルは当日の健康で決める."""
         p = st["params"]
-        punctual = float(self.app.traits(char).get("punctual", 0.75))
-        noshow = random.random() < 0.02 + (1 - punctual) * 0.08 + max(0.0, 45 - p.get("affection", 50)) / 300.0
+        low = max(0.0, -self.app.attach.factor(char, st, "devotion"))      # 自分優先なほど, すっぽかし・遅刻しやすい
+        punctual = float(self.app.traits(char).get("punctual", 0.75)) - 0.15 * low
+        noshow = random.random() < 0.02 + (1 - punctual) * 0.08 + max(0.0, 45 - p.get("affection", 50)) / 300.0 + 0.06 * low
         late = 0
         if not noshow and random.random() > punctual:
             late = int(random.uniform(5, 40) * (1.5 - punctual))
@@ -666,6 +678,7 @@ class Appoint:
                 app.solo.finish(ll)
         late = (x.get("plan") or {}).get("late", 0) if x.get("status") == "waiting" else 0
         x["status"] = "met"
+        app.attach.give(char, app.state(cid), "me", 1, "約束を守って会えた")
         self.save()
         if x.get("favor"):
             return self._favor_meet(x, now, me_late, extra_opts or {})
@@ -787,7 +800,7 @@ class Appoint:
                     plan["cancel_checked"] = True
                     changed = True
                     sick = st["params"].get("health", 90) < 45
-                    if random.random() < (0.6 if sick else 0.03):
+                    if random.random() < (0.6 if sick else 0.03 * (1 - app.attach.factor(char, st, "devotion"))):     # 自分優先なら, 仮病も
                         x["status"] = "cancelled"
                         app.chat.add(cid, "her", app.chat.line(char, "appoint_cancel", {}), kind="appoint_cancel", t=now)
                         app.picked_up_phone(char, st, now)

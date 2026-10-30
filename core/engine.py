@@ -27,6 +27,7 @@ from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
 from . import nori as nori_mod
+from . import attach as attach_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -160,6 +161,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.attach = attach_mod.Attach(self)        # 献身度・依存度・誠実さ (相手ごと. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
@@ -590,6 +592,7 @@ class App:
         ctx.update(self.bonds.ctx(char["id"], st, dt.timestamp()))   # stage / apart / with_mode / company / living_other / rivals
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
+        ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence / sincerity
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
         ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)
@@ -615,7 +618,8 @@ class App:
         tr = self.traits(char)
         t_rate, t_drift, t_speed = tr.get("rate") or {}, tr.get("drift") or {}, tr.get("drift_speed") or {}
         if pres and self.presence.at(dt.timestamp()) == "gone":     # 黙っていなくなった: 性格しだいで堪える
-            pres = {k: float(v) * float(tr.get("absence", 1)) for k, v in pres.items()}
+            ab = float(tr.get("absence", 1)) * (1 + 0.5 * self.attach.factor(char, st, "dependence"))     # 依存しているほど堪える
+            pres = {k: float(v) * ab for k, v in pres.items()}
         for p in self.params:
             pid = p["id"]
             v = vals.get(pid, float(p.get("init", 50)))
@@ -625,6 +629,8 @@ class App:
                     rate = float(r.get("rate", 0))
                     break
             rate *= float(t_rate.get(pid, 1))
+            if pid == "loneliness" and rate > 0:      # 依存しているほど寂しくなりやすい
+                rate *= 1 + 0.3 * self.attach.factor(char, st, "dependence")
             d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
@@ -1218,6 +1224,9 @@ class App:
                 raise ValueError("%sは「%s」をもう持っています" % (char.get("name", ""), it["name"]))
             feel["gift_outfit"] = self.wardrobe.gift_feel(char, self.state(char["id"]), it["outfit"], time.time())
         r = self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
+        if not (r.get("entry") or {}).get("override"):
+            with self.lock:
+                self.attach.give(char, self.state(char["id"]), "me", 2 + (1 if aid == "expensive_gift" else 0), "贈り物")
         if feel["liked"] or feel["disliked"]:           # 渡してみて分かった, 好きなもの・苦手なもの (関係性)
             lk, dk = self.items.likes(char)
             tags = [t for t in it["tags"] if t in (lk if feel["liked"] else dk)]
@@ -1596,6 +1605,7 @@ class App:
         if ans and req:
             amt = int(req.get("amount", 0))
             if ans == "yes":
+                self.attach.give(char, st, "her" if req["kind"] in ("treat", "present") else "me", 2, "おねがい: " + req["kind"])
                 if req["kind"] == "money":
                     add(L.move(st, dp=-amt, da=amt, cat="social", note="%sに貸した" % name))
                 elif req["kind"] == "gift":
@@ -1622,6 +1632,7 @@ class App:
                 untold = [x for x in L.reasons(st, now) if not x["told"]]
                 L.mark_told(untold[0] if untold else L.dominant(st, now))
             elif ma == "comfort":
+                self.attach.give(char, st, "me", 1, "相談にのった")
                 bad = L.dominant(st, now, "bad")
                 if bad and bad["kind"] == "event":
                     L.mark_told(bad)
@@ -1908,7 +1919,8 @@ class App:
     def silent_penalty(self, char, hours):
         """何も言わずにいなくなったぶんの機嫌・信頼の目減り (空けた時間・寂しさ・性格しだい)."""
         st = self.state(char["id"])
-        k = float(self.traits(char).get("absence", 1)) * (0.4 + st["params"].get("loneliness", 30) / 100.0)
+        k = float(self.traits(char).get("absence", 1)) * (0.4 + st["params"].get("loneliness", 30) / 100.0) \
+            * (1 + 0.5 * self.attach.factor(char, st, "dependence"))
         eff = {"mood": -min(10.0, 2 + hours * 0.4) * k}
         if hours >= 3:
             eff["trust"] = -min(4.0, hours * 0.1) * k

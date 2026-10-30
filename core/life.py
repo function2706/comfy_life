@@ -313,13 +313,16 @@ class Life:
         if pol == "auto":
             r = random.random()
             aff = st["params"].get("affection", 50)
-            pol = "her" if (r < 0.2 + aff / 500.0 and hm["a"] >= cost * 2) else "split" if r < 0.55 else "me"
+            fv = self.app.attach.factor(char, st, "devotion")     # 献身的なほど払ってくれ, 自分優先なほど払わせる
+            ph = max(0.0, 0.2 + aff / 500.0 + 0.25 * fv)
+            pol = "her" if (r < ph and hm["a"] >= cost * 2) else "split" if r < max(ph, 0.55 + 0.15 * fv) else "me"
         if pol == "split":
             half = cost // 2
             if ps["money"] >= cost - half and hm["a"] >= half:
                 return {"payer": "split", "p": -(cost - half), "a": -half}
             pol = "me" if ps["money"] >= cost else "her"
         if pol == "her" and hm["a"] >= cost:
+            self.app.attach.give(char, st, "her", 2, "払ってくれた")
             return {"payer": "her", "p": 0, "a": -cost}
         if ps["money"] >= cost:
             return {"payer": "me", "p": -cost, "a": 0}
@@ -341,6 +344,8 @@ class Life:
                     self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
                 hm["a"] -= min(own, max(hm["a"], 0))
             self.money_concern(char, st, t1)
+        if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
+            self.app.attach.daily(char, st, t1)                  # 献身度・依存度・誠実さの日ごとの動き
         self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
@@ -544,6 +549,7 @@ class Life:
             return {"amount": amount, "left": left}
         app = self.app
         char, st = app.chars[to], app.state(to)
+        app.attach.give(char, st, "me", 1, "借りたお金を返した")
         self.her_money(st)["a"] += amount
         ps["loans"][to] = left
         since = (ps.get("loan_t") or {}).get(to) or t
@@ -592,7 +598,13 @@ class Life:
             evs.append(ev)
         if not evs:
             return None
-        ev = random.choices(evs, [float(x.get("weight", 1)) for x in evs])[0]
+        fv = self.app.attach.factor(char, st, "devotion")
+
+        def w(x):                     # 自分優先なほど「貸して・買って」, 献身的なほど「ごちそう・プレゼント」
+            k = (x.get("request") or {}).get("kind")
+            f = 1 - 0.8 * fv if k in ("money", "gift") else 1 + 0.8 * fv if k in ("treat", "present") else 1
+            return float(x.get("weight", 1)) * max(0.2, f)
+        ev = random.choices(evs, [w(x) for x in evs])[0]
         self.app.apply_effects(st, self.app.trait_effects(char, ev.get("effects") or {}))
         money = ev.get("money") or {}
         amt = _amount(money.get("a")) if money.get("a") else 0

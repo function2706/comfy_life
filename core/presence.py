@@ -214,7 +214,8 @@ class Presence:
     def eagerness(self, ctx):
         """キャラが自分から話しかけたくなる度合い. 寂しさ・退屈・好感度しだい.
         作業中と告げていれば遠慮する (ただし, とても寂しければ来る). いま構っている最中なら来にくい."""
-        f = 0.3 + ctx.get("loneliness", 30) / 100.0 + ctx.get("boredom", 30) / 150.0 + (ctx.get("affection", 50) - 50) / 200.0
+        f = (0.3 + ctx.get("loneliness", 30) / 100.0 + ctx.get("boredom", 30) / 150.0 + (ctx.get("affection", 50) - 50) / 200.0) \
+            * (1 + 0.4 * (ctx.get("dependence", 50) - 50) / 50.0)       # 依存しているほど構いに来る
         if ctx.get("presence") == "busy":
             f *= 0.7 if ctx.get("loneliness", 0) >= 75 else 0.25
         elif ctx.get("presence") == "here" and ctx.get("absent", 1) < 5 / 60.0:
@@ -223,7 +224,8 @@ class Presence:
 
     def eagerness_apart(self, ctx):
         """離れている相手がメッセージを送りたくなる度合い. 寂しさ・好感度・機嫌しだい (仲が浅いうちはほとんど来ない)."""
-        f = ctx.get("loneliness", 30) / 80.0 + (ctx.get("affection", 50) - 50) / 80.0 + (ctx.get("mood", 50) - 50) / 200.0
+        f = (ctx.get("loneliness", 30) / 80.0 + (ctx.get("affection", 50) - 50) / 80.0 + (ctx.get("mood", 50) - 50) / 200.0) \
+            * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0)       # 依存しているほど送ってくる
         return max(0.05, min(1.5, f))
 
     def fire(self, char, st, now, ctx, force=None):
@@ -291,7 +293,9 @@ class Presence:
         if a.get("apart"):
             # メッセージ: 既読のまま放っておかれると重く, 開いていない (未読) なら軽い. 急ぎの内容ほど重い. 気にしない性格もいる
             read = self.app.chat.load(char["id"])["seen_t"] >= ap.get("t", 0)
-            mult = 0.6 * float(self.app.traits(char).get("absence", 1)) * (1.4 if read else 0.7) * float(a.get("urgency", 1.0))
+            mult = 0.6 * float(self.app.traits(char).get("absence", 1)) * (1.4 if read else 0.7) * float(a.get("urgency", 1.0)) \
+                * (1 + 0.5 * self.app.attach.factor(char, st, "dependence"))
+            self.app.attach.move(char, st, "dependence", -0.3, "送ったメッセージに返事が来なかった", now)
         else:
             mult = (0.4 if ap.get("presence") == "busy" or pres == "busy"
                     else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
@@ -348,6 +352,7 @@ class Presence:
             self.app.life.train(out["skill"], 1.0)
         if ans == "accept" and out.get("care"):          # 看病してくれる (あなたの体調が治りやすい)
             self.app.body.cared(char, now)
+            self.app.attach.give(char, st, "her", 3, "看病してくれた")
             self.app.manners.favor(st, "care", now)      # 看病してくれた (お礼の心当たり)
         if out.get("reason_good") and deltas.get("mood", 0) > 0:
             self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", self.app.pronouns(char)[2]),
@@ -374,6 +379,7 @@ class Presence:
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
         res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15)     # 自動の返事は, 相手の様子を読み違えやすい
+        self.app.attach.move(char, st, "dependence", 0.4, "送ったメッセージに返事が来た", now)
         if res == "good":
             eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                    for k, v in (out.get("effects") or {}).items()}

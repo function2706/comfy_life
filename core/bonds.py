@@ -247,7 +247,9 @@ class Bonds:
 
     # ------------------------------------------------------------------ 嫉妬
     def jealousy(self, char):
-        return float(self.app.traits(char).get("jealousy", 1))
+        """嫉妬の強さ: 性格 × 依存度 (依存しているほど強い)."""
+        st = self.app.state(char["id"])
+        return float(self.app.traits(char).get("jealousy", 1)) * (1 + 0.5 * self.app.attach.factor(char, st, "dependence"))
 
     # ------------------------------------------------------------------ 現実的な深まり方
     @staticmethod
@@ -398,6 +400,8 @@ class Bonds:
         if scene.get("busy"):
             base *= 0.6
         base += (1.0 if p.get("mood", 50) >= 65 else 0.0) + (1.0 if p.get("loneliness", 0) >= 60 else 0.0)
+        fd = self.app.attach.factor(char, st, "dependence")      # 依存しているほど, 連絡が多くても平気 (低くても少し減るだけ)
+        base = max(1.0, base + (2.5 * fd if fd > 0 else 0.8 * fd))
         day = _dt.datetime.fromtimestamp(now).strftime("%Y%m%d")
         jitter = random.Random("%s:%s" % (cid, day)).uniform(-0.75, 0.75)      # その日の揺らぎ (一日のうちは同じ)
         return base + jitter
@@ -479,6 +483,7 @@ class Bonds:
         call = self.app.pronouns(char)[2]
         tell = "%sが%sと親しくしている" % (call, name) + ("のが、まだ続いている" if again else "")
         self.app.life.add_reason(st, "player", "bad", tell, t, told=False, delta=deltas.get("mood", 0), action="_jealous")
+        self.app.attach.move(char, st, "sincerity", -2.0, "裏切られたと感じた", t)
         r = self.app.relation(cid, other)
         self.app.change_affinity(cid, other, -10 * j if r["knows"] else -5 * j)
         return deltas

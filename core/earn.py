@@ -376,7 +376,8 @@ class Earn:
             if len(fs) >= 2 or app.bonds.stage(cid) not in ("contact", "visit") or any(f["cid"] == cid for f in fs):
                 continue
             st = app.state(cid)
-            if random.random() >= 0.012 + float(st["params"].get("affection", 50)) / 5000.0:
+            fv = app.attach.factor(char, st, "devotion")            # 自分優先なほど, よく頼んでくる
+            if random.random() >= (0.012 + float(st["params"].get("affection", 50)) / 5000.0) * max(0.3, 1 - 0.6 * fv):
                 continue
             kind, name, h, tire = random.choice(FAVORS)
             f = {"id": "f%d%s" % (int(t * 1000), cid), "cid": cid, "kind": kind, "label": name, "h": h, "tire": tire, "t": t,
@@ -447,6 +448,8 @@ class Earn:
         name = char.get("name", "")
         st = app.state(cid)
         self.L.tire(f["tire"] * min(1.0, h / max(0.25, f["h"])))
+        if h >= f["h"] * 0.6 and char:
+            app.attach.give(char, st, "me", 3, "頼まれごとを手伝った")
         if h < f["h"] * 0.6:
             app.apply_effects(st, {"trust": -1, "mood": -1})
             app.save_state(cid)
