@@ -1853,6 +1853,63 @@
   "chat.close_cold": [
    "📱『（小さく手を振るスタンプだけ返ってきた）』"
   ],
+  "leave_visit.dependence_ge_75": [
+   "……もう、かえるの？ ……とまって、いけば"
+  ],
+  "see_off.dependence_ge_75": [
+   "……まだ、かえりたくない。……もうすこし、いる"
+  ],
+  "go_out.dependence_ge_75__devotion_lt_40": [
+   "……また、でかけるの？ ……だれと。……なんじに、かえる？"
+  ],
+  "go_leave.dependence_ge_75": [
+   "……もう、いくの？ ……もうすこし。（袖を、きゅっとつかんだ）"
+  ],
+  "ap.need_you.call": [
+   "……{call}。{call}がいないと、だめ。……きょうは、そばにいて"
+  ],
+  "ap.need_you.accept": [
+   "……ん。……このまま"
+  ],
+  "ap.need_you.later": [
+   "……あとで。……ぜったい"
+  ],
+  "ap.need_you.ignore": [
+   "（{name}はしばらくこちらを見ていたが、膝を抱えて顔をうずめた）"
+  ],
+  "ap.msg_where.call": [
+   "📱『{call}、いまどこ。……だれと？』"
+  ],
+  "ap.msg_where.later": [
+   "📱『……あとで、って。……いえないところ？』"
+  ],
+  "ap.msg_where.ignore": [
+   "（{name}からの「今どこ？」に、既読がついたまま返していない）"
+  ],
+  "msgr.msg_where.good": [
+   "📱『……そう。よかった。……はやく、かえってきて』"
+  ],
+  "msgr.msg_where.neutral": [
+   "📱『……そう』"
+  ],
+  "msgr.msg_where.bad": [
+   "📱『……かくすんだ。……もう、いい』"
+  ],
+  "chat.want_space": [
+   "📱『……きょうは、ひとりでいたい。……また』"
+  ],
+  "chat.own_time": [
+   "📱『……うれしい。……でも、{call}も、じぶんのじかん、だいじにして』"
+  ],
+  "chat.appoint_rearranged": [
+   "📱『……そのひ、よていずらした。……{when}、{place}で』"
+  ],
+  "chat.appoint_move_mine": [
+   "📱『……そのひ、やっぱり、むり。……{when}にして』"
+  ],
+  "chat.req_money_again": [
+   "……また、たのんでいい？ ……こんげつも、すこし、たりない"
+  ],
   "chat.apology_half": [
    "📱『……うん』"
   ],

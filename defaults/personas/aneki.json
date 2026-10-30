@@ -2144,6 +2144,63 @@
   "chat.close_cold": [
    "📱『……そう。じゃあ、またね』"
   ],
+  "leave_visit.dependence_ge_75": [
+   "もう帰るの？ ……泊まっていけばいいじゃない。部屋なら空いてるわよ"
+  ],
+  "see_off.dependence_ge_75": [
+   "……まだ帰りたくないわね。もう少しだけ、いてもいい？"
+  ],
+  "go_out.dependence_ge_75__devotion_lt_40": [
+   "また出かけるの？ 誰と？ 何時に帰ってくるのか、ちゃんと言ってから行きなさい"
+  ],
+  "go_leave.dependence_ge_75": [
+   "もう行っちゃうの？ もうちょっとだけ、いいでしょう？"
+  ],
+  "ap.need_you.call": [
+   "……{call}。{call}がいないとね、{fp}、どうも調子が出ないのよ。今日はそばにいてくれる？"
+  ],
+  "ap.need_you.accept": [
+   "……ありがと。ほんと、手のかかる姉さんよね"
+  ],
+  "ap.need_you.later": [
+   "……わかったわ。あとで、ちゃんと来なさいよ？"
+  ],
+  "ap.need_you.ignore": [
+   "（{name}はしばらくこちらを見ていたが、ため息をついて背を向けた）"
+  ],
+  "ap.msg_where.call": [
+   "📱『{call}、今どこにいるの？ 誰と一緒？』"
+  ],
+  "ap.msg_where.later": [
+   "📱『あとでって何よ。……言えないところにいるわけ？』"
+  ],
+  "ap.msg_where.ignore": [
+   "（{name}からの「今どこ？」に、既読がついたまま返していない）"
+  ],
+  "msgr.msg_where.good": [
+   "📱『そう、ならいいわ。気をつけて帰ってくるのよ』"
+  ],
+  "msgr.msg_where.neutral": [
+   "📱『……そう。わかったわ』"
+  ],
+  "msgr.msg_where.bad": [
+   "📱『なんで隠すのよ。……心配してるだけなんだけど』"
+  ],
+  "chat.want_space": [
+   "📱『ごめん、今日はちょっと一人でいたいの。また連絡するわね』"
+  ],
+  "chat.own_time": [
+   "📱『ふふ、うれしいけど。{call}も自分の時間は大事にしなさいよ』"
+  ],
+  "chat.appoint_rearranged": [
+   "📱『その日、予定があったけどずらしといたわ。{when}、{place}ね』"
+  ],
+  "chat.appoint_move_mine": [
+   "📱『悪いけど、その日やっぱり都合が悪くなっちゃって。{when}にしてくれる？』"
+  ],
+  "chat.req_money_again": [
+   "……悪いんだけど、またお願いしてもいい？ 今月も、ちょっと苦しくて"
+  ],
   "chat.apology_half": [
    "📱『……うん。わかったけど、まだ全部は飲み込めてないわよ』"
   ],

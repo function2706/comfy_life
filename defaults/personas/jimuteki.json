@@ -1852,6 +1852,63 @@
   "chat.close_cold": [
    "📱『了解。以上』"
   ],
+  "leave_visit.dependence_ge_75": [
+   "もう帰るの？ ……泊まっていっても、こちらは問題ないわよ"
+  ],
+  "see_off.dependence_ge_75": [
+   "……まだ帰りたくないわ。もう少し、ここにいたいのだけど"
+  ],
+  "go_out.dependence_ge_75__devotion_lt_40": [
+   "また出かけるの？ 同行者と帰宅予定時刻を報告して"
+  ],
+  "go_leave.dependence_ge_75": [
+   "もう行くの？ ……もう少しだけ、時間はないの？"
+  ],
+  "ap.need_you.call": [
+   "……{call}。{call}がいないと、作業効率が落ちるの。今日は、そばにいてくれる？"
+  ],
+  "ap.need_you.accept": [
+   "……ありがとう。この状態を、しばらく維持して"
+  ],
+  "ap.need_you.later": [
+   "……了解。あとで、必ず来て"
+  ],
+  "ap.need_you.ignore": [
+   "（{name}はしばらくこちらを見ていたが、黙って書類に目を落とした。ページが進んでいない）"
+  ],
+  "ap.msg_where.call": [
+   "📱『{call}、現在地と同行者を教えて』"
+  ],
+  "ap.msg_where.later": [
+   "📱『あとで、では回答になっていないわ。言えない場所なの？』"
+  ],
+  "ap.msg_where.ignore": [
+   "（{name}からの「今どこ？」に、既読がついたまま返していない）"
+  ],
+  "msgr.msg_where.good": [
+   "📱『了解。気をつけて帰ってきて』"
+  ],
+  "msgr.msg_where.neutral": [
+   "📱『……了解』"
+  ],
+  "msgr.msg_where.bad": [
+   "📱『回答を拒否するのね。……もういいわ』"
+  ],
+  "chat.want_space": [
+   "📱『悪いけど、今日は一人でいたいの。また連絡するわ』"
+  ],
+  "chat.own_time": [
+   "📱『うれしいけれど。{call}も自分の時間は確保して』"
+  ],
+  "chat.appoint_rearranged": [
+   "📱『その日の予定は調整済みよ。{when}、{place}で問題ないわ』"
+  ],
+  "chat.appoint_move_mine": [
+   "📱『その日、都合がつかなくなったの。{when}に変更してもらえる？』"
+  ],
+  "chat.req_money_again": [
+   "……再度の依頼で悪いのだけど。今月も、少し不足していて"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],
