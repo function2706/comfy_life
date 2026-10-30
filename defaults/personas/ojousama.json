@@ -1987,6 +1987,39 @@
   "chores.complain": [
    "{call}、{part}がたまっておりますわ。{call}の番ですわよね？"
   ],
+  "fight.disagree": [
+   "そちらですの？ {place}のほうがよろしいのではなくて？"
+  ],
+  "fight.push_unhappy": [
+   "……わかりましたわ。そちらでよろしくてよ"
+  ],
+  "fight.push_fight": [
+   "いつも{call}がお決めになるのですね。……もう結構ですわ"
+  ],
+  "fight.yield_happy": [
+   "まあ、よろしいのですか？ ありがとうございますわ"
+  ],
+  "fight.compromise_ok": [
+   "{place}ですわね。……それなら、よろしいですわ"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、よろしいですわ。少々物足りませんけれど"
+  ],
+  "fight.dodge": [
+   "……お話をそらしましたわね"
+  ],
+  "fight.cold": [
+   "……左様ですか"
+  ],
+  "fight.sorry": [
+   "……先ほどは、言いすぎましたわ。ごめんなさいませ"
+  ],
+  "fight.forgiven": [
+   "……ありがとうございます。ほっといたしましたわ"
+  ],
+  "fight.not_forgiven": [
+   "……そうですわよね。……ごめんなさい"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、まだ少しだけ、胸の奥がちくちくしますの』"
   ],

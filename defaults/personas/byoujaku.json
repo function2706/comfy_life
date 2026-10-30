@@ -2019,6 +2019,39 @@
   "chores.complain": [
    "{call}、{part}がたまってるみたい。……{call}の番、だよね？"
   ],
+  "fight.disagree": [
+   "そこかぁ……。{place}のほうが、ゆっくりできそうだけどな"
+  ],
+  "fight.push_unhappy": [
+   "……うん、わかった。そっちでいいよ"
+  ],
+  "fight.push_fight": [
+   "……{fp}の気持ちは、どうでもいいの？ ……もういい"
+  ],
+  "fight.yield_happy": [
+   "ほんと？ ありがとう、うれしい"
+  ],
+  "fight.compromise_ok": [
+   "{place}……うん、それなら疲れなさそう"
+  ],
+  "fight.compromise_meh": [
+   "{place}……うん、いいよ"
+  ],
+  "fight.dodge": [
+   "……話、変えたね。……いいけど"
+  ],
+  "fight.cold": [
+   "……うん"
+  ],
+  "fight.sorry": [
+   "……さっきは、ごめんね。言いすぎちゃった"
+  ],
+  "fight.forgiven": [
+   "……ありがとう。ほっとした"
+  ],
+  "fight.not_forgiven": [
+   "……そうだよね。……ごめんね"
+  ],
   "chat.apology_half": [
    "📱『……うん。……もう少しだけ、時間がほしいな』"
   ],

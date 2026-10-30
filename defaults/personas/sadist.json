@@ -1949,6 +1949,39 @@
   "chores.complain": [
    "{call}、{part}がたまってるわよ。{call}の番でしょう？ さっさとやりなさい"
   ],
+  "fight.disagree": [
+   "そこ？ {place}にしなさい"
+  ],
+  "fight.push_unhappy": [
+   "……ふうん。今回だけは譲ってあげる"
+  ],
+  "fight.push_fight": [
+   "{fp}に逆らうの？ ……いいわ、もう知らない"
+  ],
+  "fight.yield_happy": [
+   "あら、素直ね。いい子"
+  ],
+  "fight.compromise_ok": [
+   "{place}ね。……まあ、悪くないわ"
+  ],
+  "fight.compromise_meh": [
+   "{place}……ふうん、まあいいわ"
+  ],
+  "fight.dodge": [
+   "……逃げたわね"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは言いすぎたわ。……二度は言わないわよ"
+  ],
+  "fight.forgiven": [
+   "……ふふ、許してくれるのね"
+  ],
+  "fight.not_forgiven": [
+   "……そう。……悪かったわね"
+  ],
   "chat.apology_half": [
    "📱『……ふうん。半分だけ、許してあげる』"
   ],

@@ -1989,6 +1989,39 @@
   "chores.complain": [
    "ねえ{call}、{part}たまってるよ〜。{call}の番でしょ？"
   ],
+  "fight.disagree": [
+   "えー、そこぉ？ {place}がいいなぁ……ねえ、だめ？"
+  ],
+  "fight.push_unhappy": [
+   "……むー。わかったよ、そっちでいい"
+  ],
+  "fight.push_fight": [
+   "いっつも{call}が決めるじゃん！ {fp}の気持ちは？ ……もういい！"
+  ],
+  "fight.yield_happy": [
+   "ほんと？ やったぁ！ {call}大好き！"
+  ],
+  "fight.compromise_ok": [
+   "{place}かぁ……うん、それならいいよ！"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、いいけどさぁ"
+  ],
+  "fight.dodge": [
+   "……話そらしたでしょ。ずるい"
+  ],
+  "fight.cold": [
+   "……ふーん"
+  ],
+  "fight.sorry": [
+   "……ねえ、さっきはごめんね。嫌いにならないで……？"
+  ],
+  "fight.forgiven": [
+   "……よかったぁ。ぎゅってしていい？"
+  ],
+  "fight.not_forgiven": [
+   "……そっか。……ごめんね、ほんとに"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっとだけ、もやもやしてるけど』"
   ],

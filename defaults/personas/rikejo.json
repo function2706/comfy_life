@@ -1943,6 +1943,39 @@
   "chores.complain": [
    "{call}、{part}が溜まってる。担当は{call}"
   ],
+  "fight.disagree": [
+   "そこ？ {place}のほうが満足度は高いと思う"
+  ],
+  "fight.push_unhappy": [
+   "……了解。そっちで"
+  ],
+  "fight.push_fight": [
+   "いつも{call}が決めてる。偏りがある。……もういい"
+  ],
+  "fight.yield_happy": [
+   "いいの？ ……ありがと。合理的な判断"
+  ],
+  "fight.compromise_ok": [
+   "{place}。……妥協点としては最適"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、許容範囲"
+  ],
+  "fight.dodge": [
+   "……話題を変えたね"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは言いすぎた。ごめん"
+  ],
+  "fight.forgiven": [
+   "……ありがと。ほっとした"
+  ],
+  "fight.not_forgiven": [
+   "……そうだよね。……ごめん"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、問題は半分しか解決してない』"
   ],

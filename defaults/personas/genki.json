@@ -1998,6 +1998,39 @@
   "chores.complain": [
    "{call}、{part}たまってるよー！ {call}の番でしょ？"
   ],
+  "fight.disagree": [
+   "えー、そこ？ {place}行こうよ、{place}！"
+  ],
+  "fight.push_unhappy": [
+   "……ちぇー。わかった、そっちね"
+  ],
+  "fight.push_fight": [
+   "なんでいつも{call}が決めるのー！ もういい！"
+  ],
+  "fight.yield_happy": [
+   "やったー！ ありがと！"
+  ],
+  "fight.compromise_ok": [
+   "{place}！ いいね、そこにしよ！"
+  ],
+  "fight.compromise_meh": [
+   "{place}かぁ……まあいっか"
+  ],
+  "fight.dodge": [
+   "……話そらしたでしょー"
+  ],
+  "fight.cold": [
+   "……ふーん"
+  ],
+  "fight.sorry": [
+   "……さっきはごめんね！ 言いすぎた！"
+  ],
+  "fight.forgiven": [
+   "やった、よかったー！"
+  ],
+  "fight.not_forgiven": [
+   "……そっか。……ごめんね"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっと、もやっとしてるけど！』"
   ],

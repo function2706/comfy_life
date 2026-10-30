@@ -1997,6 +1997,39 @@
   "chores.complain": [
    "あ、あの……{part}、たまってます……。{call}の番、ですよね……？"
   ],
+  "fight.disagree": [
+   "あ、あの……{place}のほうが、いいかな、って……"
+  ],
+  "fight.push_unhappy": [
+   "……は、はい。そっちで、いいです……"
+  ],
+  "fight.push_fight": [
+   "……い、いつも、{call}が決めますよね……。……も、もういいです……"
+  ],
+  "fight.yield_happy": [
+   "え……い、いいんですか……？ あ、ありがとうございます……"
+  ],
+  "fight.compromise_ok": [
+   "{place}、ですか……。は、はい、それなら……"
+  ],
+  "fight.compromise_meh": [
+   "{place}……。……は、はい……"
+  ],
+  "fight.dodge": [
+   "……は、話、そらしましたね……"
+  ],
+  "fight.cold": [
+   "……そ、そうですか"
+  ],
+  "fight.sorry": [
+   "……さ、さっきは、ごめんなさい……。言いすぎました……"
+  ],
+  "fight.forgiven": [
+   "……あ、ありがとうございます……。よかった……"
+  ],
+  "fight.not_forgiven": [
+   "……そ、そうですよね……。ごめんなさい……"
+  ],
   "chat.apology_half": [
    "📱『……は、はい……。……でも、まだ少しだけ、気になってます……』"
   ],

@@ -1993,6 +1993,39 @@
   "chores.complain": [
    "{call}、{part}が滞留しているわ。担当は{call}でしょう"
   ],
+  "fight.disagree": [
+   "そこ？ {place}のほうが合理的だと思うけど"
+  ],
+  "fight.push_unhappy": [
+   "……了解。そっちでいいわ"
+  ],
+  "fight.push_fight": [
+   "毎回一方的に決めるのは不公平よ。……もういいわ"
+  ],
+  "fight.yield_happy": [
+   "いいの？ ……ありがとう"
+  ],
+  "fight.compromise_ok": [
+   "{place}ね。妥当な案だわ"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、許容範囲ね"
+  ],
+  "fight.dodge": [
+   "……論点をずらしたわね"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは言いすぎたわ。謝る"
+  ],
+  "fight.forgiven": [
+   "……ありがとう。助かるわ"
+  ],
+  "fight.not_forgiven": [
+   "……そうね。……ごめんなさい"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],

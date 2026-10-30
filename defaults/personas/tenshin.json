@@ -1994,6 +1994,39 @@
   "chores.complain": [
    "{call}、{part}たまってるよー？ {call}の番だよ！"
   ],
+  "fight.disagree": [
+   "えー、そこ？ {place}がいい！"
+  ],
+  "fight.push_unhappy": [
+   "……ぶー。わかった、そっちね"
+  ],
+  "fight.push_fight": [
+   "なんでいつも{call}が決めるのー！ もう知らない！"
+  ],
+  "fight.yield_happy": [
+   "やったー！ ありがと！"
+  ],
+  "fight.compromise_ok": [
+   "{place}？ いいね、行こ行こ！"
+  ],
+  "fight.compromise_meh": [
+   "{place}かぁ……まあいっか"
+  ],
+  "fight.dodge": [
+   "……話そらしたー"
+  ],
+  "fight.cold": [
+   "……ふーん"
+  ],
+  "fight.sorry": [
+   "……さっきはごめんね。言いすぎた"
+  ],
+  "fight.forgiven": [
+   "えへへ、よかった！"
+  ],
+  "fight.not_forgiven": [
+   "……そっかぁ。……ごめんね"
+  ],
   "chat.apology_half": [
    "📱『……うん。……心の中、まだちょっとだけ曇ってるけど』"
   ],

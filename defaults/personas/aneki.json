@@ -2285,6 +2285,39 @@
   "chores.complain": [
    "{call}、{part}たまってるわよ。{call}の番でしょ？"
   ],
+  "fight.disagree": [
+   "そこ？ {place}のほうがいいんじゃない？"
+  ],
+  "fight.push_unhappy": [
+   "……はいはい、わかったわよ。そっちでいいわ"
+  ],
+  "fight.push_fight": [
+   "なんでもかんでも勝手に決めないでくれる？ ……もういいわ"
+  ],
+  "fight.yield_happy": [
+   "あら、いいの？ ふふ、ありがと"
+  ],
+  "fight.compromise_ok": [
+   "{place}ね。……うん、悪くないわね"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、いいけど"
+  ],
+  "fight.dodge": [
+   "……話、そらしたわね。まあいいけど"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは言いすぎたわ。ごめんなさい"
+  ],
+  "fight.forgiven": [
+   "……ありがと。ほっとしたわ"
+  ],
+  "fight.not_forgiven": [
+   "……そうよね。……ごめんなさい"
+  ],
   "chat.apology_half": [
    "📱『……うん。わかったけど、まだ全部は飲み込めてないわよ』"
   ],

@@ -1980,6 +1980,39 @@
   "chores.complain": [
    "{call}、{part}がたまっているわ。{call}の担当でしょう？"
   ],
+  "fight.disagree": [
+   "そこ？ {place}のほうがふさわしいでしょう"
+  ],
+  "fight.push_unhappy": [
+   "……そう。なら、そっちでいいわ"
+  ],
+  "fight.push_fight": [
+   "いつも{call}が決めるのね。……もういいわ"
+  ],
+  "fight.yield_happy": [
+   "あら、わかっているじゃない。ありがとう"
+  ],
+  "fight.compromise_ok": [
+   "{place}ね。……それなら、悪くないわ"
+  ],
+  "fight.compromise_meh": [
+   "{place}……まあ、いいでしょう"
+  ],
+  "fight.dodge": [
+   "……話をそらしたわね"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは、言いすぎたわ。……ごめんなさい"
+  ],
+  "fight.forgiven": [
+   "……ありがとう。……安心したわ"
+  ],
+  "fight.not_forgiven": [
+   "……そうね。……悪かったわ"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、すっかり水に流したわけではないわ』"
   ],

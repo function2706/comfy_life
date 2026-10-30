@@ -1995,6 +1995,39 @@
   "chores.complain": [
    "{call}、{part}がたまっているぞ。{call}の担当だろう"
   ],
+  "fight.disagree": [
+   "そこか？ {place}のほうがいいと思うが"
+  ],
+  "fight.push_unhappy": [
+   "……わかった。そっちでいい"
+  ],
+  "fight.push_fight": [
+   "毎回{call}が決めるのか。……もういい"
+  ],
+  "fight.yield_happy": [
+   "いいのか？ ……ありがとう"
+  ],
+  "fight.compromise_ok": [
+   "{place}か。……うん、それなら異論はない"
+  ],
+  "fight.compromise_meh": [
+   "{place}か……まあ、いい"
+  ],
+  "fight.dodge": [
+   "……話をそらしたな"
+  ],
+  "fight.cold": [
+   "……そうか"
+  ],
+  "fight.sorry": [
+   "……さっきは言いすぎた。すまない"
+  ],
+  "fight.forgiven": [
+   "……ありがとう。助かった"
+  ],
+  "fight.not_forgiven": [
+   "……そうだな。……すまない"
+  ],
   "chat.apology_half": [
    "📱『……ああ。だが、まだ全部は飲み込めていない』"
   ],

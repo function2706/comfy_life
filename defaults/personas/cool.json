@@ -1982,6 +1982,39 @@
   "chores.complain": [
    "{call}。{part}、たまってる。{call}の番"
   ],
+  "fight.disagree": [
+   "そこ？ {place}のほうがいい"
+  ],
+  "fight.push_unhappy": [
+   "……わかった。そっちでいい"
+  ],
+  "fight.push_fight": [
+   "……いつも勝手に決める。……もういい"
+  ],
+  "fight.yield_happy": [
+   "……いいの？ ……ありがと"
+  ],
+  "fight.compromise_ok": [
+   "{place}。……それならいい"
+  ],
+  "fight.compromise_meh": [
+   "{place}。……まあ、いい"
+  ],
+  "fight.dodge": [
+   "……そらした"
+  ],
+  "fight.cold": [
+   "……そう"
+  ],
+  "fight.sorry": [
+   "……さっきは、ごめん"
+  ],
+  "fight.forgiven": [
+   "……ありがと"
+  ],
+  "fight.not_forgiven": [
+   "……そう。……ごめん"
+  ],
   "chat.apology_half": [
    "📱『……ん。わかった』"
   ],
