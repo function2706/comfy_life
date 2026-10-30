@@ -483,7 +483,6 @@ class Bonds:
         call = self.app.pronouns(char)[2]
         tell = "%sが%sと親しくしている" % (call, name) + ("のが、まだ続いている" if again else "")
         self.app.life.add_reason(st, "player", "bad", tell, t, told=False, delta=deltas.get("mood", 0), action="_jealous")
-        self.app.attach.move(char, st, "sincerity", -2.0, "裏切られたと感じた", t)
         r = self.app.relation(cid, other)
         self.app.change_affinity(cid, other, -10 * j if r["knows"] else -5 * j)
         return deltas

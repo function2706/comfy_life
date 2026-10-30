@@ -1,4 +1,4 @@
-"""献身度・依存度・誠実さ (core/attach.py): 初めの値・動き方 (上限・帳簿・共依存)・今ある仕組みへの効き.
+"""献身度・依存度 (core/attach.py): 初めの値・動き方 (上限・帳簿・共依存)・今ある仕組みへの効き.
 
     python tools/test_attach.py
 """
@@ -149,12 +149,11 @@ def main():
         assert rh > 5 and rl == 0, (rh, rl)
         print("予定を動かして合わせてくれる: OK | 献身的 %d / 60・自分優先 %d" % (rh, rl))
 
-        # ---- 6. 誠実さ: 嫉妬 (裏切られたと感じた) で下がる
-        setv(sincerity=70.0)
-        other = [c for c in app.chars if c != cid] or [app.new_character("みお")["id"]]
-        app.bonds.notice(char, st, other[0], time.time())
-        assert A.get(char, st, "sincerity") < 70
-        print("誠実さ (嫉妬で下がる): OK")
+        # ---- 6. 保留にした誠実さ: 以前のセーブに残っていても捨てる
+        A.rec(char, st)["sincerity"] = 70.0
+        A.rec(char, st)
+        assert "sincerity" not in st["attach"] and "sincerity" not in app.context(char, st, datetime.now())
+        print("誠実さ (保留) は捨てる: OK")
 
         # ---- 7. 判断の記録・書き出しに出る
         assert any(x.get("c") == "attach" for x in app.trace.read())

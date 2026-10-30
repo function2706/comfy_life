@@ -1,10 +1,9 @@
-"""あなたとの関わり方の傾き: 献身度・依存度・誠実さ (相手ごと. 0〜100. 画面には出さない).
+"""あなたとの関わり方の傾き: 献身度・依存度 (相手ごと. 0〜100. 画面には出さない).
 
 - 献身度 (devotion): 相手 (あなた) と自分のどちらを優先するか. 高いほど予定を空ける・払う・頼みごとは控えめ.
   低いほど自分の都合で約束を動かし, 払わせ, よく頼む・せがむ.
 - 依存度 (dependence): どれだけ普段からあなたを求めるか. 高いほどよく連絡してきて, 連絡が多くても平気, 放っておかれると堪え,
   嫉妬しやすく, 寂しくなりやすい. 低いほど一人で平気.
-- 誠実さ (sincerity): 見せる好意と本心が同じか (表と裏). いまは記録して動かすだけ (演技・違和感は後の段階).
 
 ヒモ・束縛・自己中・飼い殺し・パパ活のような「型」は, この組み合わせと, 今ある状態 (相手の懐具合・寂しさ・嫉妬) から生まれる例にすぎない.
 性格プリセットは初めの値と動きやすさを決めるだけで, やりとりで動く. 初めの値は, はじめて使うとき (以前のセーブなら起動後の最初) に
@@ -15,15 +14,17 @@
   どちらがどれだけ尽くしたかは give() で裏の帳簿に (日ごとに薄れる).
 - 依存度: あなたといて寂しさが紛れる・送ったメッセージにいつも返ってくると上がる. 長く会わなくても平気で過ごせた・
   ほかに深い仲の人がいる・傷つけられることが続くと下がる.
-- 誠実さ: 信頼と時間で少しずつ上がり, 裏切られたと感じる (嫉妬) と下がる.
+
+誠実さ (見せる好意と本心のずれ) は保留: やりとりで動くより生来の性質に近いので, 性格の振る舞いとして扱うかを含めて
+hold/sincerity ブランチに残してある. 以前のセーブに残っている値は読み込み時に捨てる.
 """
 import random
 import time
 from datetime import datetime
 
-KEYS = ("devotion", "dependence", "sincerity")
-LABEL = {"devotion": "献身度", "dependence": "依存度", "sincerity": "誠実さ"}
-DAY_CAP = {"devotion": 4.0, "dependence": 4.0, "sincerity": 2.0}     # 一日に動く幅の上限 (それぞれ上げ・下げ)
+KEYS = ("devotion", "dependence")
+LABEL = {"devotion": "献身度", "dependence": "依存度"}
+DAY_CAP = {"devotion": 4.0, "dependence": 4.0}     # 一日に動く幅の上限 (それぞれ上げ・下げ)
 LEDGER_FADE = 0.85      # 尽くした帳簿は一日ごとにこれだけ残る
 
 
@@ -47,20 +48,19 @@ class Attach:
             + 12 * (float((tr.get("rate") or {}).get("loneliness", 1)) - 1) + 0.2 * (aff - 50) \
             + {"visit": 3, "live": 8}.get(stage, 0) + rnd.uniform(-6, 6)
         dev = 45 + 30 * (float(tr.get("carer", 0.3)) - 0.3) + 0.25 * (trust - 50) + 0.15 * (aff - 50) + rnd.uniform(-6, 6)
-        sin = 75 + 0.1 * (trust - 50) + rnd.uniform(-5, 5)
-        return {"devotion": round(_clamp(dev), 1), "dependence": round(_clamp(dep), 1), "sincerity": round(_clamp(sin), 1)}
+        return {"devotion": round(_clamp(dev), 1), "dependence": round(_clamp(dep), 1)}
 
     def speed(self, char, key):
-        """動きやすさ (性格しだい): 依存度は寂しがり・話しかけてくる人ほど, 献身度は世話焼きほど動きやすい. 誠実さはゆっくり."""
+        """動きやすさ (性格しだい): 依存度は寂しがり・話しかけてくる人ほど, 献身度は世話焼きほど動きやすい."""
         tr = self.app.traits(char)
         if key == "dependence":
             return max(0.6, min(1.6, (float(tr.get("approach", 1)) + float(tr.get("absence", 1))) / 2.0))
-        if key == "devotion":
-            return max(0.7, min(1.4, 0.8 + float(tr.get("carer", 0.3))))
-        return 0.6 / max(0.8, float(tr.get("grudge", 1)))
+        return max(0.7, min(1.4, 0.8 + float(tr.get("carer", 0.3))))
 
     def rec(self, char, st):
         r = st.get("attach")
+        if r and "sincerity" in r:              # 保留にした誠実さ (以前のセーブ): 捨てる
+            r.pop("sincerity", None)
         if not r or any(k not in r for k in KEYS):
             base = self.baseline(char, st)
             r = dict(base, **(r or {}))
@@ -148,9 +148,6 @@ class Attach:
         hurt = sum(1 for x in st.get("reasons") or [] if x.get("kind") == "player" and x.get("mood") == "bad" and x.get("t", 0) >= day0)
         if hurt >= 2:
             self.move(char, st, "dependence", -0.8 * (hurt - 1), "傷つけられることが続いた", t)
-        # 誠実さ: 信頼と時間でゆっくり
-        if gap < 2 and p.get("trust", 50) >= 55:
-            self.move(char, st, "sincerity", 0.3 + (p["trust"] - 55) / 100.0, "信頼して本音を見せるようになる", t)
 
     def view(self, char, st):
         r = self.rec(char, st)

@@ -161,7 +161,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
-        self.attach = attach_mod.Attach(self)        # 献身度・依存度・誠実さ (相手ごと. 画面には出さない)
+        self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
@@ -592,7 +592,7 @@ class App:
         ctx.update(self.bonds.ctx(char["id"], st, dt.timestamp()))   # stage / apart / with_mode / company / living_other / rivals
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
-        ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence / sincerity
+        ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
         ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)

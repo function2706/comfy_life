@@ -351,7 +351,7 @@ class Life:
                 hm["a"] -= min(own, max(hm["a"], 0))
             self.money_concern(char, st, t1)
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
-            self.app.attach.daily(char, st, t1)                  # 献身度・依存度・誠実さの日ごとの動き
+            self.app.attach.daily(char, st, t1)                  # 献身度・依存度の日ごとの動き
         self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
