@@ -2219,6 +2219,39 @@
   "talk_topic.again": [
    "それ前も聞いたって。ボケた？"
   ],
+  "anniv.bday_tell": [
+   "誕生日？ {date}だって。昔から知ってるでしょ"
+  ],
+  "anniv.bday_refuse": [
+   "……今それ聞く？ 教えないし"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}の誕生日だからね。毎年忘れかけるんだから"
+  ],
+  "anniv.bday_noted": [
+   "{date}ね。知ってた気もするけど、覚えとく"
+  ],
+  "anniv.congrats_yes": [
+   "お、覚えてたじゃん。……へへ、ありがと"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}かあ。……覚えてたんだ、意外"
+  ],
+  "anniv.congrats_late": [
+   "遅いっての。……でも、ありがと"
+  ],
+  "anniv.congrats_what": [
+   "は？ 何がおめでとう？"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、なんの日か覚えてる？ ……ほんっと、変わんないんだから"
+  ],
+  "anniv.anniv_her": [
+   "ねえ、今日で{what}なんだけど。覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでと。今年もちゃんと覚えてたでしょ"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、わかったけど』"
   ],

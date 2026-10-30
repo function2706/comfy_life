@@ -1882,6 +1882,39 @@
   "talk_topic.again": [
    "……その話、前にも聞いた気がする"
   ],
+  "anniv.bday_tell": [
+   "{date}だよ。その日、空が少しだけきれいなの"
+  ],
+  "anniv.bday_refuse": [
+   "……今は、その扉は開かないの"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}が生まれた日なんだ。……星がそう言ってた"
+  ],
+  "anniv.bday_noted": [
+   "{date}なんだね。……覚えておく。その日の空を見ておくね"
+  ],
+  "anniv.congrats_yes": [
+   "……覚えててくれたの？ ふふ、今日は世界がやさしい"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}……時間って、不思議だね。ありがとう"
+  ],
+  "anniv.congrats_late": [
+   "……少し遅れて届いた手紙みたい。でも、うれしい"
+  ],
+  "anniv.congrats_what": [
+   "……？ 今日は、なにかの日だっけ"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、{fp}の生まれた日だったの。……風だけが、覚えてた"
+  ],
+  "anniv.anniv_her": [
+   "ねえ、今日で{what}なんだよ。……覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、生まれてきてくれて、おめでとう。今日の空は、{call}のためにあるよ"
+  ],
   "chat.apology_half": [
    "📱『……うん。雲は、まだ半分残ってるけど』"
   ],

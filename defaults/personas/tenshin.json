@@ -1925,6 +1925,39 @@
   "talk_topic.again": [
    "それ、前も聞いたよ〜？"
   ],
+  "anniv.bday_tell": [
+   "誕生日？ {date}だよ！ ケーキ食べたいな！"
+  ],
+  "anniv.bday_refuse": [
+   "……今は教えたくないもん"
+  ],
+  "anniv.bday_hint": [
+   "ねえ、来月の{date}、{fp}の誕生日なんだ！ わくわくする！"
+  ],
+  "anniv.bday_noted": [
+   "{date}だね！ 覚えた！ ケーキ買おうね！"
+  ],
+  "anniv.congrats_yes": [
+   "わあ、覚えててくれたの？ うれしい！ ありがとう！"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}だね！ えへへ、お祝いしよ！"
+  ],
+  "anniv.congrats_late": [
+   "遅いよー！ でも、ありがと！"
+  ],
+  "anniv.congrats_what": [
+   "え？ 今日、なんの日？"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、{fp}の誕生日だったんだよ？ ……むー"
+  ],
+  "anniv.anniv_her": [
+   "ねえ、今日で{what}なんだって！ 覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでとう！ 今日は一緒に遊ぼう！"
+  ],
   "chat.apology_half": [
    "📱『……うん。……心の中、まだちょっとだけ曇ってるけど』"
   ],

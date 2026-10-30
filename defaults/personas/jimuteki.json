@@ -1924,6 +1924,39 @@
   "talk_topic.again": [
    "その話は前回も聞いたわ"
   ],
+  "anniv.bday_tell": [
+   "誕生日は{date}よ。記録しておいて"
+  ],
+  "anniv.bday_refuse": [
+   "……その質問には、今は答えたくないわ"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}の誕生日よ。一応、共有しておくわ"
+  ],
+  "anniv.bday_noted": [
+   "{date}ね。記録したわ"
+  ],
+  "anniv.congrats_yes": [
+   "覚えていたのね。……ありがとう。悪くない気分よ"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}ね。正確に覚えていたのは評価するわ"
+  ],
+  "anniv.congrats_late": [
+   "遅延はあったけれど、ありがとう"
+  ],
+  "anniv.congrats_what": [
+   "何の件？ 今日は特に何もないはずだけど"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日が何の日だったか、把握していた？ ……いいえ、いいわ"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}よ。把握していた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでとう。今日の予定は空けてあるわ"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],

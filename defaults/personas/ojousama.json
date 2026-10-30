@@ -1918,6 +1918,39 @@
   "talk_topic.again": [
    "そのお話、前にも伺いましたわ"
   ],
+  "anniv.bday_tell": [
+   "{fp}の誕生日でしたら、{date}ですわ"
+  ],
+  "anniv.bday_refuse": [
+   "……今はお答えしたくありませんわ"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}の誕生日ですのよ。……覚えていてくださいまし"
+  ],
+  "anniv.bday_noted": [
+   "{date}ですのね。しかと覚えておきますわ"
+  ],
+  "anniv.congrats_yes": [
+   "まあ、覚えていてくださったのですね！ ありがとうございます、とてもうれしいですわ"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}ですわね。覚えていてくださって、うれしいですわ"
+  ],
+  "anniv.congrats_late": [
+   "……少し遅いですけれど、ありがとうございますわ"
+  ],
+  "anniv.congrats_what": [
+   "あら？ 何がおめでたいのかしら"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、何の日だったかご存じでして？ ……いえ、もう結構ですわ"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}ですのよ。……覚えていらして？"
+  ],
+  "anniv.your_bday": [
+   "{call}、お誕生日おめでとうございます。今日は特別な一日にいたしましょうね。{fp}、楽しみにしておりましたのよ"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、まだ少しだけ、胸の奥がちくちくしますの』"
   ],

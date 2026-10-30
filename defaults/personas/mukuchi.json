@@ -1925,6 +1925,39 @@
   "talk_topic.again": [
    "……まえも、きいた"
   ],
+  "anniv.bday_tell": [
+   "……{date}"
+  ],
+  "anniv.bday_refuse": [
+   "……いまは、いわない"
+  ],
+  "anniv.bday_hint": [
+   "……らいげつの{date}、たんじょうび"
+  ],
+  "anniv.bday_noted": [
+   "……{date}。……おぼえた"
+  ],
+  "anniv.congrats_yes": [
+   "……おぼえてて、くれたんだ。……ありがと"
+  ],
+  "anniv.congrats_anniv": [
+   "……{what}。……うれしい"
+  ],
+  "anniv.congrats_late": [
+   "……おそい。……でも、ありがと"
+  ],
+  "anniv.congrats_what": [
+   "……なにが？"
+  ],
+  "anniv.bday_forgot": [
+   "……きのう、たんじょうび、だった"
+  ],
+  "anniv.anniv_her": [
+   "……きょうで、{what}。……おぼえてた？"
+  ],
+  "anniv.your_bday": [
+   "……{call}、たんじょうび、おめでとう"
+  ],
   "chat.apology_half": [
    "📱『……うん』"
   ],

@@ -1913,6 +1913,39 @@
   "talk_topic.again": [
    "……前も聞いた"
   ],
+  "anniv.bday_tell": [
+   "{date}。……別に、覚えなくていい"
+  ],
+  "anniv.bday_refuse": [
+   "……今は教えない"
+  ],
+  "anniv.bday_hint": [
+   "……来月の{date}、誕生日。一応、言っておく"
+  ],
+  "anniv.bday_noted": [
+   "{date}。……覚えた"
+  ],
+  "anniv.congrats_yes": [
+   "……覚えてたんだ。……ありがと"
+  ],
+  "anniv.congrats_anniv": [
+   "……{what}。……ちゃんと覚えてたんだ"
+  ],
+  "anniv.congrats_late": [
+   "……遅い。……でも、ありがと"
+  ],
+  "anniv.congrats_what": [
+   "……何が？"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、誕生日だった。……別に、いいけど"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}。……覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでとう。……それだけ"
+  ],
   "chat.apology_half": [
    "📱『……ん。わかった』"
   ],

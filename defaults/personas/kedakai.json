@@ -1911,6 +1911,39 @@
   "talk_topic.again": [
    "それは前にも聞いたわ"
   ],
+  "anniv.bday_tell": [
+   "{date}よ。……覚えておきなさい"
+  ],
+  "anniv.bday_refuse": [
+   "……今、それを聞くの？ 教えないわ"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}の誕生日よ。……忘れたら許さないわ"
+  ],
+  "anniv.bday_noted": [
+   "{date}ね。覚えておいてあげる"
+  ],
+  "anniv.congrats_yes": [
+   "……覚えていたのね。……ふふ、悪くないわ。ありがとう"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}ね。……覚えていたのは、褒めてあげる"
+  ],
+  "anniv.congrats_late": [
+   "……遅いわ。でも、受け取ってあげる"
+  ],
+  "anniv.congrats_what": [
+   "……何がおめでたいの？"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日が何の日だったか、知っていて？ ……そう。もういいわ"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}よ。……覚えていたかしら？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでとう。今日くらいは、{fp}が付き合ってあげる"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、すっかり水に流したわけではないわ』"
   ],

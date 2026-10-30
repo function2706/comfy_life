@@ -1874,6 +1874,39 @@
   "talk_topic.again": [
    "それ、前にも聞いた。再現性は高いね"
   ],
+  "anniv.bday_tell": [
+   "誕生日は{date}。データとして保存しておいて"
+  ],
+  "anniv.bday_refuse": [
+   "……今その質問には答えない"
+  ],
+  "anniv.bday_hint": [
+   "来月の{date}、{fp}の誕生日。忘却率が高いイベントだから、念のため"
+  ],
+  "anniv.bday_noted": [
+   "{date}ね。記録した"
+  ],
+  "anniv.congrats_yes": [
+   "覚えてたんだ。……正直、予想外。ありがと、うれしい"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}だね。記憶の精度、なかなかだね"
+  ],
+  "anniv.congrats_late": [
+   "遅延あり。でも、ありがと"
+  ],
+  "anniv.congrats_what": [
+   "何の件？ 今日は特記事項なし"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日、{fp}の誕生日だった。……観測結果としては、残念"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}。覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、誕生日おめでとう。今日は計算しないで、普通にお祝いする"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、問題は半分しか解決してない』"
   ],

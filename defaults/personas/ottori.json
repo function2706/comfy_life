@@ -1996,6 +1996,39 @@
   "talk_topic.again": [
    "あらぁ、それ前にも聞いたわよぉ？"
   ],
+  "anniv.bday_tell": [
+   "誕生日？ {date}よぉ。覚えててくれたら、うれしいわぁ"
+  ],
+  "anniv.bday_refuse": [
+   "……今は、言いたくないのぉ"
+  ],
+  "anniv.bday_hint": [
+   "あのねぇ、来月の{date}、{fp}の誕生日なのよぉ"
+  ],
+  "anniv.bday_noted": [
+   "{date}なのねぇ。ちゃんと覚えておくわねぇ"
+  ],
+  "anniv.congrats_yes": [
+   "あらぁ、覚えててくれたのぉ？ うれしいわぁ、ありがとう"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}ねぇ。早いものねぇ、うふふ"
+  ],
+  "anniv.congrats_late": [
+   "あらぁ、少し遅いけど、ありがとう"
+  ],
+  "anniv.congrats_what": [
+   "あらぁ？ 今日、なにかあったかしらぁ"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日ねぇ、{fp}の誕生日だったのよぉ。……うふふ、いいのよぉ"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}なのよぉ。覚えてたかしらぁ？"
+  ],
+  "anniv.your_bday": [
+   "{call}、お誕生日おめでとう。今日はごちそう作るわねぇ"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっとだけ、胸がもやもやしてるけどねぇ』"
   ],

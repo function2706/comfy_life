@@ -1950,6 +1950,39 @@
   "talk_topic.again": [
    "……それ、前にも聞いたよ？"
   ],
+  "anniv.bday_tell": [
+   "誕生日……？ {date}だよ。覚えててくれたら、うれしいな"
+  ],
+  "anniv.bday_refuse": [
+   "……ごめんね、今は、教えたくないの"
+  ],
+  "anniv.bday_hint": [
+   "あのね、来月の{date}、{fp}の誕生日なの。……また一つ、年をとれるんだ"
+  ],
+  "anniv.bday_noted": [
+   "{date}なんだね。ちゃんと、覚えておくね"
+  ],
+  "anniv.congrats_yes": [
+   "……覚えててくれたの？ ありがとう……。今年も迎えられて、よかった"
+  ],
+  "anniv.congrats_anniv": [
+   "{what}だね。……一緒にいられて、うれしいな"
+  ],
+  "anniv.congrats_late": [
+   "……少し遅れたけど、うれしいよ。ありがとう"
+  ],
+  "anniv.congrats_what": [
+   "……え？ 今日、何かあったかな？"
+  ],
+  "anniv.bday_forgot": [
+   "……昨日ね、{fp}の誕生日だったんだ。……ううん、いいの"
+  ],
+  "anniv.anniv_her": [
+   "今日で{what}なんだよ。……覚えてた？"
+  ],
+  "anniv.your_bday": [
+   "{call}、お誕生日おめでとう。……来年も、一緒にお祝いできたらいいな"
+  ],
   "chat.apology_half": [
    "📱『……うん。……もう少しだけ、時間がほしいな』"
   ],
