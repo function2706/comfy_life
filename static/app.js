@@ -990,6 +990,14 @@ function renderRequest() {
           catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
     return;
   }
+  const mt = S.view.money_talk;                         // あなたのお金の使い方に口を出された: どう応じるか
+  if (!req && mt) {
+    box.hidden = false;
+    box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `💴 ${mt.name}と`), h('div', { class: 'muted small' }, mt.text)),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...mt.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
+        onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/money/talk', { choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
+    return;
+  }
   const cs = S.view.chores_slack;                       // 同居相手が家事をさぼっている: 出方を選ぶ
   if (!req && cs) {
     box.hidden = false;

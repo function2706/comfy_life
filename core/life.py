@@ -293,6 +293,9 @@ class Life:
     def ledger(self, t, amount, cat, note=""):
         """財布のお金の出入りを, 裏の記録に残す (見えるのは家計簿につけた分だけ. core/kakeibo.py)."""
         self.app.kakeibo.add(t, amount, cat, note)
+        mt = getattr(self.app, "moneytalk", None)
+        if mt:
+            mt.spent(t or time.time(), amount, cat, note or "")    # 宝くじ・株・高い買い物 (相手が口を出すことも)
 
     def move(self, st, dp=0, da=0, cat="other", note=""):
         """お金を動かす (マイナス可). 実際に動いた額を返す. cat / note: あなたのお金の出入りの記録 (家計簿の元)."""

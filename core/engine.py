@@ -33,6 +33,7 @@ from . import anniv as anniv_mod
 from . import quals as quals_mod
 from . import chores as chores_mod
 from . import quarrel as quarrel_mod
+from . import moneytalk as moneytalk_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -166,6 +167,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.moneytalk = moneytalk_mod.MoneyTalk(self)  # お金の使い方への口出し・どっちが出すか
         self.quarrel = quarrel_mod.Quarrel(self)      # 意見が割れる・言い争い・仲直り
         self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
@@ -406,6 +408,9 @@ class App:
         内職の途中 / 休む・家事・研鑽の途中 (家で) / 誰かとミニゲームの途中."""
         if self.task_active():
             return {"kind": "task", "label": "内職"}
+        exam = self.quals.exam_now()
+        if exam:
+            return {"kind": "exam", "label": "%sの試験" % exam}
         p = self.presence.rec()
         sl = p.get("solo") or {}
         if p.get("mode") == "busy" and sl.get("kind") in solo_mod.KINDS:
@@ -427,6 +432,8 @@ class App:
             return None                         # 続き
         if d["kind"] == "task":
             return "内職の途中です（先に内職を終えてから）"
+        if d["kind"] == "exam":
+            return "%sの最中です（13時まで）" % d["label"]
         if d["kind"] == "game":
             return "%sの途中です（先に終えてから）" % d["label"]
         return "%sの途中です（先に「%sを終える」で終えてから）" % (d["label"], d["label"])
@@ -677,6 +684,8 @@ class App:
             changed = True
         if self.bonds.living() == cid:
             self.chores.tick(char, st, now)    # 同居相手の家事 (自分の担当・あなたの担当を気にする・さぼりの知らせ)
+        if self.bonds.stage(cid) in ("live", "visit"):
+            self.moneytalk.tick(char, st, now)  # あなたのお金の使い方に気づいて口を出すか
         if st.get("fight") or st.get("chores_fight"):
             self.quarrel.tick(char, st, now)   # 言い争い (始まる・収まる・相手から謝る)
             changed = True
@@ -1234,6 +1243,8 @@ class App:
                 self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる
             except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
                 pass
+        if entry and not apart and plan and not (r or {}).get("override"):        # どっちが出したか (性格しだいで, 言わないまま冷めることも)
+            self.moneytalk.after_pay(char, st, plan.get("payer"), now)
         if entry and not apart and st.get("celeb") and not (r or {}).get("override"):      # 誕生日・記念日にしたこと
             self.anniv.mark(char, st, "met", now)
             if a.get("gift"):
@@ -2259,7 +2270,7 @@ class App:
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
-                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(),
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

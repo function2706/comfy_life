@@ -157,6 +157,16 @@ class Quals:
                 self.app.trace.add("quals", "合否", None, at, qid=qid, ok=a["ok"])
         self.app.life.save_player()
 
+    def exam_now(self, now=None):
+        """いま資格の試験の最中か (申し込んだ試験の日の 10〜13 時). 試験名 or None."""
+        d = datetime.fromtimestamp(now or time.time())
+        if not EXAM_H[0] <= d.hour < EXAM_H[1]:
+            return None
+        for qid, a in self.rec()["apps"].items():
+            if a.get("exam") == d.date().isoformat() and a.get("status") in ("applied", "taken") and qid in QUALS:
+                return QUALS[qid]["label"]
+        return None
+
     # ------------------------------------------------------------------ 効き目
     def raise_bonus(self):
         return sum(q.get("raise", 0) for q in self.have_list())

@@ -64,6 +64,9 @@ def all_keys(actions, minigames, approaches=()):
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}
+    from .moneytalk import LINES as MT_LINES, SCENE_LABEL as MT_SCENES     # お金の使い方への口出し・どっちが出すか
+    for k, t in MT_LINES.items():
+        out[k] = {"scene": "お金のこと / %s" % MT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
     from .quarrel import LINES as QR_LINES, SCENE_LABEL as QR_SCENES     # 意見が割れる・言い争い・仲直り
     for k, t in QR_LINES.items():
         out[k] = {"scene": "言い合い / %s" % QR_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
