@@ -73,7 +73,7 @@ class Kakeibo:
             days.setdefault(_day(x["t"]), []).append(x)
         fuzzy = forgot = 0
         written = []
-        thrift = self.app.life.skill_soft("budget")       # やりくりがうまいほど, 覚えている (丸めが遅く, 書き漏らしが少ない)
+        thrift = min(1.0, self.app.life.skill_soft("budget") + self.app.quals.kakeibo())   # やりくりがうまいほど (簿記があればなお) 覚えている
         sharp = 1 if thrift >= 0.5 else 0
         for d in sorted(days):
             age = (today - date.fromisoformat(d)).days

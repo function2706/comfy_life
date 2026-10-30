@@ -91,6 +91,8 @@ class CalView:
                     if day_match(e.get("days"), datetime(d.year, d.month, d.day)):
                         put(d.isoformat(), ent)
                     d += timedelta(days=1)
+        for d, e in app.quals.calendar(first, nxt):     # 資格: 申し込んだ試験の日・合否が届く日
+            put(d, e)
         d = first                                   # 自分で書いたメモ (毎年くり返すものも)
         while d < nxt:
             for mm in app.anniv.memos_on(d):

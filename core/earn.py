@@ -110,13 +110,19 @@ class Earn:
         base = float(self.L.econ().get("work_wage_per_hour", 1200))
         w0 = float(c["wage"])
         sk = self.L.skill("work")
-        if h >= 100 and random.random() < 0.25 + sk / 200.0:
+        Q = self.app.quals
+        allow = Q.allowance() if h >= 40 else 0         # 資格手当 (その月に 40 時間以上働いていれば)
+        if allow:
+            self.ps()["money"] += allow
+            self.L.ledger(t, allow, "income", "資格手当（%s）" % prev.replace("-", "年") + "月")
+            self.L.money_note(t, "%s月分の資格手当が出た（%s円）" % (prev[5:].lstrip("0"), format(allow, ",")))
+        if h >= 100 and random.random() < 0.25 + sk / 200.0 + Q.raise_bonus():
             w = w0 * (1 + random.uniform(0.01, 0.03) * (0.5 + sk / 100.0))
         elif h < 40 and c["months"]:
             w = w0 * (1 - random.uniform(0.01, 0.03))
         else:
             return None
-        w = int(round(min(base * 2, max(base * 0.85, w)) / 10.0)) * 10
+        w = int(round(min(base * Q.wage_cap(), max(base * 0.85, w)) / 10.0)) * 10
         if w == int(w0):
             return None
         c["wage"] = w
@@ -187,7 +193,7 @@ class Earn:
         if not clean:
             raise ValueError("シフトを決めてください")
         # 面接: 身だしなみと会話で受かりやすく (必ずではない)
-        p = 0.55 + 0.2 * self.L.skill_soft("groom") + 0.15 * self.L.skill_soft("talk")
+        p = 0.55 + 0.2 * self.L.skill_soft("groom") + 0.15 * self.L.skill_soft("talk") + self.app.quals.job_pass(jid)
         if random.random() >= p:
             ps.setdefault("pt_rejected", {})[jid] = now + 3 * 86400
             self.L.save_player()
@@ -249,7 +255,7 @@ class Earn:
         if h < 0.25:
             return 0, 0.0, {}
         q = 0.9 + 0.2 * self.L.skill_soft(j.get("skill", "work"))
-        pay = int(j["wage"] * h * q * self.app.body.work_mult() / 10) * 10
+        pay = int((j["wage"] + self.app.quals.job_wage(j["id"])) * h * q * self.app.body.work_mult() / 10) * 10
         gain = {}
         if record:
             d = datetime.fromtimestamp(t0).strftime("%Y-%m-%d")
@@ -299,11 +305,12 @@ class Earn:
             if sk < G["min"] or len(g["offers"]) >= 3 or any(o["kind"] == k for o in g["offers"]):
                 continue
             rep = float(g["rep"].get(k, 30))
-            p = max(0.01, min(0.35, 0.04 + 0.12 * self.L.skill_soft(G["skill"]) + 0.12 * (rep - 30) / 70.0))
+            qp, qr = self.app.quals.gig(k)              # 資格があると依頼が来やすく, 単価も上がる
+            p = max(0.01, min(0.45, (0.04 + 0.12 * self.L.skill_soft(G["skill"]) + 0.12 * (rep - 30) / 70.0) * qp))
             if random.random() >= p:
                 continue
             h = round(random.uniform(*G["h"]) * 2) / 2.0
-            pay = int(G["rate"] * h * random.uniform(0.9, 1.2) * (0.9 + 0.2 * rep / 100.0) / 100) * 100
+            pay = int(G["rate"] * qr * h * random.uniform(0.9, 1.2) * (0.9 + 0.2 * rep / 100.0) / 100) * 100
             o = {"id": "g%d%s" % (int(t * 1000), k), "kind": k, "label": G["label"], "client": random.choice(G["clients"]),
                  "h": h, "pay": pay, "t": t, "until": t + 2 * 86400}
             g["offers"].append(o)
@@ -634,6 +641,7 @@ class Earn:
         if month_changed:
             self.review(t)
         self.bonus(t)
+        self.app.quals.daily(t)                   # 資格の試験の日・合否
         self.check_absence(t)
         self.gig_offers(t)
         self.favor_offers(t)
@@ -643,7 +651,8 @@ class Earn:
         pt = self.pt()
         out = {"wage": self.wage(), "base_wage": int(self.L.econ().get("work_wage_per_hour", 1200)),
                "jobs": [dict(j, place_label=self.app.places.label(j["place"])) for j in self.jobs()],
-               "rejected": {k: v for k, v in (self.ps().get("pt_rejected") or {}).items() if v > now}}
+               "rejected": {k: v for k, v in (self.ps().get("pt_rejected") or {}).items() if v > now},
+               "quals": self.app.quals.view(now)}
         g = self.gigs()
         out["gigs"] = {"offers": [dict(o, icon=GIGS[o["kind"]]["icon"]) for o in g["offers"] if o["until"] > now],
                        "rep": {k: round(v) for k, v in g["rep"].items()},

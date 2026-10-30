@@ -30,6 +30,7 @@ from . import nori as nori_mod
 from . import attach as attach_mod
 from . import topics as topics_mod
 from . import anniv as anniv_mod
+from . import quals as quals_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -163,6 +164,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
         self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)

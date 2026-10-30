@@ -146,7 +146,11 @@ class Solo:
         k = KINDS.get(kind)
         if not k:
             raise ValueError("一人でできることではありません: %s" % kind)
-        if kind == "practice" and skill not in SKILL_LABEL:
+        if kind == "practice" and str(skill or "").startswith("qual:"):
+            from .quals import QUALS
+            if skill[5:] not in QUALS or app.quals.has(skill[5:]):
+                raise ValueError("その資格の勉強はできません")
+        elif kind == "practice" and skill not in SKILL_LABEL:
             raise ValueError("何を練習するか選んでください")
         place = self._place(kind, place)
         p = app.presence.rec()
@@ -172,7 +176,7 @@ class Solo:
         app.presence.save()
         if k["mode"] == "out":
             app.life.train("groom", 0.15)           # 出かける前に整える
-        self.note(kind, START_TEXT[kind].replace("{skill}", SKILL_LABEL.get(skill or "", ""))
+        self.note(kind, ("資格の勉強を始めた" if str(skill or "").startswith("qual:") else START_TEXT[kind]).replace("{skill}", SKILL_LABEL.get(skill or "", ""))
                   .replace("{place}", app.places.label(place) if place else ""), now)
         return {"started": kind, "label": k["doing"], "act": res}
 
@@ -339,6 +343,11 @@ class Solo:
             L.train("house", min(2.0, 0.8 * h)) if h >= 0.25 else 0
             text = "%s家事をした。%s（%s）" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった", how)
             text += app.home.notice_chores(h, soap, now, jit)      # 同居相手が気づくかどうかは偶然
+        elif kind == "practice" and str(skill or "").startswith("qual:"):      # 資格の勉強
+            L.tire(3 * h)
+            text, gain = app.quals.study(skill[5:], h * jit)
+            out["skill"] = gain
+            text = "%s%s" % (_dur(h), text)
         elif kind == "practice":
             sk = skill or "talk"
             L.tire(3 * h)

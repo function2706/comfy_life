@@ -360,7 +360,9 @@ function renderSoloTab() {
       btn('🧹', '片付け', () => { S.choresOpen = false; soloStart('chores'); }, '散らかり・洗い物・洗濯物・ゴミを片付ける（戻るまで。洗剤があるとはかどる）'),
       btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
-      Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); }))) : null,
+      Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); })),
+      ...(((v.earn || {}).quals) || []).filter((q) => !q.have).map((q) => btn('🎓', `${q.label}の勉強`, () => { S.practiceOpen = false; soloStart('practice', 'qual:' + q.id); },
+        `勉強時間 ${Math.round(q.study)}／目安 ${q.study_need}時間（${q.skills.map((s) => SKILL_NAME[s.id]).join('・')}も少し伸びる）`))) : null,
     (v.appoints || []).some((x) => x.status === 'set' || x.status === 'waiting') ? h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, '約束（自分でその場所へ出向く）'),
       (v.appoints || []).filter((x) => x.status === 'set' || x.status === 'waiting').map((x) => appointLine(x, true))) : null,
@@ -1250,7 +1252,7 @@ function openCal(t) {
   openChat(null, true);
 }
 const calBtn = (t) => h('button', { class: 'btn ghost small', title: 'カレンダーでこの日を見る', onclick: () => openCal(t) }, '🗓');
-const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤', memo: '📝' };
+const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤', memo: '📝', exam: '🎓' };
 function dayOffset(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -1263,6 +1265,7 @@ function calEntry(e) {
       h('button', { class: 'btn small ghost danger', disabled: S.busy, title: '予定から消す',
         onclick: async () => { try { await api('/api/plan/remove', { id: e.id }); } catch (er) { toast(er.message, 'err'); } await drawChat(); refresh(); } }, '×'));
   }
+  if (e.kind === 'exam') return h('div', { class: 'cal-ent' }, `🎓 ${e.at ? e.at + ' ' : ''}${e.text}`);
   if (e.kind === 'memo') {
     return h('div', { class: 'cal-ent' }, h('span', {}, `📝 ${e.text}${e.yearly ? '（毎年）' : ''}`),
       h('button', { class: 'btn small ghost danger', disabled: S.busy, title: 'メモを消す',
@@ -1310,7 +1313,7 @@ function calendarView(C, dlg) {
     cells.push(h('div', { class: 'cal-cell' + (iso === sel ? ' on' : '') + (iso === C.today ? ' today' : '') + (iso < C.today ? ' past' : '') + (wd === 5 ? ' sat' : wd === 6 ? ' sun' : ''),
       onclick: () => { S.calSel = iso; if (S.apForm && S.apForm.cal) S.apForm.day = Math.max(0, Math.min(13, dayOffset(iso))); drawChat(); } },
       h('div', { class: 'cal-num' }, String(d)),
-      h('div', { class: 'cal-marks' }, ...['memo', 'appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
+      h('div', { class: 'cal-marks' }, ...['memo', 'exam', 'appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
   }
   const es = C.days[sel] || [];
   const [, mm, dd] = sel.split('-').map(Number);
@@ -1813,7 +1816,7 @@ function renderMoney() {
       h('div', { class: 'muted small' }, `体力 ${Math.floor(L.stamina ?? 100)}・今日の勤務 ${(L.work_today || 0).toFixed(1)} / 9時間・仕事スキル ${Math.round((L.skills || {}).work || 0)}`),
       h('div', { class: 'muted small' }, `本業の時給 ${yen(EA.wage || 0)}${EA.wage !== EA.base_wage ? `（始め ${yen(EA.base_wage || 0)}）` : ''}・今月の本業 ${EA.month_h || 0}時間。月ごとの勤務で時給が見直され、6月・12月の10日に賞与が出ます（休みが多いと下がる・出ない）`),
       h('div', { class: 'muted small' }, '仕事に出られるのは 6〜21時（体力20以上）。給料は 6〜23時の分だけ、1日9時間まで。内職は体力10を使います'),
-      partTimePanel(EA, v), sideWorkPanel(EA, v), fleaPanel(EA), lottoPanel(EA)),
+      partTimePanel(EA, v), sideWorkPanel(EA, v), qualsPanel(EA), fleaPanel(EA), lottoPanel(EA)),
     h('div', { class: 'pgroup' }, h('h4', {}, '株'),
       h('div', { class: 'row', style: 'margin-bottom:4px' }, h('span', { class: 'tag' + (M.open ? ' bond' : '') }, M.open ? `📈 取引中（${M.until}まで）` : `🌙 取引時間外（次は ${M.next}）`),
         h('span', { class: 'muted small' }, `買付余力 ${yen(M.buy_power ?? L.my_money ?? 0)}`)),
@@ -1868,6 +1871,24 @@ function partTimePanel(EA, v) {
           h('button', { class: 'btn small', disabled: S.busy || !!ng, title: '面接があります（身だしなみ・会話で受かりやすく）',
             onclick: () => earnApi('/api/earn/parttime/apply', { job: j.id, shifts: [{ days: f.days.join(','), from: f.from, to: f.to }] }) }, ng ? '少し待つ' : '応募する')));
     }) : '');
+}
+// 資格: 申し込み (試験の 1 か月前まで・受験料)・勉強 (研鑽の「資格の勉強」)・試験・合否
+function qualsPanel(EA) {
+  const Q = EA.quals || [];
+  if (!Q.length) return '';
+  const md = (iso) => { const d = new Date(iso + 'T00:00'); return `${d.getMonth() + 1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`; };
+  const st = { applied: '申し込み済み', taken: '結果待ち', pass: '合格', fail: '不合格', absent: '欠席' };
+  return h('div', { class: 'kb-cats' },
+    h('div', { class: 'muted small' }, '🎓 資格（試験の1か月前までに申し込み、研鑽の「資格の勉強」で勉強時間をためる。合否は試験の2週間後）'),
+    ...Q.map((q) => h('div', { class: 'money-row small' },
+      h('span', {}, `${q.icon} ${q.label}・${yen(q.fee)}・${q.skills.map((s) => `${SKILL_NAME[s.id]} ${Math.round(s.now)}`).join('／')}（目安 ${q.need}）・勉強 ${Math.round(q.study)}／${q.study_need}時間`,
+        h('span', { class: 'muted' }, q.have ? '・✅ 合格（' + q.desc + '）'
+          : q.status === 'applied' ? `・申し込み済み（試験 ${md(q.exam)}）`
+          : q.status === 'taken' ? '・結果待ち'
+          : `${q.status ? '・前回' + st[q.status] : ''}・次の試験 ${q.next_exam ? md(q.next_exam) + `（締め切り ${md(q.deadline)}）` : 'なし'}・${q.desc}`)),
+      q.have || q.status === 'applied' || q.status === 'taken' ? ''
+        : h('button', { class: 'btn small', disabled: S.busy, title: `受験料 ${yen(q.fee)} を払って申し込みます`,
+          onclick: () => earnApi('/api/quals/apply', { id: q.id }, '申し込んだ') }, '申し込む'))));
 }
 // 副業 (スキルを生かす依頼) と, 知り合いからの頼まれごと
 function sideWorkPanel(EA, v) {
