@@ -448,7 +448,7 @@ class Offline:
             if app.bonds.together(cid) or app.bonds.stage(cid) == "known":
                 continue
             st = app.state(cid)
-            if st.get("approach"):
+            if st.get("approach") or st.get("msg_pending"):     # あなたのメッセージに返していないうちは, 別の話を送ってこない
                 continue
             ctx = app.context(char, st, datetime.fromtimestamp(t1))
             # 送ってくるのは, 相手が起きていて手が空いている時間. 夜中・早朝にはまず送らない (presence.hour_factor)

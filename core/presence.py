@@ -191,6 +191,11 @@ class Presence:
         rate *= float(self.app.traits(char).get("approach", 1))
         if random.random() >= 1 - math.exp(-rate * dt_h):
             return None
+        pend = st.get("msg_pending")
+        if ctx.get("apart") and pend:
+            # あなたのメッセージに返していないうちは, 別の話を送ってこない. スマホを手に取ったので, いま読む (返すかは決めたとおり)
+            pend["due"] = min(pend.get("due", now), now)
+            return None
         return self.fire(char, st, now, ctx)
 
     def eagerness(self, ctx):
