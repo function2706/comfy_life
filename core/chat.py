@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 
 from . import store
+from .anniv import SCENE_LABEL as ANNIV_SCENES
 
 # id: (ボタン, 印, あなたの発言の要約)
 KINDS = {
@@ -37,6 +38,9 @@ KINDS = {
     "what_doing": ("今何してる？", "👀", "（今何してるか聞いた）"),
     "nudge": ("返事まだ？", "⏳", "（返事を催促した）"),
     "topic": ("話題を振る", "💬", "（話題を振った）"),          # どの話題かは選ぶ (topics.send)
+    "ask_bday": ("誕生日いつ？", "🎂", "（誕生日を聞いた）"),
+    "tell_bday": ("誕生日を伝える", "🎁", "（自分の誕生日を伝えた）"),
+    "congrats": ("おめでとう", "🎉", "（おめでとうと送った）"),
 }
 # 共通の返信 (性格プリセットに無ければ). 鍵は chat.<場面>
 LINES = {
@@ -231,6 +235,8 @@ class Chat:
             raise ValueError("メッセージの種類が違います: %s" % kind)
         if kind == "topic" and not (extra or {}).get("topic"):
             raise ValueError("話題を選んでください")
+        if kind == "tell_bday" and not self.app.anniv.my_birthday():
+            raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
         return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra})
 
     # ------------------------------------------------------------------ 返信の中身
@@ -266,6 +272,8 @@ class Chat:
             return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
             return app.topics.phone_reply(char, st, meta, now)
+        if kind in ("ask_bday", "tell_bday", "congrats"):      # 誕生日・おめでとう (送った日で見る)
+            return app.anniv.reply(char, st, kind, ctx.get("_sent") or now)
         space = self._space(char, st, kind, now, ctx)
         if space:
             return space, {}, extra
@@ -336,6 +344,8 @@ class Chat:
         app = self.app
         if key.startswith("topic_"):            # 話題への返し: 会って振ったときと同じ性格別のセリフを 📱 で
             return app.topics.phone_line(char, key[6:], extra)
+        if key in ANNIV_SCENES:                  # 誕生日・記念日: 会ったときと同じセリフを 📱 で
+            return app.anniv.line(char, key, extra, phone=True)
         t = app.persona_text(char, "chat." + key) or LINES["chat." + key]
         fp, _, call = app.pronouns(char)
         for k, v in dict(extra, fp=fp, call=call, name=char.get("name", "")).items():

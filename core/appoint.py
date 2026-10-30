@@ -255,6 +255,12 @@ class Appoint:
         for x in self.open_with(cid):
             if abs(x["t"] - t) < 3 * 3600:
                 raise ValueError("その時間の近くに、もう約束（か返事待ち）があります")
+        if place == "restaurant":                 # 予約: 曜日・時間・何日前かで, いっぱいのことがある
+            from .anniv import reserve_full
+            full = reserve_full(t, now)
+            app.trace.add("appoint", "レストランの予約", cid, now, t=t, full=full)
+            if full:
+                raise ValueError("%sは、その日時の予約が取れなかった（いっぱいだった）" % app.places.label(place))
         x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": place, "do": do, "by": "me", "status": "asked", "made": now}
         self.all().append(x)
         self.save()

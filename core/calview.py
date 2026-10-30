@@ -91,6 +91,11 @@ class CalView:
                     if day_match(e.get("days"), datetime(d.year, d.month, d.day)):
                         put(d.isoformat(), ent)
                     d += timedelta(days=1)
+        d = first                                   # 自分で書いたメモ (毎年くり返すものも)
+        while d < nxt:
+            for mm in app.anniv.memos_on(d):
+                put(d.isoformat(), {"kind": "memo", "at": "", "text": mm["text"], "id": mm["id"], "yearly": bool(mm.get("yearly"))})
+            d += timedelta(days=1)
         for d in days:
             days[d].sort(key=lambda e: (e["at"] == "", self._mins(e["at"])))
         people = [{"id": cid, "name": c.get("name", ""), "stage": app.bonds.stage(cid)} for cid, c in app.chars.items()

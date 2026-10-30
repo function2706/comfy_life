@@ -85,7 +85,11 @@ class Bonds:
             other = self.living()
             if other and other != cid:
                 raise ValueError("一緒に暮らせるのは一人だけです（先に今の同居を解消してください）")
-        ps["bonds"][cid] = {"stage": stage, "t": now or time.time()}
+        prev = ps["bonds"].get(cid) or {}
+        hist = dict(prev.get("hist") or {})          # 段階が変わった日 (記念日. core/anniv.py)
+        if stage in ("contact", "visit", "live") and prev.get("stage") != stage:
+            hist[stage] = now or time.time()
+        ps["bonds"][cid] = {"stage": stage, "t": now or time.time(), "hist": hist}
         self.save()
 
     def living(self):

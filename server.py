@@ -154,6 +154,12 @@ def route(method, path, q, body):
             return a.items.set_list(b["id"], int(b.get("qty", 0)))
         if path == "/api/items/stock":
             return a.items.set_stock(b["id"], int(b.get("qty", 0)))
+        if path == "/api/anniv/say":
+            return a.anniv.say(b["kind"], cid, phone=bool(b.get("phone")))
+        if path == "/api/memo/add":
+            return {"memo": a.anniv.memo_add(b.get("date"), b.get("text"), b.get("yearly"))}
+        if path == "/api/memo/del":
+            return a.anniv.memo_del(b.get("id"))
         if path == "/api/topic/tell":
             return a.topics.tell(b["id"], cid)
         if path == "/api/topic/send":

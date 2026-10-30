@@ -121,6 +121,14 @@ async function switchWorld(id) {
   location.reload();
 }
 
+// 今日のメモ (カレンダーに自分で書いたもの): 一日に一度だけ知らせる
+function noteMemos() {
+  const ms = (S.view && S.view.memos_today) || [];
+  const day = new Date().toDateString();
+  if (!ms.length || S.memoShown === day) return;
+  S.memoShown = day;
+  toast(`📝 今日: ${ms.join('・')}`, 'ok');
+}
 async function refresh() {
   if (!S.boot) return;               // 起動の読み込みより先に呼ばれた (画面の表示切り替えなど)
   try {
@@ -140,6 +148,7 @@ async function refresh() {
   for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
   if (v.closed) toast(v.closed.text, 'ok');
   for (const w of v.workplace || []) toast(`🏪 ${w}`, 'ok');
+  noteMemos();
   if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
@@ -297,6 +306,7 @@ function cmdButton(a) {
   const why = (S.view.blocked || {})[isMoneyAction(a) || a.category !== 'system' ? 'social' : ''];
   return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
+      : a.anniv ? sayAnniv(a.anniv, tid())
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
@@ -1055,6 +1065,13 @@ function giftPicker(aid) {
   dlg.showModal();
 }
 
+// 誕生日を聞く・自分の誕生日を伝える・おめでとう (会って. メッセージではトークの種類から)
+async function sayAnniv(kind, cid) {
+  if (S.busy) return;
+  S.busy = true;
+  try { handleActResult(await api('/api/anniv/say', { kind, character: cid })); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await refresh(); }
+}
 // 話題を振る: あなたの体験から (会って話す / メッセージで送る). 前に話した話題・一緒に行った話 (思い出話) は印つき
 function topicPicker(cid, phone) {
   const tops = (S.view && S.view.topics) || [];
@@ -1233,7 +1250,7 @@ function openCal(t) {
   openChat(null, true);
 }
 const calBtn = (t) => h('button', { class: 'btn ghost small', title: 'カレンダーでこの日を見る', onclick: () => openCal(t) }, '🗓');
-const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤' };
+const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤', memo: '📝' };
 function dayOffset(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -1245,6 +1262,11 @@ function calEntry(e) {
     return h('div', { class: 'cal-ent' }, h('span', {}, `📌 ${e.at} ${e.text}`),
       h('button', { class: 'btn small ghost danger', disabled: S.busy, title: '予定から消す',
         onclick: async () => { try { await api('/api/plan/remove', { id: e.id }); } catch (er) { toast(er.message, 'err'); } await drawChat(); refresh(); } }, '×'));
+  }
+  if (e.kind === 'memo') {
+    return h('div', { class: 'cal-ent' }, h('span', {}, `📝 ${e.text}${e.yearly ? '（毎年）' : ''}`),
+      h('button', { class: 'btn small ghost danger', disabled: S.busy, title: 'メモを消す',
+        onclick: async () => { try { await api('/api/memo/del', { id: e.id }); } catch (er) { toast(er.message, 'err'); } await drawChat(); refresh(); } }, '×'));
   }
   if (e.kind === 'sched') {
     return h('div', { class: 'cal-ent muted' }, `👤 ${e.name} ${e.at}${e.to ? '〜' + e.to : ''} ${e.text}${e.stale ? '（もう違うかも）' : e.old ? '（だいぶ前に聞いた）' : ''}`);
@@ -1288,7 +1310,7 @@ function calendarView(C, dlg) {
     cells.push(h('div', { class: 'cal-cell' + (iso === sel ? ' on' : '') + (iso === C.today ? ' today' : '') + (iso < C.today ? ' past' : '') + (wd === 5 ? ' sat' : wd === 6 ? ' sun' : ''),
       onclick: () => { S.calSel = iso; if (S.apForm && S.apForm.cal) S.apForm.day = Math.max(0, Math.min(13, dayOffset(iso))); drawChat(); } },
       h('div', { class: 'cal-num' }, String(d)),
-      h('div', { class: 'cal-marks' }, ...['appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
+      h('div', { class: 'cal-marks' }, ...['memo', 'appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
   }
   const es = C.days[sel] || [];
   const [, mm, dd] = sel.split('-').map(Number);
@@ -1298,6 +1320,14 @@ function calendarView(C, dlg) {
   const pf = S.calPlan = S.calPlan || { at: '09:00', do: 'out', place: 'supermarket' };
   const canPlan = (C.plan_dates || []).includes(sel);
   const reg = [];
+  const mf = S.calMemo = S.calMemo || { text: '', yearly: false };      // 自分で書くメモ (誕生日・記念日など. 毎年くり返せる)
+  reg.push(h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px;align-items:center' }, h('span', { class: 'small' }, '📝 メモを書く'),
+    h('input', { type: 'text', value: mf.text, placeholder: '例: ○○の誕生日', maxlength: 60, oninput: (ev) => { mf.text = ev.target.value; } }),
+    h('label', { class: 'small' }, h('input', { type: 'checkbox', checked: mf.yearly, onchange: (ev) => { mf.yearly = ev.target.checked; } }), ' 毎年'),
+    h('button', { class: 'btn small', disabled: S.busy, onclick: async () => {
+      if (S.busy) return; S.busy = true;
+      try { await api('/api/memo/add', { date: sel, text: mf.text, yearly: mf.yearly }); mf.text = ''; mf.yearly = false; toast('メモを書いた', 'ok'); }
+      catch (er) { toast(er.message, 'err'); } finally { S.busy = false; await drawChat(); refresh(); } } }, '＋書く')));
   if (off >= 0) {
     // 誘う: 相手を選ぶと, トークの「📅 約束する」と同じ欄 (日付は選んだ日)
     if (C.people.length && off <= 13) {
@@ -1325,7 +1355,7 @@ function calendarView(C, dlg) {
         h('button', { class: 'btn ghost small', onclick: () => go(C.prev) }, '‹'), h('b', {}, `${C.y}年${C.m}月`),
         h('button', { class: 'btn ghost small', onclick: () => go(C.next) }, '›'),
         h('button', { class: 'btn ghost small', onclick: () => { S.calMonth = null; S.calSel = C.today; S.apForm = null; drawChat(); } }, '今日'),
-        h('span', { class: 'muted small' }, '📅約束 🤝頼まれごと 📌予定 👤相手の予定（知っている分）')),
+        h('span', { class: 'muted small' }, '📝メモ 📅約束 🤝頼まれごと 📌予定 👤相手の予定（知っている分）')),
       h('div', { class: 'cal-grid' }, ...'月火水木金土日'.split('').map((w, i) => h('div', { class: 'cal-wd' + (i === 5 ? ' sat' : i === 6 ? ' sun' : '') }, w)), ...cells),
       h('div', { class: 'cal-day' },
         h('b', {}, `${mm}/${dd}（${wdSel}）${sel === C.today ? '・今日' : ''}`),
@@ -2716,6 +2746,7 @@ SEC.player = () => {
       fld('名前', inp(p, 'name', { ph: 'ユウ' })),
       fld('性別', inp(p, 'gender', { type: 'select', options: [['', '設定しない'], ['male', '男性'], ['female', '女性'], ['other', 'その他']] })),
       fld('年齢', inp(p, 'age', { type: 'number' })),
+      fld('誕生日', inp(p, 'birthday', { ph: '例: 03-14（月-日）' }), '伝えた相手だけが知っています（トーク・会話の「自分の誕生日を伝える」）'),
       fld('職業', inp(p, 'job', { ph: '会社員' })),
       fld('人柄', inp(p, 'personality', { ph: '穏やかで少し不器用' }), null, 'span2'),
       fld('好きなもの', inp(p, 'likes', { ph: 'コーヒー, 映画, 猫' }), 'カンマ区切り', 'span2'),
@@ -2768,6 +2799,7 @@ SEC.char = () => {
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
       fld('年齢（任意）', inp(c, 'age', { type: 'number' }), '18 歳未満を入れると「ポーズを取って」「見せて」と相手からの持ちかけは出ません（空欄は大人として扱う）'),
+      fld('誕生日（任意）', inp(c, 'birthday', { ph: '例: 03-14（月-日）' }), '空欄ならキャラごとに決まった日。あなたが知るのは、聞いたとき・相手が話したときだけです'),
       fld('一人称（固定）', inp(c, 'first_person', { ph: `空欄＝プリセット（${(curPersona(c) || {}).first_person || '私'}）` }),
         '空欄なら性格プリセットに従う'),
       fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),

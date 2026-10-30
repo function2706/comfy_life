@@ -29,6 +29,7 @@ from . import items as items_mod
 from . import nori as nori_mod
 from . import attach as attach_mod
 from . import topics as topics_mod
+from . import anniv as anniv_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -162,6 +163,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
@@ -663,6 +665,9 @@ class App:
             t += STEP_SEC
             changed = True
         st["last_tick"] = t
+        if st.get("anniv_msgs"):
+            self.anniv.tick(char, st, now)     # 相手から言ってくること (記念日・誕生日の話・あなたの誕生日)
+            changed = True
         ov = st.get("override")
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
@@ -1211,6 +1216,12 @@ class App:
                 self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる
             except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
                 pass
+        if entry and not apart and st.get("celeb") and not (r or {}).get("override"):      # 誕生日・記念日にしたこと
+            self.anniv.mark(char, st, "met", now)
+            if a.get("gift"):
+                self.anniv.mark(char, st, "gift", now)
+            if a.get("meal_out") or a.get("id") in ("date", "eat_out"):
+                self.anniv.mark(char, st, "meal", now)
         if called:          # 電話で話した: トークにも並べる
             self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
             self.chat.add(cid, "her", text, kind="call", t=now + 0.001)
@@ -2229,6 +2240,7 @@ class App:
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
+                "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

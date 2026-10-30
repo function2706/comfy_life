@@ -507,6 +507,45 @@
   "topic": true
  },
  {
+  "id": "ask_bday",
+  "name": "誕生日を聞く",
+  "icon": "🎂",
+  "category": "会話",
+  "when": "asleep=false, away=false",
+  "cooldown": 0,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [],
+  "anniv": "ask_bday"
+ },
+ {
+  "id": "tell_bday",
+  "name": "自分の誕生日を伝える",
+  "icon": "🎁",
+  "category": "会話",
+  "when": "asleep=false, away=false",
+  "cooldown": 0,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [],
+  "anniv": "tell_bday"
+ },
+ {
+  "id": "congrats",
+  "name": "おめでとう",
+  "icon": "🎉",
+  "category": "会話",
+  "when": "asleep=false, away=false",
+  "cooldown": 0,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [],
+  "anniv": "congrats"
+ },
+ {
   "id": "greet",
   "name": "挨拶する",
   "icon": "👋",
