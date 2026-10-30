@@ -296,7 +296,7 @@ function cmdButton(a) {
   const pl = a.override && a.override.outing && a.override.place ? od[a.override.place] : null;    // お出かけの行き先 (表から)
   const why = (S.view.blocked || {})[isMoneyAction(a) || a.category !== 'system' ? 'social' : ''];
   return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
-    onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id)
+    onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
@@ -1055,6 +1055,34 @@ function giftPicker(aid) {
   dlg.showModal();
 }
 
+// 話題を振る: あなたの体験から (会って話す / メッセージで送る). 前に話した話題・一緒に行った話 (思い出話) は印つき
+function topicPicker(cid, phone) {
+  const tops = (S.view && S.view.topics) || [];
+  if (!tops.length) { toast('話せる話題がまだない（出かける・本を読む・映画を観る・誰かと出かける、などで増えます）', 'err'); return; }
+  const name = ((S.view.people || []).find((p) => p.id === cid) || {}).name || '';
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto;max-height:80vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  const go = async (t) => {
+    close();
+    if (S.busy) return;
+    S.busy = true;
+    try {
+      if (phone) { await api('/api/topic/send', { id: t.id, to: cid }); S.chatJump = true; }
+      else handleActResult(await api('/api/topic/tell', { id: t.id, character: cid }));
+    } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; if (phone) await drawChat(); refresh(); }
+  };
+  dlg.append(h('div', { style: 'padding:16px' }, h('h3', {}, `${name}にする話`),
+    h('p', { class: 'hint' }, '相手が乗るかは、その人の好みと、そのときの様子しだい。同じ話を何度もすると飽きられます。'),
+    tops.map((t) => h('div', { class: 'row item-row' },
+      h('span', { style: 'flex:1' }, t.text, h('span', { class: 'muted small' }, ` ${dayLabel(t.t)}`,
+        (t.with || []).includes(cid) ? '・一緒だった' : '', (t.told_to || []).includes(cid) ? '・前に話した' : '')),
+      h('button', { class: 'btn small primary', onclick: () => go(t) }, phone ? '送る' : '話す'))),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 /* ---- メッセージアプリ: トーク一覧 → トーク画面. 自分は右 (要約), 相手は左 (本文). 送受信の時刻・日付の区切り・既読・返信待ち */
 function openChat(cid, cal) {
   if (!S.chatDlg) {
@@ -1172,7 +1200,7 @@ async function drawChat(auto) {
             h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later)));
       })(),
       h('div', { class: 'chat-send' },
-        can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => sendChat(th.id, k.id) }, `${k.icon} ${k.label}`)),
+        can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => (k.id === 'topic' ? topicPicker(th.id, true) : sendChat(th.id, k.id)) }, `${k.icon} ${k.label}`)),
           (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
           ...(th.actions || []).map((a) => h('button', { class: 'chat-kind', disabled: S.busy || !a.ok, onclick: () => phoneAct(th.id, a.id) }, `${a.icon} ${a.name}`)),
           S.apForm ? appointForm(th) : '']

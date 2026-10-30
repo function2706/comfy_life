@@ -28,6 +28,7 @@ from . import offline as offline_mod
 from . import items as items_mod
 from . import nori as nori_mod
 from . import attach as attach_mod
+from . import topics as topics_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -161,6 +162,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
@@ -906,7 +908,7 @@ class App:
                 self._phoned(st, now, char, opts.get("msg_kind"), phone=bool(a.get("phone")))      # スマホで連絡した (謝るメッセージは数えない)
             if apart and a.get("reply_later", aid == "message") and not opts.get("deliver"):
                 # 離れている相手へのメッセージは, 送るだけ. 返信は相手の状況しだいで, しばらくしてから (来ないことも)
-                return self._send_later(char, st, a, now, dt, scene, ctx, opts.get("msg_kind"))
+                return self._send_later(char, st, a, now, dt, scene, ctx, opts.get("msg_kind"), opts.get("msg_extra"))
             if apart and a.get("phone") and not opts.get("deliver"):
                 # 電話: 寝ている・手が離せない・気分しだいで出ない. あとで折り返しが来ることも
                 missed = self._call_missed(char, st, a, now, dt, scene, ctx)
@@ -1204,6 +1206,11 @@ class App:
             if self.settings.get("auto_generate") and gen_ok:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
+        if entry and (a.get("id") == "movie" or (a.get("override") or {}).get("outing")) and not apart:
+            try:
+                self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる
+            except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
+                pass
         if called:          # 電話で話した: トークにも並べる
             self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
             self.chat.add(cid, "her", text, kind="call", t=now + 0.001)
@@ -1284,7 +1291,7 @@ class App:
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "missed": True}
 
-    def _send_later(self, char, st, a, now, dt, scene, ctx, kind=None):
+    def _send_later(self, char, st, a, now, dt, scene, ctx, kind=None, extra=None):
         """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す.
         kind: メッセージの種類 (chat.KINDS. 無ければ, ただの「メッセージを送る」)."""
         cid = char["id"]
@@ -1293,8 +1300,11 @@ class App:
         self.bonds.met(st, now, contact=True)
         if st.get("approach"):
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
-        self.chat.add(cid, "me", chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）", kind=kind, t=now)
+        said = "（%sをした）" % extra["topic_text"] if (extra or {}).get("topic_text") else \
+            chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）"
+        self.chat.add(cid, "me", said, kind=kind, t=now)
         meta = self.manners.on_send(char, st, kind, now) if kind else {}     # 送った時刻・続け方 (あいさつ・スタンプ など)
+        meta.update(extra or {})                       # 振った話題 など
         if pend:
             pend["count"] = pend.get("count", 1) + 1
             if kind == "nudge":                        # 返事を待っている間の催促: 返信はもとのメッセージに. 急ぎの話なら多少許される
@@ -2218,7 +2228,7 @@ class App:
                 "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
-                "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(),
+                "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],
@@ -2303,6 +2313,7 @@ class App:
                 pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
                 work_note = "仕事中の連絡が多く、はかどらなかった" + ("（注意された）" if wc >= 5 else "")
             mv = self.life.move(None, dp=pay, cat="income", note="給料") if pay else {}
+            self.topics.from_work(h, ll["back"])             # 仕事の話 (ときどき)
             gain = self.life.train("work", 0.5 * h) if h >= 0.25 else 0
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
             if quiet or not near:

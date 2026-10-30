@@ -190,6 +190,7 @@ class DebugDump:
         out.append("params=%s" % _j({k: round(v, 1) for k, v in (st.get("params") or {}).items()}))
         out.append("attach(献身・依存)=%s nori=%s" % (_j({k: v for k, v in (st.get("attach") or {}).items() if k != "day"} or None),
                                                      _j(st.get("nori"))))
+        out.append("tastes(話題の好み)=%s topic_tags=%s" % (_j(st.get("tastes")), _j((st.get("topic_tags") or [])[-8:])))
         out.append("msg_pending=%s" % _j(dict(st["msg_pending"], due_in_min=round((st["msg_pending"].get("due", now) - now) / 60, 1))
                                           if st.get("msg_pending") else None))
         out.append("approach=%s ap_quiet_until=%s phone_until=%s" % (_j({k: v for k, v in (st.get("approach") or {}).items() if k != "entry"} or None),

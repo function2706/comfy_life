@@ -29,7 +29,10 @@ KINDS = {
     "practice": {"label": "研鑽する", "icon": "📚", "mode": "busy", "doing": "研鑽中", "go": "go_busy"},
     "out": {"label": "外出", "icon": "🚶", "mode": "out", "doing": "外出中", "go": "go_out"},
     "jog": {"label": "ジョギング", "icon": "🏃", "mode": "out", "doing": "ジョギング中", "go": "go_out"},
+    "read": {"label": "本を読む", "icon": "📖", "mode": "busy", "doing": "読書中", "go": "go_busy"},
+    "movie": {"label": "映画を観る", "icon": "🎬", "mode": "busy", "doing": "映画を観ている", "go": "go_busy"},
 }
+READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (これより短く切り上げると, 話題にはならない)
 JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先
 # 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
 LEGACY = {
@@ -48,7 +51,7 @@ PLAIN = {
 }
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
-              "out": "{place}へ出かけた", "jog": "{place}へ走りに出た"}
+              "out": "{place}へ出かけた", "jog": "{place}へ走りに出た", "read": "本を読み始めた", "movie": "家で映画を観始めた"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事",
                "house": "家事", "care": "気配り", "groom": "身だしなみ", "budget": "やりくり", "write": "文章"}
@@ -120,6 +123,8 @@ class Solo:
             return self.start_plain(kind, place, cid)
         if kind == "kakeibo":
             return self.kakeibo()
+        if kind == "read" and app.items.count("novel") <= 0:
+            raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
         if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
             place = place or places_mod.LEGACY_DO[kind]
             kind = "out"
@@ -312,6 +317,21 @@ class Solo:
         out = {"kind": kind, "hours": round(h, 2), "place": place}
         if kind == "rest":
             text = "%s休んだ。少し体が軽くなった" % _dur(h)       # 回復は時間経過 (life.tick_world) で済んでいる
+        elif kind == "read":                    # 小説を読む (読み終えると話題に. 本は使う)
+            if h < READ_H:
+                text = "%s本を読んだが、読み終わらなかった" % _dur(h)
+            else:
+                try:
+                    text, _ = app.topics.read_book(now)
+                    text = "%s%s" % (_dur(h), text)
+                except ValueError as e:
+                    text = str(e)
+        elif kind == "movie":                   # 家で映画を観る (配信. 観終えると話題に)
+            if h < MOVIE_H:
+                text = "%s映画を観たが、途中で止めた" % _dur(h)
+            else:
+                text, _ = app.topics.watch_movie(now)
+                text = "%s%s" % (_dur(h), text)
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
@@ -399,6 +419,10 @@ class Solo:
                                                 app.items.describe(bought, missed) or "買うものリストの品は見つからず、何も買わなかった")
         out["text"] = "（%s）" % text
         self.note(note_kind, text, now, hours=round(h, 2), place=place)
+        try:
+            app.topics.from_solo(note_kind, kind, place, h, now)     # 出かけた先・走った先は話題になる
+        except Exception:  # noqa: BLE001 - 話題が残せなくても一人の時間は済んでいる
+            pass
         return out
 
     def _wet(self, place, h, now):

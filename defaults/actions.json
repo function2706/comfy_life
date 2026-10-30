@@ -454,6 +454,59 @@
   "skill": "talk"
  },
  {
+  "id": "talk_topic",
+  "name": "話題を振る",
+  "icon": "💬",
+  "category": "会話",
+  "when": "asleep=false, away=false",
+  "cooldown": 0,
+  "effects": {},
+  "pos": "talking, sitting together",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "ok",
+    "text": "へえ、そうなんですね。",
+    "when": "",
+    "pos": "listening, nodding, smile",
+    "neg": ""
+   },
+   {
+    "key": "hit",
+    "text": "えっ、それでそれで？ もっと聞かせてください！",
+    "when": "topic_res=hit",
+    "priority": 1,
+    "pos": "excited, leaning forward, sparkling eyes, smile",
+    "neg": ""
+   },
+   {
+    "key": "bored",
+    "text": "……そうなんですね。（あまり興味がなさそうだ）",
+    "when": "topic_res=bored",
+    "priority": 1,
+    "pos": "bored, looking away, half-closed eyes",
+    "neg": ""
+   },
+   {
+    "key": "known",
+    "text": "あ、それ知ってます。",
+    "when": "topic_res=known",
+    "priority": 1,
+    "pos": "nodding, casual",
+    "neg": ""
+   },
+   {
+    "key": "again",
+    "text": "……それ、前も聞きましたよ？",
+    "when": "topic_res=again",
+    "priority": 1,
+    "pos": "deadpan, tilting head",
+    "neg": ""
+   }
+  ],
+  "topic": true
+ },
+ {
   "id": "greet",
   "name": "挨拶する",
   "icon": "👋",

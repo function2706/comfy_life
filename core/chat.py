@@ -36,6 +36,7 @@ KINDS = {
     "you_ok": ("大丈夫？", "🩹", "（大丈夫？と気づかった）"),
     "what_doing": ("今何してる？", "👀", "（今何してるか聞いた）"),
     "nudge": ("返事まだ？", "⏳", "（返事を催促した）"),
+    "topic": ("話題を振る", "💬", "（話題を振った）"),          # どの話題かは選ぶ (topics.send)
 }
 # 共通の返信 (性格プリセットに無ければ). 鍵は chat.<場面>
 LINES = {
@@ -225,10 +226,12 @@ class Chat:
         return sum(1 for it in d["items"] if it["who"] == "her" and it["t"] > d["seen_t"])
 
     # ------------------------------------------------------------------ 送る
-    def send(self, cid, kind):
+    def send(self, cid, kind, extra=None):
         if kind not in KINDS:
             raise ValueError("メッセージの種類が違います: %s" % kind)
-        return self.app.act("message", cid, opts={"msg_kind": kind})
+        if kind == "topic" and not (extra or {}).get("topic"):
+            raise ValueError("話題を選んでください")
+        return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra})
 
     # ------------------------------------------------------------------ 返信の中身
     def reply(self, char, st, kind, now, ctx):
@@ -261,6 +264,8 @@ class Chat:
             return "too_often", {"mood": -2, "affection": -1}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
             return "late_night", {"mood": -2, "stress": 2}, extra
+        if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
+            return app.topics.phone_reply(char, st, meta, now)
         space = self._space(char, st, kind, now, ctx)
         if space:
             return space, {}, extra
@@ -329,6 +334,8 @@ class Chat:
 
     def line(self, char, key, extra):
         app = self.app
+        if key.startswith("topic_"):            # 話題への返し: 会って振ったときと同じ性格別のセリフを 📱 で
+            return app.topics.phone_line(char, key[6:], extra)
         t = app.persona_text(char, "chat." + key) or LINES["chat." + key]
         fp, _, call = app.pronouns(char)
         for k, v in dict(extra, fp=fp, call=call, name=char.get("name", "")).items():

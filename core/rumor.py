@@ -87,6 +87,7 @@ class Rumors:
              "via": via, "teller": char["id"], "inside": inside}
         m.setdefault("rumors", []).append(r)
         del m["rumors"][:-20]
+        app.topics.from_rumor(what, now)          # 聞いた噂は, ほかの人への話題にもなる
         st = app.state(src["id"] if via != "secondhand" else char["id"])
         known = st.setdefault("known", [])
         known.append({"kind": "stock", "text": what, "t": now, "via": via,
