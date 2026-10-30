@@ -104,7 +104,7 @@ def main():
         # 道具でも
         f = os.path.join(tmp, "pasted.txt")
         io.open(f, "w", encoding="utf-8").write(blk)
-        out = subprocess.run([sys.executable, os.path.join(HERE, "debug_decode.py"), f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = subprocess.run([sys.executable, "-X", "utf8", os.path.join(HERE, "debug_decode.py"), f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         assert out.returncode == 0 and "params=" in out.stdout.decode("utf-8"), out.stderr.decode("utf-8", "replace")
         print("符号化と復号: OK | ブロック", len(blk), "文字 / 切れ・化けを検出")
 
