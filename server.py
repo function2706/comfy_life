@@ -154,6 +154,10 @@ def route(method, path, q, body):
             return a.items.set_list(b["id"], int(b.get("qty", 0)))
         if path == "/api/items/stock":
             return a.items.set_stock(b["id"], int(b.get("qty", 0)))
+        if path == "/api/chores/share":
+            return a.chores.set_share(b["part"], b["who"])
+        if path == "/api/chores/respond":
+            return a.chores.respond(b["choice"])
         if path == "/api/quals/apply":
             return {"app": a.quals.apply(b["id"])}
         if path == "/api/anniv/say":

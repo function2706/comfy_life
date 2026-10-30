@@ -2,7 +2,9 @@
 
 - 散らかり・洗い物・洗濯物・ゴミ (それぞれ 0〜100. 0 = 片付いている). 暮らしているうちに少しずつたまる
   (家にいて起きている間がいちばん, 寝ている・出かけている間はほとんど. 同居相手がいれば早い. 料理をすれば洗い物, 来客のあとは散らかる).
-- 家事 (一人の時間) と「一緒に掃除」で片付く. 洗剤があるとはかどる.
+- 家事 (一人の時間) と「一緒に掃除」で片付く. 洗剤があるとはかどる. 一人の家事は, 全部か一つを選べる (一つなら早く済む).
+  洗濯は雨・雪の日は部屋干しで, 片付く量が減る. ゴミが減るのは, ワールドごとに決まった週 2 日のゴミの日の朝 (5:00〜8:30) だけ
+  (ほかの日はまとめておくだけで, 少ししか減らない). 同居相手との分担は core/chores.py.
 - 家に招いた相手は, 来たときの家の様子に反応する. 同居相手は, 日々の家の様子に反応する (一日に一度ほど, 気づいたときだけ).
   反応は性格しだい: きれい好き (traits.neat) ほど散らかりを気にし, 片付いていれば好印象を持ちやすい. 世話焼き (traits.carer) ほど,
   散らかっていると片付けを手伝い出す. 気にしない人もいる.
@@ -67,6 +69,10 @@ class Home:
                 r.setdefault(k, 10.0)
             r.setdefault("last_t", time.time())
             r.setdefault("live_seen", {})
+            if not r.get("trash_days"):            # ゴミの日 (週 2 日. ワールドごとに決まる. 3 日あける)
+                rnd = random.Random("trash:%s" % store.WORLD)
+                a = rnd.randint(0, 3)
+                r["trash_days"] = [a, a + 3]
             self._rec, self._wid = r, store.WORLD
         return self._rec
 
@@ -107,21 +113,50 @@ class Home:
         r["last_t"] = now
         self.save()
 
+    # ------------------------------------------------------------------ ゴミの日・天気
+    def trash_days(self):
+        return list(self.rec()["trash_days"])
+
+    def trash_ok(self, now=None):
+        """いまゴミを出せるか (ゴミの日の朝 5:00〜8:30)."""
+        d = datetime.fromtimestamp(now or time.time())
+        return d.weekday() in self.trash_days() and 5 * 60 <= d.hour * 60 + d.minute < 8 * 60 + 30
+
+    @staticmethod
+    def wet(now=None):
+        from .outdoor import weather
+        return weather(datetime.fromtimestamp(now or time.time()))["id"] in ("rain", "snow")
+
     # ------------------------------------------------------------------ 片付ける
-    def clean(self, power):
-        """片付ける (power = 片付く量の合計). たまっているものほど多く片付く. (前の目安, 後の目安) を返す."""
+    def clean(self, power, parts=None, now=None):
+        """片付ける (power = 片付く量の合計). parts: 片付けるもの (無ければ全部). たまっているものほど多く片付く.
+        洗濯は雨・雪なら部屋干し (6 割), ゴミはゴミの日の朝でなければまとめるだけ (2 割). (前の目安, 後の目安, 添える注意) を返す."""
         r = self.rec()
         before = self.score()
-        total = sum(float(r[k]) for k, _, _ in PARTS) or 1.0
-        for k, _, _ in PARTS:
-            r[k] = max(0.0, float(r[k]) - power * float(r[k]) / total)
+        keys = [k for k, _, _ in PARTS if not parts or k in parts]
+        total = sum(float(r[k]) for k in keys) or 1.0
+        notes = []
+        for k in keys:
+            got = power * float(r[k]) / total
+            if k == "laundry" and self.wet(now) and float(r[k]) >= 5:
+                got *= 0.6
+                notes.append("雨で部屋干し、乾きにくい")
+            if k == "trash" and not self.trash_ok(now) and float(r[k]) >= 5:
+                got *= 0.2
+                notes.append("ゴミの日じゃないので、まとめておいただけ")
+            r[k] = max(0.0, float(r[k]) - got)
         self.save()
-        return before, self.score()
+        return before, self.score(), notes
 
-    def chores(self, h, soap, jit):
-        """一人の時間の家事 (h 時間). 片付き具合の説明を返す."""
-        before, after = self.clean(100.0 * h * (1.0 if soap else 0.55) * jit)
-        return "家は「%s」→「%s」" % (level_of(before)[1], level_of(after)[1])
+    def chores(self, h, soap, jit, part=None, now=None):
+        """一人の時間の家事 (h 時間. part: 一つだけ片付けるなら). 片付き具合の説明を返す."""
+        before, after, notes = self.clean(100.0 * h * (1.0 if soap else 0.55) * jit, [part] if part else None, now)
+        if part:
+            r = self.rec()
+            how = "%sは「%s」" % (PART_LABEL[part], WORDS[part][min(4, int(float(r[part]) // 20))])
+        else:
+            how = "家は「%s」→「%s」" % (level_of(before)[1], level_of(after)[1])
+        return how + ("。" + "・".join(notes) if notes else "")
 
     # ------------------------------------------------------------------ 性格
     def _attitude(self, char):
@@ -219,4 +254,5 @@ class Home:
         worst = max(parts, key=lambda p: p["value"])
         return {"score": s, "level": lv, "label": label, "parts": parts,
                 "hint": ("%sが気になる" % worst["label"]) if worst["value"] >= 40 else "",
-                "at": datetime.now().strftime("%H:%M")}
+                "at": datetime.now().strftime("%H:%M"),
+                "trash_days": ["月火水木金土日"[d] for d in self.trash_days()], "trash_ok": self.trash_ok(), "wet": self.wet()}

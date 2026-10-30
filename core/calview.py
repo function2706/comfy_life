@@ -91,6 +91,12 @@ class CalView:
                     if day_match(e.get("days"), datetime(d.year, d.month, d.day)):
                         put(d.isoformat(), ent)
                     d += timedelta(days=1)
+        tdays = app.home.trash_days()                  # ゴミの日 (朝 8 時半まで)
+        d = first
+        while d < nxt:
+            if d.weekday() in tdays:
+                put(d.isoformat(), {"kind": "trash", "at": "", "text": "燃えるゴミの日（朝8時半まで）"})
+            d += timedelta(days=1)
         for d, e in app.quals.calendar(first, nxt):     # 資格: 申し込んだ試験の日・合否が届く日
             put(d, e)
         d = first                                   # 自分で書いたメモ (毎年くり返すものも)

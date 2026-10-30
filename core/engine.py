@@ -31,6 +31,7 @@ from . import attach as attach_mod
 from . import topics as topics_mod
 from . import anniv as anniv_mod
 from . import quals as quals_mod
+from . import chores as chores_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -164,6 +165,7 @@ class App:
         self.games = games.Games(self)
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
+        self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
         self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
@@ -670,6 +672,8 @@ class App:
         if st.get("anniv_msgs"):
             self.anniv.tick(char, st, now)     # 相手から言ってくること (記念日・誕生日の話・あなたの誕生日)
             changed = True
+        if self.bonds.living() == cid:
+            self.chores.tick(char, st, now)    # 同居相手の家事 (自分の担当・あなたの担当を気にする・さぼりの知らせ)
         ov = st.get("override")
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
@@ -2243,6 +2247,7 @@ class App:
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

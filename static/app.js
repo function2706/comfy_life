@@ -357,7 +357,10 @@ function renderSoloTab() {
           h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
         return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }, placeTip(pl)); })) : null,
     S.choresOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
-      btn('🧹', '片付け', () => { S.choresOpen = false; soloStart('chores'); }, '散らかり・洗い物・洗濯物・ゴミを片付ける（戻るまで。洗剤があるとはかどる）'),
+      btn('🧹', '全部', () => { S.choresOpen = false; soloStart('chores'); }, '散らかり・洗い物・洗濯物・ゴミをまとめて片付ける（戻るまで。洗剤があるとはかどる）'),
+      ...[['mess', '🧺', '部屋の片付け', ''], ['dishes', '🍽', '洗い物', ''], ['laundry', '👕', '洗濯', (v.home || {}).wet ? '（雨なので部屋干し。乾きにくい）' : ''],
+        ['trash', '🗑', 'ゴミ出し', (v.home || {}).trash_ok ? '（今ならゴミの日に出せる）' : `（ゴミの日は ${((v.home || {}).trash_days || []).join('・')}曜の朝8時半まで。ほかはまとめるだけ）`]]
+        .map(([id, ic, label, note]) => btn(ic, label, () => { S.choresOpen = false; soloStart('chores', id); }, `${label}だけ片付ける（一つなら早く済む）${note}`)),
       btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); })),
@@ -499,6 +502,12 @@ function drawHome() {
     h('p', { class: 'hint' }, '暮らしているうちに少しずつ散らかり（料理のあとは洗い物、来客のあとは少し散らかる）、家事や「一緒に掃除」で片付きます。洗剤があるとはかどります。',
       h('br'), '家に招いた相手は、来たときの家の様子を見ます。片付いていれば好印象を持ってもらえることもありますが、気づかないことも。散らかっていると、気にするか、気にしないか、片付けを手伝い出すかは性格しだいです。同居している相手も、日々の家の様子に気づきます。'),
     guest ? h('p', { class: 'small' }, `いま${(S.boot.characters.find((x) => x.id === guest[0]) || {}).name || ''}が家に来ています。`) : '',
+    h('p', { class: 'small' }, `🗑 ゴミの日は ${(hm.trash_days || []).join('・')}曜の朝（8時半まで）${hm.trash_ok ? '・いま出せます' : ''}${hm.wet ? '・☔ 今日の洗濯は部屋干し' : ''}`),
+    v.chores ? h('div', { class: 'pgroup' }, h('h4', {}, `家事の分担（${v.chores.name}と）`),
+      h('p', { class: 'hint' }, '相手の担当にするときは、引き受けてくれるかは相手しだい（そばにいるときに話します）。相手の担当がたまっていると、さぼりの知らせが出ます。'),
+      ...v.chores.share.map((x) => h('div', { class: 'row small', style: 'gap:6px;align-items:center' }, h('span', { style: 'min-width:6em' }, x.label),
+        ...[['me', 'あなた'], ['her', v.chores.name], ['either', '気づいた方']].map(([w, l]) => h('button', { class: 'btn small' + (x.who === w ? ' primary' : ' ghost'), disabled: S.busy || x.who === w,
+          onclick: async () => { if (S.busy) return; S.busy = true; try { const r = await api('/api/chores/share', { part: x.id, who: w }); if (r.entry) toast(r.entry.text.replace(/\n/g, ' '), r.ok ? 'ok' : 'err'); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); drawHome(); } } }, l))))) : '',
     h('div', { class: 'row' },
       h('button', { class: 'btn primary', disabled: !free || S.busy, title: free ? '家事をする（一人の時間）' : 'いまは始められません',
         onclick: () => { S.homeDlg.close(); soloStart('chores'); } }, '🧹 家事をする'),
@@ -971,6 +980,14 @@ function sparkline(vals, title) {
 function renderRequest() {
   const box = $('#request-box');
   const req = T() && T().life && T().life.request;      // おねがいは, そばにいるときに言われる
+  const cs = S.view.chores_slack;                       // 同居相手が家事をさぼっている: 出方を選ぶ
+  if (!req && cs) {
+    box.hidden = false;
+    box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `🧺 ${cs.name}の担当の${cs.part_label}`), h('div', { class: 'muted small' }, cs.text)),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...cs.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
+        onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/chores/respond', { choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
+    return;
+  }
   if (!req) { box.hidden = true; return; }
   const name = T().name;
   const label = { money: `お金を貸してほしいみたい（${yen(req.amount)}）`, gift: `買ってほしいものがあるみたい（${yen(req.amount)}）`,
@@ -1252,7 +1269,7 @@ function openCal(t) {
   openChat(null, true);
 }
 const calBtn = (t) => h('button', { class: 'btn ghost small', title: 'カレンダーでこの日を見る', onclick: () => openCal(t) }, '🗓');
-const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤', memo: '📝', exam: '🎓' };
+const CAL_ICON = { appoint: '📅', favor: '🤝', plan: '📌', sched: '👤', memo: '📝', exam: '🎓', trash: '🗑' };
 function dayOffset(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -1266,6 +1283,7 @@ function calEntry(e) {
         onclick: async () => { try { await api('/api/plan/remove', { id: e.id }); } catch (er) { toast(er.message, 'err'); } await drawChat(); refresh(); } }, '×'));
   }
   if (e.kind === 'exam') return h('div', { class: 'cal-ent' }, `🎓 ${e.at ? e.at + ' ' : ''}${e.text}`);
+  if (e.kind === 'trash') return h('div', { class: 'cal-ent muted' }, `🗑 ${e.text}`);
   if (e.kind === 'memo') {
     return h('div', { class: 'cal-ent' }, h('span', {}, `📝 ${e.text}${e.yearly ? '（毎年）' : ''}`),
       h('button', { class: 'btn small ghost danger', disabled: S.busy, title: 'メモを消す',
@@ -1313,7 +1331,7 @@ function calendarView(C, dlg) {
     cells.push(h('div', { class: 'cal-cell' + (iso === sel ? ' on' : '') + (iso === C.today ? ' today' : '') + (iso < C.today ? ' past' : '') + (wd === 5 ? ' sat' : wd === 6 ? ' sun' : ''),
       onclick: () => { S.calSel = iso; if (S.apForm && S.apForm.cal) S.apForm.day = Math.max(0, Math.min(13, dayOffset(iso))); drawChat(); } },
       h('div', { class: 'cal-num' }, String(d)),
-      h('div', { class: 'cal-marks' }, ...['memo', 'exam', 'appoint', 'favor', 'plan', 'sched'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
+      h('div', { class: 'cal-marks' }, ...['memo', 'exam', 'appoint', 'favor', 'plan', 'sched', 'trash'].filter((k) => kinds[k]).map((k) => h('span', {}, CAL_ICON[k] + (kinds[k] > 1 ? kinds[k] : ''))))));
   }
   const es = C.days[sel] || [];
   const [, mm, dd] = sel.split('-').map(Number);

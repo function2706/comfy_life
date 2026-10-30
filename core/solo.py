@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta
 
 from . import cond, llm, store
 from . import places as places_mod
+from .home import PART_LABEL
 
 KINDS = {
     "rest": {"label": "休む", "icon": "🛋", "mode": "busy", "doing": "休憩中", "go": "go_busy"},
@@ -152,6 +153,8 @@ class Solo:
                 raise ValueError("その資格の勉強はできません")
         elif kind == "practice" and skill not in SKILL_LABEL:
             raise ValueError("何を練習するか選んでください")
+        if kind == "chores" and skill and skill not in PART_LABEL:
+            raise ValueError("何を片付けるか選んでください")
         place = self._place(kind, place)
         p = app.presence.rec()
         if p.get("mode") not in ("none",) and app.presence.at(time.time()) not in ("here", "idle"):
@@ -339,7 +342,9 @@ class Solo:
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
-            how = app.home.chores(h, soap, jit * (0.85 + 0.35 * L.skill_soft("house")))   # 家が片付く (家事スキルで少しはかどる)
+            part = skill if skill in PART_LABEL else None        # 一つだけ (洗い物・洗濯など) なら, そこだけ
+            how = app.home.chores(h, soap, jit * (0.85 + 0.35 * L.skill_soft("house")), part, now)   # 家が片付く (家事スキルで少しはかどる)
+            app.chores.did_mine(part, h, now)              # 同居の分担: あなたの担当を片付けた / 相手の担当を代わりにやった
             L.train("house", min(2.0, 0.8 * h)) if h >= 0.25 else 0
             text = "%s家事をした。%s（%s）" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった", how)
             text += app.home.notice_chores(h, soap, now, jit)      # 同居相手が気づくかどうかは偶然

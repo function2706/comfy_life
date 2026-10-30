@@ -353,6 +353,7 @@ class Life:
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
             self.app.attach.daily(char, st, t1)                  # 献身度・依存度の日ごとの動き
             self.app.anniv.daily(char, st, t1)                   # 誕生日・記念日 (前の日の受け止め・今日のこと)
+            self.app.chores.daily(char, st, t1)                  # 同居相手: 今日, 自分の担当の家事をやる時刻
         self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
