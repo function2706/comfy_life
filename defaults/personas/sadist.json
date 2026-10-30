@@ -1982,6 +1982,30 @@
   "fight.not_forgiven": [
    "……そう。……悪かったわね"
   ],
+  "money.complain": [
+   "また{what}？ ふうん、ずいぶん余裕があるのね"
+  ],
+  "money.explain_ok": [
+   "……まあ、筋は通ってるわね。許してあげる"
+  ],
+  "money.explain_meh": [
+   "……言い訳ね。聞き苦しいわ"
+  ],
+  "money.sorry_ok": [
+   "いい子ね。わかればいいのよ"
+  ],
+  "money.fight": [
+   "{fp}に口答えする気？"
+  ],
+  "money.ignore": [
+   "……聞いてないのね。覚えておくわ"
+  ],
+  "money.remark_treat": [
+   "……たまには{call}が{fp}に貢いでもいいのよ？"
+  ],
+  "money.remark_owe": [
+   "いつも出させてるのは、さすがに気が引けるわ。次は{fp}が出してあげる"
+  ],
   "chat.apology_half": [
    "📱『……ふうん。半分だけ、許してあげる』"
   ],

@@ -2015,6 +2015,30 @@
   "fight.not_forgiven": [
    "……そう。……ごめん"
   ],
+  "money.complain": [
+   "……また{what}？ 使いすぎ"
+  ],
+  "money.explain_ok": [
+   "……そう。ならいい"
+  ],
+  "money.explain_meh": [
+   "……ふうん"
+  ],
+  "money.sorry_ok": [
+   "……わかったなら、いい"
+  ],
+  "money.fight": [
+   "……心配して言ってるのに"
+  ],
+  "money.ignore": [
+   "……聞いてない。もういい"
+  ],
+  "money.remark_treat": [
+   "……たまには、おごってくれてもいい"
+  ],
+  "money.remark_owe": [
+   "……いつも出してもらってる。次は{fp}が出す"
+  ],
   "chat.apology_half": [
    "📱『……ん。わかった』"
   ],

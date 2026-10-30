@@ -2026,6 +2026,30 @@
   "fight.not_forgiven": [
    "……そうね。……ごめんなさい"
   ],
+  "money.complain": [
+   "また{what}？ 支出の計画はあるの？"
+  ],
+  "money.explain_ok": [
+   "……根拠があるなら了解よ。上限は決めておいて"
+  ],
+  "money.explain_meh": [
+   "……説明としては不十分ね"
+  ],
+  "money.sorry_ok": [
+   "了解。次から計画的にお願い"
+  ],
+  "money.fight": [
+   "合理的な指摘に感情で返すのはやめて"
+  ],
+  "money.ignore": [
+   "……聞いていないわね。以上"
+  ],
+  "money.remark_treat": [
+   "たまには{call}が負担してもいいのよ"
+  ],
+  "money.remark_owe": [
+   "毎回負担してもらうのは不公平よ。次は{fp}が出すわ"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],

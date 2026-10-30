@@ -2013,6 +2013,30 @@
   "fight.not_forgiven": [
    "……そうね。……悪かったわ"
   ],
+  "money.complain": [
+   "また{what}？ 少し軽率ではなくて？"
+  ],
+  "money.explain_ok": [
+   "……そう。考えがあるなら、いいわ"
+  ],
+  "money.explain_meh": [
+   "……ふうん。納得はしていないけれど"
+  ],
+  "money.sorry_ok": [
+   "わかればいいのよ。気をつけなさい"
+  ],
+  "money.fight": [
+   "忠告してあげているのに、その言い方は何？"
+  ],
+  "money.ignore": [
+   "……聞いていないのね。もういいわ"
+  ],
+  "money.remark_treat": [
+   "……たまには、{call}がもてなしてくれてもいいのよ"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらってばかりでは、{fp}の気が済まないわ。次は{fp}が"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、すっかり水に流したわけではないわ』"
   ],

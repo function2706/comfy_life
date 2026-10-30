@@ -2475,6 +2475,30 @@
   "fight.not_forgiven": [
    "……ちぇ。……ごめんって"
   ],
+  "money.complain": [
+   "また{what}〜？ 散財しすぎじゃない？"
+  ],
+  "money.explain_ok": [
+   "ふーん、そういうこと。ならいいけど〜"
+  ],
+  "money.explain_meh": [
+   "……ふーん。なんか言い訳っぽい"
+  ],
+  "money.sorry_ok": [
+   "わかればよろしい。ふふ"
+  ],
+  "money.fight": [
+   "心配してあげてるのに、何その言い方"
+  ],
+  "money.ignore": [
+   "……聞いてないでしょ。つまんないの"
+  ],
+  "money.remark_treat": [
+   "たまには{call}のおごりでもいいんだよ〜？"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらって悪いね〜。次は{fp}が出してあげる"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、半分だけ許してあげる』"
   ],

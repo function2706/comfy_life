@@ -2052,6 +2052,30 @@
   "fight.not_forgiven": [
    "……そうだよね。……ごめんね"
   ],
+  "money.complain": [
+   "また{what}……？ ちょっと、心配だな"
+  ],
+  "money.explain_ok": [
+   "……そっか。ちゃんと考えてるなら、よかった"
+  ],
+  "money.explain_meh": [
+   "……うん。わかった、けど……"
+  ],
+  "money.sorry_ok": [
+   "うん、わかってくれて、うれしい"
+  ],
+  "money.fight": [
+   "……心配してるだけなのに、そんなふうに言わないで"
+  ],
+  "money.ignore": [
+   "……聞いてないよね。……もういいよ"
+  ],
+  "money.remark_treat": [
+   "……たまには、{call}がごちそうしてくれたら、うれしいな"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらって、ごめんね。次は{fp}に出させて"
+  ],
   "chat.apology_half": [
    "📱『……うん。……もう少しだけ、時間がほしいな』"
   ],

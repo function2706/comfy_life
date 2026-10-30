@@ -2028,6 +2028,30 @@
   "fight.not_forgiven": [
    "……そうだな。……すまない"
   ],
+  "money.complain": [
+   "また{what}か。少し使いすぎじゃないか"
+  ],
+  "money.explain_ok": [
+   "……そうか。考えがあるならいい"
+  ],
+  "money.explain_meh": [
+   "……わかったが、納得はしていない"
+  ],
+  "money.sorry_ok": [
+   "わかってくれたならいい。気をつけろ"
+  ],
+  "money.fight": [
+   "心配して言っているんだ。その言い方はないだろう"
+  ],
+  "money.ignore": [
+   "……聞いていないな。もういい"
+  ],
+  "money.remark_treat": [
+   "……たまには、{call}がおごってくれてもいいんだぞ"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらって悪いな。次は{fp}が出す"
+  ],
   "chat.apology_half": [
    "📱『……ああ。だが、まだ全部は飲み込めていない』"
   ],

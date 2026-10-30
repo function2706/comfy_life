@@ -2021,6 +2021,30 @@
   "fight.not_forgiven": [
    "……だよね。……ごめん"
   ],
+  "money.complain": [
+   "また{what}？ 大丈夫なの、それ"
+  ],
+  "money.explain_ok": [
+   "……ふーん、そういうことならいいけどさ"
+  ],
+  "money.explain_meh": [
+   "……まあ、わかったけど。なんかなー"
+  ],
+  "money.sorry_ok": [
+   "わかったならいいよ。ほどほどにね"
+  ],
+  "money.fight": [
+   "心配してんのに、なんだよその言い方"
+  ],
+  "money.ignore": [
+   "……聞いてないし。もういい"
+  ],
+  "money.remark_treat": [
+   "……たまには{call}がおごってくれてもいいんだよ？"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらってばっかで悪いよ。次は{fp}が出す"
+  ],
   "chat.apology_half": [
    "📱『……うん。まあ、わかった』"
   ],

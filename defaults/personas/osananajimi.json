@@ -2321,6 +2321,30 @@
   "fight.not_forgiven": [
    "……だよね。……ごめん"
   ],
+  "money.complain": [
+   "また{what}？ 昔から無駄遣い多いよね"
+  ],
+  "money.explain_ok": [
+   "ふーん、そういうことね。ならいいけど"
+  ],
+  "money.explain_meh": [
+   "……なんか言い訳くさいなー"
+  ],
+  "money.sorry_ok": [
+   "わかればいいの。気をつけなよ"
+  ],
+  "money.fight": [
+   "心配してやってんのに、なにその言い方"
+  ],
+  "money.ignore": [
+   "……聞いてないでしょ。もういい"
+  ],
+  "money.remark_treat": [
+   "たまには{call}がおごってよ。昔はおごってくれたじゃん"
+  ],
+  "money.remark_owe": [
+   "いつも出してもらって悪いって。次は{fp}が出す"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、わかったけど』"
   ],
