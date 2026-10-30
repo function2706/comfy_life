@@ -1051,16 +1051,48 @@ function phonePanel() {
 
 /* ---- 持ち物: 持っている品物・買うものリスト・品物の一覧 (どの店で売っているか) */
 const PLACE_LABEL = (id) => ((S.view.outdoor || {}).places || {})[id] ? `${S.view.outdoor.places[id].icon}${S.view.outdoor.places[id].label}` : id;
+// 買うものリスト: 品物の一行 (リストに入れる数 −/＋ と 常備 −/＋). 持ち物タブとリストのウィンドウで同じ形
+const SL_GROUPS = [['food', '🍚 食べ物', ['food', 'meal']], ['tea', '☕ お茶・おやつ', ['tea', 'sweets']], ['daily', '🧴 日用品・薬', ['detergent', 'medicine']],
+  ['book', '📚 本・教材', null], ['gift', '🎁 服・小物・プレゼント', null]];
+const slGroup = (it) => (SL_GROUPS.find(([, , ks]) => ks && ks.includes(it.kind)) || (String(it.kind).startsWith('book') ? SL_GROUPS[3] : SL_GROUPS[4]))[0];
+async function slSet(path, id, qty) {
+  try { await api(path, { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); }
+  if (S.slDlg && S.slDlg.open) drawShopList();
+}
+function slRow(it, iv, opts = {}) {
+  const want = Object.fromEntries(iv.shop_list.map((x) => [x.id, x.want]));
+  const stock = iv.stock || {};
+  const have = Object.fromEntries(iv.items.map((x) => [x.id, x.count]));
+  return h('div', { class: 'row item-row' + (want[it.id] ? ' on' : '') },
+    h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`,
+      h('span', { class: 'muted small' }, ` ${yen(it.price)}前後${it.servings > 1 ? `（${it.servings}回分）` : ''}${have[it.id] ? `・手元 ${have[it.id]}${it.nut ? '回分' : ''}` : ''}`),
+      opts.where === false ? '' : h('div', { class: 'muted small' }, it.places.map(PLACE_LABEL).join(' ')),
+      iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
+    h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => slSet('/api/items/list', it.id, (want[it.id] || 0) - 1) }, '−'),
+    h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
+    h('button', { class: 'btn small', onclick: () => slSet('/api/items/list', it.id, (want[it.id] || 0) + 1) }, '＋'),
+    h('span', { class: 'muted small', style: 'margin-left:10px' }, '常備'),
+    h('button', { class: 'btn small ghost', disabled: !stock[it.id], title: '常備数を減らす', onclick: () => slSet('/api/items/stock', it.id, (stock[it.id] || 0) - 1) }, '−'),
+    h('span', { class: 'small', style: 'min-width:3.2em;text-align:center;white-space:nowrap' }, stock[it.id] ? `${stock[it.id]}${it.nut ? '回' : ''}` : '—'),
+    h('button', { class: 'btn small ghost', title: '常備数を増やす', onclick: () => slSet('/api/items/stock', it.id, (stock[it.id] || 0) + 1) }, '＋'));
+}
+// 買うものリストのまとめ: 何品・およそいくら・どの店でいくつ買えるか
+function slSummary(iv, cat) {
+  const byId = Object.fromEntries(cat.map((it) => [it.id, it]));
+  const list = iv.shop_list.filter((x) => byId[x.id]);
+  const total = list.reduce((a, x) => a + byId[x.id].price * x.want, 0);
+  const stores = {};
+  for (const x of list) for (const pl of byId[x.id].places) stores[pl] = (stores[pl] || 0) + 1;
+  const best = Object.entries(stores).sort((a, b) => b[1] - a[1]);
+  return { list, total, best, byId };
+}
 function renderItems() {
   const box = $('#tab-items');
   const iv = S.view.items || { items: [], shop_list: [] };
   const cat = (S.boot.catalog || {}).items || [];
-  const want = Object.fromEntries(iv.shop_list.map((x) => [x.id, x.want]));
-  const setWant = async (id, qty) => { try { await api('/api/items/list', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
-  const stock = iv.stock || {};
-  const setStock = async (id, qty) => { try { await api('/api/items/stock', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
   const t = T();
   const canGive = !!(t && (t.available.gift || {}).ok);   // いま目の前にいて, 受け取れる状態か
+  const sm = slSummary(iv, cat);
   box.replaceChildren(
     h('div', { class: 'pgroup' }, h('h4', {}, '🎒 持ち物'),
       iv.items.length ? iv.items.map((it) => h('div', { class: 'row item-row' },
@@ -1069,19 +1101,66 @@ function renderItems() {
           onclick: () => giveItem(it.id, t.character) }, `🎁 ${t.name}に渡す`) : ''))
         : h('p', { class: 'muted small' }, 'なにも持っていない。買うものリストに入れておくと、買い物のときに買ってくる。'),
       h('p', { class: 'hint' }, '料理は食材、お茶はお茶っ葉・コーヒー豆、おやつはお菓子を使います（無ければありあわせで効き目が落ちる）。家事は洗剤があるとはかどり、研鑽はその分野の本があると伸びやすくなります（本は減りません）。')),
-    h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
-      h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。リストにない物をつい買うこともあります。'),
-      h('p', { class: 'hint' }, '「常備」は、いつも置いておきたい数です（持ち物と同じ数え方。食材は回分）。使って減ってこの数を下回ると、足りない分がリストに戻ります。リストから消しても、次に使って減るまでは戻しません。'),
-      cat.map((it) => h('div', { class: 'row item-row' },
-        h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後${it.servings > 1 ? `（${it.servings}回分）` : ''}・${it.places.map(PLACE_LABEL).join(' ')}`),
-          iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
-        h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => setWant(it.id, (want[it.id] || 0) - 1) }, '−'),
-        h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
-        h('button', { class: 'btn small', onclick: () => setWant(it.id, (want[it.id] || 0) + 1) }, '＋'),
-        h('span', { class: 'muted small', style: 'margin-left:10px' }, '常備'),
-        h('button', { class: 'btn small ghost', disabled: !stock[it.id], title: '常備数を減らす', onclick: () => setStock(it.id, (stock[it.id] || 0) - 1) }, '−'),
-        h('span', { class: 'small', style: 'min-width:3.2em;text-align:center;white-space:nowrap' }, stock[it.id] ? `${stock[it.id]}${it.nut ? '回' : ''}` : '—'),
-        h('button', { class: 'btn small ghost', title: '常備数を増やす', onclick: () => setStock(it.id, (stock[it.id] || 0) + 1) }, '＋')))));
+    h('div', { class: 'pgroup' }, h('div', { class: 'row' }, h('h4', { style: 'margin:0' }, '📝 買うものリスト'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn small primary', onclick: () => openShopList() }, '📝 リストを開く（店ごと・種類ごと）')),
+      sm.list.length ? [
+        h('div', { class: 'small', style: 'margin:6px 0' }, `${sm.list.length}品・およそ ${yen(sm.total)}`,
+          sm.best.length ? h('span', { class: 'muted' }, `　${sm.best.slice(0, 3).map(([pl, n]) => `${PLACE_LABEL(pl)} ${n}品`).join('・')}`) : ''),
+        ...sm.list.map((x) => slRow(sm.byId[x.id], iv))]
+        : h('p', { class: 'muted small' }, 'リストは空です。「リストを開く」から、店ごと・種類ごとに選べます。')));
+}
+// 買うものリストのウィンドウ: リスト (いま入っているもの) / 店ごと (その店で買えるもの) / 種類ごと
+function openShopList(view) {
+  if (!S.slDlg) {
+    S.slDlg = h('dialog', { class: 'modal', style: 'width:min(720px,96vw);height:min(86vh,900px);overflow:auto' });
+    document.body.append(S.slDlg);
+  }
+  if (view) S.slView = view;
+  drawShopList();
+  if (!S.slDlg.open) S.slDlg.showModal();
+}
+function drawShopList() {
+  const iv = (S.view || {}).items || { items: [], shop_list: [] };
+  const cat = (S.boot.catalog || {}).items || [];
+  const sm = slSummary(iv, cat);
+  const view = S.slView || 'list';
+  const tab = (id, label) => h('button', { class: 'btn small' + (view === id ? ' primary' : ' ghost'), onclick: () => { S.slView = id; drawShopList(); } }, label);
+  let body;
+  if (view === 'store') {
+    const stores = {};
+    for (const it of cat) for (const pl of it.places) (stores[pl] = stores[pl] || []).push(it);
+    const ids = Object.keys(stores);
+    const cur = ids.includes(S.slStore) ? S.slStore : (sm.best[0] || [ids[0]])[0];
+    S.slStore = cur;
+    const inList = (pl) => (stores[pl] || []).filter((it) => sm.list.some((x) => x.id === it.id)).length;
+    const od = ((S.view || {}).outdoor || {}).places || {};
+    const P = od[cur] || {};
+    body = [h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px;margin-bottom:8px' }, ...ids.map((pl) =>
+        h('button', { class: 'btn small' + (pl === cur ? ' primary' : ' ghost'), onclick: () => { S.slStore = pl; drawShopList(); } },
+          `${PLACE_LABEL(pl)}${inList(pl) ? `（${inList(pl)}）` : ''}`))),
+      h('div', { class: 'muted small', style: 'margin-bottom:6px' }, `${PLACE_LABEL(cur)}で売っているもの${P.hours ? `・${P.hours}` : ''}${P.open === false ? `・いまは${P.note || '閉まっている'}` : ''}。（ ）はリストの中でこの店で買えるもの`),
+      ...stores[cur].map((it) => slRow(it, iv, { where: false }))];
+  } else if (view === 'kind') {
+    body = SL_GROUPS.map(([g, label]) => {
+      const its = cat.filter((it) => slGroup(it) === g);
+      return its.length ? h('div', { class: 'pgroup' }, h('h4', {}, label), ...its.map((it) => slRow(it, iv))) : '';
+    });
+  } else {
+    body = sm.list.length ? [
+      h('div', { class: 'small', style: 'margin-bottom:6px' }, `${sm.list.length}品・およそ ${yen(sm.total)}`),
+      h('div', { class: 'muted small', style: 'margin-bottom:8px' }, '回りやすい店: ' + sm.best.slice(0, 5).map(([pl, n]) => `${PLACE_LABEL(pl)} ${n}/${sm.list.length}品`).join('・')),
+      ...SL_GROUPS.map(([g, label]) => {
+        const its = sm.list.filter((x) => slGroup(sm.byId[x.id]) === g);
+        return its.length ? h('div', { class: 'pgroup' }, h('h4', {}, label), ...its.map((x) => slRow(sm.byId[x.id], iv))) : '';
+      })]
+      : [h('p', { class: 'muted' }, 'リストは空です。「店ごと」「種類ごと」から入れられます。')];
+  }
+  S.slDlg.replaceChildren(h('div', { style: 'padding:16px' },
+    h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, '📝 買うものリスト'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small', onclick: () => S.slDlg.close() }, '✕')),
+    h('div', { class: 'row', style: 'gap:6px;margin:10px 0' }, tab('list', `リスト（${sm.list.length}）`), tab('store', '店ごと'), tab('kind', '種類ごと')),
+    h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。「常備」はいつも置いておきたい数で、使って減って下回ると足りない分がリストに戻ります。'),
+    ...body));
 }
 async function giveItem(item, cid) {
   if (S.busy) return;
