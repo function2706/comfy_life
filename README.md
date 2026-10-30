@@ -218,7 +218,7 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 休む・家事・研鑽（スキルを選ぶ）・外出（行き先を選ぶ）は「始めて、戻るまで」。在席状態は家なら busy、外なら out（`presence.solo` に中身）。そばにいる相手がいれば既存の `go_busy` / `go_out` として声をかけ（`POST /api/solo/start {kind, skill, place, character}`）、いなければあなたの行動だけ記録。
 - 戻ると（`come_back`）過ごした時間で結果: 休む = 体力回復が速い（`economy.stamina_recover_rest`）、家事 = 家が片付き（`home.chores`）、同居相手が気づけば機嫌が少し上がる（偶然、`home.notice_chores`）、研鑽 = スキル（揺らぎあり）、外出 = 行き先しだい（`places.solo_kind`: 公園・河川敷などは歩く、店は買い物（買うものリストの品）、カフェはお茶、水族館・遊園地は見て回る（入場料 `fee`）、外出中は偶然の出会いの判定（補正なし））。以前の「一人で散歩・一人で買い物・カフェで過ごす」（`walk` / `shopping` / `cafe`）は外出 + 行き先に読み替える（`solo.LEGACY`）。
 - 外出の行き先に相手の家（家に行ける仲）を選ぶと、約束なしに訪ねる（`App.drop_in`）: 本人の予定で留守・寝ている・手が離せなければ出てこない。家にいれば、好感度・信頼・機嫌・慎重さ・時間帯（夜は迷惑）で迎えてくれるか決まる（`drop.yes` → 相手の家で過ごす `with.mode = visit` / `drop.no` → 機嫌の理由に残る）。迎えてもらえなければ、そのまま外（街）にいる。
-- 日記: その日のログ（全キャラ + 一人の時間）から、LLM が有効なら LLM、無ければ定型で。`mylog.json` / `diary.json`（ワールドごと）。API: `POST /api/solo/start {kind, skill}`、`POST /api/diary/write`、`GET /api/diary`。
+- 日記: その日のログ（全キャラ + 一人の時間）から、LLM が有効なら LLM、無ければ定型で。一人の時間は `Solo.day_mine`: 始めたときの一行（`START_TEXT` / `PLAIN` の text）・計画の知らせ・`void` を除き, 同じ出来事（一方がもう一方の書き出し. 結果と「戻る」など）は長いほう一つ, 閉じていた間のまとめは `offline.parse_summary` で行動ごとにそれぞれの日へ。定型は 6 件まで（仕事の一行は残す）, `Solo._short` で文の切れ目（括弧の外の「。」）まで, 長ければ読点で「…」。直す前に定型で書いた日記は起動時に一度だけ書き直す（`rewrite_diaries`。`diary_fix_v1`。書いた時刻はそのまま, LLM の日記と, 一人の時間の記録（500 件まで）が足りない日はそのまま）。`mylog.json` / `diary.json`（ワールドごと）。API: `POST /api/solo/start {kind, skill}`、`POST /api/diary/write`、`GET /api/diary`。
 - 新しいセリフは足していない（相手の反応は既存の「ちょっと作業するね」「ちょっと出かけてくる」のセリフ、一人のときはナレーション）。
 
 ### 現実的であること（このアプリの公理）
@@ -341,7 +341,7 @@ python tools/minigame_lab.py --port 8792 --no-browser
 
 `core/planner.py`。「一人で」タブの「予定」（`state_view.plan`）。保存は `player.json` の `plan`（`items` 日付つきの予定 / `fallback` 未指定時コマンド / `auto` 自動の応答の方針）。API: `POST /api/plan/add {date, at, item}`・`/api/plan/remove {id}`・`/api/plan/fallback {items}`・`/api/plan/auto {street, reply}`。
 - 予定は次の予定の時刻（同じ日のうち）まで続く。過ぎた日の分は消える（`purge`）。組める先の日数は段取りのスキル（仕事・やりくりの平均）25 ごとに 1 日（明日まで〜最大 5 日先. `horizon_days`）。約束の時刻（前 30 分〜後 2 時間）には組めない。
-- 閉じていた間（`offline.simulate`）: 予定を組んでいれば `Offline._plan_blocks` で, 予定 → できなければ（`Planner.cannot`: 閉まっている・入場料/外食のお金・体力・仕事の時間外・体調・アルバイトなし）未指定時コマンドを優先度順 → 設定の行動パターン → 何もしない。空き時間は未指定時コマンドから。約束の時間は約束（`Offline._appoint`: 会う. 効き目は `act` の `auto_weak` で良い方向を 4 割に）。次の予定で切り上げたもの（買い物・家事・研鑽などの目安より短い）は `cut`。タイムラインの各項目の `plan` に `src`（plan / fallback / routine / none / appoint）・`why`・`orig`・`at`。何も組んでいなければ今までどおり。
+- 閉じていた間（`offline.simulate`）: 予定を組んでいれば `Offline._plan_blocks` で, 予定 → できなければ（`Planner.cannot`: 閉まっている・入場料/外食のお金・体力・仕事の時間外・体調・アルバイトなし）未指定時コマンドを優先度順 → 設定の行動パターン → 何もしない。空き時間（`Offline._gap_blocks`）: 予定を一つも組んでいない日は設定の行動パターンどおり（未指定時コマンドがあっても）。予定を組んだ日は, 行動パターンの勤め（仕事・アルバイト）はそのとおり, それ以外は未指定時コマンド（できるもの）→ 行動パターン。以前は空き時間がすべて未指定時コマンドになり, 予定を組んでいない日に仕事をしなかった。その取りこぼしは起動時に一度だけ `Offline.retro_missed_work` で払う（`player.json` の `retro_work_v1`）: 一人の時間の記録に残る閉じていた間のまとめ（`parse_summary` で行動ごとに戻す）から, 行動パターンでは仕事の時間に未指定時コマンドらしい行動（または何も載っていない. 未指定時コマンドに休む・家で過ごすがあるときだけ）をしていたところを `work_pay(record=True)` で。払わない: その日に給料・バイト代が入っている / `work_log` に働いた時間がある / その日に仕事の記録 / 約束 / 未指定時コマンドに無い行動 / 家計簿の裏の記録（`RAW_DAYS`）より前。記録は家計簿（いまの日付で「給料（◯/◯ の分。あとから）」）・一人の時間（その日の時刻で `work` の `retro`, いまの日付で `money` の合計）。置き換わったまとめの行動は `void_parts`, その結果の一行は `void`（日記に出さない）。約束の時間は約束（`Offline._appoint`: 会う. 効き目は `act` の `auto_weak` で良い方向を 4 割に）。次の予定で切り上げたもの（買い物・家事・研鑽などの目安より短い）は `cut`。タイムラインの各項目の `plan` に `src`（plan / fallback / routine / none / appoint）・`why`・`orig`・`at`。何も組んでいなければ今までどおり。
 - 画面を開いている間に予定の時刻が来たら（`Planner.live`）, 知らせて記録するだけ（`appoint_events` に一行・あなたの記録）。
 - 自動の応答: ばったりは方針どおり（25% は無難な対応に読み違える）, 効き目は半分（`street.resolve(weak=True)`）。届いたメッセージは方針があれば少しあとに自動で返す（`presence._reply(auto=True)`: 受け取り方の揺らぎ ±25・効き目は半分. トークに「・自動」）。
 
@@ -569,6 +569,7 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記）のテスト
+tools/test_offline_fallback.py  予定を組んでいない日の閉じていた間の仕事・予定を組んだ日の勤め・以前の取りこぼしの払い（一度だけ・払わない日）・日記（振り分け・重複・切れ・書き直し）のテスト
 tools/test_join.py  出先での合流（誘う・誘われる・断られる）と互いの家へ（暮らしぶり・家の様子）のテスト
 tools/test_hours.py  行き先の営業時間（定休日・季節・閉まっていれば行けない・閉店で出される・約束・行動パターン）のテスト
 tools/test_api_errors.py  API のお断り（400 とログ 1 行）・想定外の例外（トレースバック）・内職を始められない理由の表示のテスト

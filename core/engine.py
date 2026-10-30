@@ -172,6 +172,8 @@ class App:
         self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
         self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
         self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
+        paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
+        self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
         self._ensure_worker()
 
     # ------------------------------------------------------------------ config

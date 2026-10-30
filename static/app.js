@@ -2527,7 +2527,7 @@ function planSection(v) {
   const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
   return h('details', { class: 'cat plan', open: !!S.planOpen, ontoggle: (ev) => { S.planOpen = ev.target.open; } },
     h('summary', { class: 'cat-title' }, `🗓 予定（画面を閉じている間）${P.items.length ? `　${P.items.length}件` : ''}`),
-    h('p', { class: 'hint' }, `${P.horizon}日先まで組めます（段取りのスキル ${P.skill}。上がると先まで）。予定のコマンドができなければ、未指定時コマンドを上から順に、それもできなければ設定の行動パターン。約束の時刻は約束が先です。画面を開いているときは、時刻になっても知らせるだけです。`),
+    h('p', { class: 'hint' }, `${P.horizon}日先まで組めます（段取りのスキル ${P.skill}。上がると先まで）。予定のコマンドができなければ、未指定時コマンドを上から順に、それもできなければ設定の行動パターン。予定を組んでいない日は設定の行動パターンどおり、予定を組んだ日も仕事・アルバイトの時間は働きます。約束の時刻は約束が先です。画面を開いているときは、時刻になっても知らせるだけです。`),
     ...byDate.map(([d, xs, as]) => (xs.length || as.length) ? h('div', { class: 'plan-day' }, h('b', {}, md(d)),
       ...as.map((a) => h('div', { class: 'plan-row muted' }, `📅 ${a.at} ${a.name}との約束（${a.place}）`)),
       ...xs.map((x) => h('div', { class: 'plan-row' + (S.planEdit === x.id ? ' editing' : '') }, h('span', {}, `${x.at} ${x.label}`),

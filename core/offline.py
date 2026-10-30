@@ -19,6 +19,7 @@
 """
 import math
 import random
+import re
 import time
 from datetime import datetime, timedelta
 
@@ -67,6 +68,36 @@ DEFAULT = {"enabled": True, "min_minutes": 30}
 def _hm(s):
     h, m = str(s).split(":")
     return int(h) * 60 + int(m)
+
+
+SUMMARY_HEAD = "画面を閉じていたあいだ: "
+_PART = re.compile(r"(\d\d)/(\d\d) (\d\d):(\d\d)〜(\d\d):(\d\d) ")
+
+
+def parse_summary(note):
+    """閉じていた間のまとめ (一人の時間の記録 kind offline. Offline._summary) を, 行動ごと [{s, e, text}] に戻す.
+    まとめは戻った日の記録だが, 中身はそれぞれの日の出来事 (日記はこれで, その日に振り分ける). 寝る・休む・家で静かには載っていない."""
+    text = note.get("text") or ""
+    if not text.startswith(SUMMARY_HEAD):
+        return []
+    body = text[len(SUMMARY_HEAD):]
+    ms = list(_PART.finditer(body))
+    out = []
+    t1 = datetime.fromtimestamp(note["t"])
+    for i, m in enumerate(ms):
+        seg = body[m.end():ms[i + 1].start() if i + 1 < len(ms) else len(body)]
+        seg = re.sub(r"／メッセージ \d+ 件$", "", seg).rstrip("／")
+        mo, d, h, mi, h2, mi2 = (int(x) for x in m.groups())
+        y = t1.year - (1 if (mo, d) > (t1.month, t1.day) else 0)          # 年をまたいだまとめ
+        try:
+            s = datetime(y, mo, d, h, mi)
+        except ValueError:
+            continue
+        e = s.replace(hour=h2, minute=mi2)
+        if e <= s:
+            e += timedelta(days=1)
+        out.append({"s": s.timestamp(), "e": e.timestamp(), "text": seg})
+    return out
 
 
 def from_work(work):
@@ -265,13 +296,20 @@ class Offline:
 
     def _plan_blocks(self, t0, t1, stamina_now, routine_on):
         """予定の順番で, 閉じていた間の行動を決める: 予定 → できなければ未指定時コマンド (優先度順) → 設定の行動パターン → 何もしない.
-        空き時間は未指定時コマンドから. 約束の時間は約束. 体力は過ごしながら変わるので, 決めるたびに今の値を見る."""
+        約束の時間は約束. 体力は過ごしながら変わるので, 決めるたびに今の値を見る.
+        空き時間 (予定の無い時間) は, 行動パターンの仕事・アルバイト (勤め) があればそれが先. 予定を一つも組んでいない日は,
+        行動パターンどおり (未指定時コマンドは, 予定を組んだ日の空き時間と, 予定ができなかったときのため)."""
         app = self.app
         P = app.planner
         fb = P.rec()["fallback"]
+        planned = {x["date"] for x in P.rec()["items"]}
         for s, e, kind, x in P.slots(t0, t1):
             if kind == "appoint":
                 yield s, e, {"do": "appoint", "appoint": x["id"], "_plan": {"src": "appoint"}}
+                continue
+            if kind == "gap" and routine_on:
+                for s2, e2, b2 in self._gap_blocks(s, e, planned, stamina_now):
+                    yield s2, e2, b2
                 continue
             why = None
             meta = {"orig": P.label(x), "at": x["at"]} if x else {"orig": None, "at": None}
@@ -292,6 +330,24 @@ class Offline:
                     first = False
                 continue
             yield s, e, {"do": "home", "_plan": dict(meta, src="none", why=why or "予定なし")}
+
+    def _gap_blocks(self, s, e, planned, stamina_now):
+        """予定の無い時間 [s, e): 行動パターンの勤め (仕事・アルバイト) はそのとおり. 予定を組んでいない日は行動パターンどおり.
+        予定を組んだ日の, 勤め以外の空き時間は, 未指定時コマンド (できるもの) → 行動パターン."""
+        P = self.app.planner
+        fb = P.rec()["fallback"]
+        meta = {"orig": None, "at": None}
+        for s2, e2, b2 in self.blocks(s, e):
+            day = datetime.fromtimestamp(s2).strftime("%Y-%m-%d")
+            if b2["do"] in ("work", "parttime") or day not in planned or not fb:
+                yield s2, e2, dict(b2, _plan=None)
+                continue
+            # 同じ日に予定があるときの空き時間: 未指定時コマンドから (体力はその場の値で見る)
+            f = next((f for f in fb if not P.cannot(f, s2, stamina_now())), None)
+            if f:
+                yield s2, e2, dict(f, _plan=dict(meta, src="fallback", why="予定なし", label=P.label(f)))
+            else:
+                yield s2, e2, dict(b2, _plan=None)
 
     @staticmethod
     def _cut(b, s, e, t1):
@@ -508,6 +564,108 @@ class Offline:
         if rep["messages"]:
             parts.append("メッセージ %d 件" % len(rep["messages"]))
         return "画面を閉じていたあいだ: " + "／".join(parts)
+
+    # ------------------------------------------------------------------ 以前の取りこぼし (起動時に一度だけ)
+    def retro_missed_work(self, now=None):
+        """以前は, 予定の欄に未指定時コマンドがあると, 予定を組んでいない日も未指定時コマンドで埋まり, 行動パターンの仕事をしなかった.
+        その取りこぼしを一度だけ払う. 閉じていた間のまとめ (一人の時間の記録. 残っている分だけ) から, 行動パターンでは仕事だった時間に,
+        未指定時コマンドの行動をしていた (か, 何も載っていない) ところを探す. 払わないもの:
+        給料・バイト代など稼ぎがその時間 (〜3 時間後) に入っている / その時間に仕事・約束をしていた / 未指定時コマンドに無い行動をしていた
+        (自分で組んだ予定かもしれない) / 働ける時間帯の外・1 日の上限を超える分 (work_hours) / 家計簿の裏の記録が残っていないほど前.
+        払った分は家計簿 (いまの日付で「給料（◯/◯ の分。あとから）」) と, 一人の時間の記録 (その日の仕事として. 日記に出る) に残す.
+        その時間にしたことになっていた未指定時コマンドの記録は, 仕事に置き換わったので, 日記に出さない (void). 伸びたスキルはそのまま.
+        返り値: [(日付, 額)]."""
+        from .kakeibo import RAW_DAYS
+        from .solo import PRACTICE_TEXT
+        app, L = self.app, self.app.life
+        now = now or time.time()
+        ps = L.player_state()
+        if ps.get("retro_work_v1"):
+            return []
+        ps["retro_work_v1"] = now
+        c = self.cfg()
+        fb = app.planner.rec()["fallback"]
+        if not c.get("enabled") or not fb:
+            L.save_player()
+            return []
+        raw = app.kakeibo.rec()["raw"]
+        cut = now - RAW_DAYS * 86400
+        incomes = [x["t"] for x in raw if x.get("c") == "income" and x.get("a", 0) > 0]
+        day_of = lambda t: datetime.fromtimestamp(t).strftime("%Y-%m-%d")          # noqa: E731
+        worked = {day_of(x["t"]) for x in raw if x.get("c") == "income" and x.get("a", 0) > 0 and str(x.get("n", "")).startswith(("給料", "バイト"))}
+        worked |= {d for d, h in (ps.get("work_log") or {}).items() if h > 0}
+
+        def fb_like(text):
+            for f in fb:
+                d = f.get("do")
+                if d == "practice" and PRACTICE_TEXT.get(f.get("skill") or "talk", "@") in text:
+                    return True
+                if d == "chores" and "家事をした" in text or d == "kakeibo" and "家計簿" in text:
+                    return True
+                if d == "out" and app.places.label(f.get("place")) in text:
+                    return True
+            return False
+        quiet_fb = any(f.get("do") in ("rest", "home") for f in fb)
+        log = app.solo.mylog()
+        paid, voids = [], []
+        for sm in [e for e in log if e.get("kind") == "offline"]:
+            parts = parse_summary(sm)
+            if not parts:
+                continue
+            p0, t1 = min(p["s"] for p in parts), sm["t"]
+            if p0 < cut:
+                continue
+            for s, e, b in self.blocks(p0, t1):
+                if b["do"] != "work" or e - s < 900:
+                    continue
+                if day_of(s) in worked or any(p["text"].startswith("仕事") and day_of(p["s"]) == day_of(s) for p in parts):
+                    continue                        # その日は働いていた (給料・バイト代が入っている / 仕事をした記録がある)
+                over = [p for p in parts if p["s"] < e and p["e"] > s]
+                if any("約束" in p["text"] for p in over):
+                    continue
+                if over and not all(fb_like(p["text"]) for p in over):
+                    continue
+                if not over and not quiet_fb:
+                    continue
+                if any(s - 1800 <= t <= e + 3 * 3600 for t in incomes):
+                    continue
+                pay, h, _ = L.work_pay(s, e, record=True)
+                if not pay:
+                    continue
+                day = datetime.fromtimestamp(s)
+                ps["money"] += pay
+                L.train("work", 0.5 * h)
+                paid.append((day.strftime("%Y-%m-%d"), pay, s, e))
+                voids += [(sm["t"], p["s"], p["e"], p["text"]) for p in over]
+        L.save_player()
+        if not paid:
+            return []
+        for d, pay, s, e in paid:
+            app.solo.note("work", "%s〜%s 仕事（%s円。記録から抜けていた分を、あとから受け取った）" % (
+                datetime.fromtimestamp(s).strftime("%H:%M"), datetime.fromtimestamp(e).strftime("%H:%M"), format(pay, ",")),
+                e, icon="💼", name="仕事", money={"p": pay}, retro=True)
+        log = app.solo.mylog()                      # 仕事に置き換わった記録 (まとめの中の行動と, その結果の一行) は日記に出さない
+        for e in log:
+            if e.get("kind") == "offline":
+                vs = [[s, t] for t0, s, t, _ in voids if t0 == e["t"]]
+                if vs:
+                    e["void_parts"] = (e.get("void_parts") or []) + vs
+            elif not e.get("retro") and any(s <= e["t"] <= t + 60 and (x.startswith(e.get("text", "@")) or e.get("text", "@").startswith(x))
+                                             for _, s, t, x in voids):
+                e["void"] = "retro_work"
+        from . import store
+        store.save(store.wpath("mylog.json"), log)
+        total = sum(p for _, p, _, _ in paid)
+        by_day = {}
+        for d, p, _, _ in paid:
+            by_day[d] = by_day.get(d, 0) + p
+        for d, p in sorted(by_day.items()):          # 家計簿: いまの日付で, その日の分ごとに (次に家計簿をつけると載る)
+            L.ledger(now, p, "income", "給料（%d/%d の分。あとから）" % (int(d[5:7]), int(d[8:])))
+        L.save_player()
+        app.solo.note("money", "画面を閉じていた間の仕事が抜けていた分の給料を受け取った（%s。合計 %s円）" % (
+            "・".join("%d/%d %s円" % (int(d[5:7]), int(d[8:]), format(p, ",")) for d, p in sorted(by_day.items())), format(total, ",")), now,
+            icon="💼", name="給料（あとから）", money={"p": total})
+        return sorted(by_day.items())
 
     def report(self):
         rep = self.app.life.player_state().get("offline_report")

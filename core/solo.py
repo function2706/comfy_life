@@ -16,8 +16,9 @@
 誰もいなければ告げる相手なしで, あなたの予定としてそうする. 一人の時間の記録と日記は data/worlds/<id>/mylog.json / diary.json.
 """
 import random
+import re
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from . import cond, llm, store
 from . import places as places_mod
@@ -415,8 +416,46 @@ class Solo:
     def diary_list(self):
         return store.load(store.wpath("diary.json"), []) or []
 
-    def write_diary(self, day=None):
-        """その日の出来事から日記を書く. LLM が有効なら LLM, 無ければ定型でまとめる."""
+    # 始めたときの一行 (「料理の練習を始めた」「仕事に出かけた」など). 結果の一行が別に残るので, 日記には出さない
+    _START = re.compile("^(%s)$" % "|".join(
+        [re.escape(x).replace(re.escape("{skill}"), ".+?").replace(re.escape("{place}"), ".+?") for x in START_TEXT.values()]
+        + [re.escape(k["text"]) for k in PLAIN.values()]))
+    SKIP_KINDS = ("diary", "offline", "plan")
+
+    def day_mine(self, day):
+        """その日の一人の時間の記録 [(時刻, 一行)] (日記のもと). 始めたときの一行・同じ一行の重複 (結果と「戻る」) ・
+        仕事に置き換えた記録は除き, 閉じていた間のまとめは行動ごとに, それぞれの日へ振り分ける."""
+        from .offline import parse_summary
+        out = []
+        d0 = datetime.strptime(day, "%Y-%m-%d")
+        d1 = d0 + timedelta(days=1)
+        for e in self.mylog():
+            if e.get("kind") == "offline":       # 戻った日の記録だが, 中身はそれぞれの日の出来事
+                voids = e.get("void_parts") or []
+                for p in parse_summary(e):
+                    if d0.timestamp() <= p["s"] < d1.timestamp() and not any(a <= p["s"] < b for a, b in voids):
+                        out.append((p["s"], p["text"]))
+                continue
+            if e.get("kind") in self.SKIP_KINDS or e.get("void") or not (d0.timestamp() <= e["t"] < d1.timestamp()):
+                continue
+            text = (e.get("text") or "").strip()
+            if not text or self._START.match(text):
+                continue
+            out.append((e["t"], text))
+        out.sort()
+        res = []
+        for t, x in out:                         # 同じ出来事の重複 (一方がもう一方の書き出し) は, 長いほうを一つだけ
+            k = x.strip("（）")
+            hit = next((i for i, (_, y) in enumerate(res) if y.strip("（）").startswith(k) or k.startswith(y.strip("（）"))), None)
+            if hit is None:
+                res.append((t, x))
+            elif len(k) > len(res[hit][1].strip("（）")):
+                res[hit] = (res[hit][0], x)
+        return res
+
+    def write_diary(self, day=None, regen=False):
+        """その日の出来事から日記を書く. LLM が有効なら LLM, 無ければ定型でまとめる.
+        regen: 以前の日記を書き直す (定型だけ. 書いた時刻はそのまま, 「日記をつけた」は残さない)."""
         app = self.app
         day = day or date.today().isoformat()
         items = []
@@ -427,13 +466,12 @@ class Solo:
                     continue
                 if datetime.fromtimestamp(e["t"]).date().isoformat() == day and e.get("text"):
                     items.append((e["t"], char.get("name", ""), e.get("action_name", ""), e["text"]))
-        mine = [(e["t"], "", e["kind"], e["text"]) for e in self.mylog()
-                if datetime.fromtimestamp(e["t"]).date().isoformat() == day and e.get("kind") != "diary"]
+        mine = [(t, "", "", x) for t, x in self.day_mine(day)]
         items = sorted(items + mine)
         player = app.settings.get("player_name") or "あなた"
         text, src = None, "template"
         cfg = app.settings.get("llm") or {}
-        if cfg.get("enabled") and items:
+        if cfg.get("enabled") and items and not regen:
             lines = "\n".join("- %s %s%s: %s" % (datetime.fromtimestamp(t).strftime("%H:%M"), n + "／" if n else "", a, x)
                               for t, n, a, x in items[-40:])
             try:
@@ -444,11 +482,32 @@ class Solo:
                 text = None
         if not text:
             text = self._template(items)
-        d = {"day": day, "t": time.time(), "text": text, "src": src}
+        old = next((x for x in self.diary_list() if x["day"] == day), None)
+        d = {"day": day, "t": old["t"] if regen and old else time.time(), "text": text, "src": src}
         lst = [x for x in self.diary_list() if x["day"] != day] + [d]
         store.save(store.wpath("diary.json"), sorted(lst, key=lambda x: x["day"])[-365:])
-        self.note("diary", "日記をつけた", d["t"])
+        if not regen:
+            self.note("diary", "日記をつけた", d["t"])
         return d
+
+    def rewrite_diaries(self, force=False):
+        """日記の組み立てを直したので, 以前の日記 (定型で書いたもの) を一度だけ書き直す. LLM で書いた日記はそのまま (同じ文にはならない).
+        一人の時間の記録は新しい 500 件しか残らないので, その日の記録がまるごと残っている日だけ (足りない日は書き直さない).
+        force: 取りこぼしの仕事を払った (払った日も書き直す). 書き直した日の一覧を返す."""
+        ps = self.app.life.player_state()
+        if ps.get("diary_fix_v1") and not force:
+            return []
+        ps["diary_fix_v1"] = time.time()
+        self.app.life.save_player()
+        log = self.mylog()
+        oldest = None if len(log) < 500 else datetime.fromtimestamp(min(e["t"] for e in log)).date().isoformat()
+        done = []
+        for d in list(self.diary_list()):
+            if d.get("src") != "template" or (oldest and d["day"] <= oldest):
+                continue
+            self.write_diary(d["day"], regen=True)
+            done.append(d["day"])
+        return done
 
     @staticmethod
     def _template(items):
@@ -467,8 +526,34 @@ class Solo:
         for t, n, a, x in [i for i in items if i[1]][-3:]:
             parts.append("%s %sの「%s」: %s" % (datetime.fromtimestamp(t).strftime("%H:%M"), n, a, x.replace("\n", " ")[:60]))
         if mine:
-            parts.append("一人の時間: " + "／".join(m.replace("\n", " ")[:30] for m in mine[-4:]))
+            # 多ければ, 仕事・稼ぎの一行は残して, あとは新しいほうから (6 件まで. 順番は時刻のまま)
+            keep = set(i for i, m in enumerate(mine) if m.startswith("仕事") or "円）" in m[:40] and "仕事" in m)
+            for i in range(len(mine) - 1, -1, -1):
+                if len(keep) >= 6:
+                    break
+                keep.add(i)
+            parts.append("一人の時間: " + "／".join(Solo._short(m) for i, m in enumerate(mine) if i in keep))
         return "\n".join(parts)
+
+    @staticmethod
+    def _short(m, limit=48):
+        """日記の一行を短く. 文の途中では切らない (最初の文まで. それでも長ければ, 読点で切って「…」)."""
+        m = m.replace("\n", " ").strip("（）")
+        if len(m) <= limit:
+            return m
+        depth, end = 0, len(m)
+        for i, ch in enumerate(m):              # 括弧の中の「。」では切らない
+            depth += 1 if ch == "（" else -1 if ch == "）" else 0
+            if ch == "。" and depth <= 0:
+                end = i
+                break
+        first = m[:end]
+        if len(first) <= limit:
+            return first
+        cut = first[:limit]
+        i = cut.rfind("、")
+        cut = cut[:i] if i >= limit // 2 else cut
+        return cut + "…" + ("）" if cut.count("（") > cut.count("）") else "")
 
     def view(self):
         cur = self.current()
