@@ -51,12 +51,25 @@ def main():
             assert "読む本" in str(e)
         app.items.add("novel", 1)
         k = len(T.all())
-        app.solo.result("read", 0.5, time.time())
-        assert len(T.all()) == k and app.items.count("novel") == 1
-        app.solo.result("read", 2.0, time.time())
-        assert len(T.all()) == k + 1 and app.items.count("novel") == 0 and T.all()[-1]["src"] == "book"
-        app.solo.result("movie", 2.5, time.time())
-        assert T.all()[-1]["src"] == "movie"
+        out = app.solo.result("read", 0.5, time.time())               # 途中でやめた: 読みかけとして残る (本は開いた)
+        bk = app.life.player_state()["reading"]
+        assert len(T.all()) == k and app.items.count("novel") == 0 and abs(bk["h"] - 0.5) < 0.01 and "あと" in out["text"]
+        app.solo.start("read")                                       # 本が無くても, 読みかけがあれば続きを読める
+        app.presence.back(time.time()) if hasattr(app.presence, "back") else None
+        bk["t"] = time.time() - 15 * 86400                           # 2 週間空けると, 少し読み返す
+        out = app.solo.result("read", 0.75, time.time())
+        assert "続き" in out["text"] and "読み返した" in out["text"] and app.life.player_state()["reading"]["h"] < 1.25
+        out = app.solo.result("read", 1.0, time.time())
+        assert "読み終えた" in out["text"] and not app.life.player_state().get("reading") and T.all()[-1]["src"] == "book"
+        assert len(T.all()) == k + 1
+        app.solo.result("movie", 1.0, time.time())                  # 映画: 続きから. 何日も空けたら忘れて別の映画
+        mv = app.life.player_state()["watching"]
+        out = app.solo.result("movie", 1.2, time.time())
+        assert mv["title"] in out["text"] and "観終えた" in out["text"] and T.all()[-1]["src"] == "movie"
+        app.solo.result("movie", 1.0, time.time())
+        app.life.player_state()["watching"]["t"] -= 4 * 86400
+        out = app.solo.result("movie", 0.5, time.time())
+        assert "観始めた" in out["text"] and app.life.player_state()["watching"]["h"] == 0.5
         print("話題の元: OK |", [x["text"] for x in T.all()[-3:]], r["text"][:20])
 
         # ---- 3. 好み: 性格の既定 + キャラごとの隠れた好み (同じ性格でも違う. キャラごとに固定)

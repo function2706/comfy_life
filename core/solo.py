@@ -33,7 +33,7 @@ KINDS = {
     "read": {"label": "本を読む", "icon": "📖", "mode": "busy", "doing": "読書中", "go": "go_busy"},
     "movie": {"label": "映画を観る", "icon": "🎬", "mode": "busy", "doing": "映画を観ている", "go": "go_busy"},
 }
-READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (これより短く切り上げると, 話題にはならない)
+READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (合計. 途中でやめても続きから. core/topics.py)
 JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先
 # 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
 LEGACY = {
@@ -124,7 +124,7 @@ class Solo:
             return self.start_plain(kind, place, cid)
         if kind == "kakeibo":
             return self.kakeibo()
-        if kind == "read" and app.items.count("novel") <= 0:
+        if kind == "read" and app.items.count("novel") <= 0 and not app.life.player_state().get("reading"):
             raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
         if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
             place = place or places_mod.LEGACY_DO[kind]
@@ -324,21 +324,13 @@ class Solo:
         out = {"kind": kind, "hours": round(h, 2), "place": place}
         if kind == "rest":
             text = "%s休んだ。少し体が軽くなった" % _dur(h)       # 回復は時間経過 (life.tick_world) で済んでいる
-        elif kind == "read":                    # 小説を読む (読み終えると話題に. 本は使う)
-            if h < READ_H:
-                text = "%s本を読んだが、読み終わらなかった" % _dur(h)
-            else:
-                try:
-                    text, _ = app.topics.read_book(now)
-                    text = "%s%s" % (_dur(h), text)
-                except ValueError as e:
-                    text = str(e)
-        elif kind == "movie":                   # 家で映画を観る (配信. 観終えると話題に)
-            if h < MOVIE_H:
-                text = "%s映画を観たが、途中で止めた" % _dur(h)
-            else:
-                text, _ = app.topics.watch_movie(now)
-                text = "%s%s" % (_dur(h), text)
+        elif kind == "read":                    # 小説を読む (読みかけは続きから. 読み終えると話題に. 開いた本は使う)
+            try:
+                text = "%s%s" % (_dur(h), app.topics.read(h, now, READ_H))
+            except ValueError as e:
+                text = str(e)
+        elif kind == "movie":                   # 家で映画を観る (配信. 観かけは続きから. 観終えると話題に)
+            text = "%s%s" % (_dur(h), app.topics.watch(h, now, MOVIE_H))
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる

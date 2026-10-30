@@ -139,18 +139,56 @@ class Topics:
     def from_rumor(self, text, now):
         return self.add("rumor", "噂で聞いた話（%s）" % text[:24].rstrip("、。"), ["gossip", "money"], now)
 
-    def read_book(self, now):
-        """小説を 1 冊読み終える (持ち物の小説を使う). (文, 話題) を返す. 小説が無ければ ValueError."""
-        items = self.app.items
-        if items.count("novel") <= 0:
-            raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
-        items.add("novel", -1)
-        title, tags = random.choice(BOOKS)
-        return "%sを読み終えた" % title, self.add("book", "%sを読んだ話" % title, tags, now)
+    def reading(self):
+        """読みかけの本 / 観かけの映画 ({title, tags, h, t} か None)."""
+        ps = self.app.life.player_state()
+        return ps.get("reading"), ps.get("watching")
 
-    def watch_movie(self, now):
-        title, tags = random.choice(MOVIES)
-        return "家で%sを観た" % title, self.add("movie", "%sを観た話" % title, tags, now)
+    def read(self, h, now, need=1.5):
+        """本を読む: 読みかけがあれば続きから (日を空けたぶん少し読み返す), 無ければ持ち物の小説を 1 冊開く.
+        読んだ時間の合計が need に届けば読み終えて話題に. 文を返す. 読む本が無ければ ValueError."""
+        ps = self.app.life.player_state()
+        b = ps.get("reading")
+        back = 0.0
+        if not b:
+            if self.app.items.count("novel") <= 0:
+                raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
+            self.app.items.add("novel", -1)
+            title, tags = random.choice(BOOKS)
+            b = ps["reading"] = {"title": title, "tags": tags, "h": 0.0, "t": now}
+            head = "%sを読み始めた" % title
+        else:
+            back = min(0.5, 0.25 * max(0.0, (now - b["t"]) / 86400.0 - 1) / 7.0)      # 日を空けたぶん, 少し読み返す
+            head = "%sの続きを読んだ" % b["title"] + ("（少し前を読み返した）" if back >= 0.1 else "")
+        b["h"] = round(b["h"] + max(0.0, h - back), 2)
+        b["t"] = now
+        if b["h"] >= need:
+            ps.pop("reading", None)
+            self.add("book", "%sを読んだ話" % b["title"], b["tags"], now)
+            return "%s。読み終えた" % head
+        self.app.life.save_player()
+        return "%s（あと%d分ほど）" % (head, max(5, int(round((need - b["h"]) * 60 / 5.0)) * 5))
+
+    def watch(self, h, now, need=2.0, forget_days=3):
+        """家で映画を観る (配信): 観かけがあれば続きから. 何日も空けたら忘れて, 別の映画を最初から. 文を返す."""
+        ps = self.app.life.player_state()
+        m = ps.get("watching")
+        if m and now - m["t"] > forget_days * 86400:
+            m = None                                    # 観かけは忘れた
+        if not m:
+            title, tags = random.choice(MOVIES)
+            m = ps["watching"] = {"title": title, "tags": tags, "h": 0.0, "t": now}
+            head = "家で%sを観始めた" % title
+        else:
+            head = "%sの続きを観た" % m["title"]
+        m["h"] = round(m["h"] + h, 2)
+        m["t"] = now
+        if m["h"] >= need:
+            ps.pop("watching", None)
+            self.add("movie", "%sを観た話" % m["title"], m["tags"], now)
+            return "%s。観終えた" % head
+        self.app.life.save_player()
+        return "%s（あと%d分ほど）" % (head, max(5, int(round((need - m["h"]) * 60 / 5.0)) * 5))
 
     # ------------------------------------------------------------------ 好み
     def tastes(self, char, st):
