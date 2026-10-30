@@ -43,6 +43,12 @@ def _amount(v):
     return int(v or 0)
 
 
+
+def chat_lines():
+    from .chat import LINES
+    return LINES
+
+
 class Life:
     def __init__(self, app):
         self.app = app
@@ -621,8 +627,12 @@ class Life:
                             delta=float((ev.get("effects") or {}).get("mood", 0)), ev=ev["id"])
         req = ev.get("request")
         if req and not st.get("request"):
+            text = ev.get("tell", "")
+            if req.get("kind") == "money":           # しょっちゅう頼んでいる (2 週間以内にも頼んだ) なら, 頼み方もそれらしく
+                if any(x.get("id") == ev["id"] and 0 < t - x.get("t", 0) < 14 * 86400 for x in st.get("events", [])[:-1]):
+                    text = self.app.persona_text(char, "chat.req_money_again") or chat_lines()["chat.req_money_again"]
             st["request"] = {"id": uuid.uuid4().hex[:8], "kind": req.get("kind", "money"),
-                             "amount": _amount(req.get("amount", 0)), "text": ev.get("tell", ""), "t": t,
+                             "amount": _amount(req.get("amount", 0)), "text": text, "t": t,
                              "label": req.get("label", ev.get("label", ""))}
         return rec
 

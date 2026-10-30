@@ -1428,7 +1428,7 @@ class App:
             if key == "favor_yes":
                 self.chat.add(cid, "sys", "📅 約束した: %s %sの家で%s" % (extra["when"], char.get("name", ""), extra.get("what", "")),
                               kind="promise", t=now + 0.001)
-            if key == "appoint_yes":
+            if key in ("appoint_yes", "appoint_rearranged"):
                 self.chat.add(cid, "sys", "📅 約束した: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)
             act = {"id": "_chat", "name": "返信", "icon": "📱",

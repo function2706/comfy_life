@@ -12,6 +12,7 @@
 """
 import random
 import time
+from datetime import datetime
 
 from . import store
 
@@ -113,6 +114,11 @@ LINES = {
     "chat.favor_plants_thanks": "📱『ただいま戻りました。植木、元気でした！ 水やり、ありがとうございました』",
     "chat.favor_resched": "📱『ごめんなさい、{what}の日、{when}にずらしてもらえませんか？』",
     "chat.favor_cancel": "📱『ごめんなさい、{what}は取りやめになりました。せっかくだったのに……』",
+    "chat.want_space": "📱『ごめんなさい、今日はちょっと一人でいたい気分で……。また連絡しますね』",
+    "chat.own_time": "📱『ふふ、うれしいです。でも、たまには{call}も自分の時間を大事にしてくださいね』",
+    "chat.appoint_rearranged": "📱『その日、予定があったんですけど、ずらしました。{when}、{place}で大丈夫です！』",
+    "chat.appoint_move_mine": "📱『ごめんなさい、その日やっぱり都合が悪くなっちゃって……{when}にしてもらえませんか？』",
+    "chat.req_money_again": "またお願いしてもいいですか……？ 今月も、ちょっと足りなくて",
 }
 # 何もないときの共通の言い方 (性格プリセットに chat.ask_how_nothing が無ければ, ここから選ぶ)
 NOTHING = ("特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。")
@@ -138,6 +144,11 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "what_doing": "今何してる？ ({doing} に今していること)", "what_doing_much": "今何してる？ (聞きすぎ. 束縛っぽい)",
                "nudge_ok": "返事まだ？ (急ぎの話で. 多少許される)", "nudge_bad": "返事まだ？ (急かされて嫌がる)",
                "nudge_huh": "返事まだ？ (もう返している)",
+               "want_space": "連絡が続いて, 一人でいたいと距離を置く (依存度が低い)",
+               "own_time": "連絡が続いて, あなたの時間も大事にしてと気づかう (献身的で依存度が低い)",
+               "appoint_rearranged": "約束の誘い (自分の予定をずらして合わせた. {when} {place})",
+               "appoint_move_mine": "約束した日を, 自分の都合で動かしたいと言ってくる (自分優先. {when})",
+               "req_money_again": "（そばで）お金のおねだり. しょっちゅう頼んでいるとき (自分優先. 文頭の 📱 なし)",
                "selfie_yes": "自撮り送って (送ってくれた. 自撮りが添えられる)",
                "selfie_no": "自撮り送って (断られた)", "selfie_pester": "自撮り送って (続けて頼みすぎ)", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
                "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
@@ -250,6 +261,9 @@ class Chat:
             return "too_often", {"mood": -2, "affection": -1}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
             return "late_night", {"mood": -2, "stress": 2}, extra
+        space = self._space(char, st, kind, now, ctx)
+        if space:
+            return space, {}, extra
         got = app.manners.reply(char, st, kind, now, ctx, meta)
         if got:
             return got
@@ -295,6 +309,23 @@ class Chat:
                "consult": {"trust": 2, "affection": 1}, "photo": {"mood": 2, "loneliness": -3},
                "stamp": {"loneliness": -2}}.get(kind, {})
         return kind, eff, extra
+
+    def _space(self, char, st, kind, now, ctx):
+        """連絡が続いたとき (多すぎるほどではない), 依存度が低い相手は距離を置き, 献身的で依存度が低い相手は気づかう.
+        一日に一度まで. 必ずではない."""
+        if kind not in ("smalltalk", "what_doing", "ask_how", "stamp", "tease", "flirt", "photo", "otsukare"):
+            return None
+        dep, dev = ctx.get("dependence", 50), ctx.get("devotion", 50)
+        if dep >= 35:
+            return None
+        day = datetime.fromtimestamp(now).strftime("%Y%m%d")
+        if st.get("space_day") == day:
+            return None
+        tol = self.app.bonds.tolerance(char, char["id"], st, now)
+        if ctx.get("contacts_24h", 0) < 0.6 * tol or random.random() >= 0.5:
+            return None
+        st["space_day"] = day
+        return "own_time" if dev >= 65 else "want_space" if dep < 25 else None
 
     def line(self, char, key, extra):
         app = self.app

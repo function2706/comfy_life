@@ -18,12 +18,15 @@ OPTIONS = {
                  ("tease", "「寂しがり屋だなぁ」とからかう"), ("curt", "「そっか」とだけ返す")],
     "msg_today": [("expand", "「それで？ もっと聞かせて」と返す"), ("cheerful", "「よかったね！」と返す"),
                   ("tease", "「長いよ（笑）」とからかう"), ("curt", "「へえ」とだけ返す")],
+    "msg_where": [("expand", "どこで誰といるか、正直に答える"), ("worry", "「心配しなくても、すぐ帰るよ」と返す"),
+                  ("cheerful", "「ちょっと出てるだけ」と軽く返す"), ("curt", "「なんで？」とだけ返す")],
 }
 DEFAULT_OPTIONS = [("cheerful", "明るく返す"), ("expand", "話を広げる"), ("tease", "からかう"), ("curt", "素っ気なく返す")]
 KIND_BASE = {"cheerful": 8, "expand": 8, "worry": 4, "tease": 0, "curt": -12}
 FIT = {"msg_chat": {"cheerful": 4, "expand": 6, "tease": 2, "curt": -4},
        "msg_miss": {"worry": 8, "cheerful": 6, "tease": -6, "curt": -10, "expand": -2},
-       "msg_today": {"expand": 10, "cheerful": 5, "curt": -8, "worry": -4}}
+       "msg_today": {"expand": 10, "cheerful": 5, "curt": -8, "worry": -4},
+       "msg_where": {"expand": 10, "worry": 6, "cheerful": -4, "curt": -14}}
 # 性格ごとの好み (控えめに. 決め打ちにしない)
 TASTE = {
     "teinei": {"cheerful": 4, "worry": 4, "tease": -4}, "osananajimi": {"tease": 8, "curt": 2},
@@ -58,12 +61,19 @@ LINES = {
     "msgr.more.good": "📱『ふふ、なんだか今日はいい日になりそうです』",
     "msgr.more.neutral": "📱『（スタンプが届いた）』",
     "msgr.more.bad": "📱『……もういいです』",
+    # 「今どこ？誰と？」への返事の受け止め (選んだ返事の種類によらず, この場面はこちら)
+    "msgr.msg_where.good": "📱『……そうなんですね。ならいいです。早く帰ってきてくださいね』",
+    "msgr.msg_where.neutral": "📱『……ふうん。わかりました』",
+    "msgr.msg_where.bad": "📱『……なんで隠すんですか。もういいです』",
 }
+AP_REPLY = {"msg_where"}       # 選んだ返事の種類によらず, msgr.<働きかけ>.<受け止め> で返す働きかけ
 SCENE_LABEL = {"msgr.%s.%s" % (k, o): "メッセージへの返事「%s」に %s" % (KINDS[k], {"good": "よく効いた", "neutral": "ふつう",
                                                                                      "bad": "よくなかった"}[o])
                for k in KINDS for o in OUTCOMES}
 SCENE_LABEL.update({"msgr.more.good": "返事のあとのもう一言 (よく効いた)", "msgr.more.neutral": "返事のあとのもう一言 (ふつう)",
-                    "msgr.more.bad": "返事のあとのもう一言 (よくなかった)"})
+                    "msgr.more.bad": "返事のあとのもう一言 (よくなかった)",
+                    "msgr.msg_where.good": "「今どこ？誰と？」への返事 (納得した)", "msgr.msg_where.neutral": "「今どこ？誰と？」への返事 (ふつう)",
+                    "msgr.msg_where.bad": "「今どこ？誰と？」への返事 (疑った・不満)"})
 EFFECT = {"neutral": {"loneliness": -3}, "bad": {"mood": -4, "affection": -1, "trust": -1}}
 BAD_TELL = {"cheerful": "{call}の返事が軽かった", "expand": "{call}にしつこく聞かれた", "worry": "{call}に大げさに心配された",
             "tease": "{call}にからかわれた", "curt": "{call}の返事が素っ気なかった"}

@@ -141,7 +141,7 @@ def main():
                          "by": "me", "status": "asked", "made": time.time(), "rounds": APm.COUNTER_MAX}
                     AP.all().append(x)
                     key, _, _ = AP.reply(char, st, {"appoint": x["id"]}, time.time(), {})
-                    k += bool(x.get("rearranged")) and key == "appoint_yes"
+                    k += bool(x.get("rearranged")) and key == "appoint_rearranged"
                 return k
             rh, rl = rearranged(100), rearranged(10)
         finally:

@@ -2835,6 +2835,16 @@
     "when": "",
     "pos": "smile, waving",
     "neg": ""
+   },
+   {
+    "text": "えっ、もう帰っちゃうんですか……？ 泊まっていってもいいのに……",
+    "when": "dependence>=75",
+    "pos": "holding sleeve, looking up at viewer, pleading",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": 4
+    }
    }
   ]
  },
@@ -2893,6 +2903,16 @@
     "when": "",
     "pos": "smile, waving, entrance",
     "neg": ""
+   },
+   {
+    "text": "……まだ帰りたくないです。もう少しだけ、ここにいちゃだめですか？",
+    "when": "dependence>=75",
+    "pos": "standing at door, hesitant, looking down, pleading",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": 4
+    }
    }
   ],
   "end_override": true
@@ -3231,6 +3251,17 @@
     "neg": "",
     "priority": 3,
     "override": true
+   },
+   {
+    "text": "また出かけるんですか？ ……誰と？ 何時に帰ってくるんですか？",
+    "when": "dependence>=75, devotion<40",
+    "pos": "frowning, arms crossed, looking at viewer",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "mood": -2,
+     "loneliness": 3
+    }
    }
   ]
  },
@@ -3326,6 +3357,16 @@
     "neg": "",
     "priority": 3,
     "override": true
+   },
+   {
+    "text": "……もう行っちゃうんですか？ もうちょっとだけ、いいでしょう？",
+    "when": "dependence>=75",
+    "pos": "holding sleeve, looking up at viewer, pleading",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": 4
+    }
    }
   ]
  },

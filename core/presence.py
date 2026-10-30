@@ -398,7 +398,7 @@ class Presence:
         if res == "bad":
             self.app.life.add_reason(st, "player", "bad", msgreply.BAD_TELL[kind].replace("{call}", call), now, told=True,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
-        key = "msgr.%s.%s" % (kind, res)
+        key = "msgr.%s.%s" % (a["id"] if a["id"] in msgreply.AP_REPLY else kind, res)
         text = self.app.persona_text(char, key) or msgreply.LINES[key]
         e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
         e["reply"] = {"kind": kind, "result": res}

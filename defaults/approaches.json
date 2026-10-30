@@ -147,6 +147,22 @@
   "ignore": {"text": "（{name}からの長いメッセージが、読まれないまま残っている）", "effects": {"mood": -2, "loneliness": 3}}
  },
  {
+  "id": "need_you", "label": "離れたくないみたい", "icon": "🥺", "when": "dependence>=80, loneliness>=45, affection>=55", "weight": 2, "cooldown_h": 6,
+  "text": "……{call}。{call}がいないと、なんだかだめなんです。今日は、そばにいてくれますか？", "pos": "hugging viewer, face buried, clinging", "neg": "",
+  "accept": {"label": "そばにいる", "text": "……よかった。……離さないでくださいね。", "skill": "touch",
+   "effects": {"loneliness": -15, "mood": 4}, "pos": "hugging viewer, relieved, eyes closed"},
+  "later": {"label": "あとでね", "text": "……はい。……ちゃんと、あとで来てくださいね？", "effects": {"loneliness": 4, "mood": -1}},
+  "ignore": {"text": "（{name}はしばらくこちらを見ていたが、膝を抱えて小さくなった）", "effects": {"mood": -6, "loneliness": 10}}
+ },
+ {
+  "id": "msg_where", "label": "どこにいるのか聞いてきた", "icon": "📍", "apart": true,
+  "when": "dependence>=70, devotion<45, affection>=45, presence=out|work", "weight": 2,
+  "cooldown_h": 5, "wait_minutes": 45, "urgency": 1.6,
+  "text": "📱『{call}、今どこにいるんですか？ 誰と一緒？』",
+  "later": {"label": "あとで返す", "text": "📱『……あとで、ってなんですか。言えないところなんですか？』", "effects": {"mood": -2, "trust": -1}},
+  "ignore": {"text": "（{name}からの「今どこ？」に、既読がついたまま返していない）", "effects": {"mood": -4, "trust": -2, "loneliness": 5}}
+ },
+ {
   "id": "worry_you", "label": "顔色が悪いのに気づいた", "icon": "🤒", "when": "player_sick>=1, asleep=false, busy=false", "weight": 4, "cooldown_h": 8,
   "text": "{call}、なんだか顔色が悪くないですか……？", "pos": "worried, looking at viewer, concerned", "neg": "",
   "accept": {"label": "実は少し……", "text": "やっぱり。無理しないで、今日は休んでください。{fp}、お粥でも作りましょうか？",
