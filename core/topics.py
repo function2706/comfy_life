@@ -165,7 +165,7 @@ class Topics:
         if b["h"] >= need:
             ps.pop("reading", None)
             self.add("book", "%sを読んだ話" % b["title"], b["tags"], now)
-            return "%s。読み終えた" % head
+            return "%sを一気に読み終えた" % b["title"] if head.endswith("読み始めた") else "%s。読み終えた" % head
         self.app.life.save_player()
         return "%s（あと%d分ほど）" % (head, max(5, int(round((need - b["h"]) * 60 / 5.0)) * 5))
 
@@ -186,7 +186,7 @@ class Topics:
         if m["h"] >= need:
             ps.pop("watching", None)
             self.add("movie", "%sを観た話" % m["title"], m["tags"], now)
-            return "%s。観終えた" % head
+            return "家で%sを観た" % m["title"] if head.endswith("観始めた") else "%s。観終えた" % head
         self.app.life.save_player()
         return "%s（あと%d分ほど）" % (head, max(5, int(round((need - m["h"]) * 60 / 5.0)) * 5))
 

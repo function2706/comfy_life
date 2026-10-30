@@ -24,11 +24,14 @@ import time
 from datetime import datetime, timedelta
 
 from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
+from .places import effort as effort_of
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事（片付け）",
+DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
             "kakeibo": "家事（家計簿をつける）", "practice": "研鑽", "meal": "食事",
-            "parttime": "アルバイト"}
+            "parttime": "アルバイト", "jog": "ジョギング", "read": "本を読む", "movie": "映画を観る"}
+CHORE_PARTS = {"": "全部", "mess": "部屋の片付け", "dishes": "洗い物", "laundry": "洗濯", "trash": "ゴミ出し"}
+JOG_AT = ("park", "riverside", "town")
 MEAL_HOW = {"cook": "自炊", "out": "外食", "buy": "買って食べる"}
 MEAL_PLACES = {"out": ["teishoku", "ramen", "fastfood", "family", "restaurant", "cafe"], "buy": ["convenience", "supermarket", "station"]}
 WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "meal", "how": "cook"}, {"at": "07:30", "do": "rest"},
@@ -58,6 +61,13 @@ def normalize(b):
             b["place"] = MEAL_PLACES[b["how"]][0]
         return b
     b.pop("how", None)
+    if b.get("do") == "jog":                   # ジョギング: 走れる行き先
+        b["place"] = b.get("place") if b.get("place") in JOG_AT else "park"
+        return b
+    if b.get("do") == "chores" and b.get("skill") not in CHORE_PARTS:     # 家事: 全部か一つ (skill に家事の名前)
+        b.pop("skill", None)
+    if b.get("do") not in ("practice", "chores"):
+        b.pop("skill", None)
     if b.get("do") != "out":
         b.pop("place", None)
     return b
@@ -194,6 +204,12 @@ class Offline:
                 continue
             L.tick_world(s)
             do, h = b["do"], (e - s) / 3600.0
+            if do == "exam":                       # 資格の試験 (受けたかどうかは quals.daily. ここでは時間がふさがるだけ)
+                recover(s, e, None)
+                timeline.append({"t": s, "end": e, "do": "exam", "label": "資格の試験", "text": "%sの試験を受けた" % b.get("label", ""),
+                                 "skipped": False, "plan": b.get("_plan")})
+                t = max(t, e)
+                continue
             if do == "appoint":                    # 相手との約束: 約束が先 (自動で過ごした分は, 良い影響が出にくい)
                 text = self._appoint(b["appoint"], s)
                 recover(s, e, None)
@@ -204,7 +220,7 @@ class Offline:
             ent = {"t": s, "end": e, "do": do, "label": DO_LABEL[do], "text": "", "skipped": False}
             if b.get("_plan"):
                 ent["plan"] = b["_plan"]
-            if do == "practice" and b.get("skill"):
+            if do in ("chores", "jog") or (do == "practice" and b.get("skill")):
                 ent["label"] = app.planner.label(b)
             if do == "out":
                 ent["place"] = b.get("place")
@@ -315,6 +331,9 @@ class Offline:
             if kind == "appoint":
                 yield s, e, {"do": "appoint", "appoint": x["id"], "_plan": {"src": "appoint"}}
                 continue
+            if kind == "exam":
+                yield s, e, {"do": "exam", "label": x, "_plan": {"src": "exam"}}
+                continue
             if kind == "gap" and routine_on:
                 for s2, e2, b2 in self._gap_blocks(s, e, planned, stamina_now):
                     yield s2, e2, b2
@@ -403,6 +422,8 @@ class Offline:
         from .body import MOVE_PER_H
         if do == "chores":
             return MOVE_PER_H["chores"]
+        if do == "jog":
+            return MOVE_PER_H["jog"] * effort_of(place)
         if do == "out":
             from .places import effort
             k = solo_kind(place)

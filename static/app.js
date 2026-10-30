@@ -2775,14 +2775,19 @@ function commandPicker(b, redraw) {
   return [
     sel('do', Object.entries(L), () => {
       if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
-      if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
+      if (b.do === 'practice') b.skill = b.skill || 'talk';
+      else if (b.do === 'chores') b.skill = CHORE_PARTS.some(([k]) => k === b.skill) ? b.skill : '';
+      else delete b.skill;
       if (b.do === 'meal') { b.how = b.how || 'cook'; } else delete b.how;
     }),
     b.do === 'meal' ? sel('how', Object.entries(MH), () => { const ps = MP[b.how]; if (ps) b.place = ps.includes(b.place) ? b.place : ps[0]; else delete b.place; }) : '',
     b.do === 'meal' && MP[b.how] ? sel('place', MP[b.how].map(placeOpt)) : '',
     ch[b.do] ? sel('place', ch[b.do].map(placeOpt)) : '',
-    b.do === 'practice' ? sel('skill', Object.entries(skills)) : ''];
+    b.do === 'practice' ? sel('skill', [...Object.entries(skills),
+      ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
+    b.do === 'chores' ? sel('skill', CHORE_PARTS) : ''];
 }
+const CHORE_PARTS = [['', '全部'], ['mess', '部屋の片付け'], ['dishes', '洗い物'], ['laundry', '洗濯'], ['trash', 'ゴミ出し']];
 const STREET_POLICY = [['', '無難に（会釈・通り過ぎる）'], ['chat', '応じて立ち話する'], ['nod', '軽く会釈する'], ['decline', '急いでいると断る']];
 const REPLY_POLICY = [['', '返さない（あとで手で返す）'], ['cheerful', '明るく乗る'], ['expand', '話を広げる'], ['worry', '心配する'], ['tease', 'からかう'], ['curt', '素っ気なく']];
 function planSection(v) {
@@ -2851,14 +2856,18 @@ function routineEditor(days) {
       inp(b, 'at', { type: 'time' }),
       sel(b, 'do', Object.entries(L), () => {
         if (ch[b.do]) b.place = b.place && ch[b.do].includes(b.place) ? b.place : ch[b.do][0]; else delete b.place;
-        if (b.do === 'practice') b.skill = b.skill || 'talk'; else delete b.skill;
+        if (b.do === 'practice') b.skill = b.skill || 'talk';
+        else if (b.do === 'chores') b.skill = CHORE_PARTS.some(([k]) => k === b.skill) ? b.skill : '';
+        else delete b.skill;
         if (b.do === 'meal') b.how = b.how || 'cook'; else delete b.how;
       }),
       // 食事: 自炊 (食材があれば) / 外食 (行き先. 営業時間に従う) / 買って食べる
       b.do === 'meal' ? sel(b, 'how', Object.entries(MH), () => { const ps = MP[b.how]; if (ps) b.place = ps.includes(b.place) ? b.place : ps[0]; else delete b.place; }) : '',
       b.do === 'meal' && MP[b.how] ? sel(b, 'place', MP[b.how].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
-      b.do === 'practice' ? sel(b, 'skill', Object.entries(skills)) : '',
+      b.do === 'practice' ? sel(b, 'skill', [...Object.entries(skills),
+        ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
+      b.do === 'chores' ? sel(b, 'skill', CHORE_PARTS) : '',
       h('button', { class: 'btn small danger', onclick: () => { list.splice(i, 1); redraw(); } }, '×'))),
     h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
       h('button', { class: 'btn small', onclick: () => { list.push({ at: '12:00', do: 'rest' }); redraw(); } }, '＋行動を足す'),

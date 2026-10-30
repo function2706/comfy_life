@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 
 from .places import OUT_PLACES, open_state
 
-PLAN_DO = ("sleep", "rest", "home", "work", "out", "chores", "kakeibo", "practice", "meal", "parttime")
+PLAN_DO = ("sleep", "rest", "home", "work", "out", "chores", "kakeibo", "practice", "meal", "parttime", "jog", "read", "movie")
 STREET_POLICY = ("chat", "nod", "decline")
 NATURAL = {"chores": 3600, "practice": 3600, "kakeibo": 900}      # これより短ければ「切り上げた」
 SHOP_NATURAL = 3600                                                  # 買い物 (店への外出) の目安
@@ -80,7 +80,12 @@ class Planner:
             raise ValueError("行き先を選んでください")
         out = normalize({k: v for k, v in b.items() if k in ("do", "place", "how", "skill", "at")})
         if out["do"] == "practice" and b.get("skill"):
-            out["skill"] = b["skill"]
+            sk = str(b["skill"])
+            if sk.startswith("qual:"):                 # 資格の勉強
+                from .quals import QUALS
+                if sk[5:] not in QUALS or self.app.quals.has(sk[5:]):
+                    raise ValueError("その資格の勉強はできません")
+            out["skill"] = sk
         return out
 
     def appoint_at(self, t):
@@ -143,7 +148,15 @@ class Planner:
             return "食事（%s%s）" % (MEAL_HOW.get(b.get("how") or "cook", ""), "・" + app.places.label(b["place"]) if b.get("place") else "")
         if b["do"] == "practice" and b.get("skill"):
             from .solo import SKILL_LABEL
+            if str(b["skill"]).startswith("qual:"):
+                from .quals import QUALS
+                return "研鑽（%sの勉強）" % (QUALS.get(b["skill"][5:]) or {}).get("label", b["skill"])
             return "研鑽（%sの練習）" % SKILL_LABEL.get(b["skill"], b["skill"])
+        if b["do"] == "chores":
+            from .offline import CHORE_PARTS
+            return "家事（%s）" % CHORE_PARTS.get(b.get("skill") or "", "全部")
+        if b["do"] == "jog":
+            return "ジョギング（%s）" % app.places.label(b.get("place") or "park")
         return DO_LABEL.get(b["do"], b["do"])
 
     def view(self, now=None):
@@ -212,8 +225,10 @@ class Planner:
                 return "体調が悪かった"
         if do == "parttime" and not app.earn.pt():
             return "アルバイトをしていない"
-        if do in ("chores", "practice") and stamina < 25:
+        if do in ("chores", "practice", "jog") and stamina < 25:
             return "疲れていた"
+        if do == "read" and app.items.count("novel") <= 0 and not app.life.player_state().get("reading"):
+            return "読む本がなかった"
         return None
 
     def slots(self, t0, t1):
@@ -223,6 +238,14 @@ class Planner:
         for x in app.appoint.all():
             if x["status"] in ("set", "waiting") and t0 <= x["t"] < t1:
                 cuts.append((x["t"], min(t1, x["t"] + APPOINT_SPAN), "appoint", x))
+        from .quals import EXAM_H, QUALS
+        for qid, a in app.quals.rec()["apps"].items():          # 資格の試験 (10〜13 時はふさがる)
+            if a.get("status") not in ("applied", "taken") or qid not in QUALS:
+                continue
+            d = datetime.fromisoformat(a["exam"])
+            es, ee = d.replace(hour=EXAM_H[0]).timestamp(), d.replace(hour=EXAM_H[1]).timestamp()
+            if es < t1 and ee > t0:
+                cuts.append((max(es, t0), min(ee, t1), "exam", QUALS[qid]["label"]))
         items = sorted(((self.item_t(x), x) for x in self.rec()["items"]), key=lambda y: y[0])
         plan = []
         for i, (t, x) in enumerate(items):
