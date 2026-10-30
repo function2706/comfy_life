@@ -1859,6 +1859,21 @@
   "chat.req_money_again": [
    "……また頼むのは非効率なんだけど。今月も、少し足りない"
   ],
+  "talk_topic.ok": [
+   "ふうん、そうなんだ"
+  ],
+  "talk_topic.hit": [
+   "なにそれ、興味ある。詳しく聞かせて"
+  ],
+  "talk_topic.bored": [
+   "……ふうん"
+  ],
+  "talk_topic.known": [
+   "その情報は既知"
+  ],
+  "talk_topic.again": [
+   "それ、前にも聞いた。再現性は高いね"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、問題は半分しか解決してない』"
   ],

@@ -1865,6 +1865,21 @@
   "chat.req_money_again": [
    "……また貸してくれるわよね？ 今月も、少し足りないの"
   ],
+  "talk_topic.ok": [
+   "ふうん、そう"
+  ],
+  "talk_topic.hit": [
+   "へえ、面白いじゃない。続けなさい"
+  ],
+  "talk_topic.bored": [
+   "……つまらない話ね"
+  ],
+  "talk_topic.known": [
+   "知ってるわよ、そんなこと"
+  ],
+  "talk_topic.again": [
+   "それ、前も聞いたわ。覚えてないの？"
+  ],
   "chat.apology_half": [
    "📱『……ふうん。半分だけ、許してあげる』"
   ],

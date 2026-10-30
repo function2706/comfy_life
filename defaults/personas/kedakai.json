@@ -1896,6 +1896,21 @@
   "chat.req_money_again": [
    "……また頼むのは本意ではないのだけど。今月も、少し足りなくて"
   ],
+  "talk_topic.ok": [
+   "そう。それで？"
+  ],
+  "talk_topic.hit": [
+   "……悪くない話ね。続けなさい"
+  ],
+  "talk_topic.bored": [
+   "……そう"
+  ],
+  "talk_topic.known": [
+   "その話なら、もう知っているわ"
+  ],
+  "talk_topic.again": [
+   "それは前にも聞いたわ"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、すっかり水に流したわけではないわ』"
   ],

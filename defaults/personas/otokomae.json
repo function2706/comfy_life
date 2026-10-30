@@ -1911,6 +1911,21 @@
   "chat.req_money_again": [
    "……また頼むのは気が引けるが。今月も、少し足りない"
   ],
+  "talk_topic.ok": [
+   "そうか"
+  ],
+  "talk_topic.hit": [
+   "ほう、面白いな。続けてくれ"
+  ],
+  "talk_topic.bored": [
+   "……そうか"
+  ],
+  "talk_topic.known": [
+   "それなら知っている"
+  ],
+  "talk_topic.again": [
+   "その話は前にも聞いたぞ"
+  ],
   "chat.apology_half": [
    "📱『……ああ。だが、まだ全部は飲み込めていない』"
   ],

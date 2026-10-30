@@ -1898,6 +1898,21 @@
   "chat.req_money_again": [
    "……また頼むのは気が引けるけど。今月も、少し足りない"
   ],
+  "talk_topic.ok": [
+   "……そう"
+  ],
+  "talk_topic.hit": [
+   "……へえ。続き、聞かせて"
+  ],
+  "talk_topic.bored": [
+   "……ふうん"
+  ],
+  "talk_topic.known": [
+   "それ、知ってる"
+  ],
+  "talk_topic.again": [
+   "……前も聞いた"
+  ],
   "chat.apology_half": [
    "📱『……ん。わかった』"
   ],

@@ -1910,6 +1910,21 @@
   "chat.req_money_again": [
    "……また、たのんでいい？ ……こんげつも、すこし、たりない"
   ],
+  "talk_topic.ok": [
+   "……そう"
+  ],
+  "talk_topic.hit": [
+   "……それで？ ……もっと"
+  ],
+  "talk_topic.bored": [
+   "……ん"
+  ],
+  "talk_topic.known": [
+   "……しってる"
+  ],
+  "talk_topic.again": [
+   "……まえも、きいた"
+  ],
   "chat.apology_half": [
    "📱『……うん』"
   ],

@@ -2204,6 +2204,21 @@
   "chat.req_money_again": [
    "……悪いけど、また貸してくんない？ 今月もちょっとピンチで"
   ],
+  "talk_topic.ok": [
+   "へー、そうなんだ"
+  ],
+  "talk_topic.hit": [
+   "え、なにそれ！ それで？"
+  ],
+  "talk_topic.bored": [
+   "……ふーん"
+  ],
+  "talk_topic.known": [
+   "あー、それ知ってるし"
+  ],
+  "talk_topic.again": [
+   "それ前も聞いたって。ボケた？"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、わかったけど』"
   ],

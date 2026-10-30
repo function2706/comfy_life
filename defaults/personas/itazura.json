@@ -2358,6 +2358,21 @@
   "chat.req_money_again": [
    "ねえ{call}、またお願いしてもいい？ 今月も、ちょ〜っと足りなくて"
   ],
+  "talk_topic.ok": [
+   "ふーん、そうなんだ"
+  ],
+  "talk_topic.hit": [
+   "なにそれ、おもしろ〜い。それで？ 続きは？"
+  ],
+  "talk_topic.bored": [
+   "……ふーん。で？"
+  ],
+  "talk_topic.known": [
+   "あ、それ知ってる〜。遅いよ"
+  ],
+  "talk_topic.again": [
+   "それ前も聞いた〜。物忘れ？"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、半分だけ許してあげる』"
   ],

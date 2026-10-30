@@ -1914,6 +1914,21 @@
   "chat.req_money_again": [
    "ねえ{call}、またお願いしてもいい？ 今月も、ちょっと足りなくて！"
   ],
+  "talk_topic.ok": [
+   "へー、そうなんだ！"
+  ],
+  "talk_topic.hit": [
+   "えー！ それでそれで？ 全部聞かせて！"
+  ],
+  "talk_topic.bored": [
+   "……ふーん、そっか"
+  ],
+  "talk_topic.known": [
+   "あ、それ知ってる知ってる！"
+  ],
+  "talk_topic.again": [
+   "それ前も聞いたよー？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっと、もやっとしてるけど！』"
   ],

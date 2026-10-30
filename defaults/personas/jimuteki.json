@@ -1909,6 +1909,21 @@
   "chat.req_money_again": [
    "……再度の依頼で悪いのだけど。今月も、少し不足していて"
   ],
+  "talk_topic.ok": [
+   "そう。了解"
+  ],
+  "talk_topic.hit": [
+   "興味深いわね。続きを聞かせて"
+  ],
+  "talk_topic.bored": [
+   "……そう"
+  ],
+  "talk_topic.known": [
+   "その件なら把握済みよ"
+  ],
+  "talk_topic.again": [
+   "その話は前回も聞いたわ"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],

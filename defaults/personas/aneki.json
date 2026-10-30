@@ -2201,6 +2201,21 @@
   "chat.req_money_again": [
    "……悪いんだけど、またお願いしてもいい？ 今月も、ちょっと苦しくて"
   ],
+  "talk_topic.ok": [
+   "へえ、そうなの"
+  ],
+  "talk_topic.hit": [
+   "なになに、それで？ 続き聞かせなさいよ"
+  ],
+  "talk_topic.bored": [
+   "……ふうん、そう"
+  ],
+  "talk_topic.known": [
+   "ああ、それなら知ってるわ"
+  ],
+  "talk_topic.again": [
+   "それ、前にも聞いたわよ？"
+  ],
   "chat.apology_half": [
    "📱『……うん。わかったけど、まだ全部は飲み込めてないわよ』"
   ],

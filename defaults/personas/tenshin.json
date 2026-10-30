@@ -1910,6 +1910,21 @@
   "chat.req_money_again": [
    "ねえねえ、またお願いしてもいい？ 今月も、ちょっと足りなくなっちゃった！"
   ],
+  "talk_topic.ok": [
+   "へー、そうなんだ"
+  ],
+  "talk_topic.hit": [
+   "なにそれなにそれ！ もっと聞かせて！"
+  ],
+  "talk_topic.bored": [
+   "……ふーん"
+  ],
+  "talk_topic.known": [
+   "あ、それ知ってる！"
+  ],
+  "talk_topic.again": [
+   "それ、前も聞いたよ〜？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……心の中、まだちょっとだけ曇ってるけど』"
   ],
