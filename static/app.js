@@ -1010,6 +1010,8 @@ function renderItems() {
   const cat = (S.boot.catalog || {}).items || [];
   const want = Object.fromEntries(iv.shop_list.map((x) => [x.id, x.want]));
   const setWant = async (id, qty) => { try { await api('/api/items/list', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
+  const stock = iv.stock || {};
+  const setStock = async (id, qty) => { try { await api('/api/items/stock', { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); } };
   const t = T();
   const canGive = !!(t && (t.available.gift || {}).ok);   // いま目の前にいて, 受け取れる状態か
   box.replaceChildren(
@@ -1022,12 +1024,17 @@ function renderItems() {
       h('p', { class: 'hint' }, '料理は食材、お茶はお茶っ葉・コーヒー豆、おやつはお菓子を使います（無ければありあわせで効き目が落ちる）。家事は洗剤があるとはかどり、研鑽はその分野の本があると伸びやすくなります（本は減りません）。')),
     h('div', { class: 'pgroup' }, h('h4', {}, '📝 買うものリスト'),
       h('p', { class: 'hint' }, '買い物（とカフェ）に出たとき、その店で売っていれば買ってきます。品切れや値段の上下があり、お金が足りなければ買えません。リストにない物をつい買うこともあります。'),
+      h('p', { class: 'hint' }, '「常備」は、いつも置いておきたい数です（持ち物と同じ数え方。食材は回分）。使って減ってこの数を下回ると、足りない分がリストに戻ります。リストから消しても、次に使って減るまでは戻しません。'),
       cat.map((it) => h('div', { class: 'row item-row' },
         h('span', { style: 'flex:1;min-width:10em' }, `${it.icon} ${it.name}`, h('span', { class: 'muted small' }, ` ${yen(it.price)}前後${it.servings > 1 ? `（${it.servings}回分）` : ''}・${it.places.map(PLACE_LABEL).join(' ')}`),
           iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
         h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => setWant(it.id, (want[it.id] || 0) - 1) }, '−'),
         h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
-        h('button', { class: 'btn small', onclick: () => setWant(it.id, (want[it.id] || 0) + 1) }, '＋')))));
+        h('button', { class: 'btn small', onclick: () => setWant(it.id, (want[it.id] || 0) + 1) }, '＋'),
+        h('span', { class: 'muted small', style: 'margin-left:10px' }, '常備'),
+        h('button', { class: 'btn small ghost', disabled: !stock[it.id], title: '常備数を減らす', onclick: () => setStock(it.id, (stock[it.id] || 0) - 1) }, '−'),
+        h('span', { class: 'small', style: 'min-width:3.2em;text-align:center;white-space:nowrap' }, stock[it.id] ? `${stock[it.id]}${it.nut ? '回' : ''}` : '—'),
+        h('button', { class: 'btn small ghost', title: '常備数を増やす', onclick: () => setStock(it.id, (stock[it.id] || 0) + 1) }, '＋')))));
 }
 async function giveItem(item, cid) {
   if (S.busy) return;

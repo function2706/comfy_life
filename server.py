@@ -152,6 +152,8 @@ def route(method, path, q, body):
             return {"diary": a.solo.write_diary()}
         if path == "/api/items/list":
             return a.items.set_list(b["id"], int(b.get("qty", 0)))
+        if path == "/api/items/stock":
+            return a.items.set_stock(b["id"], int(b.get("qty", 0)))
         if path == "/api/gift":
             return a.give_item(b["item"], cid)
         if path == "/api/chat/send":

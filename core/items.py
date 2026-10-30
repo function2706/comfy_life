@@ -6,6 +6,8 @@
   品切れ・値段の上下もあり, お金が足りなければ買えない. リスト以外の衝動買いも少しある
 - 家での行動が持ち物を使う: 料理=食材, お茶=お茶っ葉など, おやつ=お菓子 (無ければありあわせで効き目が落ちる),
   家事=洗剤 (あるとはかどる), 研鑽=その分野の本・教材 (あると伸びやすい. 減らない)
+- 常備数 (stock): 「卵と豆腐は 4 回分は置いておく」のように決めておくと, 使って減って下回ったとき, 足りない分が買うものリストに戻る
+  (単位は持ち物の数と同じ. 食材は回分). リストから手で消しても, 次に使って減るまでは戻さない
 - 借金のあいだは必需品 (ESSENTIAL_KINDS: 食材・日用品) しか買わない (リストにあっても見送る. 衝動買いもしない)
 - プレゼントは持ち物から. キャラクターの好き・苦手 (定義の likes / dislikes. 無ければ性格プリセットの既定) と品物の印を照らす
 """
@@ -84,6 +86,7 @@ class Items:
         ps = self.app.life.player_state()
         ps.setdefault("items", {})
         ps.setdefault("shop_list", {})
+        ps.setdefault("stock", {})
         return ps
 
     def save(self):
@@ -100,6 +103,8 @@ class Items:
         inv[iid] = inv.get(iid, 0) + n
         if inv[iid] <= 0:
             inv.pop(iid)
+        if n < 0:
+            self.restock(iid)
         self.save()
 
     def count_nut(self, nut):
@@ -136,6 +141,36 @@ class Items:
             sl.pop(iid, None)
         self.save()
         return self.view()
+
+    def set_stock(self, iid, qty):
+        """常備数を決める (0 で解除). 決めた時点で足りなければ, 買うものリストに入れる."""
+        if iid not in CATALOG:
+            raise KeyError("品物が見つかりません: %s" % iid)
+        st = self.ps()["stock"]
+        if int(qty) > 0:
+            st[iid] = min(99, int(qty))
+            self.restock(iid)
+        else:
+            st.pop(iid, None)
+        self.save()
+        return self.view()
+
+    def restock(self, iid):
+        """常備数を下回っていれば, 足りない分 (買う単位で) を買うものリストに. 入れた数を返す (足りていれば 0)."""
+        ps = self.ps()
+        want = int(ps["stock"].get(iid, 0))
+        lack = want - self.count(iid)
+        if lack <= 0:
+            return 0
+        per = int(CATALOG[iid].get("servings", 1))
+        need = -(-lack // per)
+        if ps["shop_list"].get(iid, 0) >= need:
+            return 0
+        ps["shop_list"][iid] = min(99, need)
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("items", "常備数を下回ったので買うものリストへ", item=iid, stock=want, have=self.count(iid), list=need)
+        return need
 
     # ------------------------------------------------------------------ 買い物
     def shop(self, place, hours=1.0, t=None):
@@ -226,6 +261,7 @@ class Items:
         ps = self.ps()
         return {"items": [dict(CATALOG[i], count=n) for i, n in sorted(ps["items"].items()) if i in CATALOG and n > 0],
                 "shop_list": [dict(CATALOG[i], want=n) for i, n in sorted(ps["shop_list"].items()) if i in CATALOG],
+                "stock": {i: n for i, n in ps["stock"].items() if i in CATALOG},
                 "in_debt": self.app.life.in_debt()}
 
     @staticmethod
