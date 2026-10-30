@@ -167,7 +167,8 @@ def main():
             st["apology_last"] = {"t": now - 3600, "action": "_too_often", "out": out}
             app.save_state(cid)
             app.deliver_due()
-            assert app.chat.thread(cid)["items"][-1]["kind"] == want, (out, app.chat.thread(cid)["items"][-1])
+            last = [x for x in app.chat.thread(cid)["items"] if not x.get("kind", "").startswith("close_")][-1]   # 切り上げのひとことは除く
+            assert last["kind"] == want, (out, last)
         # すでに以前の判定で「え、何が？」と返っていたら: 起動したとき一度だけ当て直す (文面はそのまま)
         for out, sign in (("quick", 1), ("refuse", -1)):
             app, st = old_state(app, cid, now)

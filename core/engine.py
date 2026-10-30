@@ -26,6 +26,7 @@ from . import outdoor as outdoor_mod
 from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
+from . import nori as nori_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -1304,13 +1305,20 @@ class App:
                 delay *= 2
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
                 * (0.7 if p.get("stress", 0) > 70 else 1)                 * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
+            lv = nori_mod.level(st, now)                # 会話の途中なら, 乗っているほど早く・冷めていれば遅く
+            if lv is not None:
+                delay *= 1.5 - lv
             quick = self._still_on_phone(char, st, now, scene, ctx)
             if quick:
                 delay = random.uniform(10, 90)
-            st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1,
-                                 "kind": kind, "quick": quick, "meta": meta}
+            reply = random.random() < pr
+            aff = p.get("affection", 50)
+            # 嫌われていて返さないときは, 読みもしない (未読スルー) こともある. 既読はずっとあとで付く (付かないまま流れることも)
+            unread = not reply and not quick and aff < 35 and random.random() < min(0.7, 0.2 + (35 - aff) / 50.0)
+            st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": reply, "count": 1,
+                                 "kind": kind, "quick": quick, "meta": meta, "unread": unread}
             self.trace.add("msg", "送った: 返信の予定を決めた", cid, now, kind=kind, due_min=delay / 60.0, pr=pr,
-                           reply=st["msg_pending"]["reply"], quick=quick, too_often=ctx.get("too_often"),
+                           reply=st["msg_pending"]["reply"], quick=quick, unread=unread, nori=lv, too_often=ctx.get("too_often"),
                            contacts=ctx.get("contacts_24h"), mood=p.get("mood"), affection=p.get("affection"), stress=p.get("stress"),
                            scene=scene.get("label"), asleep=scene.get("asleep"), busy=scene.get("busy"), meta=meta)
         if pend:
@@ -1331,7 +1339,9 @@ class App:
     def picked_up_phone(self, char, st, now):
         """相手があなたにメッセージを送った・返した直後は, しばらくスマホを見ている (すぐの返信の手がかり).
         どれくらい見ているかは揺らぎと性格 (話しかけてくる多さ) しだい."""
-        st["phone_until"] = now + random.uniform(2, 10) * 60 * min(1.5, max(0.5, float(self.traits(char).get("approach", 1))))
+        lv = nori_mod.level(st, now)                     # 会話に乗っているほど長く見ている
+        st["phone_until"] = now + random.uniform(2, 10) * 60 * min(1.5, max(0.5, float(self.traits(char).get("approach", 1)))) \
+            * (1.0 if lv is None else 0.5 + lv)
 
     def _still_on_phone(self, char, st, now, scene, ctx):
         """相手がまだスマホを見ている間に送ったら, すぐ返ってくることがある. 必ずではない (機嫌・好感度・続いた回数・
@@ -1340,9 +1350,13 @@ class App:
             st["phone_turns"] = 0
             return False
         p = st["params"]
-        pq = 0.75 * (0.5 if p.get("mood", 50) < 35 else 1) * (0.6 if p.get("affection", 50) < 40 else 1) \
-            * (0.5 if ctx.get("too_often") else 1) * (0.8 ** st.get("phone_turns", 0)) \
-            * min(1.3, max(0.5, float(self.traits(char).get("approach", 1))))
+        lv = nori_mod.level(st, now)
+        if lv is None:
+            pq = 0.75 * (0.5 if p.get("mood", 50) < 35 else 1) * (0.6 if p.get("affection", 50) < 40 else 1) \
+                * (0.8 ** st.get("phone_turns", 0))
+        else:                                  # 会話の途中: ノリしだい (機嫌・好感度・続けた疲れはノリに入っている)
+            pq = 0.15 + 0.8 * lv
+        pq *= (0.5 if ctx.get("too_often") else 1) * min(1.3, max(0.5, float(self.traits(char).get("approach", 1))))
         if random.random() < pq:
             st["phone_turns"] = st.get("phone_turns", 0) + 1
             return True
@@ -1392,7 +1406,13 @@ class App:
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)
-            if key not in ("too_often", "late_night"):
+            cold = key in ("too_often", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
+                           "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad")
+            closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold)
+            if closing and key not in ("too_often", "late_night"):     # ノリが下がりきった: 相手から切り上げる
+                ck, ctext = nori_mod.close(self, char, st, now)
+                self.chat.add(cid, "her", ctext, kind=ck, t=now + 0.002)
+            elif key not in ("too_often", "late_night"):
                 self.picked_up_phone(char, st, now)
             if key == "invite_yes":
                 self.chat.add(cid, "sys", "📅 会おうという話になった（半日のうちに約束すれば、応じてもらいやすい）", kind="promise", t=now + 0.001)
@@ -1508,6 +1528,12 @@ class App:
                 self.save_state(cid)
                 if self.trace.every("defer:" + cid, 1800, now):
                     self.trace.add("deliver", "延期 (寝ている・手が離せない)", cid, now, scene=scene.get("label"), new_due=pend["due"])
+                continue
+            if pend.get("unread") and not pend.get("reply"):     # 未読スルー: いまは読まない. ずっとあとで既読だけ付く
+                pend["unread"] = False
+                pend["due"] = now + random.uniform(3, 12) * 3600
+                self.save_state(cid)
+                self.trace.add("deliver", "未読のまま (読まない)", cid, now, kind=pend.get("kind"), read_at=pend["due"])
                 continue
             st.pop("msg_pending", None)
             self.trace.add("deliver", "読んだ" + ("・返信する" if pend.get("reply") else "・返事はしない (既読だけ)"), cid, now,

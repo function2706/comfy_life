@@ -95,7 +95,7 @@ def main():
             st["params"].update({"mood": 60, "loneliness": 50})
             ap["until"] = time.time() - 1
             e = app.presence.live(char, st, time.time())
-            return -e["deltas"].get("mood", 0), app.chat.thread(cid)["items"][-1]
+            return -e["deltas"].get("mood", 0), [x for x in app.chat.thread(cid)["items"] if not x.get("kind", "").startswith("close_")][-1]
         r_read, last = ignored("amaenbo", True)
         r_unread, _ = ignored("amaenbo", False)
         assert r_read > r_unread and last["kind"] == "ignored", (r_read, r_unread, last)
@@ -116,7 +116,7 @@ def main():
             app.chat.send(cid, "ask_selfie")
             st["msg_pending"]["due"], st["msg_pending"]["reply"] = time.time() - 1, True
             app.deliver_due()
-            return app.chat.thread(cid)["items"][-1]
+            return [x for x in app.chat.thread(cid)["items"] if not x.get("kind", "").startswith("close_")][-1]   # 切り上げのひとことは除く
         yes = 0
         for _ in range(40):
             st["selfie_asks"] = []

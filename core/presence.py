@@ -21,6 +21,7 @@ from datetime import datetime
 
 from . import cond
 from . import msgreply
+from . import nori
 
 DECLARED = ("busy", "out", "work", "sleep", "left")
 AWAY_MODES = ("out", "work", "sleep", "left")
@@ -256,6 +257,7 @@ class Presence:
             rum = self.app.rumors.from_message(char, st, now)          # 会社や店の噂が添えられることも
             if rum:
                 self.app.chat.add(char["id"], "sys", rum, kind="rumor", t=now + 0.0007)
+            nori.start(self.app, char, st, now, boost=15 if a["id"] == "msg_chat" else 8, why="相手から送ってきた: " + a["id"])
             self.app.picked_up_phone(char, st, now)
         st["approach"]["entry"] = e["id"]
         return e
@@ -398,13 +400,20 @@ class Presence:
         chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind), "・自動" if auto else ""), kind="approach", t=now)
         chat.mark_read_by_her(char["id"], now)
         chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
-        if random.random() < msgreply.MORE_RATE[res]:          # 会話している感じ: もう一言
+        closing = nori.after_choice(self.app, char, st, now, res)
+        lv = nori.level(st, now)
+        if closing:                                            # ノリが下がりきった: 相手から切り上げる
+            ck, ctext = nori.close(self.app, char, st, now)
+            chat.add(char["id"], "her", ctext, kind=ck, t=now + 0.002)
+            e["closed"] = ck
+        elif random.random() < msgreply.MORE_RATE[res] * (1.0 if lv is None else 0.5 + lv):   # 会話している感じ: もう一言 (乗っているほど)
             more = self.app.persona_text(char, "msgr.more." + res) or msgreply.LINES["msgr.more." + res]
             d = datetime.fromtimestamp(now)
             more = self.app.format_text(more, char, self.app.scene_at(char, st, d), d)
             chat.add(char["id"], "her", more, kind="approach", t=now + 0.002)
             e["more"] = more
-        self.app.picked_up_phone(char, st, now)
+        if not closing:
+            self.app.picked_up_phone(char, st, now)
         self.app.save_log(char["id"])
         self.app.save_state(char["id"])
         return e

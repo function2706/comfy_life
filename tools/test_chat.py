@@ -34,6 +34,7 @@ def main():
         def send(kind, reply=True, **params):
             st["contacts"] = []
             st.pop("msg_pending", None)
+            st.pop("nori", None)               # 毎回, 会話の始まりから (ノリの切り上げは tools/test_nori.py)
             if params:
                 app.set_params(params, cid)
             C.send(cid, kind)
@@ -109,7 +110,7 @@ def main():
         assert len(st.get("contacts") or []) == n0, "謝るメッセージは数えない"
         st["msg_pending"].update(due=time.time() - 1, reply=True)
         r = app.deliver_due()
-        assert r and "連絡多く" not in r[0]["text"] and C.thread(cid)["items"][-1]["kind"].startswith("apology"), r
+        assert r and "連絡多く" not in r[0]["text"] and [x for x in C.thread(cid)["items"] if not x.get("kind", "").startswith("close_")][-1]["kind"].startswith("apology"), r
         st["contacts"], st["reasons"] = [], []
         night = app.phase_at
         app.phase_at = lambda dt: {"id": "midnight", "label": "深夜", "pos": "", "neg": ""}
