@@ -60,13 +60,11 @@ class Manners:
         """謝った. 結果 {out, r, late} を決める (状態はまだ変えない. apply_apology で反映).
         out: quick / half / deeds / refuse / late / enough / irritated / none (謝ることが見当たらない)."""
         prev = [t for t in st.get("apologies") or [] if now - t < APOLOGY_SPAN]
-        if len(prev) >= 2:
-            return {"out": "irritated", "r": None}
-        if prev:
-            return {"out": "enough", "r": None}
         fs = self._faults(st, now)
-        if not fs:
-            return {"out": "none", "r": None}
+        if len(prev) >= 2 or prev or not fs:
+            out = "irritated" if len(prev) >= 2 else "enough" if prev else "none"
+            self.app.trace.add("manners", "謝罪の判定: %s" % out, char.get("id"), now, prev=len(prev), faults=len(fs))
+            return {"out": out, "r": None}
         # いま効いている理由 (半日のうち) を先に謝る. それが無いときだけ, 前のことを謝る (「今さら？」)
         active = [x for x in fs if now - x["t"] <= LATE_AFTER]
         r = max(active or fs, key=lambda x: (abs(x.get("delta", 0)), x["t"]))
@@ -79,9 +77,10 @@ class Manners:
         s = 0.75 - abs(r.get("delta", 0)) / 25.0 - 0.15 * max(0, nth - 1) + (p.get("mood", 50) - 50) / 120.0 \
             + (p.get("affection", 50) - 50) / 250.0 + (p.get("trust", 50) - 50) / 300.0 - (self.grudge(char) - 1) * 0.8 \
             + (0.08 * L.skill_soft("talk") if face else 0.0) - (0.1 if r.get("half") else 0.0) + random.gauss(0, 0.15)
-        if late:
-            return {"out": "late", "r": r, "s": s}
-        out = "quick" if s >= 0.55 else "half" if s >= 0.3 else "deeds" if s >= 0.1 else "refuse"
+        out = "late" if late else "quick" if s >= 0.55 else "half" if s >= 0.3 else "deeds" if s >= 0.1 else "refuse"
+        self.app.trace.add("manners", "謝罪の判定: %s" % out, char.get("id"), now, s=s, reason=r.get("tell"), delta=r.get("delta"),
+                           nth=nth, late=late, face=face, mood=p.get("mood"), affection=p.get("affection"), trust=p.get("trust"),
+                           grudge=self.grudge(char))
         return {"out": out, "r": r, "s": s}
 
     def apply_apology(self, char, st, v, now):
@@ -132,9 +131,11 @@ class Manners:
             got = self._thanks_forgave(st, al, char)
             if got:
                 return got
+        fresh = [f for f in fs if not f["thanked"]]
+        self.app.trace.add("manners", "お礼の判定", (char or {}).get("id"), now, favors=[f["what"] for f in fs], fresh=len(fresh),
+                           apology_last=al.get("out"))
         if not fs:
             return "thanks_what", {}
-        fresh = [f for f in fs if not f["thanked"]]
         for f in fs:
             f["thanked"] += 1
         if fresh:

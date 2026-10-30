@@ -81,6 +81,12 @@ class Appoint:
     def save(self):
         lst = self.all()
         now = time.time()
+        for x in lst:                     # 状態が変わったら判断の記録に (どの道筋で変わっても)
+            if x.get("_tr") != x.get("status"):
+                self.app.trace.add("favor" if x.get("favor") else "appoint", "%s → %s" % (x.get("_tr") or "新規", x.get("status")),
+                                   x.get("cid"), now, id=x.get("id"), at=x.get("t"), place=x.get("place"), do=x.get("label") or x.get("do"),
+                                   by=x.get("by"), fixed=x.get("fixed"), ask=x.get("ask"), rounds=x.get("rounds"))
+                x["_tr"] = x.get("status")
         lst[:] = [x for x in lst if x["status"] in OPEN or now - x["t"] < 30 * 86400][-60:]
         self.app.life.save_player()
 

@@ -167,7 +167,11 @@ class Presence:
             return self._expire(char, st, now)
         last = st.get("ap_check") or now
         st["ap_check"] = now
+        T = self.app.trace
         if ap or now < st.get("ap_quiet_until", 0):
+            if T.every("apskip:" + char["id"], 1800, now):
+                T.add("approach", "抽せんしない (%s)" % ("返事待ちの働きかけがある" if ap else "少し前に離れていった (quiet)"), char["id"], now,
+                      approach=(ap or {}).get("id"), quiet_until=st.get("ap_quiet_until"))
             return None
         dt_h = min(max(now - last, 0), 600) / 3600.0
         if not dt_h:
@@ -189,13 +193,21 @@ class Presence:
         else:
             rate = float(self.cfg().get("approach_rate_per_hour", 0.8)) * self.eagerness(ctx)
         rate *= float(self.app.traits(char).get("approach", 1))
-        if random.random() >= 1 - math.exp(-rate * dt_h):
+        hit = 1 - math.exp(-rate * dt_h)
+        if random.random() >= hit:
+            if T.every("apmiss:" + char["id"], 1800, now):
+                T.add("approach", "抽せん: 外れ (30 分に一度だけ残す)", char["id"], now, rate_h=rate, p=hit, apart=ctx.get("apart"),
+                      presence=pres, mood=ctx.get("mood"), loneliness=ctx.get("loneliness"), affection=ctx.get("affection"))
             return None
         pend = st.get("msg_pending")
         if ctx.get("apart") and pend:
             # あなたのメッセージに返していないうちは, 別の話を送ってこない. スマホを手に取ったので, いま読む (返すかは決めたとおり)
             pend["due"] = min(pend.get("due", now), now)
+            T.add("approach", "抽せん: 当たったが, 返事待ちのメッセージがあるので送らず, いま読む", char["id"], now, rate_h=rate, p=hit,
+                  reply=pend.get("reply"))
             return None
+        T.add("approach", "抽せん: 当たり", char["id"], now, rate_h=rate, p=hit, apart=ctx.get("apart"), presence=pres,
+              mood=ctx.get("mood"), loneliness=ctx.get("loneliness"), affection=ctx.get("affection"))
         return self.fire(char, st, now, ctx)
 
     def eagerness(self, ctx):
@@ -228,8 +240,10 @@ class Presence:
                     continue
             cands.append(a)
         if not cands:
+            self.app.trace.add("approach", "候補なし (条件・間隔)", char["id"], now, apart=apart, force=force)
             return None
         a = random.choices(cands, [float(x.get("weight", 1)) for x in cands])[0]
+        self.app.trace.add("approach", "働きかけ: %s" % a["id"], char["id"], now, cands=[x["id"] for x in cands], force=force)
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
@@ -282,6 +296,8 @@ class Presence:
         mult *= 0.5 + lon / 100.0
         eff = {k: float(v) * mult for k, v in (ig.get("effects") or {"mood": -3, "loneliness": 5}).items()}
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
+        self.app.trace.add("approach", "時間切れ (返事がなかった): %s" % ap["id"], char["id"], now, read=read, mult=mult, loneliness=lon,
+                           presence=pres, deltas=deltas)
         busy = ap.get("presence") == "busy"
         text = (ig.get("busy_text") if busy else None) or ig.get("text") or "（返事がないので、{name}はそっと離れていった）"
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60

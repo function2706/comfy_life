@@ -505,6 +505,12 @@ ComfyUI で「Export (API)」した JSON を登録できます。
 
 `%POSITIVE%` `%NEGATIVE%` `%SEED%` `%WIDTH%` `%HEIGHT%` `%STEPS%` `%CFG%` `%CKPT%` `%SAMPLER%` `%SCHEDULER%`
 
+## 不具合を報告するとき（判断の記録と書き出し）
+
+- 判断の記録 `core/trace.py`（`App.trace.add(cat, msg, cid, t, **値)`）: 裏で決めたことを時刻つきで 1 件 1 行。ワールドごとの `trace.dat`（JSON → zlib → 固定鍵の XOR → base64。遊ぶ人がうっかり見ないための符号化で、秘密ではない）。`KEEP_DAYS`（14 日）より古いもの・`MAX_LINES`（20,000 行）を超えた分は `TRIM_EVERY` 件ごとに捨てる。server.log には書かない。残すもの: `msg`（送ったときの返信の予定: 遅れ・返信する確率と結果・quick・too_often・連絡の多さ・機嫌など / 返事待ちに重ねた / 電話）・`deliver`（読んだ・既読だけ・延期・一日たって来ない）・`reply`（返信の場面・効き目・realize 後・許容）・`approach`（抽せんの当たり / 外れ・見送りは 30 分に一度 `every` / 候補と選ばれた id / 時間切れ）・`manners`（謝罪の判定と値・お礼）・`offline`（閉じていた間の始め・各行動と予定の決まり方 `plan`・仕事の結果・取りこぼしの払い）・`appoint` / `favor`（状態の変化. `Appoint.save` で前の状態 `_tr` と比べる）・`retro`（起動時の当て直し）。
+- 書き出し `core/debugdump.py`（`POST /api/debug/dump {hours | day, cid, brief}` → `{block, lines, chars, name}`）: 要点（`git log -1` のコミット・ワールド・時刻・範囲 / あなた / 相手ごとの params・msg_pending・approach・apology_last・連絡の多さと許容・機嫌の理由・約束・頼まれごと / いちばん新しい閉じていた間のまとめ）→ 詳細（判断の記録・トーク・ログ（プロンプトは省く）・一人の時間・日記・server.log の範囲）。`MAX_CHARS` を超えたら詳細の古い方を省く。画面（設定 → データ）には中身を出さず、符号化した 1 つのブロック（`-----BEGIN KURASHI-DUMP v1 len= crc=-----` … `-----END KURASHI-DUMP-----`、76 桁で改行）をコピー / ファイルに保存するだけ。
+- 開発者向け: 貼られたブロックは `python tools/debug_decode.py ファイル` で読む（切れ・化けを知らせ、読めたところまで出す。`--trace trace.dat` で記録を直接）。
+
 ## 生成がうまくいかないとき
 
 画面右上のバッジ（「🖼 生成ジョブ」/「ComfyUI で生成中 …」）をクリックすると、生成ジョブの一覧が開きます。
@@ -569,6 +575,8 @@ tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し�
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記）のテスト
+tools/test_debug_dump.py  判断の記録（残る・読めない形・上限）と不具合の書き出し（欄・往復・切れと化けの検出・古いセーブ）のテスト
+tools/debug_decode.py  開発者向け: 不具合の書き出しを読める形にする
 tools/test_offline_fallback.py  予定を組んでいない日の閉じていた間の仕事・予定を組んだ日の勤め・以前の取りこぼしの払い（一度だけ・払わない日）・日記（振り分け・重複・切れ・書き直し）のテスト
 tools/test_join.py  出先での合流（誘う・誘われる・断られる）と互いの家へ（暮らしぶり・家の様子）のテスト
 tools/test_hours.py  行き先の営業時間（定休日・季節・閉まっていれば行けない・閉店で出される・約束・行動パターン）のテスト

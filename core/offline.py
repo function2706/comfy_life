@@ -184,6 +184,9 @@ class Offline:
                 stamina = min(cap, stamina + r * (y - x) / 3600.0)
                 x = y
 
+        app.trace.add("offline", "閉じていた間を過ごす", None, t1, start=t0, end=t1, use_plan=use_plan, routine=c.get("enabled"),
+                      fallback=[app.planner.label(f) for f in app.planner.rec()["fallback"]], plans=len(app.planner.rec()["items"]),
+                      stamina=stamina, money=money0)
         source = self._plan_blocks(t0, t1, lambda: stamina, c.get("enabled")) if use_plan else self.blocks(t0, t1)
         for s, e, b in source:
             s = max(s, t)                          # 残業などで, 前の行動が延びたぶんは後ろへ
@@ -280,6 +283,11 @@ class Offline:
                         ent["meets"] = m
             t = max(t, e)
             timeline.append(ent)
+        for x in timeline:
+            app.trace.add("offline", "%s: %s" % (x.get("label"), (x.get("text") or "")[:80]), None, x["t"], end=x.get("end"), do=x["do"],
+                          skipped=x.get("skipped"), plan=x.get("plan"))
+        for w in works:
+            app.trace.add("offline", "仕事の結果", None, w["start"], end=w["end"], pay=w["pay"], paid_h=w["paid_h"], notes=w["notes"])
         L.tick_world(t1)
         if use_plan:
             app.planner.purge(t1)                 # 過ぎた日の予定を消す
@@ -636,6 +644,7 @@ class Offline:
                 ps["money"] += pay
                 L.train("work", 0.5 * h)
                 paid.append((day.strftime("%Y-%m-%d"), pay, s, e))
+                app.trace.add("offline", "取りこぼしの仕事を払った", None, s, end=e, pay=pay, paid_h=h, parts=[p["text"][:40] for p in over])
                 voids += [(sm["t"], p["s"], p["e"], p["text"]) for p in over]
         L.save_player()
         if not paid:

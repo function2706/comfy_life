@@ -2460,6 +2460,45 @@ function saveBar(title, onsave, extra) {
       ev.target.disabled = false;
     } }, '保存'));
 }
+// 不具合の報告: 書き出しは符号化した 1 つのブロック (中身は表示しない. 開発側で読む). コピーかファイルに保存して, そのまま貼る
+function bugReportBox() {
+  const B = SE.bug = SE.bug || { hours: '24', day: '', cid: '', brief: false, res: null };
+  const ppl = (S.view && S.view.people) || [];
+  const draw = () => showSection('data');
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(B.res.block); toast('コピーしました。そのまま貼ってください', 'ok'); }
+    catch (e) {         // クリップボードが使えない: 選んでおく (Ctrl+C)
+      const ta = h('textarea', { style: 'position:fixed;left:-9999px' }, B.res.block); document.body.append(ta); ta.select();
+      try { document.execCommand('copy'); toast('コピーしました', 'ok'); } catch (e2) { toast('コピーできませんでした。ファイルに保存してください', 'err'); }
+      ta.remove();
+    }
+  };
+  const save = () => {
+    const a = h('a', { href: URL.createObjectURL(new Blob([B.res.block], { type: 'text/plain' })), download: B.res.name });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  return h('div', {},
+    h('p', { class: 'hint' }, 'おかしなことが起きたら、ここで書き出して、コピーかファイルを開発側に貼ってください（中身は開発側で読みます。画面には出ません）。起きた時間を含む範囲を選んでください。'),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px;align-items:center' },
+      h('select', { onchange: (ev) => { B.hours = ev.target.value; B.res = null; draw(); } },
+        [['3', '直近 3 時間'], ['24', '直近 24 時間'], ['72', '直近 3 日'], ['168', '直近 7 日'], ['day', '日付を選ぶ']]
+          .map(([v, l]) => h('option', { value: v, selected: B.hours === v }, l))),
+      B.hours === 'day' ? h('input', { type: 'date', value: B.day, onchange: (ev) => { B.day = ev.target.value; B.res = null; } }) : '',
+      h('select', { onchange: (ev) => { B.cid = ev.target.value; B.res = null; } },
+        h('option', { value: '' }, '全員'), ...ppl.map((p) => h('option', { value: p.id, selected: B.cid === p.id }, p.name))),
+      h('label', { class: 'small' }, h('input', { type: 'checkbox', checked: B.brief, onchange: (ev) => { B.brief = ev.target.checked; B.res = null; } }), ' 要点だけ（短く）'),
+      h('button', { class: 'btn primary', disabled: S.busy, onclick: async () => {
+        if (B.hours === 'day' && !B.day) { toast('日付を選んでください', 'err'); return; }
+        try {
+          B.res = await api('/api/debug/dump', { hours: B.hours === 'day' ? null : +B.hours, day: B.hours === 'day' ? B.day : null, cid: B.cid || null, brief: B.brief });
+          draw();
+        } catch (e) { toast(e.message, 'err'); }
+      } }, '書き出す')),
+    B.res ? h('div', { class: 'row', style: 'gap:6px;align-items:center;margin-top:6px' },
+      h('span', { class: 'small' }, `書き出しました（${B.res.lines.toLocaleString()} 行分・貼る文字数 ${B.res.block.length.toLocaleString()}）`),
+      h('button', { class: 'btn small', onclick: copy }, '📋 コピー'),
+      h('button', { class: 'btn small', onclick: save }, '💾 ファイルに保存')) : '');
+}
 function moveIn(arr, i, d) { const j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
 function downloadJson(name, obj) {
   const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' })), download: name });
@@ -3624,6 +3663,8 @@ SEC.data = () => {
   return [
     h('div', { class: 'sbar' }, h('h3', {}, 'データ')),
     h('p', { class: 'lead' }, 'デバッグや調整用です。データは kurashi/data/ に JSON と画像で保存されています（ワールドごとの分は data/worlds/ の下）。'),
+    h('div', { class: 'sect' }, '🐞 不具合を報告するとき'),
+    bugReportBox(),
     h('div', { class: 'sect' }, 'ワールド'),
     worldManager(),
     h('div', { class: 'sect' }, '現在値を直接変更・出来事や働きかけを起こす（テスト用）'),

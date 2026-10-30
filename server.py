@@ -219,6 +219,10 @@ def route(method, path, q, body):
         if path == "/api/outfits":
             with a.lock:
                 return {"outfits": a.wardrobe.save_all(b["items"])}
+        if path == "/api/debug/dump":           # 不具合を報告するときの書き出し (符号化した 1 つのブロック. 中身は画面に出さない)
+            with a.lock:
+                return a.debugdump.dump(hours=b.get("hours") or 24, day=b.get("day") or None, cid=b.get("cid") or None,
+                                        brief=bool(b.get("brief")))
         if path == "/api/plan/add":
             with a.lock:
                 return a.planner.add(b["date"], b["at"], b.get("item") or {}, replace=b.get("replace"))

@@ -41,6 +41,8 @@ from . import posing as posing_mod
 from . import planner as planner_mod
 from . import manners as manners_mod
 from . import calview as calview_mod
+from . import trace as trace_mod
+from . import debugdump as debugdump_mod
 from . import comfy, cond, games, life, llm, puzzles, store, transfer
 from . import keys as keys_mod
 from .keys import line_keys
@@ -137,6 +139,7 @@ class App:
     def __init__(self):
         store.bootstrap()
         self.lock = threading.RLock()
+        self.trace = trace_mod.Trace(self)       # 判断の記録 (不具合を報告するときの書き出しのもと. 読めない形で保存)
         self.states, self.logs, self.jobs = {}, {}, {}
         self.jobq = queue.Queue()
         self._icon_tried = set()
@@ -166,13 +169,16 @@ class App:
         self.planner = planner_mod.Planner(self)
         self.manners = manners_mod.Manners(self)
         self.calview = calview_mod.CalView(self)
+        self.debugdump = debugdump_mod.DebugDump(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
         self._tasks_w = None
         self._load_index()
-        self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
-        self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
+        rt = self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
+        rc = self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
         self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
         paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
+        if rt or rc or paid:
+            self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
         self._ensure_worker()
 
@@ -1237,9 +1243,13 @@ class App:
             pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.5 if ctx.get("too_often") else 1) \
                 * (0.7 if p.get("affection", 50) < 35 else 1) * (1.15 if st.get("call_ok_until", 0) > now else 1)
             if random.random() < min(0.95, pr):
+                self.trace.add("msg", "電話に出た", char["id"], now, pr=pr, mood=p.get("mood"), affection=p.get("affection"),
+                               too_often=ctx.get("too_often"))
                 return None
             callback = (random.uniform(10, 60) * 60) if random.random() < 0.3 else None
         cid = char["id"]
+        self.trace.add("msg", "電話に出なかった", cid, now, asleep=scene["asleep"], busy=scene["busy"], callback_min=(callback or 0) / 60.0,
+                       mood=p.get("mood"), affection=p.get("affection"), too_often=ctx.get("too_often"))
         self.bonds.met(st, now, contact=True)
         if callback and not st.get("msg_pending"):
             st["msg_pending"] = {"aid": "message", "t": now, "due": now + callback, "reply": True, "count": 1, "callback": True}
@@ -1289,6 +1299,14 @@ class App:
                 delay = random.uniform(10, 90)
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": random.random() < pr, "count": 1,
                                  "kind": kind, "quick": quick, "meta": meta}
+            self.trace.add("msg", "送った: 返信の予定を決めた", cid, now, kind=kind, due_min=delay / 60.0, pr=pr,
+                           reply=st["msg_pending"]["reply"], quick=quick, too_often=ctx.get("too_often"),
+                           contacts=ctx.get("contacts_24h"), mood=p.get("mood"), affection=p.get("affection"), stress=p.get("stress"),
+                           scene=scene.get("label"), asleep=scene.get("asleep"), busy=scene.get("busy"), meta=meta)
+        if pend:
+            self.trace.add("msg", "送った: 返事待ちに重ねた", cid, now, kind=kind, count=pend.get("count"), due_in_min=(pend.get("due", now) - now) / 60.0,
+                           reply=pend.get("reply"), nudge=pend.get("nudge"), apology_first=bool(pend.get("apology_first")),
+                           too_often=ctx.get("too_often"), contacts=ctx.get("contacts_24h"))
         cd = float(a.get("cooldown", 0)) * 60
         if cd:
             st["cooldowns"][a["id"]] = [x for x in st["cooldowns"].get(a["id"], []) if now - x < cd] + [now]
@@ -1347,7 +1365,11 @@ class App:
                 ctx["_sent"] = pend.get("kind_t") or pend.get("t")
                 ctx["_after_apology"] = bool(first)       # 謝罪と同じ返事待ちのうちに送ったお礼
                 key, eff, extra = self.chat.reply(char, st, kind, now, ctx)
+            raw_eff = dict(eff)
             eff, _ = self.bonds.realize(char, st, eff, "_chat_" + kind, now)
+            self.trace.add("reply", "返信の中身: %s" % key, cid, now, kind=kind, eff=raw_eff, realized=eff, too_often=ctx.get("too_often"),
+                           contacts=ctx.get("contacts_24h"), tolerance=self.bonds.tolerance(char, cid, st, now),
+                           mood=st["params"].get("mood"), affection=st["params"].get("affection"), trust=st["params"].get("trust"))
             self.bonds.touch(st, now)
             self.bonds.met(st, now, contact=True)
             st["last_interaction"] = now
@@ -1466,6 +1488,7 @@ class App:
             if now - pend["t"] > 24 * 3600:          # 一日たっても返ってこなければ, もう来ない
                 st.pop("msg_pending", None)
                 self.save_state(cid)
+                self.trace.add("deliver", "一日たったので返事は来ないことに", cid, now, kind=pend.get("kind"), sent=pend["t"])
                 continue
             char = self.chars[cid]
             self.tick(cid, now)
@@ -1473,8 +1496,12 @@ class App:
             if scene["asleep"] or scene["busy"]:       # 寝ている・入浴中・仕事中など: 落ち着いてから
                 pend["due"] = now + random.uniform(15, 40) * 60
                 self.save_state(cid)
+                if self.trace.every("defer:" + cid, 1800, now):
+                    self.trace.add("deliver", "延期 (寝ている・手が離せない)", cid, now, scene=scene.get("label"), new_due=pend["due"])
                 continue
             st.pop("msg_pending", None)
+            self.trace.add("deliver", "読んだ" + ("・返信する" if pend.get("reply") else "・返事はしない (既読だけ)"), cid, now,
+                           kind=pend.get("kind"), sent=pend["t"], late_min=(now - pend["t"]) / 60.0, nudge=pend.get("nudge"))
             self.chat.mark_read_by_her(cid, now)       # 既読
             if pend.get("nudge"):
                 self._nudge_seen(char, st, pend, now)
