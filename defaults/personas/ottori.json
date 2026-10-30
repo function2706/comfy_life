@@ -2029,6 +2029,42 @@
   "anniv.your_bday": [
    "{call}、お誕生日おめでとう。今日はごちそう作るわねぇ"
   ],
+  "chores.did": [
+   "{part}、やっておいたわよぉ"
+  ],
+  "chores.share_yes": [
+   "{part}ねぇ。いいわよぉ、{fp}がやるわねぇ"
+  ],
+  "chores.share_no": [
+   "{part}はねぇ……ちょっと、苦手なのよぉ"
+  ],
+  "chores.ask_yes": [
+   "あらぁ、ごめんなさいねぇ。今やるわぁ"
+  ],
+  "chores.ask_later": [
+   "あとでやるわねぇ。のんびりでいいかしらぁ"
+  ],
+  "chores.ask_grudging": [
+   "……わかったわよぉ。やるわねぇ"
+  ],
+  "chores.scold_ok": [
+   "……ごめんなさいねぇ。ちゃんとやるわぁ"
+  ],
+  "chores.scold_back": [
+   "そんなふうに言わなくてもいいじゃないのぉ。{call}だって、忘れることあるでしょう？"
+  ],
+  "chores.joke_ok": [
+   "あらぁ、ばれちゃったわねぇ。今やるわぁ"
+  ],
+  "chores.joke_bad": [
+   "……それ、嫌味かしらぁ？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたから、やっておいたわよぉ"
+  ],
+  "chores.complain": [
+   "{call}、{part}たまってるわよぉ。{call}の番よねぇ？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっとだけ、胸がもやもやしてるけどねぇ』"
   ],

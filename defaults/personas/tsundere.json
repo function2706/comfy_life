@@ -1944,6 +1944,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでと。……べ、別にずっと覚えてたわけじゃないんだから"
   ],
+  "chores.did": [
+   "{part}、やっておいたわよ。……べ、別に{call}のためじゃないから"
+  ],
+  "chores.share_yes": [
+   "{part}ね。……し、仕方ないからやってあげる"
+  ],
+  "chores.share_no": [
+   "{part}は嫌よ。{call}がやりなさいよ"
+  ],
+  "chores.ask_yes": [
+   "……わ、わかってたわよ。今やるところだったの"
+  ],
+  "chores.ask_later": [
+   "あとでやるわよ。うるさいわね"
+  ],
+  "chores.ask_grudging": [
+   "……はいはい、やればいいんでしょ、やれば"
+  ],
+  "chores.scold_ok": [
+   "……わ、悪かったわよ。ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "なによその言い方！ {call}だってサボってるじゃない！"
+  ],
+  "chores.joke_ok": [
+   "……ふ、ふん。バレたなら仕方ないわね。今やる"
+  ],
+  "chores.joke_bad": [
+   "……それ、嫌味？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいたわ。……感謝しなさいよね"
+  ],
+  "chores.complain": [
+   "ちょっと{call}、{part}たまってるわよ。{call}の番でしょ"
+  ],
   "chat.apology_half": [
    "📱『……ふん。半分だけ許してあげる』"
   ],

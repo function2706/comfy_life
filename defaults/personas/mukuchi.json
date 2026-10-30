@@ -1958,6 +1958,42 @@
   "anniv.your_bday": [
    "……{call}、たんじょうび、おめでとう"
   ],
+  "chores.did": [
+   "……{part}、やっておいた"
+  ],
+  "chores.share_yes": [
+   "……{part}。……やる"
+  ],
+  "chores.share_no": [
+   "……{part}は、むり"
+  ],
+  "chores.ask_yes": [
+   "……ごめん。いまやる"
+  ],
+  "chores.ask_later": [
+   "……あとで"
+  ],
+  "chores.ask_grudging": [
+   "……わかった。……やる"
+  ],
+  "chores.scold_ok": [
+   "……ごめん。……ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "……そんないいかた、しなくても"
+  ],
+  "chores.joke_ok": [
+   "……ばれた。……いまやる"
+  ],
+  "chores.joke_bad": [
+   "……いやみ？"
+  ],
+  "chores.cover": [
+   "……{part}、たまってたから、やった"
+  ],
+  "chores.complain": [
+   "……{call}。{part}、たまってる。……{call}のばん"
+  ],
   "chat.apology_half": [
    "📱『……うん』"
   ],

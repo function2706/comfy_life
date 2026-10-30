@@ -1907,6 +1907,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今日は計算しないで、普通にお祝いする"
   ],
+  "chores.did": [
+   "{part}、処理しておいた"
+  ],
+  "chores.share_yes": [
+   "{part}ね。了解、担当する"
+  ],
+  "chores.share_no": [
+   "{part}は非効率だから、ほかの割り振りにしたい"
+  ],
+  "chores.ask_yes": [
+   "あ、忘れてた。今やる"
+  ],
+  "chores.ask_later": [
+   "あとでやる。優先度が低いだけ"
+  ],
+  "chores.ask_grudging": [
+   "……了解。やればいいんでしょ"
+  ],
+  "chores.scold_ok": [
+   "……ごめん。手順を見直す"
+  ],
+  "chores.scold_back": [
+   "その言い方は論理的じゃない。{call}の担当だって、未処理のがある"
+  ],
+  "chores.joke_ok": [
+   "……検出されたか。今やる"
+  ],
+  "chores.joke_bad": [
+   "……それ、皮肉？"
+  ],
+  "chores.cover": [
+   "{part}、閾値を超えてたから処理しておいた"
+  ],
+  "chores.complain": [
+   "{call}、{part}が溜まってる。担当は{call}"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、問題は半分しか解決してない』"
   ],

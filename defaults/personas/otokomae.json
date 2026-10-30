@@ -1959,6 +1959,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今日はゆっくり休め"
   ],
+  "chores.did": [
+   "{part}、片付けておいた"
+  ],
+  "chores.share_yes": [
+   "{part}か。わかった、引き受けよう"
+  ],
+  "chores.share_no": [
+   "{part}は……すまん、苦手だ"
+  ],
+  "chores.ask_yes": [
+   "すまん、今やる"
+  ],
+  "chores.ask_later": [
+   "あとでやる。少し待ってくれ"
+  ],
+  "chores.ask_grudging": [
+   "……わかった。やればいいんだろう"
+  ],
+  "chores.scold_ok": [
+   "……すまない。改める"
+  ],
+  "chores.scold_back": [
+   "そこまで言うことはないだろう。{call}も、やっていない時があるはずだ"
+  ],
+  "chores.joke_ok": [
+   "……見抜かれたか。今やる"
+  ],
+  "chores.joke_bad": [
+   "……それは嫌味か"
+  ],
+  "chores.cover": [
+   "{part}、たまっていたから片付けておいた"
+  ],
+  "chores.complain": [
+   "{call}、{part}がたまっているぞ。{call}の担当だろう"
+  ],
   "chat.apology_half": [
    "📱『……ああ。だが、まだ全部は飲み込めていない』"
   ],

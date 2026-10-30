@@ -1913,6 +1913,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今日だけは、{fp}が言うことを聞いてあげる"
   ],
+  "chores.did": [
+   "{part}、やっておいたわ。ありがたく思いなさい"
+  ],
+  "chores.share_yes": [
+   "{part}ね。いいわ、やってあげる"
+  ],
+  "chores.share_no": [
+   "{part}？ {fp}がやるわけないでしょう"
+  ],
+  "chores.ask_yes": [
+   "……あら、忘れてたわ。今やる"
+  ],
+  "chores.ask_later": [
+   "あとでやるわ。命令しないで"
+  ],
+  "chores.ask_grudging": [
+   "……わかったわよ。やればいいんでしょう"
+  ],
+  "chores.scold_ok": [
+   "……悪かったわ。……二度は言わないわよ"
+  ],
+  "chores.scold_back": [
+   "{fp}に指図する気？ {call}こそ、自分の担当をやってから言いなさい"
+  ],
+  "chores.joke_ok": [
+   "ふふ、見つかったわね。今やるわ"
+  ],
+  "chores.joke_bad": [
+   "……それ、{fp}に向かって言ってるの？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいたわ。貸しよ"
+  ],
+  "chores.complain": [
+   "{call}、{part}がたまってるわよ。{call}の番でしょう？ さっさとやりなさい"
+  ],
   "chat.apology_half": [
    "📱『……ふうん。半分だけ、許してあげる』"
   ],

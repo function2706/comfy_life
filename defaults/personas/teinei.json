@@ -2228,6 +2228,42 @@
   "anniv.your_bday": [
    "{call}、お誕生日おめでとうございます！ 今日、覚えてましたよ"
   ],
+  "chores.did": [
+   "{part}、やっておきましたよ"
+  ],
+  "chores.share_yes": [
+   "{part}ですね。わかりました、{fp}がやります"
+  ],
+  "chores.share_no": [
+   "{part}は……ちょっと、{fp}には無理です"
+  ],
+  "chores.ask_yes": [
+   "あ、ごめんなさい。今やります"
+  ],
+  "chores.ask_later": [
+   "はーい、あとでやりますね"
+  ],
+  "chores.ask_grudging": [
+   "……わかりましたよ。やればいいんでしょう"
+  ],
+  "chores.scold_ok": [
+   "……ごめんなさい。ちゃんとやります"
+  ],
+  "chores.scold_back": [
+   "そんな言い方しなくてもいいじゃないですか。{call}だって、やってないときあるでしょう"
+  ],
+  "chores.joke_ok": [
+   "ふふ、バレました？ 今やりますね"
+  ],
+  "chores.joke_bad": [
+   "……それ、嫌味ですか？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたのでやっておきましたよ"
+  ],
+  "chores.complain": [
+   "{call}、{part}、たまってますよ。{call}の番ですよね？"
+  ],
   "chat.apology_half": [
    "📱『……はい。……でも、まだ少しだけ、もやもやしてます』"
   ],

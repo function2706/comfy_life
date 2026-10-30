@@ -1904,6 +1904,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとー！ 今日は一日、一緒にいたいな！"
   ],
+  "chores.did": [
+   "{part}、やっておいたよ！ 褒めて〜"
+  ],
+  "chores.share_yes": [
+   "{part}ね！ いいよ、任せて！"
+  ],
+  "chores.share_no": [
+   "{part}はちょっと……苦手なんだよね〜"
+  ],
+  "chores.ask_yes": [
+   "あっ、ごめん！ 今やるね！"
+  ],
+  "chores.ask_later": [
+   "あとでやる〜。忘れないから！"
+  ],
+  "chores.ask_grudging": [
+   "……はーい、やるよーだ"
+  ],
+  "chores.scold_ok": [
+   "……ごめんね。ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "えー、そんな言い方ないじゃん……。{call}だってたまにサボるのに"
+  ],
+  "chores.joke_ok": [
+   "えへへ、バレた？ 今やる〜"
+  ],
+  "chores.joke_bad": [
+   "……それ、ちょっと嫌な言い方"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいたよ！"
+  ],
+  "chores.complain": [
+   "ねえ{call}、{part}たまってるよ〜。{call}の番だよね？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっと、もやもやしてるけどね』"
   ],

@@ -1946,6 +1946,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。……それだけ"
   ],
+  "chores.did": [
+   "{part}、やっておいた"
+  ],
+  "chores.share_yes": [
+   "{part}。……わかった、やる"
+  ],
+  "chores.share_no": [
+   "{part}は無理"
+  ],
+  "chores.ask_yes": [
+   "……ごめん。今やる"
+  ],
+  "chores.ask_later": [
+   "……あとでやる"
+  ],
+  "chores.ask_grudging": [
+   "……わかった。やる"
+  ],
+  "chores.scold_ok": [
+   "……ごめん。気をつける"
+  ],
+  "chores.scold_back": [
+   "……そっちも、やってないときあるでしょ"
+  ],
+  "chores.joke_ok": [
+   "……バレたか。今やる"
+  ],
+  "chores.joke_bad": [
+   "……嫌味？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいた"
+  ],
+  "chores.complain": [
+   "{call}。{part}、たまってる。{call}の番"
+  ],
   "chat.apology_half": [
    "📱『……ん。わかった』"
   ],

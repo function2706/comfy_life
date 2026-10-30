@@ -1983,6 +1983,42 @@
   "anniv.your_bday": [
    "{call}、お誕生日おめでとう。……来年も、一緒にお祝いできたらいいな"
   ],
+  "chores.did": [
+   "{part}、やっておいたよ。……今日は少し、体が軽かったから"
+  ],
+  "chores.share_yes": [
+   "{part}だね。うん、できるときにやるね"
+  ],
+  "chores.share_no": [
+   "ごめんね、{part}は……体がもたないかも"
+  ],
+  "chores.ask_yes": [
+   "あ……ごめんね、今やるね"
+  ],
+  "chores.ask_later": [
+   "うん、あとで、少し休んだらやるね"
+  ],
+  "chores.ask_grudging": [
+   "……わかった。やるね……"
+  ],
+  "chores.scold_ok": [
+   "……ごめんなさい。ちゃんとやるね"
+  ],
+  "chores.scold_back": [
+   "……そんなふうに言われると、悲しいな。{fp}だって、つらい日があるのに"
+  ],
+  "chores.joke_ok": [
+   "ふふ、ばれちゃった。今やるね"
+  ],
+  "chores.joke_bad": [
+   "……それ、責めてるの？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいたよ。……無理はしてないよ"
+  ],
+  "chores.complain": [
+   "{call}、{part}がたまってるみたい。……{call}の番、だよね？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……もう少しだけ、時間がほしいな』"
   ],

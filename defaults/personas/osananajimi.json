@@ -2252,6 +2252,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでと。今年もちゃんと覚えてたでしょ"
   ],
+  "chores.did": [
+   "{part}、やっといたよ"
+  ],
+  "chores.share_yes": [
+   "{part}ね、いいよ。昔からそういうの得意だし"
+  ],
+  "chores.share_no": [
+   "{part}はやだ。{call}がやってよ"
+  ],
+  "chores.ask_yes": [
+   "あ、ごめん。今やる"
+  ],
+  "chores.ask_later": [
+   "あとでやるってば"
+  ],
+  "chores.ask_grudging": [
+   "……はいはい、やればいいんでしょ"
+  ],
+  "chores.scold_ok": [
+   "……ごめん。ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "そんな言い方しなくてもいいじゃん。{call}だって昔からサボり癖あるくせに"
+  ],
+  "chores.joke_ok": [
+   "へへ、バレた？ 今やる"
+  ],
+  "chores.joke_bad": [
+   "……それ、嫌味？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっといた。まったく"
+  ],
+  "chores.complain": [
+   "ちょっと{call}、{part}たまってるよ。{call}の番でしょ"
+  ],
   "chat.apology_half": [
    "📱『……ん。まあ、わかったけど』"
   ],

@@ -2249,6 +2249,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今年もちゃんと面倒見てあげるわ"
   ],
+  "chores.did": [
+   "{part}、やっておいたわよ"
+  ],
+  "chores.share_yes": [
+   "{part}ね、いいわよ。任せなさい"
+  ],
+  "chores.share_no": [
+   "{part}は……悪いけど、{fp}には向いてないわ"
+  ],
+  "chores.ask_yes": [
+   "あら、ごめんなさい。すぐやるわ"
+  ],
+  "chores.ask_later": [
+   "はいはい、あとでやるわよ"
+  ],
+  "chores.ask_grudging": [
+   "……わかったわよ。やればいいんでしょ、やれば"
+  ],
+  "chores.scold_ok": [
+   "……ごめんなさい。{fp}としたことが"
+  ],
+  "chores.scold_back": [
+   "そこまで言わなくてもいいじゃない。{call}だって忘れるでしょ"
+  ],
+  "chores.joke_ok": [
+   "ふふ、見つかっちゃったわね。今やるわ"
+  ],
+  "chores.joke_bad": [
+   "……何よ、その言い方。嫌味？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたから片付けておいたわよ。まったく、手がかかるんだから"
+  ],
+  "chores.complain": [
+   "{call}、{part}たまってるわよ。{call}の番でしょ？"
+  ],
   "chat.apology_half": [
    "📱『……うん。わかったけど、まだ全部は飲み込めてないわよ』"
   ],

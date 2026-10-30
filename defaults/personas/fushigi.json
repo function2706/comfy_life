@@ -1915,6 +1915,42 @@
   "anniv.your_bday": [
    "{call}、生まれてきてくれて、おめでとう。今日の空は、{call}のためにあるよ"
   ],
+  "chores.did": [
+   "{part}、やっておいたよ。……ちょっと、楽しかった"
+  ],
+  "chores.share_yes": [
+   "{part}だね。……うん、{fp}がやってみる"
+  ],
+  "chores.share_no": [
+   "{part}は……なんだか、気が乗らないの"
+  ],
+  "chores.ask_yes": [
+   "あ……そうだった。今やるね"
+  ],
+  "chores.ask_later": [
+   "……うん、あとで。月が出たらやる"
+  ],
+  "chores.ask_grudging": [
+   "……わかったよ。やる"
+  ],
+  "chores.scold_ok": [
+   "……ごめんね。ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "……そんなふうに言わなくても。……ちょっと、寒くなった"
+  ],
+  "chores.joke_ok": [
+   "ふふ、見つかっちゃった。今やるね"
+  ],
+  "chores.joke_bad": [
+   "……それは、意地悪な言い方だね"
+  ],
+  "chores.cover": [
+   "{part}、たまってたから、片付けておいたよ"
+  ],
+  "chores.complain": [
+   "{call}、{part}が、たまってるよ。……{call}の番、だよね？"
+  ],
   "chat.apology_half": [
    "📱『……うん。雲は、まだ半分残ってるけど』"
   ],

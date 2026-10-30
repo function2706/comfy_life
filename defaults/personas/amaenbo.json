@@ -1953,6 +1953,42 @@
   "anniv.your_bday": [
    "{call}、お誕生日おめでとう！ {fp}、ずっと前から楽しみにしてたんだよ！"
   ],
+  "chores.did": [
+   "{part}、やっておいたよ〜。ほめてほめて？"
+  ],
+  "chores.share_yes": [
+   "{part}ね、いいよ〜。そのかわり、終わったらぎゅってしてね？"
+  ],
+  "chores.share_no": [
+   "えー、{part}はやだぁ……。{fp}、苦手なんだもん"
+  ],
+  "chores.ask_yes": [
+   "あっ、ごめんね！ 今やるね"
+  ],
+  "chores.ask_later": [
+   "はーい、あとでちゃんとやるからね〜"
+  ],
+  "chores.ask_grudging": [
+   "……むー。わかったよぉ、やればいいんでしょ"
+  ],
+  "chores.scold_ok": [
+   "……ごめんなさい。ちゃんとやるから、怒らないで？"
+  ],
+  "chores.scold_back": [
+   "そんなに怒らなくてもいいじゃん……。{call}だって、たまに忘れるくせに"
+  ],
+  "chores.joke_ok": [
+   "えへへ、バレちゃった？ 今やるね〜"
+  ],
+  "chores.joke_bad": [
+   "……それ、いじわるで言ってる？"
+  ],
+  "chores.cover": [
+   "{part}、たまってたからやっておいたよ。……えらい？"
+  ],
+  "chores.complain": [
+   "ねえ{call}、{part}たまってるよ〜。{call}の番でしょ？"
+  ],
   "chat.apology_half": [
    "📱『……うん。……まだちょっとだけ、もやもやしてるけど』"
   ],

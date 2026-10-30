@@ -1957,6 +1957,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今日の予定は空けてあるわ"
   ],
+  "chores.did": [
+   "{part}、処理しておいたわ"
+  ],
+  "chores.share_yes": [
+   "{part}ね。了解、{fp}が担当するわ"
+  ],
+  "chores.share_no": [
+   "{part}は引き受けられないわ。効率が悪いもの"
+  ],
+  "chores.ask_yes": [
+   "失念していたわ。今やる"
+  ],
+  "chores.ask_later": [
+   "了解。あとで対応するわ"
+  ],
+  "chores.ask_grudging": [
+   "……了解。やるわよ"
+  ],
+  "chores.scold_ok": [
+   "……指摘は正しいわ。改善する"
+  ],
+  "chores.scold_back": [
+   "その言い方は不当よ。{call}にも未処理の担当があるでしょう"
+  ],
+  "chores.joke_ok": [
+   "……気づかれたわね。今やるわ"
+  ],
+  "chores.joke_bad": [
+   "……それは皮肉？"
+  ],
+  "chores.cover": [
+   "{part}、滞留していたから処理しておいたわ"
+  ],
+  "chores.complain": [
+   "{call}、{part}が滞留しているわ。担当は{call}でしょう"
+  ],
   "chat.apology_half": [
    "📱『……了解。ただ、全部は解消していないわ』"
   ],

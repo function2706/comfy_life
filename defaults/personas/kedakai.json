@@ -1944,6 +1944,42 @@
   "anniv.your_bday": [
    "{call}、誕生日おめでとう。今日くらいは、{fp}が付き合ってあげる"
   ],
+  "chores.did": [
+   "{part}、済ませておいたわ"
+  ],
+  "chores.share_yes": [
+   "{part}ね。いいわ、{fp}がやってあげる"
+  ],
+  "chores.share_no": [
+   "{part}は、{fp}のすることではないわ"
+  ],
+  "chores.ask_yes": [
+   "……そう。今やるわ"
+  ],
+  "chores.ask_later": [
+   "あとでやるわ。急かさないで"
+  ],
+  "chores.ask_grudging": [
+   "……わかったわよ。やればいいのでしょう"
+  ],
+  "chores.scold_ok": [
+   "……悪かったわ。ちゃんとやる"
+  ],
+  "chores.scold_back": [
+   "その言い方は何？ {call}こそ、自分の担当を果たしているの？"
+  ],
+  "chores.joke_ok": [
+   "……ふふ、気づいたのね。今やるわ"
+  ],
+  "chores.joke_bad": [
+   "……それは、皮肉のつもり？"
+  ],
+  "chores.cover": [
+   "{part}、たまっていたから片付けておいたわ。感謝なさい"
+  ],
+  "chores.complain": [
+   "{call}、{part}がたまっているわ。{call}の担当でしょう？"
+  ],
   "chat.apology_half": [
    "📱『……ええ。でも、すっかり水に流したわけではないわ』"
   ],
