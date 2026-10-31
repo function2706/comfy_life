@@ -146,6 +146,7 @@ class Solo:
                                                      max(1, round((tr["arr"] - now) / 60)))
                     self.note("out", text, now)
                     return {"started": "out", "label": "%sへ移動中" % app.places.label(place), "act": None, "done": "（%s）" % text}
+                return self.arrive_then("visit", place, now)          # 移動がいらなかった (すぐ着いた)
             return self._at_home_of(place)
         return self._start(kind, skill, place, cid, how, frm)
 
@@ -185,6 +186,8 @@ class Solo:
             from .quals import QUALS
             if skill[5:] not in QUALS or app.quals.has(skill[5:]):
                 raise ValueError("その資格の勉強はできません")
+            if QUALS[skill[5:]].get("place"):
+                raise ValueError("%sは家では勉強できません（%sに通う）" % (QUALS[skill[5:]]["label"], app.places.label(QUALS[skill[5:]]["place"])))
         elif kind == "practice" and skill not in SKILL_LABEL:
             raise ValueError("何を練習するか選んでください")
         if kind == "chores" and skill and skill not in PART_LABEL:
@@ -431,6 +434,16 @@ class Solo:
                     out["money"] = -r["price"]
                 else:
                     text = "%s%sに行ったが、何も食べなかった" % (_dur(h), where)
+        elif kind == "learn":                   # 教習所: 入校していれば教習を受ける (免許の勉強時間)
+            if app.quals.enrolled("drive"):
+                L.tire(3 * h)
+                text, gain = app.quals.study("drive", h * jit)
+                out["skill"] = gain
+                text = "%s%sで教習を受けた（%s）" % (_dur(h), where, text.split("（", 1)[-1].rstrip("）"))
+            elif app.quals.has("drive"):
+                text = "%s%sに寄った（もう免許は持っている）" % (_dur(h), where)
+            else:
+                text = "%s%sで入校の案内を聞いた（入校は資格の欄から申し込む）" % (_dur(h), where)
         elif kind == "clinic":                  # 病院で診てもらう
             r = app.body.clinic(now)
             out["money"] = r["money"]

@@ -13,7 +13,9 @@ from datetime import datetime, timedelta
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
-from core import engine, offline as OF, store  # noqa: E402
+from core import engine, geo, offline as OF, store  # noqa: E402
+
+geo.INSTANT = True          # 移動の時間は tools/test_geo.py で
 
 
 def at(date, hm):

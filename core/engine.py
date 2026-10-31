@@ -2304,8 +2304,11 @@ class App:
             return None
         try:
             go = self.geo.leg(frm, pl, None, now)
-            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] != "run" else None, now, rand=False) \
+            self.geo.used(go, pl)
+            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] in ("bike", "car") else None, now, rand=False) \
                 if self.bonds.mode(cid) == "home" else None
+            if back:
+                self.geo.used(back, places_mod.HOME_ME)
         except ValueError:
             return None
         ov["arr"] = now + go["min"] * 60

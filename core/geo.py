@@ -27,7 +27,15 @@ RIDE_ADD = 3.0             # 乗り降りの分 (分)
 WALK_MAX_MIN = 180         # これより長く歩く道は選べない (始発を待つ)
 SERVICE = (5.0, 24.5)      # 電車・バスの走っている時間 (5:00〜翌 0:30)
 INSTANT = False            # テスト用: 移動に時間をかけない (tools/testclock.py. 移動そのものは tools/test_geo.py で)
-HOW_LABEL = {"walk": "徒歩", "transit": "電車・バス", "run": "走って"}
+HOW_LABEL = {"walk": "徒歩", "transit": "電車・バス", "run": "走って", "bike": "自転車", "car": "車", "taxi": "タクシー"}
+BIKE_KMH, BIKE_MAX_MIN = 15.0, 90
+CAR_ADD = 6.0              # 車: 乗り込む・停める分 (分)
+JAM = 1.35                 # 朝夕の渋滞 (車・タクシー)
+GAS_PER_KM = 12            # ガソリン代 (円/km)
+TAXI_BASE, TAXI_KM = 500, 400
+FARE_NOTE = {"transit": "交通費", "taxi": "タクシー代", "car": "ガソリン・駐車場", "walk": "交通費", "bike": "交通費", "run": "交通費"}
+FREE_PARKING = ("park", "riverside", "convenience", "supermarket", "mall", "electronics", "car_dealer", "driving_school", "clinic",
+                "office", "hill")
 
 # 位置の決まり: (基準, 最小 km, 最大 km). 基準は station (駅前) か home (あなたの家)
 NEAR_STATION = ("shopping_street", "cafe", "drugstore", "bookstore", "teishoku", "ramen", "fastfood", "family", "restaurant")
@@ -36,7 +44,8 @@ RULES = dict({k: ("station", 0.08, 0.6) for k in NEAR_STATION},
              supermarket=("home", 0.25, 0.8), riverside=("home", 0.4, 1.2), clinic=("station", 0.5, 1.8),
              mall=("station", 2.0, 5.0), electronics=("station", 1.8, 4.5), hill=("station", 3.0, 7.0),
              aquarium=("station", 12.0, 35.0), amusement=("station", 12.0, 35.0), beach=("station", 25.0, 60.0),
-             mountain=("station", 25.0, 60.0), office=("station", 3.0, 20.0))
+             mountain=("station", 25.0, 60.0), office=("station", 3.0, 20.0), car_dealer=("station", 2.0, 6.0),
+             driving_school=("station", 1.5, 5.0))
 HOME_KM = (0.35, 1.15)     # あなたの家と駅の距離
 CHAR_NEAR, CHAR_FAR = (0.3, 2.5), (4.0, 20.0)
 CHAR_FAR_P = 0.2
@@ -45,6 +54,15 @@ CHAR_FAR_P = 0.2
 def ride_min(km):
     """乗っている時間 (分)."""
     return RIDE_ADD + min(km, 10.0) / RIDE_KMH[0] * 60 + max(0.0, km - 10.0) / RIDE_KMH[1] * 60
+
+
+def drive_min(km):
+    """車で走る時間 (分): 10 km までは街なか, その先は幹線道路."""
+    return min(km, 10.0) / 25.0 * 60 + max(0.0, km - 10.0) / 55.0 * 60
+
+
+def _rush(h):
+    return 7 <= h < 9.5 or 17 <= h < 19.5
 
 
 def headway(h):
@@ -154,25 +172,66 @@ class Geo:
     def fare(km):
         return int(min(1500, 150 + 20 * km) / 10) * 10
 
+    def _vehicle_ok(self, vid, a):
+        """その乗り物で a から出られるか: 持っていて, いま a に置いてある (車は免許も)."""
+        app = self.app
+        if app.items.count(vid) <= 0 or self.veh_at(vid) != a:
+            return False
+        return vid != "car" or app.quals.has("drive")
+
+    def veh_at(self, vid):
+        """乗り物の置いてある場所 (乗って出かければ, 行った先に置いてある)."""
+        return self.rec().setdefault("veh", {}).get(vid, places_mod.HOME_ME)
+
+    @staticmethod
+    def parking(pid):
+        """車を停めるお金 (行き先ごと. 家・郊外の店・職場はただ)."""
+        if places_mod.is_home(pid or "") or pid in FREE_PARKING:
+            return 0
+        if pid in ("aquarium", "amusement", "beach", "mountain", "hill"):
+            return 1000
+        return 400
+
     def options(self, a, b, t=None):
-        """a → b の行き方 (目安). {km, walk: {min, ok}, transit: {min, fare, ok, note} or None, best}."""
+        """a → b の行き方 (目安). {km, modes: {how: {min, fare, ok, note}}, walk, transit, best}.
+        modes: walk (いつも) / transit (1.2 km より遠く, 歩くより早ければ) / bike・car (持っていて, a に置いてあれば) / taxi (いつでも. 高い)."""
         t = t or time.time()
         km = self.km(a, b)
+        h = _hour(t)
+        wet = self._weather(t) in ("rain", "snow")
         walk = self.walk_min(a, b, t)
-        out = {"km": round(km, 2), "walk": {"min": round(walk), "ok": walk <= WALK_MAX_MIN}, "transit": None}
+        modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN, "note": ""}}
         if km > 1.2:
             pa, pb = self.pt(a), self.pt(b)
             acc = (pa["acc"] + pb["acc"]) * ROAD / WALK_KMH * 60
-            ride = ride_min(km)
-            hw = headway(_hour(t))
-            tm = acc + ride + (hw or 10) / 2
+            hw = headway(h)
+            tm = acc + ride_min(km) + (hw or 10) / 2
             if tm < walk * 0.9:
-                note = "" if hw else "いまは走っていない（始発は5時）"
-                out["transit"] = {"min": round(tm), "fare": self.fare(km), "ok": bool(hw), "note": note}
-        tr = out["transit"]
-        out["best"] = "transit" if tr and tr["ok"] and (tr["min"] < walk * 0.75 or walk > 25) else \
-            "walk" if out["walk"]["ok"] else "transit" if tr else "walk"
+                modes["transit"] = {"min": round(tm), "fare": self.fare(km), "ok": bool(hw), "note": "" if hw else "いまは走っていない（始発は5時）"}
+        if km > 0.3 and self._vehicle_ok("bicycle", a):
+            m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
+            modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN, "note": "雨の中を走る" if wet else ""}
+        if km > 0.3 and self._vehicle_ok("car", a):
+            m = CAR_ADD + drive_min(km) * (JAM if _rush(h) else 1.0)
+            modes["car"] = {"min": round(m), "fare": self.gas(km) + self.parking(b), "ok": True, "note": "渋滞" if _rush(h) else ""}
+        if km > 0.5:
+            night = h >= 22 or h < 5
+            m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)
+            fare = int((TAXI_BASE + TAXI_KM * max(0.0, km - 1.0)) * (1.2 if night else 1.0) / 10) * 10
+            modes["taxi"] = {"min": round(m), "fare": fare, "ok": True, "note": "深夜料金" if night else ""}
+        out = {"km": round(km, 2), "modes": modes, "walk": modes["walk"], "transit": modes.get("transit")}
+        out["best"] = self._best(modes)
         return out
+
+    @staticmethod
+    def _best(modes):
+        """おまかせ: 近ければ歩く (15 分まで). ほかは, 行ける中でいちばん早いもの (タクシーは, ほかに無いときだけ)."""
+        if modes["walk"]["ok"] and modes["walk"]["min"] <= 15:
+            return "walk"
+        ok = [(m["min"], k) for k, m in modes.items() if m["ok"] and k != "taxi"]
+        if ok:
+            return min(ok)[1]
+        return "taxi" if "taxi" in modes else "walk"
 
     def leg(self, a, b, how, t, rand=True):
         """実際の移動 1 回: {how, min, fare, wait (待った分), note}. 行けなければ ValueError."""
@@ -181,10 +240,26 @@ class Geo:
             how = o["best"]
         if how == "run":
             return {"how": "run", "min": self.walk_min(a, b, t, run=True), "fare": 0, "wait": 0.0, "note": ""}
-        if how == "walk" or not o["transit"]:
-            if not o["walk"]["ok"]:
-                raise ValueError("歩いて行くには遠すぎます（%d分ほど）" % o["walk"]["min"])
+        modes = o["modes"]
+        if how == "transit" and not modes.get("transit"):
+            how = "walk"                          # 近すぎる: 歩く
+        if how not in modes:
+            raise ValueError({"bike": "自転車がここにありません", "car": "車がここにありません（免許も要ります）",
+                              "taxi": "タクシーを使うほどの距離ではありません"}.get(how, "その行き方はできません"))
+        if how == "walk":
+            if not modes["walk"]["ok"]:
+                raise ValueError("歩いて行くには遠すぎます（%d分ほど）" % modes["walk"]["min"])
             return {"how": "walk", "min": self.walk_min(a, b, t), "fare": 0, "wait": 0.0, "note": ""}
+        if how == "bike":
+            if not modes["bike"]["ok"]:
+                raise ValueError("自転車で行くには遠すぎます（%d分ほど）" % modes["bike"]["min"])
+            return {"how": "bike", "min": float(modes["bike"]["min"]), "fare": 0, "wait": 0.0, "note": modes["bike"]["note"]}
+        if how in ("car", "taxi"):
+            m = dict(modes[how])
+            wait = 0.0
+            if how == "taxi" and rand:            # 来るまでの待ち (呼んでから)
+                wait = random.uniform(-3, 6)
+            return {"how": how, "min": max(3.0, m["min"] + wait), "fare": m["fare"], "wait": max(0.0, wait), "note": m["note"]}
         pa, pb = self.pt(a), self.pt(b)
         km = o["km"]
         acc = (pa["acc"] + pb["acc"]) * ROAD / WALK_KMH * 60
@@ -194,8 +269,42 @@ class Geo:
         hw = headway(_hour(start)) or 10
         wait += random.uniform(0, hw) if rand else hw / 2
         note = "始発を待った" if start > t_st else ""
-        return {"how": "transit", "min": acc + wait + ride_min(km), "fare": self.fare(km), "wait": round(wait, 1),
-                "note": note}
+        return {"how": "transit", "min": acc + wait + ride_min(km), "fare": self.fare(km), "wait": round(wait, 1), "note": note}
+
+    def body_cost(self, lg, a, b):
+        """移動 1 回の運動の量と疲れ (歩く・走る・自転車をこぐ分. 電車・バスは駅まで歩く分だけ, 車・タクシーは無し)."""
+        from .body import MOVE_PER_H
+        how = lg["how"]
+        if how in ("car", "taxi"):
+            return 0.0, 0.3 * lg["min"] / 60.0
+        if how == "transit":
+            h = (self.pt(a)["acc"] + self.pt(b)["acc"]) * ROAD / WALK_KMH
+        else:
+            h = (lg["min"] - lg.get("wait", 0)) / 60.0
+        per = {"run": (MOVE_PER_H["jog"], 6.0), "bike": (MOVE_PER_H["walk"] * 1.1, 3.0)}.get(how, (MOVE_PER_H["walk"], 2.5))
+        return per[0] * h, per[1] * h
+
+    def used(self, lg, to):
+        """自転車・車で行った: 乗り物は行った先に置いてある."""
+        if lg["how"] in ("bike", "car"):
+            self.rec().setdefault("veh", {})["bicycle" if lg["how"] == "bike" else "car"] = to
+            self.save()
+
+    def vehicles_view(self, now=None):
+        """持っている乗り物と, どこに置いてあるか (画面)."""
+        app = self.app
+        here = self.where(now)
+        out = {}
+        for vid, label in (("bicycle", "自転車"), ("car", "車")):
+            if app.items.count(vid) > 0:
+                at = self.veh_at(vid)
+                out[vid] = {"label": label, "at": at, "at_label": app.places.label(at) if at != places_mod.HOME_ME else "家",
+                            "here": at == here, "ok": self._vehicle_ok(vid, here)}
+        return {"own": out, "license": app.quals.has("drive")}
+
+    @staticmethod
+    def gas(km):
+        return int(GAS_PER_KM * km / 10) * 10
 
     # ------------------------------------------------------------------ いまどこにいるか
     def rec_p(self):
@@ -250,12 +359,11 @@ class Geo:
             return None
         lg = self.leg(frm, to, how, now)
         if lg["fare"]:
-            app.life.move(None, dp=-lg["fare"], cat="transport", note="交通費（%s）" % app.places.label(to))
-        walk_h = (lg["min"] - lg.get("wait", 0)) / 60.0 if lg["how"] != "transit" else \
-            (self.pt(frm)["acc"] + self.pt(to)["acc"]) * ROAD / WALK_KMH
-        from .body import MOVE_PER_H
-        app.body.add_exercise(MOVE_PER_H["jog" if lg["how"] == "run" else "walk"] * walk_h)
-        app.life.tire((6.0 if lg["how"] == "run" else 2.5) * walk_h)
+            app.life.move(None, dp=-lg["fare"], cat="transport", note="%s（%s）" % (FARE_NOTE[lg["how"]], app.places.label(to)))
+        ex, tired = self.body_cost(lg, frm, to)
+        app.body.add_exercise(ex)
+        app.life.tire(tired)
+        self.used(lg, to)
         p["travel"] = {"from": frm, "to": to, "how": lg["how"], "t0": now, "arr": now + lg["min"] * 60, "fare": lg["fare"],
                        "dir": direction, "then": then, "note": lg["note"]}
         app.presence.save()

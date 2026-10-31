@@ -83,7 +83,7 @@ class Planner:
             sk = str(b["skill"])
             if sk.startswith("qual:"):                 # 資格の勉強
                 from .quals import QUALS
-                if sk[5:] not in QUALS or self.app.quals.has(sk[5:]):
+                if sk[5:] not in QUALS or self.app.quals.has(sk[5:]) or QUALS[sk[5:]].get("place"):
                     raise ValueError("その資格の勉強はできません")
             out["skill"] = sk
         return out

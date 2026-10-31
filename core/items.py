@@ -39,6 +39,8 @@ _C = [
     ("book_write", "文章の書き方の本", "📒", "book_write", 1400, ["bookstore", "station", "mall"], ["books"], True),
     ("clothes", "自分の服", "👕", "clothes", 4000, ["mall", "shopping_street"], ["fashion"], False),
     ("novel", "小説", "📖", "goods", 1200, ["bookstore", "station", "mall", "convenience"], ["books"], True),
+    ("bicycle", "自転車", "🚲", "vehicle", 25000, ["mall", "electronics"], ["practical"], False),
+    ("car", "中古車", "🚗", "vehicle", 800000, ["car_dealer"], [], False),
     ("flowers", "花束", "💐", "goods", 2500, ["shopping_street", "station"], ["flowers"], True),
     ("plush", "ぬいぐるみ", "🧸", "goods", 3000, ["mall", "amusement"], ["cute"], True),
     ("hairpin", "ヘアピン", "🎀", "goods", 1500, ["mall", "shopping_street", "drugstore"], ["accessories", "cute"], True),
@@ -187,6 +189,15 @@ class Items:
             if strict and not it["essential"]:
                 missed.append("借金があるので、%sは見送った" % it["name"])
                 continue
+            if it["kind"] == "vehicle":           # 乗り物: 一台だけ. 車は免許が要る
+                if self.count(iid) > 0:
+                    missed.append("%sはもう持っている" % it["name"])
+                    ps["shop_list"].pop(iid, None)
+                    continue
+                if iid == "car" and not self.app.quals.has("drive"):
+                    missed.append("免許がないので、%sは買えなかった" % it["name"])
+                    continue
+                want = 1
             for _ in range(int(want)):
                 if random.random() < 0.12:
                     alt = self._substitute(it, place) if random.random() < 0.15 + 0.45 * thrift else None
@@ -204,8 +215,12 @@ class Items:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
                 ps["money"] -= price
-                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine" else "shopping", it["name"])
+                self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine"
+                                     else "transport" if it["kind"] == "vehicle" else "shopping", it["name"])
                 self.add(iid, it.get("servings", 1))
+                if it["kind"] == "vehicle":       # 買った店に置いてある (乗って帰る)
+                    self.app.geo.rec().setdefault("veh", {})[iid] = place
+                    self.app.geo.save()
                 bought.append({"id": iid, "name": it["name"], "icon": it["icon"], "price": price})
                 ps["shop_list"][iid] = ps["shop_list"].get(iid, 0) - 1
                 if ps["shop_list"][iid] <= 0:

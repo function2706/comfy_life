@@ -69,6 +69,7 @@ class Outdoor:
         tr = p.get("travel")
         if tr and p.get("mode") in ("out", "work"):        # 移動中: 通っていく道 (電車・バスなら駅前, 歩くなら街) の人の多さ
             return {"kind": "out", "place": "station" if tr.get("how") == "transit" else "town", "with": None, "moving": True,
+                    "inside": tr.get("how") in ("car", "taxi"),        # 車・タクシーの中では, 偶然の出会いは無い
                     "dest": tr["to"] if tr.get("dir") == "go" else places_mod.HOME_ME}
         if p.get("mode") == "out":
             pl = p.get("place") or "town"
@@ -89,8 +90,8 @@ class Outdoor:
 
     def rate(self, cur, dt):
         """1時間あたりの出会いの起きやすさ."""
-        if places_mod.is_home(cur["place"]):
-            return 0.0                              # 家では偶然の出会いは起きない
+        if places_mod.is_home(cur["place"]) or cur.get("inside"):
+            return 0.0                              # 家・車の中では偶然の出会いは起きない
         pl = PLACES.get(cur["place"]) or PLACES["town"]
         ph = self.app.phase_at(dt).get("id", "noon")
         w = weather(dt)
@@ -112,10 +113,11 @@ class Outdoor:
                                   log=(self.app.presence.rec().get("street_log") or [])[-6:])
             if cur.get("moving"):
                 out["current"].update(label="%sへ移動中" % self.app.places.label(cur["dest"]) if cur["dest"] != places_mod.HOME_ME else "家へ移動中",
-                                      icon="🚃" if cur["place"] == "station" else "🚶")
+                                      icon={"transit": "🚃", "bike": "🚲", "car": "🚗", "taxi": "🚕"}.get((self.app.geo.travel() or {}).get("how"), "🚶"))
         # 行き先ごとの行き方の目安 (いまいる場所から)
         out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
         out["travel"] = self.app.geo.view(now)
+        out["vehicles"] = self.app.geo.vehicles_view(now)
         return out
 
     # ------------------------------------------------------------------ 心拍のたびに

@@ -61,6 +61,8 @@ PLACES = {
     "family": _p("ファミレス", "🍽", "eat", False, "meal", ["eat"]),
     "restaurant": _p("レストラン", "🍝", "eat", False, "meal", ["eat"]),
     "clinic": _p("病院", "🏥", "near", False, "clinic", ["clinic"]),
+    "car_dealer": _p("中古車屋", "🚙", "shop", False, "shop", ["shop"]),
+    "driving_school": _p("自動車教習所", "🚗", "learn", False, "office", ["learn"]),
     "office": _p("職場", "💼", "work", False, "office", ["work"]),
 }
 # 営業時間: open / close ("HH:MM". close は当日中), closed_days (定休日. 0=月 ... 6=日), months (行ける月. 無ければ通年)
@@ -83,6 +85,8 @@ HOURS = {
     "family": {"open": "07:00", "close": "24:00"},
     "restaurant": {"open": "11:00", "close": "22:00", "closed_days": [1]},
     "clinic": {"open": "09:00", "close": "18:00", "closed_days": [6]},
+    "car_dealer": {"open": "10:00", "close": "19:00", "closed_days": [2]},
+    "driving_school": {"open": "09:00", "close": "20:00", "closed_days": [0]},
 }
 DAY_JA = "月火水木金土日"
 
@@ -138,9 +142,9 @@ def open_at(pid, t):
     return open_state(pid, datetime.fromtimestamp(t))["open"]
 
 
-GROUP_LABEL = {"near": "近所", "shop": "お店", "eat": "食べに", "fun": "遊びに", "home": "家", "work": "仕事"}
+GROUP_LABEL = {"near": "近所", "shop": "お店", "eat": "食べに", "fun": "遊びに", "learn": "通う", "home": "家", "work": "仕事"}
 DO_LABEL = {"walk": "ぶらぶら歩く", "shop": "買い物", "tea": "お茶", "see": "見て回る", "visit": "訪ねる", "work": "仕事",
-            "eat": "食べる", "clinic": "診てもらう"}
+            "eat": "食べる", "clinic": "診てもらう", "learn": "教習を受ける"}
 HOME_ME = "home:me"
 # 一人の外出で選べる行き先 (職場は「仕事に行く」から)
 OUT_PLACES = [k for k, v in PLACES.items() if v["group"] != "work"]
@@ -196,7 +200,7 @@ def main_do(pid):
 def solo_kind(pid):
     """一人の外出の結果の種類 (solo.result): walk / shopping / cafe / see / visit / eat / clinic."""
     return {"walk": "walk", "shop": "shopping", "tea": "cafe", "see": "see", "visit": "visit", "eat": "eat",
-            "clinic": "clinic"}.get(main_do(pid), "walk")
+            "clinic": "clinic", "learn": "learn"}.get(main_do(pid), "walk")
 
 
 # 相手の家を訪ねたときに見える暮らしぶり (好みの印 → 部屋のようす)

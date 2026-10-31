@@ -24,6 +24,9 @@ QUALS = {
              "desc": "アルバイト: キッチンの時給が上がる・副業: 作り置きの単価が上がる"},
     "house": {"label": "家事の認定", "icon": "🧹", "skills": ["house"], "need": 35, "study": 20, "fee": 5000, "months": [4, 10],
               "gig": "house", "gig_rate": 0.2, "gig_p": 1.4, "desc": "副業: 家事代行の依頼が増え・単価が上がる"},
+    "drive": {"label": "普通自動車免許", "icon": "🚗", "skills": ["care"], "need": 25, "study": 30, "fee": 300000,
+              "months": list(range(1, 13)), "place": "driving_school",
+              "desc": "車を運転できる（申し込むと教習所に入校。教習は教習所に通って受ける。費用は試験込み）"},
     "write": {"label": "文章検定", "icon": "✍", "skills": ["write"], "need": 40, "study": 25, "fee": 5000, "months": [6, 12],
               "gig": "write", "gig_rate": 0.2, "gig_p": 1.4, "desc": "副業: 文章の仕事の依頼が増え・単価が上がる"},
 }
@@ -94,6 +97,10 @@ class Quals:
                            icon="🎓", name="資格", money={"p": -q["fee"]})
         self.app.trace.add("quals", "申し込んだ", None, now, qid=qid, exam=d.isoformat())
         return r["apps"][qid]
+
+    def enrolled(self, qid):
+        """申し込んで, まだ試験を受けていない (教習所なら入校している)."""
+        return (self.rec()["apps"].get(qid) or {}).get("status") == "applied"
 
     def study(self, qid, h):
         """資格の勉強 (研鑽). 勉強時間がたまり, 要るスキルの最初のものも少し伸びる. (文, スキルの伸び) を返す."""
@@ -209,7 +216,7 @@ class Quals:
         for qid, q in QUALS.items():
             a = r["apps"].get(qid) or {}
             nx = next_exam(qid, today)
-            out.append({"id": qid, "label": q["label"], "icon": q["icon"], "fee": q["fee"], "desc": q["desc"],
+            out.append({"id": qid, "label": q["label"], "icon": q["icon"], "fee": q["fee"], "desc": q["desc"], "place": q.get("place"),
                         "skills": [{"id": k, "now": round(L.skill(k), 1)} for k in q["skills"]], "need": q["need"],
                         "study": round(r["study"].get(qid, 0.0), 1), "study_need": q["study"],
                         "have": qid in r["have"], "status": a.get("status"), "exam": a.get("exam"),

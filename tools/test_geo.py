@@ -126,6 +126,49 @@ def main():
         eta = geo.home_eta(b + 1800)
         assert eta > b + 1800
         print("閉じたとき: OK | 帰り %d 分" % round((eta - b - 1800) / 60))
+        P.rec().pop("travel", None)
+        with app.lock:
+            app.come_back(at=time.time(), quiet=True)
+        P.rec()["pos"] = home
+
+        # ---- 8. 段階 2: タクシー (いつでも・高い) / 自転車 (買った店に置いてある. 乗っていけば行った先に) / 車 (免許が要る)
+        o = geo.options(home, "mall", noon)
+        assert "taxi" in o["modes"] and "bike" not in o["modes"] and o["best"] != "taxi", o
+        assert o["modes"]["taxi"]["fare"] > o["modes"]["transit"]["fare"]
+        L.player_state().update(money=100000, debt=0, loans={})
+        for _ in range(8):                         # 品切れのこともある
+            app.items.set_list("bicycle", 1)
+            bought, missed = app.items.shop("mall", 1.0, time.time())
+            if any(x["id"] == "bicycle" for x in bought):
+                break
+        assert any(x["id"] == "bicycle" for x in bought) and geo.veh_at("bicycle") == "mall", (bought, missed)
+        assert "bike" not in geo.options(home, "park", noon)["modes"]              # 自転車はモールに置いたまま
+        assert "bike" in geo.options("mall", home, noon)["modes"]
+        lg = geo.leg("mall", home, "bike", noon)
+        geo.used(lg, home)
+        assert geo.veh_at("bicycle") == home and "bike" in geo.options(home, "riverside", noon)["modes"]
+        app.items.add("car", 1)
+        assert "car" not in geo.options(home, "beach", noon)["modes"]              # 免許が無い
+        app.quals.rec()["have"]["drive"] = time.time()
+        oc = geo.options(home, "beach", noon)
+        assert "car" in oc["modes"] and oc["modes"]["car"]["fare"] >= 1000, oc       # ガソリン + 駐車場
+        assert geo.options(home, "beach", noon)["best"] in ("car", "transit")
+        app.items.add("car", -1)
+        app.items.set_list("car", 1)
+        del app.quals.rec()["have"]["drive"]
+        bought, missed = app.items.shop("car_dealer", 1.0, time.time())
+        assert not bought and any("免許" in m for m in missed), missed
+        # 教習所: 入校していれば教習 (免許の勉強時間). 家では勉強できない
+        try:
+            app.solo.start("practice", "qual:drive")
+            raise AssertionError("免許を家で勉強できた")
+        except ValueError:
+            pass
+        L.player_state()["money"] = 400000
+        app.quals.apply("drive")
+        res = app.solo.result("out", 2.0, time.time(), place="driving_school")
+        assert "教習" in res["text"] and app.quals.rec()["study"]["drive"] > 0, res
+        print("自転車・車・タクシー・教習所: OK |", res["text"])
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -49,6 +49,8 @@ def chat_lines():
     return LINES
 
 
+CAR_MONTHLY = 18000         # 車を持っていると毎月かかる (駐車場・保険)
+
 class Life:
     def __init__(self, app):
         self.app = app
@@ -203,6 +205,9 @@ class Life:
                 if d0.month != d1.month:
                     self.charge_interest(t)
                     self.pay_home(int(e.get("home_cost_per_month", 60000)), t, "%d月の家賃・光熱費・通信費" % d1.month)
+                    if self.app.items.count("car") > 0:           # 車: 駐車場・保険 (毎月)
+                        ps["money"] -= CAR_MONTHLY
+                        self.ledger(t, -CAR_MONTHLY, "transport", "%d月の駐車場・保険（車）" % d1.month)
         ps["last_tick"] = t
         if changed:
             self.save_player()

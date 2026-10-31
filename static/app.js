@@ -370,7 +370,7 @@ function renderSoloTab() {
       btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); })),
-      ...(((v.earn || {}).quals) || []).filter((q) => !q.have).map((q) => btn('🎓', `${q.label}の勉強`, () => { S.practiceOpen = false; soloStart('practice', 'qual:' + q.id); },
+      ...(((v.earn || {}).quals) || []).filter((q) => !q.have && !q.place).map((q) => btn('🎓', `${q.label}の勉強`, () => { S.practiceOpen = false; soloStart('practice', 'qual:' + q.id); },
         `勉強時間 ${Math.round(q.study)}／目安 ${q.study_need}時間（${q.skills.map((s) => SKILL_NAME[s.id]).join('・')}も少し伸びる）`))) : null,
     (v.appoints || []).some((x) => x.status === 'set' || x.status === 'waiting') ? h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, '約束（自分でその場所へ出向く）'),
@@ -404,29 +404,33 @@ function renderSoloTab() {
 const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) || {};
 // 行き方 (core/geo.py): おまかせ / 歩く / 電車・バス. 行き先ごとの目安は outdoor.routes (いまいる場所から)
 S.how = 'auto';
-const HOW_NAME = { auto: 'おまかせ', walk: '🚶 歩く', transit: '🚃 電車・バス' };
+const HOW_NAME = { auto: 'おまかせ', walk: '🚶 歩く', transit: '🚃 電車・バス', bike: '🚲 自転車', car: '🚗 車', taxi: '🚕 タクシー' };
+const HOW_ICON = { walk: '🚶', run: '🏃', transit: '🚃', bike: '🚲', car: '🚗', taxi: '🚕' };
 function howPicker(onchange) {
-  return h('div', { class: 'row', style: 'grid-column:1/-1;gap:4px;align-items:center' }, h('span', { class: 'muted small' }, '行き方:'),
-    ...Object.entries(HOW_NAME).map(([k, label]) => h('button', { class: 'btn small' + (S.how === k ? ' primary' : ''),
-      onclick: () => { S.how = k; (onchange || renderSoloTab)(); } }, label)));
+  const V = (((S.view || {}).outdoor || {}).vehicles || {}).own || {};
+  const ids = ['auto', 'walk', 'transit', ...(V.bicycle ? ['bike'] : []), ...(V.car ? ['car'] : []), 'taxi'];
+  if (!ids.includes(S.how)) S.how = 'auto';
+  const where = Object.values(V).filter((v) => !v.here).map((v) => `${v.label}は${v.at_label}に置いてある`).join('・');
+  return h('div', { class: 'row', style: 'grid-column:1/-1;gap:4px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted small' }, '行き方:'),
+    ...ids.map((k) => h('button', { class: 'btn small' + (S.how === k ? ' primary' : ''),
+      onclick: () => { S.how = k; (onchange || renderSoloTab)(); } }, HOW_NAME[k])),
+    where ? h('span', { class: 'muted small' }, `（${where}）`) : '');
 }
 function routeOf(id) { return (((S.view || {}).outdoor || {}).routes || {})[id]; }
 // 選んでいる行き方での目安 (行けなければ ng)
 function routeText(id) {
   const r = routeOf(id);
   if (!r) return null;
+  if (r.km < 0.05) return { text: 'いまいる所', ng: false };
   const how = S.how === 'auto' ? r.best : S.how;
-  if (how === 'transit') {
-    if (!r.transit) return { text: '電車・バスは使えない距離', ng: S.how === 'transit' };
-    return { text: `🚃${r.transit.min}分・${r.transit.fare}円${r.transit.ok ? '' : '（運休中）'}`, ng: !r.transit.ok && !r.walk.ok };
-  }
-  return { text: r.km < 0.05 ? 'いまいる所' : `🚶${r.walk.min}分`, ng: !r.walk.ok };
+  const m = (r.modes || {})[how];
+  if (!m) return { text: how === 'transit' ? '電車・バスは使えない距離' : `${HOW_NAME[how]}は使えない`, ng: S.how !== 'auto' && how !== 'transit' };
+  return { text: `${HOW_ICON[how]}${m.min}分${m.fare ? `・${m.fare}円` : ''}${m.ok ? '' : '（行けない）'}`, ng: !m.ok };
 }
 function routeTip(id) {
   const r = routeOf(id);
   if (!r) return '';
-  return `道のり ${r.km}km・徒歩 ${r.walk.min}分${r.walk.ok ? '' : '（遠すぎる）'}` +
-    (r.transit ? `・電車/バス ${r.transit.min}分（待ちを含む目安）片道 ${r.transit.fare}円${r.transit.note ? '・' + r.transit.note : ''}` : '');
+  return `道のり ${r.km}km` + Object.entries(r.modes || {}).map(([k, m]) => `\n${HOW_NAME[k]} ${m.min}分${m.fare ? `・${m.fare}円` : ''}${m.ok ? '' : '（行けない）'}${m.note ? '・' + m.note : ''}`).join('');
 }
 // 行き先を分類 (近所・お店・遊びに・家) ごとに並べる
 function placeGroups(ids, mk) {
@@ -1768,7 +1772,7 @@ function renderAway() {
   box.hidden = false;
   box.replaceChildren(h('div', { class: 'away-card' },
     h('div', { class: 'away-ic' }, a[0]),
-    h('div', { class: 'away-title' }, p.travel ? `${p.travel.how === 'transit' ? '🚃' : '🚶'} ${p.label}` : p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
+    h('div', { class: 'away-title' }, p.travel ? `${HOW_ICON[p.travel.how] || '🚶'} ${p.label}` : p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
     p.travel ? h('div', { class: 'muted small' }, p.travel.dir === 'home' ? '家に着くまでは、まだ外です（スマホは使えます）'
       : `着くまでは、${p.travel.label}でのことはできません（スマホは使えます）${p.travel.note ? '。' + p.travel.note : ''}`) : '',
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
@@ -2824,7 +2828,7 @@ function commandPicker(b, redraw) {
     b.do === 'meal' && MP[b.how] ? sel('place', MP[b.how].map(placeOpt)) : '',
     ch[b.do] ? sel('place', ch[b.do].map(placeOpt)) : '',
     b.do === 'practice' ? sel('skill', [...Object.entries(skills),
-      ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
+      ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have && !q.place).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
     b.do === 'chores' ? sel('skill', CHORE_PARTS) : ''];
 }
 const CHORE_PARTS = [['', '全部'], ['mess', '部屋の片付け'], ['dishes', '洗い物'], ['laundry', '洗濯'], ['trash', 'ゴミ出し']];
@@ -2906,7 +2910,7 @@ function routineEditor(days) {
       b.do === 'meal' && MP[b.how] ? sel(b, 'place', MP[b.how].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       ch[b.do] ? sel(b, 'place', ch[b.do].map((x) => [x, `${(pl[x] || {}).icon || ''}${(pl[x] || {}).label || x}${(pl[x] || {}).hours && pl[x].hours !== '24時間' ? '（' + pl[x].hours + '）' : ''}`])) : '',
       b.do === 'practice' ? sel(b, 'skill', [...Object.entries(skills),
-        ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
+        ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have && !q.place).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
       b.do === 'chores' ? sel(b, 'skill', CHORE_PARTS) : '',
       h('button', { class: 'btn small danger', onclick: () => { list.splice(i, 1); redraw(); } }, '×'))),
     h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },

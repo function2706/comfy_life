@@ -210,7 +210,7 @@ class Offline:
                 return
             lg, dest = back_leg
             back_leg = None
-            stamina = self._pay_leg(lg, dest, t, stamina)
+            stamina = self._pay_leg(lg, HOME_ME, t, stamina, dest)
             timeline.append({"t": t, "end": t + lg["min"] * 60, "do": "move", "label": "移動",
                              "text": "%sから家へ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[lg["how"]], round(lg["min"]),
                                                              "・%s円" % format(lg["fare"], ",") if lg["fare"] else ""), "skipped": False})
@@ -232,11 +232,15 @@ class Offline:
             if dest:                               # 出かける行動: 行き帰りの移動 (core/geo.py. 予定の時刻は出る時刻)
                 try:
                     go = app.geo.leg(HOME_ME, dest, "run" if do == "jog" else None, s)
-                    back = app.geo.leg(dest, HOME_ME, "run" if do == "jog" else None, e, rand=False)
                 except ValueError:
-                    go = back = None
+                    go = None
                 if go and go["min"] >= 1:
-                    stamina = self._pay_leg(go, dest, s, stamina)
+                    stamina = self._pay_leg(go, dest, s, stamina, HOME_ME)
+                    try:                           # 帰り: 乗っていった自転車・車があれば, それで
+                        back = app.geo.leg(dest, HOME_ME, "run" if do == "jog" else go["how"] if go["how"] in ("bike", "car") else None,
+                                           e, rand=False)
+                    except ValueError:
+                        back = app.geo.leg(dest, HOME_ME, "taxi", e, rand=False)
                     timeline.append({"t": s, "end": s + go["min"] * 60, "do": "move", "label": "移動",
                                      "text": "%sへ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
                                                                  "・%s円" % format(go["fare"], ",") if go["fare"] else ""), "skipped": False})
@@ -472,16 +476,17 @@ class Offline:
             return b.get("place") or ("teishoku" if b["how"] == "out" else "convenience")
         return None
 
-    def _pay_leg(self, lg, dest, t, stamina):
-        """閉じていた間の移動 1 回: 運賃・歩いた分の疲れと運動. 体力を返す."""
-        from .body import MOVE_PER_H
+    def _pay_leg(self, lg, dest, t, stamina, frm):
+        """閉じていた間の移動 1 回 (frm → dest): 運賃・歩いた分の疲れと運動・乗り物の置き場所. 体力を返す."""
+        from .geo import FARE_NOTE
         app, L = self.app, self.app.life
         if lg["fare"]:
             L.player_state()["money"] -= lg["fare"]
-            L.ledger(t, -lg["fare"], "transport", "交通費（%s）" % app.places.label(dest))
-        walk_h = min(lg["min"], 40) / 60.0 if lg["how"] != "transit" else 0.15
-        app.body.add_exercise(MOVE_PER_H["jog" if lg["how"] == "run" else "walk"] * walk_h)
-        return max(0.0, stamina - (6.0 if lg["how"] == "run" else 2.5) * walk_h)
+            L.ledger(t, -lg["fare"], "transport", "%s（%s）" % (FARE_NOTE[lg["how"]], app.places.label(dest if dest != HOME_ME else frm)))
+        ex, tired = app.geo.body_cost(lg, frm, dest)
+        app.body.add_exercise(ex)
+        app.geo.used(lg, dest)
+        return max(0.0, stamina - tired)
 
     def _move(self, do, place):
         """行動パターンの行動で体を動かす量 (1 時間あたり)."""
