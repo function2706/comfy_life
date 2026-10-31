@@ -225,6 +225,32 @@ def main():
         geo.rec_p()["travel"]["t0"] -= 60
         h = app.come_back()                                         # 引き返す: いまの地点から家へ
         assert h.get("traveling") and geo.travel()["from"].startswith("pt:"), h
+        # ---- 12. 移動中に閉じても, 移動は続く. 着いてしばらくたって開けば, 着いてすぐ家へ引き返したことに
+        geo.rec_p().pop("travel", None)
+        if P.rec().get("mode") != "none":
+            with app.lock:
+                app.come_back(at=time.time(), quiet=True)
+        P.rec()["pos"] = home
+        app.solo.start("out", place="mall", how="transit")
+        tr = geo.travel()
+        now = time.time()
+        P.rec()["beat"] = now - 900                                   # 15 分前から閉じていた
+        tr["arr"] = now + 600
+        assert app.outdoor.check_gap(now) is None and geo.travel(), "着く前に開いた: まだ移動中"
+        tr["arr"] = now - 120
+        assert app.outdoor.check_gap(now) is None and geo.travel(), "着いたばかり: 行き先にいる (geo.tick で着く)"
+        a = geo.tick(now)
+        assert a and "着いた" in a["text"] and P.rec()["pos"] == "mall"
+        with app.lock:
+            app.come_back(at=now, quiet=True)
+        P.rec()["pos"] = home
+        app.solo.start("out", place="mall", how="transit")
+        tr = geo.travel()
+        P.rec()["beat"] = now - 7200
+        tr["t0"], tr["arr"] = now - 7200, now - 5400                  # 着いてから 1 時間半, 閉じたまま
+        g = app.outdoor.check_gap(now)
+        assert g and P.rec()["mode"] == "none" and not geo.travel() and P.rec()["pos"] == home, (g, P.rec())
+        print("移動中に閉じる: OK |", g["text"][:60])
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

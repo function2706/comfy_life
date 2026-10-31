@@ -390,7 +390,7 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 移動中: `presence.travel = {from, to, how, t0, arr, fare, dir: go / home, then}`。`presence.pos` はいまいる場所、`arrived` / `left` はその場所に着いた・出た時刻（`presence.back` の `arr` / `left` / `h_at`。一人の時間の結果・給料はこの間だけ）。`geo.depart`（出かける・通勤・アルバイト・相手の家へ。相手の家は着いてから `solo.arrive_then` で訪ねる）、`geo.tick`（心拍のたび。着いたら `state_view.arrival`）、`geo.head_home`（`come_back` は出先にいればまず家へ移動し、着いたら `come_back(arrived=True)`）。移動中は `outdoor.current` が `moving`（通る道の人の多さ）、店の買い物・約束の「着いた」・職場の知り合い・外食は着いてから。出先から移る `solo.move` は場所どうしの距離。
 - お出かけ: `engine._outing_travel` で `override.arr`（ここまで行きの移動）・`override.leave`（ここから帰りの移動。同居相手とだけ）・`until` をのばす。移動中のコマンドは `MOVING_OK`（会話・見る・連絡）だけ。外で会っていた・訪ねていた相手と別れたら `bonds._head_home` で一人で家へ。
 - 約束: `appoint.row` の `leave`（いまいる場所から、何時に出れば間に合うか）。`appoint.here` は移動中は着いていない。
-- 閉じたとき: `outdoor.check_gap` は最後の心拍で出先を出たことにして、`geo.home_eta` に家に着いてから `offline.simulate` を始める。閉じていた間: `offline._dest` の行動（外出・ジョギング・仕事・アルバイト・外食・買って食べる）は、行き（家から。時刻は家を出る時刻）と帰りの移動 `do: "move"` をまとめに入れ、運賃・疲れ・運動は `_pay_leg`。同じ場所での次の行動・出先のすぐあとの食事は、出先にいるまま。
+- 閉じたとき: `outdoor.check_gap` は最後の心拍で出先を出たことにして、`geo.home_eta` に家に着いてから `offline.simulate` を始める。移動中に閉じたなら移動は続く（着いて `outdoor.ARRIVE_GRACE` 以内に開けば何もしない。着いたことは `geo.tick`）。それより遅ければ、行く途中は着いてすぐ引き返したこと（`arrived = left = arr`）に、帰る途中は着いた時刻に家にいたことにする。閉じていた間: `offline._dest` の行動（外出・ジョギング・仕事・アルバイト・外食・買って食べる）は、行き（家から。時刻は家を出る時刻）と帰りの移動 `do: "move"` をまとめに入れ、運賃・疲れ・運動は `_pay_leg`。同じ場所での次の行動・出先のすぐあとの食事は、出先にいるまま。
 
 ### 外出と偶然の出会い
 

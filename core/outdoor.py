@@ -31,6 +31,7 @@ SEASON_WEATHER = {"spring": (("sunny", 0.5), ("cloudy", 0.3), ("rain", 0.2)),
                   "winter": (("sunny", 0.45), ("cloudy", 0.35), ("rain", 0.1), ("snow", 0.1))}
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
            6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+ARRIVE_GRACE = 10 * 60    # 移動中に閉じて, 着いてからこれだけの間に開けば, そのまま行き先にいる
 DEFAULTS = {"rate_out": 0.6, "rate_outing": 0.25, "rate_work": 0.3}     # 1時間あたり (人の多さ 1.0・晴れのとき)
 
 
@@ -181,13 +182,18 @@ class Outdoor:
         del lg[:-20]
 
     def check_gap(self, now=None):
-        """心拍が途絶えていたら, 最後の心拍の時点で外出を終える (家に帰って静かに過ごしていた). 終えたら説明を返す."""
+        """心拍が途絶えていたら, 最後の心拍の時点で外出を終える (家に帰って静かに過ごしていた). 終えたら説明を返す.
+        移動中に閉じたなら, 移動は続く (core/geo.py): 着いて ARRIVE_GRACE 以内に開けば, そのまま行き先にいる (帰る途中なら家に着く).
+        それより遅ければ, 着いてすぐ家に引き返したことにして, 家に着いてから閉じていた間の過ごし方を始める."""
         app = self.app
         now = now or time.time()
         p = app.presence.rec()
         beat = p.get("beat", 0)
         if not beat or now - beat <= app.presence._gone_sec():
             return None
+        tr = p.get("travel")
+        if tr and p.get("mode") in ("out", "work") and now < tr["arr"] + ARRIVE_GRACE:
+            return None                                # まだ移動中 / 着いたばかり: 着いたことは geo.tick で
         msgs = []
         # 誰かとのお出かけ: そのまま解散して, それぞれ家へ
         for cid in list(app.chars):
@@ -202,16 +208,22 @@ class Outdoor:
         home_at = beat
         if mode in ("out", "work"):
             # 出先にいた: 最後の心拍で出先を出て, 家まで移動した (着くまでは閉じていた間の過ごし方に入らない)
-            home_at = min(now, app.geo.home_eta(beat))
-            tr = p.get("travel")
-            if tr and tr.get("dir") == "go":           # 向かう途中で閉じた: その場所にはいなかった / 着いていた
-                p["arrived"] = min(beat, tr["arr"])
-            if not (tr and tr.get("dir") == "home"):
+            t_out = beat
+            if tr and tr.get("dir") == "go":           # 向かう途中で閉じた: 移動は続いて着き, 着いてすぐ家へ引き返した
+                t_out = tr["arr"]
+                p["arrived"] = p["left"] = t_out
+                p["pos"] = tr["to"]
+                p.pop("travel", None)
+                home_at = min(now, app.geo.home_eta(t_out))
+            elif tr:                                   # 帰る途中で閉じた: そのまま家に着いた
+                t_out = home_at = tr["arr"]
+                p.pop("travel", None)
+            else:
+                home_at = min(now, app.geo.home_eta(beat))
                 p["left"] = beat
-            p.pop("travel", None)
-            res = app.come_back(at=beat, quiet=True)
+            res = app.come_back(at=t_out, quiet=True)
             msgs.append((res.get("text") or "") + ("。家に着いたのは%s" % datetime.fromtimestamp(home_at).strftime("%H:%M")
-                                                   if home_at - beat >= 300 else ""))
+                                                   if home_at - t_out >= 300 or t_out != beat else ""))
         p["pos"] = places_mod.HOME_ME
         # オフラインモード: 閉じていた間は, 予定 (勤務時間) に沿って過ごした
         rep = app.offline.simulate(home_at, now)
