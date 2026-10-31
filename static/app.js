@@ -59,15 +59,42 @@ window.addEventListener('unhandledrejection', (ev) => {
   reportClientError('(promise) ' + (r.message || String(r)), '', 0, 0, r.stack);
 });
 
+// この画面の目印 (一度に使える画面は 1 つ. server.py の gate)
+const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 async function api(path, body) {
-  const opt = body === undefined ? {} :
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+  const opt = body === undefined ? { headers: { 'X-Client': CLIENT_ID } } :
+    { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Client': CLIENT_ID }, body: JSON.stringify(body) };
   const r = await fetch(path, opt);
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
+  if (j && j.inactive) { setInactive(true); if (!r.ok) throw new Error(j.error); return j; }
   // 失敗判定は HTTP ステータスだけで行う. ジョブ情報などは正常応答でも error 項目を持つため,
   // j.error で判定すると「失敗したジョブ」が取得失敗扱いになり, 生成待ちのまま固まる.
   if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
   return j;
+}
+
+// 別の画面で使われている: この画面は止める (「こちらで使う」で切り替え). 同じブラウザのタブには, すぐ知らせる
+const CLIENT_BC = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('comfy-life-client') : null;
+if (CLIENT_BC) CLIENT_BC.onmessage = (e) => { if (e.data && e.data.claim && e.data.claim !== CLIENT_ID) setInactive(true); };
+function setInactive(on) {
+  S.inactive = on;
+  let box = document.getElementById('inactive-overlay');
+  if (!on) { if (box) box.remove(); return; }
+  if (box) return;
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+  box = h('div', { id: 'inactive-overlay', style: 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { class: 'pgroup', style: 'max-width:420px;text-align:center;padding:20px;background:var(--panel,#222)' },
+      h('div', { style: 'font-size:28px' }, '🪟'),
+      h('p', {}, '別の画面（タブ・ブラウザ・PC）で開いています。'),
+      h('p', { class: 'muted small' }, '一度に使える画面は1つです。この画面で続けるときは「こちらで使う」を押してください（もう一方の画面は止まります）。'),
+      h('button', { class: 'btn primary', onclick: claimHere }, 'こちらで使う')));
+  document.body.append(box);
+}
+async function claimHere() {
+  await api('/api/claim', {});
+  if (CLIENT_BC) CLIENT_BC.postMessage({ claim: CLIENT_ID });
+  setInactive(false);
+  await refresh();
 }
 
 function toast(msg, kind = '') {
@@ -131,9 +158,12 @@ function noteMemos() {
 }
 async function refresh() {
   if (!S.boot) return;               // 起動の読み込みより先に呼ばれた (画面の表示切り替えなど)
+  if (S.inactive) return;           // 別の画面で使われている: 状態も在席も送らない
   try {
     const q = S.view && S.view.target ? '&character=' + encodeURIComponent(S.view.target) : '';
-    S.view = await api('/api/state?beat=1&idle=' + idleSec() + q);
+    const v = await api('/api/state?beat=1&idle=' + idleSec() + q);
+    if (v.inactive) return;
+    S.view = v;
   } catch (e) {
     toast('状態の取得に失敗: ' + e.message, 'err');
     return;
@@ -4380,6 +4410,7 @@ function bind() {
 async function init() {
   bind();
   try { await loadBoot(); } catch (e) { toast('サーバに接続できません: ' + e.message, 'err'); return; }
+  try { await api('/api/claim', {}); if (CLIENT_BC) CLIENT_BC.postMessage({ claim: CLIENT_ID }); } catch (e) { /* 古いサーバ */ }
   await refresh();
   if (T()) showTab('with');
   try { const r = await api('/api/visit', {}); if (r.result) handleActResult(r.result); } catch (e) { toast(e.message, 'err'); }

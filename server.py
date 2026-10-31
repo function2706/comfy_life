@@ -34,6 +34,32 @@ def _q(q, k, default=None):
     return v[0] if v else default
 
 
+# 一度に使える画面は 1 つ (排他). 画面ごとの目印 (X-Client) のうち, いま使っている画面だけが状態を進め・操作できる.
+# 新しく開いた画面 (POST /api/claim) か「こちらで使う」を押した画面が使う側になる. ほかの画面の状態の取得は
+# {"inactive": true} だけを返し (在席も知らせない), 操作 (POST) は 409 で断る. 目印の無い呼び出し (テストなど) はそのまま通す.
+# サーバを起動し直したら, 最初に来た画面が使う側になる.
+ACTIVE = {"client": None}
+INACTIVE_MSG = "別の画面で開いています（この画面で使うには「こちらで使う」）"
+
+
+def gate(method, path, client):
+    """排他の判定. 断るなら (応答, 状態コード), 通すなら None."""
+    if not client:
+        return None
+    if path == "/api/claim":
+        ACTIVE["client"] = client
+        return {"ok": True, "client": client}, 200
+    if ACTIVE["client"] is None:
+        ACTIVE["client"] = client
+    if ACTIVE["client"] == client:
+        return None
+    if method == "GET" and path == "/api/state":
+        return {"inactive": True}, 200
+    if method == "POST":
+        return {"error": INACTIVE_MSG, "inactive": True}, 409
+    return None
+
+
 # あなたの操作として残さない POST (画面が自動で送るもの・書き出しそのもの)
 QUIET_POST = ("/api/chat/seen", "/api/offline/ack", "/api/debug/dump", "/api/client_error", "/api/task/move")
 
@@ -364,7 +390,8 @@ class Handler(BaseHTTPRequestHandler):
         if method == "POST":
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
-        obj, code = call_api(method, u.path, q, body)
+        g = gate(method, u.path, self.headers.get("X-Client"))
+        obj, code = g if g else call_api(method, u.path, q, body)
         self._json(obj, code)
 
     def do_GET(self):
