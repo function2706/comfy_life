@@ -1155,7 +1155,7 @@ const PLACE_LABEL = (id) => ((S.view.outdoor || {}).places || {})[id] ? `${S.vie
 const SL_GROUPS = [['food', '🍚 食べ物', ['food', 'meal']], ['tea', '☕ お茶・おやつ', ['tea', 'sweets']], ['daily', '🧴 日用品・薬', ['detergent', 'medicine']],
   ['book', '📚 本・教材', null], ['gift', '🎁 服・小物・プレゼント', null]];
 const slGroup = (it) => (SL_GROUPS.find(([, , ks]) => ks && ks.includes(it.kind)) || (String(it.kind).startsWith('book') ? SL_GROUPS[3] : SL_GROUPS[4]))[0];
-async function slSet(path, id, qty) {
+async function shopListSet(path, id, qty) {
   try { await api(path, { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); }
   if (S.slDlg && S.slDlg.open) drawShopList();
 }
@@ -1168,13 +1168,13 @@ function slRow(it, iv, opts = {}) {
       h('span', { class: 'muted small' }, ` ${yen(it.price)}前後${it.servings > 1 ? `（${it.servings}回分）` : ''}${have[it.id] ? `・手元 ${have[it.id]}${it.nut ? '回分' : ''}` : ''}`),
       opts.where === false ? '' : h('div', { class: 'muted small' }, it.places.map(PLACE_LABEL).join(' ')),
       iv.in_debt && !it.essential ? h('span', { class: 'muted small down' }, '（借金のあいだは買わない）') : ''),
-    h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => slSet('/api/items/list', it.id, (want[it.id] || 0) - 1) }, '−'),
+    h('button', { class: 'btn small', disabled: !want[it.id], onclick: () => shopListSet('/api/items/list', it.id, (want[it.id] || 0) - 1) }, '−'),
     h('span', { style: 'min-width:2em;text-align:center' }, String(want[it.id] || 0)),
-    h('button', { class: 'btn small', onclick: () => slSet('/api/items/list', it.id, (want[it.id] || 0) + 1) }, '＋'),
+    h('button', { class: 'btn small', onclick: () => shopListSet('/api/items/list', it.id, (want[it.id] || 0) + 1) }, '＋'),
     h('span', { class: 'muted small', style: 'margin-left:10px' }, '常備'),
-    h('button', { class: 'btn small ghost', disabled: !stock[it.id], title: '常備数を減らす', onclick: () => slSet('/api/items/stock', it.id, (stock[it.id] || 0) - 1) }, '−'),
+    h('button', { class: 'btn small ghost', disabled: !stock[it.id], title: '常備数を減らす', onclick: () => shopListSet('/api/items/stock', it.id, (stock[it.id] || 0) - 1) }, '−'),
     h('span', { class: 'small', style: 'min-width:3.2em;text-align:center;white-space:nowrap' }, stock[it.id] ? `${stock[it.id]}${it.nut ? '回' : ''}` : '—'),
-    h('button', { class: 'btn small ghost', title: '常備数を増やす', onclick: () => slSet('/api/items/stock', it.id, (stock[it.id] || 0) + 1) }, '＋'));
+    h('button', { class: 'btn small ghost', title: '常備数を増やす', onclick: () => shopListSet('/api/items/stock', it.id, (stock[it.id] || 0) + 1) }, '＋'));
 }
 // 買うものリストのまとめ: 何品・およそいくら・どの店でいくつ買えるか
 function slSummary(iv, cat) {
