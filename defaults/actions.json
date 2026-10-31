@@ -2823,8 +2823,7 @@
     "when": "too_often=true",
     "priority": 3,
     "effects": {
-     "mood": -2,
-     "affection": -1
+     "mood": -2
     },
     "pos": "annoyed, holding phone to ear",
     "neg": "smile"

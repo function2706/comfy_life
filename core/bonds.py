@@ -251,10 +251,13 @@ class Bonds:
                 "rivals_known": sum(1 for o in rv if o in known),
                 # 現実的な深まり方: 最近の交流日数 / ご無沙汰の日数 / 提案を受ける気持ち / 贈り物・お金の受け止め方
                 "met_14d": self.freq(st, now), "gap_d": round(self.gap_days(st, now), 2),
-                # 連絡しすぎ: 24 時間の連絡 (種類ごとの重み. 会話の返事は数えず, 追いメッセージは重め) が,
-                # 性格 (approach)・間柄・相手からの連絡の多さ・相手の状況で決まる許容を超えた
+                # 連絡の多さ: 24 時間の連絡 (種類ごとの重み. 会話の返事は数えず, 返事がないまま重ねた分は重め) と,
+                # 性格 (approach)・間柄・好感度と信頼・相手からの連絡の多さ・機嫌で決まる許容. 判定は相手が読んだときに見る
+                # (手が離せない間に溜まった分は, 読んだときにまとめて数える). 少し超えた (contacts_many) なら返事が遅くなるだけ,
+                # はっきり多い (too_often: 許容の TOO_OFTEN_RATIO 倍を超えた) と, うんざりして言われる
                 "contacts_24h": round(self._contacts(st, now), 1),
-                "too_often": self._contacts(st, now) > self.tolerance(char, cid, st, now),
+                "contacts_many": self._contacts(st, now) > self.tolerance(char, cid, st, now),
+                "too_often": self._contacts(st, now) > self.TOO_OFTEN_RATIO * self.tolerance(char, cid, st, now),
                 "ready": self.readiness(char, st, now), "gift_feel": self.gift_feel(char, st, now),
                 "money_feel": self.gift_feel(char, st, now, money=True)}
 
@@ -369,6 +372,7 @@ class Bonds:
     CONTACT_W = {"greet_morning": 0.5, "greet_night": 0.5, "stamp": 0.5, "_phone": 1.5}     # 種類ごとの重み (ほかは 1)
     FOLLOWUP_W = 1.5         # 返事がないのに続けて送った (追いメッセージ) ときの倍率
     HER_BONUS_MAX = 4        # 相手からよく来るときに増える, 我慢できる回数の上限
+    TOO_OFTEN_RATIO = 1.5    # 許容のこれだけ倍を超えたら「多い」とうんざりする (超えたばかりは返事が遅くなるだけ)
 
     @staticmethod
     def contact_t(x):
@@ -393,19 +397,19 @@ class Bonds:
         last_her = max([it["t"] for it in items if it["who"] == "her"] or [0])
         if not phone and (st.get("approach") or last_her > last_me):
             return 0.0                                   # 相手が話しかけてきた・返事をくれたあとの返事
-        if st.get("msg_pending") or (last_me and last_me > last_her and now - last_me < 6 * 3600):
-            w *= self.FOLLOWUP_W                         # 返事がないのに続けて送る
+        if sum(1 for t in mine if t > last_her and now - t < 6 * 3600) >= 2:
+            w *= self.FOLLOWUP_W                         # 返事がないのに 2 通目・3 通目と重ねる (返事を待って 1 通送るのはふつう)
         return w
 
     def history_weights(self, items):
         """トークの記録から, あなたが送った連絡を時刻順に組み直す: [(時刻, 重み, 種類)] (以前の記録の置き換え・判定し直し用).
         あなたの発言 (謝るは除く) と, あなたがかけた電話 (📞). 重みの決まりは contact_weight と同じ (相手の発言のあとの 1 通は会話で 0,
-        相手の返事がないまま 6 時間のうちに続けて送ると追いメッセージで重め)."""
-        out, last_me, last_her = [], 0.0, 0.0
+        相手の返事がないまま 6 時間のうちに 2 通重ねたあとは重め)."""
+        out, last_me, last_her, run = [], 0.0, 0.0, []
         for it in sorted(items, key=lambda x: x["t"]):
             who, kind = it.get("who"), it.get("kind")
             if who == "her":
-                last_her = it["t"]
+                last_her, run = it["t"], []
                 continue
             phone = who == "sys" and kind == "call" and str(it.get("text", "")).startswith("📞")
             if not (who == "me" and kind != "apology") and not phone:
@@ -413,15 +417,17 @@ class Bonds:
             w = self.CONTACT_W["_phone" if phone else kind] if (phone or kind in self.CONTACT_W) else 1.0
             if not phone and last_her > last_me:
                 w = 0.0
-            elif last_me and last_me > last_her and it["t"] - last_me < 6 * 3600:
+            elif sum(1 for t in run if it["t"] - t < 6 * 3600) >= 2:
                 w *= self.FOLLOWUP_W
             out.append((it["t"], w, "_phone" if phone else kind))
             last_me = it["t"]
+            run.append(it["t"])
         return out
 
     def tolerance(self, char, cid, st=None, now=None):
-        """我慢できる連絡の多さ: 性格 (甘えたがりほど平気)・間柄・相手からの連絡の多さ (上限あり)・相手の状況
-        (仕事中・手が離せないと減り, 機嫌がいい・寂しいと少し増える)・その日の揺らぎ."""
+        """我慢できる連絡の多さ: 性格 (甘えたがりほど平気)・間柄・好感度と信頼 (好かれていれば多くても平気. 嫌われていると敏感)
+        ・相手からの連絡の多さ (上限あり)・機嫌 (いいと少し増え, 悪いと減る)・寂しさ・その日の揺らぎ.
+        仕事中・手が離せないかどうかでは変えない (読むのが遅れるだけ. 溜まった分は読んだときに数える)."""
         base = 2 + 2 * float(self.app.traits(char).get("approach", 1)) \
             + {"known": 0, "contact": 0, "visit": 2, "live": 4}.get(self.stage(cid), 0)
         if st is None:
@@ -430,10 +436,9 @@ class Bonds:
         her = sum(1 for it in self.app.chat.load(cid)["items"] if it.get("who") == "her" and 0 <= now - it["t"] < 86400)
         base += min(self.HER_BONUS_MAX, her)
         p = st["params"]
-        scene = self.app.scene_at(char, st, _dt.datetime.fromtimestamp(now))
-        if scene.get("busy"):
-            base *= 0.6
-        base += (1.0 if p.get("mood", 50) >= 65 else 0.0) + (1.0 if p.get("loneliness", 0) >= 60 else 0.0)
+        base += max(-2.5, min(6.0, (p.get("affection", 50) - 50) / 8.0 + (p.get("trust", 50) - 50) / 20.0))
+        base += (1.0 if p.get("mood", 50) >= 65 else -1.0 if p.get("mood", 50) < 35 else 0.0) \
+            + (1.0 if p.get("loneliness", 0) >= 60 else 0.0)
         fd = self.app.attach.factor(char, st, "dependence")      # 依存しているほど, 連絡が多くても平気 (低くても少し減るだけ)
         base = max(1.0, base + (2.5 * fd if fd > 0 else 0.8 * fd))
         day = _dt.datetime.fromtimestamp(now).strftime("%Y%m%d")

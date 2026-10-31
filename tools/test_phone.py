@@ -98,7 +98,8 @@ def main():
         char = app.char(cid)
         char["persona_id"] = "cool"
         reset()
-        n = int(B.tolerance(char, cid, st, time.time())) + 1       # クールが我慢できる回数 + 1 (相手から届いた分・状況・揺らぎ込み)
+        app.set_params({"mood": 70, "affection": 70}, cid)       # 機嫌がよく好かれていても, 多すぎれば引かれる
+        n = int(B.TOO_OFTEN_RATIO * B.tolerance(char, cid, st, time.time())) + 1       # クールが「多い」と思う回数 + 1 (相手から届いた分・状況・揺らぎ込み)
         for _ in range(n):
             st["contacts"].append(time.time())
         assert B.ctx(cid, st)["too_often"], "クールは連絡が多いのが苦手"

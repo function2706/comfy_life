@@ -198,8 +198,9 @@ class DebugDump:
         out.append("tastes(話題の好み)=%s topic_tags=%s" % (_j(st.get("tastes")), _j((st.get("topic_tags") or [])[-8:])))
         out.append("msg_pending=%s" % _j(dict(st["msg_pending"], due_in_min=round((st["msg_pending"].get("due", now) - now) / 60, 1))
                                           if st.get("msg_pending") else None))
-        out.append("approach=%s ap_quiet_until=%s phone_until=%s" % (_j({k: v for k, v in (st.get("approach") or {}).items() if k != "entry"} or None),
-                                                                     _ts(st.get("ap_quiet_until")), _ts(st.get("phone_until"))))
+        out.append("approach=%s ap_quiet_until=%s ap_ignored_until=%s phone_until=%s" % (
+            _j({k: v for k, v in (st.get("approach") or {}).items() if k != "entry"} or None),
+            _ts(st.get("ap_quiet_until")), _ts(st.get("ap_ignored_until")), _ts(st.get("phone_until"))))
         out.append("apology_last=%s apologies=%s" % (_j(st.get("apology_last")), [_ts(t) for t in st.get("apologies") or []]))
         out.append("contacts_24h=%s tolerance=%s contacts=%s" % (round(B._contacts(st, now), 2), tol and round(tol, 2),
                                                                  _j((st.get("contacts") or [])[-12:])))

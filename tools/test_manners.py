@@ -106,7 +106,7 @@ def main():
         M.apply_apology(char, st, {"out": "quick", "r": r}, now)
         key, eff, _ = reply("smalltalk", t=now + 3600, ctx={"too_often": True})
         assert key == "too_often_again" and eff["mood"] < -2 and eff["trust"] < 0, (key, eff)
-        assert reply("smalltalk", t=now + 7200, ctx={"too_often": True})[0] == "too_often", "一度だけ"
+        assert reply("smalltalk", t=now + 7200, ctx={"too_often": True})[0] in ("too_often", "too_often_mild"), "一度だけ"
         # 許してもらったすぐあとの「ありがとう」1 通目は, 連絡が多いうちに数えない (2 通目・時間がたってからは今までどおり)
         r = fault(-2, action="_too_often")
         M.apply_apology(char, st, {"out": "quick", "r": r}, now)

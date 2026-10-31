@@ -218,10 +218,13 @@ class Presence:
             return None
         pend = st.get("msg_pending")
         if ctx.get("apart") and pend:
-            # あなたのメッセージに返していないうちは, 別の話を送ってこない. スマホを手に取ったので, いま読む (返すかは決めたとおり)
+            # あなたのメッセージに返していないうちは, 別の話を送ってこない. 話したくてスマホを手に取ったので, いま読んで返す
+            # (返さないと決めていても, 話したい気持ちのほうが勝つ. 返事の中身は読んだときの状況しだい)
+            was = pend.get("reply")
             pend["due"] = min(pend.get("due", now), now)
-            T.add("approach", "抽せん: 当たったが, 返事待ちのメッセージがあるので送らず, いま読む", char["id"], now, rate_h=rate, p=hit,
-                  reply=pend.get("reply"))
+            pend["reply"], pend["unread"] = True, False
+            T.add("approach", "抽せん: 当たったが, 返事待ちのメッセージがあるので送らず, いま読んで返す", char["id"], now, rate_h=rate, p=hit,
+                  reply_before=was)
             return None
         T.add("approach", "抽せん: 当たり", char["id"], now, rate_h=rate, p=hit, apart=ctx.get("apart"), presence=pres,
               mood=ctx.get("mood"), loneliness=ctx.get("loneliness"), affection=ctx.get("affection"))
@@ -255,6 +258,8 @@ class Presence:
                     continue
                 if now - (st.get("ap_last") or {}).get(a["id"], 0) < float(a.get("cooldown_h", 3)) * 3600:
                     continue
+                if apart and now < st.get("ap_ignored_until", 0) and not (a["id"] == "msg_miss" and ctx.get("loneliness", 0) >= 75):
+                    continue          # あなたのメッセージを既読のまま返さなかったばかり: 気軽な話は送ってこない (とても寂しければ別)
                 if not cond.check(a.get("when", ""), ctx):
                     continue
             cands.append(a)

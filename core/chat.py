@@ -156,6 +156,7 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "req_money_again": "（そばで）お金のおねだり. しょっちゅう頼んでいるとき (自分優先. 文頭の 📱 なし)",
                "selfie_yes": "自撮り送って (送ってくれた. 自撮りが添えられる)",
                "selfie_no": "自撮り送って (断られた)", "selfie_pester": "自撮り送って (続けて頼みすぎ)", "late_night": "夜中のメッセージ", "too_often": "連絡しすぎ",
+               "too_often_mild": "連絡しすぎ (好感度は下がらない. セリフは too_often と同じ)",
                "repaid": "借りたお金を返した (一緒にいればその場で)", "money_worry": "返済が遅くて心配する (一緒にいればその場で)",
                "money_distrust": "返済が遅くて不信感を持つ (一緒にいればその場で)",
                "appoint_yes": "約束の誘い (応じた. {when} {place})", "appoint_no": "約束の誘い (断った)",
@@ -267,7 +268,9 @@ class Chat:
             # 連絡が多くて少し疲れた: あなたのせいの理由として覚える (謝れば和らぐ)
             L.add_reason(st, "player", "bad", "%sからの連絡が多くて、少し疲れた" % app.pronouns(char)[2], now, told=True,
                          delta=-2.0, action="_too_often")
-            return "too_often", {"mood": -2, "affection": -1}, extra
+            if p.get("affection", 50) < 35:           # 好かれていないと, 好感度まで下がる
+                return "too_often", {"mood": -2, "affection": -1}, extra
+            return "too_often_mild", {"mood": -2}, extra
         if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
             return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
@@ -350,6 +353,8 @@ class Chat:
             return app.quarrel.line(char, "cold", phone=True)
         if key in ANNIV_SCENES:                  # 誕生日・記念日: 会ったときと同じセリフを 📱 で
             return app.anniv.line(char, key, extra, phone=True)
+        if key == "too_often_mild":              # 好感度が下がらないだけで, 言うことは同じ
+            key = "too_often"
         t = app.persona_text(char, "chat." + key) or LINES["chat." + key]
         fp, _, call = app.pronouns(char)
         for k, v in dict(extra, fp=fp, call=call, name=char.get("name", "")).items():

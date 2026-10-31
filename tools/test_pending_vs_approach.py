@@ -1,5 +1,5 @@
 """あなたのメッセージに返していない相手は, 別の話 (離れている相手からのメッセージ) を送ってこない.
-送ってきそうになったら, そのときスマホを手に取ったので, あなたのメッセージをいま読む (返すかどうかは決めていたとおり).
+送ってきそうになったら, そのときスマホを手に取ったので, あなたのメッセージをいま読んで返す (返さないと決めていても, 話したい気持ちが勝つ).
 以前: 謝罪の返事を待たせたまま「何してるの？」が届き, そのあと送った近況への返事と一緒に, 半日前の謝罪への返事が届いていた.
 
     python tools/test_pending_vs_approach.py
@@ -67,7 +67,7 @@ def main():
         assert out and th[-1]["who"] == "her", th[-3:]
         print("返事待ちのあいだは別の話を送らず, いま読む: OK |", th[-1]["text"])
 
-        # ---- 2. 返さないと決めていた (既読スルー) なら, 読むだけ. 別の話はそのあと
+        # ---- 2. 返さないと決めていても, 話したくなってスマホを手に取ったのなら返す (別の話は送ってこない)
         now = time.time()
         st["msg_pending"] = {"aid": "message", "t": now - 600, "due": now + 3600, "reply": False, "count": 1,
                              "kind": "smalltalk", "meta": {}}
@@ -80,8 +80,9 @@ def main():
             random.random = real
         app.deliver_due(time.time() + 1)
         th = app.chat.thread(cid)["items"]
-        assert not st.get("msg_pending") and len(th) == n0, "既読スルーのはずが返事が来た"
-        print("既読スルーなら読むだけ: OK")
+        assert not st.get("msg_pending") and len(th) == n0 + 1 and th[-1]["who"] == "her", "話したくなったのに返事が来ない"
+        assert not st.get("approach") and not st.get("ap_ignored_until")
+        print("返さないと決めていても, 話したくなったら返す: OK |", th[-1]["text"])
 
         # ---- 3. 返事待ちがなければ, これまでどおり別の話が届く
         n0 = sum(x["kind"] == "approach" for x in app.chat.thread(cid)["items"])

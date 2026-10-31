@@ -1398,8 +1398,9 @@ class App:
                 delay *= 2
             if p.get("affection", 50) < 40:
                 delay *= 2
-            pr = 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
-                * (0.7 if p.get("stress", 0) > 70 else 1)                 * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
+            if ctx.get("contacts_many"):              # 連絡が少し多い: 返事が遅くなる
+                delay *= 1.5
+            pr = self._reply_chance(st, ctx, kind, now)
             lv = nori_mod.level(st, now)                # 会話の途中なら, 乗っているほど早く・冷めていれば遅く
             if lv is not None:
                 delay *= 1.5 - lv
@@ -1430,6 +1431,13 @@ class App:
         self.save_state(cid)
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "sent": True}
+
+    def _reply_chance(self, st, ctx, kind, now):
+        """離れている相手が, メッセージに返事をする見込み (機嫌・好感度・ストレス・連絡の多さ)."""
+        p = st["params"]
+        return 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
+            * (0.7 if p.get("stress", 0) > 70 else 1) \
+            * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
 
     def picked_up_phone(self, char, st, now):
         """相手があなたにメッセージを送った・返した直後は, しばらくスマホを見ている (すぐの返信の手がかり).
@@ -1495,19 +1503,19 @@ class App:
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
             text = self.chat.line(char, key, extra)
             selfie = key == "selfie_yes" or (
-                key not in ("too_often", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
+                key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)
-            cold = key in ("too_often", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
+            cold = key in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
                            "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad")
             closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold)
-            if closing and key not in ("too_often", "late_night"):     # ノリが下がりきった: 相手から切り上げる
+            if closing and key not in ("too_often", "too_often_mild", "late_night"):     # ノリが下がりきった: 相手から切り上げる
                 ck, ctext = nori_mod.close(self, char, st, now)
                 self.chat.add(cid, "her", ctext, kind=ck, t=now + 0.002)
-            elif key not in ("too_often", "late_night"):
+            elif key not in ("too_often", "too_often_mild", "late_night"):
                 self.picked_up_phone(char, st, now)
             if key == "invite_yes":
                 self.chat.add(cid, "sys", "📅 会おうという話になった（半日のうちに約束すれば、応じてもらいやすい）", kind="promise", t=now + 0.001)
@@ -1630,6 +1638,13 @@ class App:
                 self.save_state(cid)
                 self.trace.add("deliver", "未読のまま (読まない)", cid, now, kind=pend.get("kind"), read_at=pend["due"])
                 continue
+            if not pend.get("reply") and pend.get("count", 1) > 1 and not pend.get("callback"):
+                # 返事待ちのあいだに重ねて届いた: 最初の 1 通で決めたままにせず, 読んだいまの気持ちで一度だけ決め直す
+                ctx = self.context(char, st, datetime.fromtimestamp(now), scene)
+                pr = self._reply_chance(st, ctx, pend.get("kind"), now)
+                pend["reply"] = random.random() < pr
+                self.trace.add("deliver", "重ねて届いた分を読んで決め直した", cid, now, count=pend.get("count"), pr=pr,
+                               reply=pend["reply"], too_often=ctx.get("too_often"), contacts=ctx.get("contacts_24h"))
             st.pop("msg_pending", None)
             self.trace.add("deliver", "読んだ" + ("・返信する" if pend.get("reply") else "・返事はしない (既読だけ)"), cid, now,
                            kind=pend.get("kind"), sent=pend["t"], late_min=(now - pend["t"]) / 60.0, nudge=pend.get("nudge"))
@@ -1637,7 +1652,9 @@ class App:
             if pend.get("nudge"):
                 self._nudge_seen(char, st, pend, now)
             if not pend.get("reply"):
-                self.save_state(cid)                   # 読んだが, 返事はしなかった (既読だけ)
+                # 読んだが, 返事はしなかった (既読だけ). しばらくは, 自分から気軽な話を送ってこない (presence.fire)
+                st["ap_ignored_until"] = now + random.uniform(1, 3) * 3600
+                self.save_state(cid)
                 continue
             if pend.get("kind"):
                 out.append(self._chat_reply(char, st, pend, now))
