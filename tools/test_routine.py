@@ -11,7 +11,9 @@ import tempfile
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core import engine, offline, outdoor, store  # noqa: E402
+from core import engine, geo, offline, outdoor, store  # noqa: E402
+
+geo.INSTANT = True          # 移動の時間は tools/test_geo.py で
 
 
 def ts(s):

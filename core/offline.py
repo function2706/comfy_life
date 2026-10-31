@@ -214,7 +214,7 @@ class Offline:
             timeline.append({"t": t, "end": t + lg["min"] * 60, "do": "move", "label": "移動",
                              "text": "%sから家へ（%s・%d分%s）%s" % (app.places.label(dest), HOW_LABEL[lg["how"]], round(lg["min"]),
                                                                "・%s円" % format(lg["fare"], ",") if lg["fare"] else "",
-                                                               "。" + lg["note"] if lg.get("note") else ""), "skipped": False})
+                                                               "。" + lg["note"] if lg.get("note") else ""), "skipped": False, "plan": None})
             t += lg["min"] * 60
 
         for s, e, b in source:
@@ -245,7 +245,7 @@ class Offline:
                     timeline.append({"t": s, "end": s + go["min"] * 60, "do": "move", "label": "移動",
                                      "text": "%sへ（%s・%d分%s）%s" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
                                                                    "・%s円" % format(go["fare"], ",") if go["fare"] else "",
-                                                                   "。" + go["note"] if go.get("note") else ""), "skipped": False})
+                                                                   "。" + go["note"] if go.get("note") else ""), "skipped": False, "plan": None})
                     s = s + go["min"] * 60
                     e = max(e, s + 600)
                     h = (e - s) / 3600.0
