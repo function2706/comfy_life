@@ -2806,6 +2806,19 @@
     "neg": "smile"
    },
    {
+    "key": "cold",
+    "text": "……はい。……何か用ですか？ すみません、今ちょっと……手短にお願いします。",
+    "when": "affection<35, activity!=class",
+    "priority": 1,
+    "override": true,
+    "effects": {
+     "loneliness": -4,
+     "mood": -1
+    },
+    "pos": "holding phone to ear, expressionless, looking away",
+    "neg": "smile, blush"
+   },
+   {
     "text": "……また電話ですか？ ちょっと、今は……",
     "when": "too_often=true",
     "priority": 3,

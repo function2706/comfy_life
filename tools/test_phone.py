@@ -73,6 +73,27 @@ def main():
         st["peek_until"] = 0
         assert not app.person_view()["peek"]
 
+        # ---- 2b. 好感度が低いと, 出ても素っ気ない (喜ばない. 機嫌もドキドキも上がらない)
+        app.set_params({"affection": 20, "mood": 60}, cid)
+        for _ in range(40):
+            reset()
+            m0, h0 = st["params"]["mood"], st["params"].get("heart", 0)
+            r = app.act("call")
+            if not r.get("missed"):
+                break
+        assert not r.get("missed")
+        assert st["params"]["mood"] <= m0 and st["params"].get("heart", 0) <= h0, (m0, st["params"]["mood"], r["entry"]["text"])
+        app.set_params({"affection": 60, "mood": 60}, cid)
+        reset()
+        m0 = st["params"]["mood"]
+        for _ in range(40):
+            reset()
+            r = app.act("call")
+            if not r.get("missed"):
+                break
+        assert st["params"]["mood"] > m0, "好感度がふつうなら, 電話で機嫌が上がる"
+        print("cold call: OK")
+
         # ---- 3. 連絡しすぎは引かれる (許容は性格と間柄しだい). 夜中の電話は迷惑がられる
         char = app.char(cid)
         char["persona_id"] = "cool"

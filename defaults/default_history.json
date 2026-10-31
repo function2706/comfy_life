@@ -50,6 +50,9 @@
    "67f9d65708a075e2c35427d86676033b",
    "3425adb8015daf2ab0b478d829aa83ae"
   ],
+  "ask_bday": [
+   "10e8190825e2f04473caa269ab2be882"
+  ],
   "ask_live": [
    "6bc70dbf61559fe845e687815b709f6b",
    "504e81ff85c693a225249c4d76cea6bd"
@@ -90,7 +93,8 @@
    "97ef341d1d098a431194c3f4d10a1c90",
    "7d0fd24f1821ef86f6a16531fb7e022e",
    "5ade445de2f6ac29277bb8493a415649",
-   "4ad7afc857b9553f4e40df4f0fa2d21d"
+   "4ad7afc857b9553f4e40df4f0fa2d21d",
+   "c96992ce61c6d56b16d90de862f34e0d"
   ],
   "clean": [
    "134f515124cd1734834a7ed87f7fb462",
@@ -100,6 +104,9 @@
   "comfort": [
    "0e3250f6ccba254a776709474b8091e4",
    "79877ee7a3fec49d7143504f78191ca7"
+  ],
+  "congrats": [
+   "553c4d891656e955e7520d6d65a08da1"
   ],
   "cook": [
    "f4354445f1eb56f88ac87d812ded9b3a",
@@ -154,9 +161,11 @@
    "5b2c63a00cf2426547cc2ecf88bb75ed"
   ],
   "go_leave": [
+   "22f23ad0f7827e92c11967ae170104ed",
    "7925030797a40c903a3c0337d0ed6f38"
   ],
   "go_out": [
+   "0f088abdbc3f2bf2eaa86206c41b1449",
    "4004d0a443315f8eb140c896e459e59a"
   ],
   "go_sleep": [
@@ -212,6 +221,7 @@
    "c9e55b90f2ffd00ffaba1a566afc2874"
   ],
   "leave_visit": [
+   "d3773d9c3f758d55453aa8a4e66bce86",
    "294bb2d424092f15584f98653c3d4205"
   ],
   "look": [
@@ -256,6 +266,7 @@
    "3e2c9d1524284fb316f6c5ff46c56106"
   ],
   "see_off": [
+   "ee0439b5cd82ab6b214731ef49387a32",
    "5fd421aa131240df7572f3c1ad79c6af"
   ],
   "shopping": [
@@ -303,6 +314,9 @@
    "2931d4888f4f87c8b59b79a5985dd07e",
    "210b7f6a4cab2c0e47d78888134c3f64"
   ],
+  "talk_topic": [
+   "4157ba93f575371540e339909d4daa56"
+  ],
   "tea": [
    "fe17bcfd3d51f692ea8568477afa9ae2",
    "aae0edf3631c093cfc90afca23bc24c0",
@@ -312,6 +326,9 @@
    "db90febf5f285e5e062b5793a5b74a93",
    "6d576c8eb56aa22853267e4f61feab23",
    "88c454701ffd378392d5edfb9422808b"
+  ],
+  "tell_bday": [
+   "15e61770f9cfe94067ec4902dd136837"
   ],
   "tuck_in": [
    "a504e0dbda45df2339493435090378a1",
@@ -378,6 +395,12 @@
   "msg_today": [
    "e03222ee1d1b7a959e68ef0f04aaefd2",
    "3e13de355a08607a92f39e895fb40edd"
+  ],
+  "msg_where": [
+   "69ffddd3b60baac1acc11de24943d6fe"
+  ],
+  "need_you": [
+   "3dadf6193a735e797f5e4afa48f4b92d"
   ],
   "peek_work": [
    "72e511fb244f71cb05206e3c0ff7ac36"
@@ -490,8 +513,8 @@
    "081275f9dbbd4219d80dad15f2a4ea13"
   ],
   "doubt": [
-   "6872e5212462b401ba679d27a0cc7686",
-   "8bddd60b3cff48cd3025c629bdade4ef"
+   "8bddd60b3cff48cd3025c629bdade4ef",
+   "6872e5212462b401ba679d27a0cc7686"
   ],
   "hex": [
    "0b9ef42621d89a5cac3a4cf6b2cc68ec",
