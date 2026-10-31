@@ -259,6 +259,8 @@ class Places:
         return self.table().get(pid)
 
     def label(self, pid):
+        if isinstance(pid, str) and pid.startswith("pt:"):
+            return "移動の途中"
         p = self.get(pid)
         if not p and is_home(pid) and home_of(pid) in self.app.chars:      # 表に無い相手の家 (頼まれごとの約束など)
             return "%sの家" % self.app.chars[home_of(pid)].get("name", "")

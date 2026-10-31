@@ -161,8 +161,8 @@ class Presence:
             out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": doing, "icon": k.get("icon", "")}
             if sl.get("shop_done"):
                 out["shop"] = sl["shop_done"]                 # 店での買い物が済んだ (知らせる)
-            elif sl.get("shop_need"):
-                out["shop_wait"] = max(0, int(sl["t"] + sl["shop_need"] * 60 - now))
+            elif sl.get("shop_need") and not p.get("travel"):           # 店に着いてから, 品を選ぶ
+                out["shop_wait"] = max(0, int(p.get("arrived", sl["t"]) + sl["shop_need"] * 60 - now))
             out["label"] = doing or out["label"]
         tv = self.app.geo.view(now)
         if tv:                      # 移動中 (core/geo.py)

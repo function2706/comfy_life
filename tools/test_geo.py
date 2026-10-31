@@ -202,6 +202,29 @@ def main():
         assert app.appoint._plan(char, st, x2)["go"] == 0          # 相手の家での約束: 相手は動かない
         app.appoint.all().remove(x)
         print("相手の移動: OK | 相手の家から水族館まで%d分" % go)
+        # ---- 11. 移動の途中で行き先を変える・引き返す: いまの地点から
+        P.rec().pop("travel", None)
+        if P.rec().get("mode") != "none":
+            with app.lock:
+                app.come_back(at=time.time(), quiet=True)
+        app.bonds.end(go_home=False)
+        P.rec()["pos"] = home
+        app.solo.start("out", place="riverside", how="walk")
+        tr = geo.travel()
+        half = tr["t0"] + (tr["arr"] - tr["t0"]) / 2
+        mid = geo.midway(half)
+        assert mid.startswith("pt:") and app.places.label(mid) == "移動の途中", mid
+        full = geo.options(home, "park", half)["walk"]["min"]
+        from_mid = geo.options(mid, "park", half)["walk"]["min"]
+        geo.rec_p()["travel"]["t0"] -= (tr["arr"] - tr["t0"]) / 2      # 半分来たことにする
+        geo.rec_p()["travel"]["arr"] -= (tr["arr"] - tr["t0"]) / 2
+        r = app.solo.move("park", how="walk")
+        t2 = geo.travel()
+        assert t2["from"].startswith("pt:") and t2["to"] == "park", t2
+        print("途中で行き先を変える: OK | 家から公園%d分, 途中から%d分" % (full, from_mid))
+        geo.rec_p()["travel"]["t0"] -= 60
+        h = app.come_back()                                         # 引き返す: いまの地点から家へ
+        assert h.get("traveling") and geo.travel()["from"].startswith("pt:"), h
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

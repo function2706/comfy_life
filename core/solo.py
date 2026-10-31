@@ -303,12 +303,10 @@ class Solo:
         p = app.presence.rec()
         if p.get("mode") != "out":
             raise ValueError("いまは出かけていません")
-        if (p.get("travel") or {}).get("dir") == "home":
-            raise ValueError("家へ向かっている途中です")
         self._place("out", place)
         frm = app.geo.where(now)
-        if p.get("travel"):                    # 向かう途中で行き先を変える: 出たところから
-            frm = p["travel"]["from"]
+        if p.get("travel"):                    # 向かう途中・帰る途中で行き先を変える: いまの地点から
+            frm = app.geo.cut(now)
         ll = app.presence.back(now)
         res = self.finish(ll) if ll else None
         r = self.start("out", place=place, how=how, frm=frm)

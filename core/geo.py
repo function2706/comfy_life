@@ -134,6 +134,9 @@ class Geo:
 
     def pt(self, pid):
         pid = pid or places_mod.HOME_ME
+        if pid.startswith("pt:"):               # 移動の途中の地点 ("pt:x,y". 覚えておかない)
+            x, y = (float(v) for v in pid[3:].split(","))
+            return {"xy": [x, y], "acc": 0.3}
         r = self.rec()
         if pid not in r["pts"]:
             r["pts"][pid] = self._make(pid)
@@ -352,14 +355,40 @@ class Geo:
         tr = self.travel()
         return bool(tr) and (now or time.time()) < tr["arr"]
 
+    def midway(self, now=None):
+        """移動中の, いまの地点 ("pt:x,y". 進み具合で, 出たところと行き先の間). 移動していなければ None."""
+        now = now or time.time()
+        tr = self.travel()
+        if not tr or now >= tr["arr"]:
+            return None
+        k = max(0.0, min(1.0, (now - tr["t0"]) / max(1.0, tr["arr"] - tr["t0"])))
+        if k <= 0.02:
+            return tr["from"]
+        a, b = self.pt(tr["from"])["xy"], self.pt(tr["to"])["xy"]
+        return "pt:%.3f,%.3f" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
+
+    def cut(self, now=None):
+        """移動をそこでやめる (行き先を変える・引き返す). いまの地点を返す. 自転車・車なら, 乗り物もそこに."""
+        now = now or time.time()
+        tr = self.travel()
+        if not tr:
+            return self.where(now)
+        here = self.midway(now) or tr["to"]
+        if tr["how"] in ("bike", "car"):
+            self.rec().setdefault("veh", {})["bicycle" if tr["how"] == "bike" else "car"] = here
+            self.save()
+        self.rec_p().pop("travel", None)
+        self.rec_p()["pos"] = here
+        return here
+
     def where(self, now=None):
-        """いまいる場所 (移動中なら, 出たところ)."""
+        """いまいる場所 (移動中なら, 途中のいまの地点)."""
         app = self.app
         now = now or time.time()
         p = self.rec_p()
         tr = p.get("travel")
         if tr:
-            return tr["from"] if now < tr["arr"] else tr["to"]
+            return self.midway(now) or tr["to"]
         w = app.bonds.with_rec()
         if w and w.get("mode") == "visit":
             return "home:" + w["cid"]
@@ -413,9 +442,8 @@ class Geo:
         if INSTANT:
             return None
         frm = self.where(now)
-        if p.get("travel"):                      # 行く途中で引き返す: 出たところから
-            frm = p["travel"]["from"]
-            p.pop("travel", None)
+        if p.get("travel"):                      # 行く途中で引き返す: いまの地点から
+            frm = self.cut(now)
             p["arrived"] = now
         p["left"] = now
         p.setdefault("arrived", p.get("since", now))     # 移動の記録が無い外出 (以前のセーブ): 出かけたときから
@@ -431,7 +459,7 @@ class Geo:
         tr = p.get("travel")
         if tr and tr.get("dir") == "home":
             return max(t, tr["arr"])
-        frm = tr["from"] if tr and t < tr["arr"] else self.where(t)
+        frm = (self.midway(t) or tr["to"]) if tr else self.where(t)
         if frm == places_mod.HOME_ME or INSTANT:
             return t
         try:

@@ -623,10 +623,8 @@ class Appoint:
         pres = app.presence.rec()
         frm = app.geo.where(now)
         if pres.get("mode") == "out":          # 一人で出かけていたなら, そこから向かう (結果は残す)
-            if (pres.get("travel") or {}).get("dir") == "home":
-                raise ValueError("家へ向かっている途中です")
-            if pres.get("travel"):
-                frm = pres["travel"]["from"]
+            if pres.get("travel"):             # 移動の途中なら, いまの地点から
+                frm = app.geo.cut(now)
             ll = app.presence.back(now)
             if ll:
                 app.solo.finish(ll)
