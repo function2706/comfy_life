@@ -3028,6 +3028,66 @@ function saveBar(title, onsave, extra) {
       ev.target.disabled = false;
     } }, '保存'));
 }
+// アプリの更新 (core/update.py): 確認 → 更新して起動し直す → 戻ったら画面を開き直す
+function updateBox() {
+  const U = SE.upd = SE.upd || { res: null, busy: false };
+  const draw = () => showSection('data');
+  const check = async () => {
+    U.busy = true; draw();
+    try { U.res = await api('/api/update/check'); } catch (e) { U.res = { ok: false, error: e.message }; }
+    U.busy = false; draw();
+  };
+  const go = async (path, body, msg) => {
+    const jobs = (S.view && S.view.jobs || []).length;
+    if (!confirm(`${msg}${jobs ? `\n生成中・待ちの画像 ${jobs} 件は中断されます。` : ''}\nよろしいですか？`)) return;
+    U.busy = true; draw();
+    let r;
+    try { r = await api(path, body); } catch (e) { U.busy = false; U.res = { ok: false, error: e.message }; draw(); return; }
+    if (!r.restarting) { U.busy = false; U.res = Object.assign({}, U.res, { ok: r.ok, error: r.ok ? '' : r.text, note: r.ok ? '新しい版はありませんでした' : '' }); draw(); return; }
+    waitRestart(r.version);
+  };
+  const R = U.res;
+  const v = (R && R.version) || null;
+  return h('div', { class: 'pgroup' },
+    h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;align-items:center' },
+      h('span', { class: 'small' }, v ? `いまの版: ${v.commit}（${v.date}${v.branch ? '・' + v.branch : ''}）` : 'いまの版: （確認すると出ます）'),
+      h('div', { class: 'spacer' }),
+      h('button', { class: 'btn small', disabled: U.busy, onclick: check }, U.busy ? '確かめています…' : '🔄 更新を確認'),
+      h('button', { class: 'btn small ghost', disabled: U.busy, title: 'サーバを起動し直す（画面は自動で開き直します）', onclick: () => go('/api/update/restart', {}, 'サーバを起動し直します。') }, '再起動')),
+    R && R.error ? h('div', { class: 'small down', style: 'margin-top:4px;white-space:pre-wrap' }, R.error) : '',
+    R && R.note ? h('div', { class: 'small muted', style: 'margin-top:4px' }, R.note) : '',
+    R && R.ok && R.behind === 0 ? h('div', { class: 'small', style: 'margin-top:4px' }, '✅ 最新です') : '',
+    R && R.ok && R.behind > 0 ? h('div', { style: 'margin-top:6px' },
+      h('div', { class: 'small' }, `🆕 新しい版があります（${R.behind}件）`),
+      h('ul', { class: 'small', style: 'margin:4px 0 6px 18px;max-height:160px;overflow:auto' },
+        ...R.commits.map((c) => h('li', {}, `${c.subject} `, h('span', { class: 'muted' }, `${c.hash}・${c.when}`)))),
+      (R.dirty || []).length ? h('div', { class: 'small down' }, `手元で書き換えたファイルがあるので、更新できません: ${R.dirty.join('、')}`) : '',
+      h('button', { class: 'btn primary small', disabled: U.busy || (R.dirty || []).length, onclick: () => go('/api/update/apply', {}, '更新して、サーバを起動し直します（データはそのままです）。') },
+        '⬇ 更新して再起動')) : '',
+    h('div', { class: 'muted small', style: 'margin-top:4px' }, '更新は git で取ってきます（データの data/ は変わりません）。起動し直すあいだ数秒止まり、終わると画面が開き直します。'));
+}
+// 起動し直すのを待って, 画面を開き直す (サーバが戻ったら)
+function waitRestart() {
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+  const box = h('div', { style: 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px' },
+    h('div', { class: 'pgroup', style: 'max-width:420px;text-align:center;padding:20px;background:var(--panel,#222)' },
+      h('div', { style: 'font-size:28px' }, '🔄'), h('p', {}, '起動し直しています…'), h('p', { class: 'muted small', id: 'restart-note' }, 'サーバが戻ったら、画面を開き直します')));
+  document.body.append(box);
+  S.inactive = true;                       // その間は状態を取りに行かない
+  const t0 = Date.now();
+  let down = false;
+  const poll = async () => {
+    try {
+      const r = await fetch('/api/version', { cache: 'no-store' });
+      if (r.ok && (down || Date.now() - t0 > 6000)) { location.reload(); return; }
+      if (!r.ok) down = true;
+    } catch (e) { down = true; }
+    if (Date.now() - t0 > 90000) { const n = document.getElementById('restart-note'); if (n) n.textContent = 'サーバが戻りません。黒い画面（start.bat）を確かめて、手で開き直してください'; return; }
+    setTimeout(poll, 1000);
+  };
+  setTimeout(poll, 1500);
+}
+
 // 不具合の報告: 書き出しは符号化した 1 つのブロック (中身は表示しない. 開発側で読む). コピーかファイルに保存して, そのまま貼る
 function bugReportBox() {
   const B = SE.bug = SE.bug || { hours: '24', day: '', cid: '', brief: false, res: null };
@@ -4242,6 +4302,8 @@ SEC.data = () => {
   return [
     h('div', { class: 'sbar' }, h('h3', {}, 'データ')),
     h('p', { class: 'lead' }, 'デバッグや調整用です。データは kurashi/data/ に JSON と画像で保存されています（ワールドごとの分は data/worlds/ の下）。'),
+    h('div', { class: 'sect' }, '🔄 アプリの更新'),
+    updateBox(),
     h('div', { class: 'sect' }, '🐞 不具合を報告するとき'),
     bugReportBox(),
     h('div', { class: 'sect' }, 'ワールド'),

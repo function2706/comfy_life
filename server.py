@@ -9,6 +9,7 @@ import os
 import socket
 import sys
 import threading
+import time
 import traceback
 import urllib.parse
 import webbrowser
@@ -16,11 +17,22 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from core import comfy, engine, llm, store  # noqa: E402
+from core import comfy, engine, llm, store, update  # noqa: E402
 from core.trace import brief_args  # noqa: E402
 
 STATIC = os.path.join(store.BASE, "static")
 APP = None
+SRV = None
+RESTART = {"want": False}
+RESTART_CODE = 3            # start.bat に「起動し直して」と伝える終了コード (KURASHI_SUPERVISED のとき)
+
+
+def schedule_restart():
+    """サーバを起動し直す (応答を返したあとで止めて, main が起動し直す). 起動し直したほうは, ブラウザを新しく開かない."""
+    with open(update.restart_flag_path(), "w", encoding="utf-8") as f:
+        f.write(str(time.time()))
+    RESTART["want"] = True
+    threading.Timer(0.8, SRV.shutdown).start()
 
 
 def _safe_join(root, rel):
@@ -99,6 +111,10 @@ def route(method, path, q, body):
     if method == "GET":
         if path == "/api/boot":
             return a.boot_view()
+        if path == "/api/update/check":
+            return update.check()
+        if path == "/api/version":
+            return {"version": update.version()}
         if path == "/api/state":
             return a.state_view(cid, beat=_q(q, "beat") == "1",
                                 idle=float(_q(q, "idle")) if _q(q, "idle") not in (None, "") else None)
@@ -160,6 +176,15 @@ def route(method, path, q, body):
             return {"minigames": a.save_minigames(b["minigames"])}
         if path == "/api/presence/back":
             return a.come_back(cid)
+        if path == "/api/update/apply":          # 取り込んで, 変わったら起動し直す
+            r = update.pull()
+            if r["ok"] and (r["changed"] or body.get("restart")):
+                schedule_restart()
+                r["restarting"] = True
+            return r
+        if path == "/api/update/restart":
+            schedule_restart()
+            return {"restarting": True}
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid, b.get("choice"))
         if path == "/api/solo/start":
@@ -440,27 +465,31 @@ class Server(ThreadingHTTPServer):
         super().server_bind()
 
 
-def single_instance():
+def single_instance(wait=0.0):
     """同じデータ (data/) を使うサーバは一つだけ. ロックを取れたらそのファイルを返す (開いたままにしておく). 取れなければ None.
-    二つ目が同じセーブを別々の記憶で書き合わないように (ポートが違っても)."""
+    二つ目が同じセーブを別々の記憶で書き合わないように (ポートが違っても). wait: 起動し直すとき, 前のサーバが終わるのを待つ秒数."""
     os.makedirs(store.DATA, exist_ok=True)
-    f = open(os.path.join(store.DATA, "server.lock"), "a+")
-    try:
-        if os.name == "nt":
-            import msvcrt
-            f.seek(0)
-            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        f.close()
-        return None
-    return f
+    end = time.time() + wait
+    while True:
+        f = open(os.path.join(store.DATA, "server.lock"), "a+")
+        try:
+            if os.name == "nt":
+                import msvcrt
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return f
+        except OSError:
+            f.close()
+            if time.time() >= end:
+                return None
+            time.sleep(0.5)
 
 
 def main():
-    global APP
+    global APP, SRV
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT") or 8765))
@@ -470,7 +499,8 @@ def main():
     mimetypes.add_type("text/css", ".css")
     url = "http://%s:%d/" % ("127.0.0.1" if args.host in ("0.0.0.0", "") else args.host, args.port)
     url_file = os.path.join(store.DATA, "server.url")
-    lock = single_instance()
+    restarted = os.path.exists(update.restart_flag_path())      # 更新・再起動で起動し直した: 前のサーバが終わるのを待つ
+    lock = single_instance(wait=20.0 if restarted else 0.0)
     if not lock:                     # もう起動している: そちらを開くだけ (データには触れない)
         try:
             with open(url_file, encoding="utf-8") as f:
@@ -481,21 +511,43 @@ def main():
         if not args.no_browser:
             webbrowser.open(url)
         return
-    try:
-        srv = Server((args.host, args.port), Handler)
-    except OSError as e:
-        print("ポート %d は使われています（ほかのアプリか、別の Comfy LIFE）: %s" % (args.port, e))
+    srv = None
+    for _ in range(40 if restarted else 1):
+        try:
+            srv = Server((args.host, args.port), Handler)
+            break
+        except OSError as e:
+            err = e
+            time.sleep(0.5)
+    if not srv:
+        print("ポート %d は使われています（ほかのアプリか、別の Comfy LIFE）: %s" % (args.port, err))
         return
+    SRV = srv
+    if restarted:
+        try:
+            os.remove(update.restart_flag_path())
+        except OSError:
+            pass
     with open(url_file, "w", encoding="utf-8") as f:
         f.write(url)
     APP = engine.App()
-    print("Comfy LIFE: %s で起動しました (Ctrl+C で終了)" % url)
-    if not args.no_browser:
+    v = update.version()
+    print("Comfy LIFE: %s で%sしました%s (Ctrl+C で終了)" % (url, "起動し直" if restarted else "起動",
+                                                    "（%s %s）" % (v["commit"], v["date"]) if v else ""))
+    if not args.no_browser and not restarted:       # 起動し直したときは, 開いている画面が自分で開き直す
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
+    if RESTART["want"]:
+        srv.server_close()
+        lock.close()
+        print("Comfy LIFE: 起動し直します…")
+        sys.stdout.flush()
+        if os.environ.get("KURASHI_SUPERVISED"):     # start.bat が起動し直す (同じ窓のまま)
+            os._exit(RESTART_CODE)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 if __name__ == "__main__":
