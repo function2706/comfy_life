@@ -244,7 +244,11 @@ async function taskPause(on) {
     const tk = await api('/api/task/pause', { token: T.tk.token, on });
     T.paused = !!tk.paused;
     if (T.paused) { T.view = null; T.pausedSec = tk.elapsed; }
-    else { T.view = tk.view; T.t0 = Date.now() - tk.elapsed * 1000; }
+    else {
+      T.view = tk.view;
+      T.t0 = Date.now() - tk.elapsed * 1000;
+      if (T.view && T.view.kind === 'slither' && !T.sl) slInit(T);      // 一時停止中に開いた (盤面なしで始まった): ここで線の状態を作る
+    }
     renderTask();
   } catch (e) { toast(e.message, 'err'); }
   finally { T.busy = false; }
