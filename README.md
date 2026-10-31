@@ -23,6 +23,8 @@ python server.py --port 9000 --no-browser
 画面右上の **📖 説明書** で、図入りの説明書（`static/manual.html`）が開きます。
 設定画面では、項目名の横の ⓘ にマウスを乗せると説明が出て、各画面の 📖 で説明書の該当箇所に飛べます。左の並びは範囲ごとに分かれていて（あなた／キャラごと／全員共通（全ワールド）／このワールドの決まり（時間帯・数値を含む）／画像・文章／表示・データ）、キャラごとの設定（基本・外見・生活スケジュール・着せ替え）は「キャラクター」の中のタブです。編集するキャラの選択に従うのはこのタブだけで、性格・セリフ集などはキャラの選択とは関係ありません。
 
+アプリの更新（設定 → データ）: `core/update.py`。`GET /api/update/check`（`git fetch` して `HEAD..@{u}` の一覧と、手元で書き換えた追跡ファイル）、`POST /api/update/apply`（`git pull --ff-only`。変わったら起動し直す）、`POST /api/update/restart`。起動し直しは `server.schedule_restart`: `data/restart.flag` を置いてサーバを止め、`KURASHI_SUPERVISED`（start.bat）なら終了コード 3 で start.bat が起動し直し、そうでなければ `os.execv`。起動し直したほうは前のサーバのロックとポートを待ち、ブラウザは開かない（画面が `/api/version` を待って開き直す）。start.bat のループは一つのブロック（一度に読む）なので、更新で start.bat 自体が書き換わっても壊れない。
+
 一度に使える画面は 1 つ（`server.py` の `gate`）。画面ごとの目印 `X-Client` のうち、いま使っている画面だけが状態を進め（在席の心拍も）・操作できる。新しく開いた画面（`POST /api/claim`）か「こちらで使う」を押した画面が使う側。ほかの画面の `/api/state` は `{"inactive": true}` だけを返し、操作（POST）は 409。同じブラウザのタブには BroadcastChannel ですぐ知らせる。目印の無い呼び出し（テスト・単独版）はそのまま通す。
 
 ### 内職のパズルを単独で試す
