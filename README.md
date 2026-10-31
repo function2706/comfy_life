@@ -566,6 +566,10 @@ ComfyUI で「Export (API)」した JSON を登録できます。
 - 麻雀牌（`static/img/mahjong/`）: [FluffyStuff/riichi-mahjong-tiles](https://github.com/FluffyStuff/riichi-mahjong-tiles) — パブリックドメイン（CC0 1.0）
 - 花札（`static/img/hanafuda/`）: Wikimedia Commons の [SVG Hanafuda with traditional colors (red border)](https://commons.wikimedia.org/wiki/Category:SVG_Hanafuda_with_traditional_colors_(red_border))（Louie Mantia Jr. の絵をもとにした版）— [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
+## ピクロスの絵のクレジット
+
+内職のピクロスの答えの絵（`defaults/picross_pool.json`）は、[Noto Emoji](https://github.com/google/fonts/tree/main/ofl/notoemoji)（モノクロ版、[SIL Open Font License 1.1](https://openfontlicense.org/)）の絵文字を白黒のマス目に縮めて作っています。答えの名前は [Unicode CLDR](https://github.com/unicode-org/cldr) の日本語の注釈（Unicode License v3）です。フォントそのものは同梱していません。ライセンスの全文は `defaults/picross_LICENSES.txt`。
+
 ## ファイル構成
 
 ```
@@ -589,6 +593,9 @@ tools/test_numeron.py  数当て（ヒット・ブロー・候補・推理の強
 tools/test_doubt.py  ダウト（勝ち負け・引き取り・数が合わない嘘・表情とポーカーフェイス・見抜き方と眠気・ババ抜きの表情）のテスト
 tools/test_solitaire.py  内職のトランプ（フリーセル: 配りが解ける・手の正誤・まとめて動かせる枚数・自動の行き先・元に戻す・安全な組札上げ・詰み・稼ぎ。スパイダー: 配り・手・片付け・山・元に戻す・詰み。クロンダイク: 一覧から選ぶ・一覧の配りが解ける・手・山・戻す回数・自動の組札上げ・組札から戻す・詰み）のテスト
 tools/build_klondike_pool.py  クロンダイクの解けると確かめた配りの一覧（defaults/klondike_pool.json）を作る（配り方や解く仕組みを変えたら作り直す）
+tools/build_freecell_pool.py  フリーセルの難しさごとの配りの一覧（defaults/freecell_pool.json。解くのに要るセルの数で分ける）を作る
+tools/build_sudoku_pool.py  数独の中・難の問題集（defaults/sudoku_pool.json。山場があり、探し回りの無い盤）を作る
+tools/build_picross_pool.py  ピクロスの絵の問題集（defaults/picross_pool.json）を作る（絵文字フォントと CLDR の注釈を指定。見本の画像を目で確かめて、分からない絵は除く）
 tools/test_typing.py  内職のタイピング（ローマ字の打ち方の揺れ・辞書の数と打てること・出題・当て直し・稼ぎ・設定で足す語・文・文章スキル）のテスト
 tools/test_2048.py  内職の 2048（寄せる・合わさる・詰み・稼ぎ）と一時停止（本体・単独版）のテスト
 tools/test_wardrobe.py  服の一覧と持っている服（移行・大胆な服の受け入れ・服のプレゼント・本人の服選び・自分で買う・サンプル画像）のテスト

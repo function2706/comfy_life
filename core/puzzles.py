@@ -55,9 +55,12 @@ DESC = {"mines": "数字は周りの地雷の数。地雷以外を全部開け�
         "klondike": "カードを組札（右上）へ A から順に同じスートで上げます。列には色違いで 1 つ小さいカード、空いた列には K だけ。左上の山を押してめくり、めくったカードも使えます。クリックで行き先へ自動で、ドラッグで好きな行き先へ（元に戻すも）",
         "typing": "出てくる語・文を、ローマ字で打ち込みます（shi/si・tsu/tu・ん は nn など、どの打ち方でも）。打ち間違いは数えます。正確に速いほど稼ぎが増えます"}
 SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)},
-        "sudoku": {"easy": 38, "mid": 30, "hard": 23},          # 最初から入っている数の目安 (その難しさの解き方で解けなくなる分は残る)
-        "picross": {"easy": 5, "mid": 8, "hard": 10},
-        "slither": {"easy": (5, 5, 0.55), "mid": (7, 7, 0.3), "hard": (10, 10, 0.0)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py)
+        "sudoku": {"easy": ((36, 40), "easy", (0, 0)),          # (最初から入っている数の範囲, 使う手筋の段, 山場 (手筋が要る局面) の回数)
+                   "mid": ((28, 34), "mid", (1, 1)),
+                   "hard": ((24, 30), "hard", (2, 99))},
+        "picross": {"easy": 10, "mid": 15, "hard": 20},        # 一辺. 答えは絵 (defaults/picross_pool.json. tools/build_picross_pool.py)
+        "slither": {"easy": (5, 5, 0.6), "mid": (7, 7, 0.5), "hard": (10, 10, 0.45)},   # (縦, 横, 残す数字の割合の下限. 解き方の段は core/slither.py.
+                                                                                      #  消せる限界までは消さない: 入口と次の一手の手がかりを残す)
         "slide": {"easy": (3, 40), "mid": (4, 80), "hard": (4, 250)},       # (一辺, 崩す手数)
         "g2048": {"easy": 512, "mid": 1024, "hard": 2048},                  # 目標のタイル (盤は 4×4 のまま)
         "typing": {"easy": ("words", 12), "mid": ("short", 6), "hard": ("long", 3)},     # (辞書の段, 打つ数)
@@ -65,7 +68,7 @@ SIZE = {"mines": {"easy": (9, 9, 10), "mid": (12, 12, 24), "hard": (14, 14, 38)}
         "spider": SO.SP_SUITS,                                                             # スートの数
         "klondike": SO.KL_RULES}                                                           # (めくる枚数, 山を戻せる回数)
 PAR = {"mines": {"easy": 120, "mid": 300, "hard": 540}, "sudoku": {"easy": 480, "mid": 900, "hard": 1500},
-       "picross": {"easy": 120, "mid": 360, "hard": 720}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480},
+       "picross": {"easy": 240, "mid": 600, "hard": 1200}, "slither": {"easy": 150, "mid": 420, "hard": 1080}, "slide": {"easy": 90, "mid": 300, "hard": 480},
        "g2048": {"easy": 300, "mid": 600, "hard": 1200},        # 2048: 目標が倍になると手数もおよそ倍
        "typing": {"easy": 100, "mid": 160, "hard": 240},        # タイピング: 1 分 100 打ほどで目安どおり
        "freecell": {"easy": 360, "mid": 480, "hard": 660}, "spider": {"easy": 480, "mid": 900, "hard": 1500},
@@ -74,6 +77,9 @@ RATE_PER_MIN = 50                                       # 目安の時間 1 分�
 COUNTDOWN = 3                                           # 「始める」からの秒 (タイピング)
 SKILL_MIX = {"typing": "write"}                         # 仕事スキルに 1/3 混ぜるスキル (稼ぎの倍率) と, 少し伸びるスキル
 LEVEL_BONUS = {"easy": 1.0, "mid": 1.15, "hard": 1.3}     # 難しいほど, 同じ時間でも少し多め
+UNSOLVED_SHARE = 0.2                                       # 解けずにやめたとき: 進んだぶんのこれだけ
+UNSOLVED_SHARE_LUCK = {"spider": 0.5}                      # 配りが解けるとは限らない (運のある) もの. スパイダーの 4 スートは
+                                                           # 上手な人でも 2〜3 割しか解けない (配りは確かめていない. Windows と同じ)
 TRAIN = {"easy": 0.8, "mid": 1.2, "hard": 1.6}
 
 
@@ -328,6 +334,64 @@ def sudoku_human(puz, level="hard"):
     return g
 
 
+SD_ENTRY = 3              # 入口: 最初から埋められるマスが, これだけはある
+# 流れ: 人が盤を見渡して埋められるところを一通り埋める「一巡」を単位に見る (盤の向きや埋める順番に左右されない).
+# その巡で埋められるマスが 1 か所しかなく, しかもそれが前の巡で埋めたマスのどれとも同じ行・列・ブロックに無い
+# (= 盤じゅうを探し回らないと見つからない) 巡を「探し回り」と数える. 山場のあとの巡は, 手筋の続きなので数えない
+SD_HUNTS = 0
+_SD_PEER_SET = [set(p) for p in _SD_PEERS]
+
+
+def _sd_ready(g, cand):
+    """いま一つに決まるマス (候補が一つ・その数字の入る場所が一つ) → 入る数字."""
+    out = {i: next(iter(cand[i])) for i in range(81) if not g[i] and len(cand[i]) == 1}
+    for u in _SD_UNITS:
+        for v in range(1, 10):
+            if any(g[i] == v for i in u):
+                continue
+            where = [i for i in u if not g[i] and v in cand[i]]
+            if len(where) == 1:
+                out.setdefault(where[0], v)
+    return out
+
+
+def sudoku_profile(puz, level="hard"):
+    """その段の手筋で解いたときの流れ: {peaks: 山場の回数, entry: 入口の広さ (最初の巡で埋められるマス), hunts: 探し回りの巡の数}.
+    解き切れなければ None. (人の作る問題は, 入口があり, 次の一手が見つかり, 難しさは山場の手筋で出す. 数字の少なさでは出さない)"""
+    g = list(puz)
+    cand = [set() if g[i] else set(_sd_cands(g, i)) for i in range(81)]
+    lv = SD_LEVELS.index(level)
+    techs = []
+    if lv >= 1:
+        techs += [_sd_locked, lambda g, c: _sd_subsets(g, c, 2)]
+    if lv >= 2:
+        techs += [lambda g, c: _sd_subsets(g, c, 3), _sd_xwing]
+    peaks, entry, hunts, stalled, prev = 0, None, 0, False, set()
+    while not all(g):
+        if any(not g[i] and not cand[i] for i in range(81)):
+            return None
+        ready = _sd_ready(g, cand)
+        if entry is None:
+            entry = len(ready)
+        if ready:
+            if len(ready) == 1 and prev and not stalled and not any(i in _SD_PEER_SET[j] for i in ready for j in prev):
+                hunts += 1
+            for i, v in ready.items():
+                if g[i]:
+                    continue
+                if v not in cand[i]:
+                    return None
+                _sd_place(g, cand, i, v)
+            prev, stalled = set(ready), False
+            continue
+        if not any(f(g, cand) for f in techs):
+            return None
+        if not stalled:
+            peaks += 1
+        stalled = True
+    return {"peaks": peaks, "entry": entry or 0, "hunts": hunts}
+
+
 def sudoku_grade(puz):
     for lv in SD_LEVELS:
         if sudoku_human(puz, lv):
@@ -353,29 +417,112 @@ def _sd_full(rng):
     return g
 
 
-def sudoku_new(level, rng=random, tries=None):
-    """その難しさの解き方 (sudoku_human) で解き切れるあいだ, 数字を抜く (目安の数まで). 中・難は易の解き方 (一つに決まるマス)
-    だけでは解けない盤にする (目安まで抜いてもまだ易で解けるなら 4 つまで多めに抜く. tries 回作って見つからなければ最後のもの).
-    難の解き方 (トリプル・X-wing) が要る盤は作ってみてもまれなので, 難は数字の少なさと中の解き方で難しくなる."""
-    target = SIZE["sudoku"][level]
-    tries = tries or {"easy": 1, "mid": 12, "hard": 8}[level]
+def _sd_good(prof, peaks):
+    return bool(prof) and peaks[0] <= prof["peaks"] <= peaks[1] and prof["entry"] >= SD_ENTRY and prof["hunts"] <= SD_HUNTS
+
+
+def sudoku_make(level, rng=random, tries=40):
+    """人の作る問題に近い流れの盤を一つ作る (sudoku_profile. 見つからなければ None).
+    1. 数字を点対称に (ニコリの数独と同じ), その段の手筋で解ける限り抜く (ここで山場ができる)
+    2. 山場を残したまま, 探し回り (盤のどこか 1 か所を探させる局面) が無くなり入口ができるよう, 数字を点対称に足して整える
+       (作家が問題を整えるのと同じ向き. 数字の少なさで難しくはしない). 決めた数の範囲に収まればできあがり.
+    中・難は時間がかかる (山場のある盤はまれ) ので, 遊ぶときは問題集 (sudoku_pool) から出す."""
+    (lo, hi), tech, peaks = SIZE["sudoku"][level]
     for _ in range(tries):
         sol = _sd_full(rng)
         puz = list(sol)
-        cells = list(range(81))
-        rng.shuffle(cells)
-        givens = 81
-        for i in cells:
-            if givens <= target and (level == "easy" or givens <= target - 4 or not sudoku_human(puz, "easy")):
+        pairs = [(i, 80 - i) for i in range(41)]
+        rng.shuffle(pairs)
+        target = rng.randint(lo, hi)
+        for i, j in pairs:
+            keep = (puz[i], puz[j])
+            puz[i] = puz[j] = 0
+            prof = sudoku_profile(puz, tech)
+            if not prof or prof["peaks"] > peaks[1]:
+                puz[i], puz[j] = keep
+            elif level == "easy" and sum(1 for x in puz if x) <= target and _sd_good(prof, peaks):
+                break                                  # 易は山場が無いので, 決めた数に来たところで止める
+        while True:
+            prof = sudoku_profile(puz, tech)
+            givens = sum(1 for x in puz if x)
+            if not prof or prof["peaks"] < peaks[0] or givens > hi:
                 break
-            v, puz[i] = puz[i], 0
-            if sudoku_human(puz, level):
-                givens -= 1
-            else:
-                puz[i] = v
-        if level == "easy" or not sudoku_human(puz, "easy"):
-            break
-    return {"kind": "sudoku", "puzzle": puz, "solution": sol, "cur": list(puz), "miss": 0}
+            if givens >= lo and _sd_good(prof, peaks):
+                return {"kind": "sudoku", "puzzle": puz, "solution": sol, "cur": list(puz), "miss": 0}
+            best = None
+            for i in range(41):
+                if puz[i]:
+                    continue
+                q = list(puz)
+                q[i], q[80 - i] = sol[i], sol[80 - i]
+                p2 = sudoku_profile(q, tech)
+                if not p2 or p2["peaks"] < peaks[0]:
+                    continue
+                key = (p2["hunts"], -min(p2["entry"], SD_ENTRY), -p2["peaks"], rng.random())
+                if best is None or key < best[0]:
+                    best = (key, q)
+            if not best:
+                break
+            puz = best[1]
+    return None
+
+
+_SD_POOL = {}
+
+
+def sudoku_pool():
+    """作っておいた盤 (defaults/sudoku_pool.json. tools/build_sudoku_pool.py で作る): {段: ["問題81文字|答え81文字", ...]}."""
+    if not _SD_POOL:
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "defaults", "sudoku_pool.json")
+        try:
+            with open(p, encoding="utf-8") as f:
+                _SD_POOL.update(json.load(f))
+        except (OSError, ValueError):
+            pass
+    return _SD_POOL
+
+
+def _sd_orients(puz):
+    """8 通りの向き (回転 4 × 裏返し 2)."""
+    out, idx = [], list(range(81))
+    for flip in (False, True):
+        j = [idx[r * 9 + (8 - c)] for r in range(9) for c in range(9)] if flip else idx
+        for _ in range(4):
+            out.append([puz[i] for i in j])
+            j = [j[(8 - c) * 9 + r] for r in range(9) for c in range(9)]
+    return out
+
+
+def sudoku_robust(puz, level):
+    """どの向きにしても流れが良いか (問題集に入れる盤. 遊ぶときに回したり裏返したりして出すので)."""
+    _, tech, peaks = SIZE["sudoku"][level]
+    return all(_sd_good(sudoku_profile(q, tech), peaks) for q in _sd_orients(puz))
+
+
+def _sd_shuffle(puz, sol, rng):
+    """同じ解き味のまま見た目を変える: 数字の入れ替え・回転・裏返し (点対称も流れも変わらない)."""
+    perm = list(range(1, 10))
+    rng.shuffle(perm)
+    m = {v: perm[v - 1] for v in range(1, 10)}
+    idx = list(range(81))
+    for _ in range(rng.randrange(4)):
+        idx = [idx[(8 - c) * 9 + r] for r in range(9) for c in range(9)]        # 90 度回す
+    if rng.random() < 0.5:
+        idx = [idx[r * 9 + (8 - c)] for r in range(9) for c in range(9)]        # 左右に裏返す
+    return [m[puz[i]] if puz[i] else 0 for i in idx], [m[sol[i]] for i in idx]
+
+
+def sudoku_new(level, rng=random):
+    """易はその場で作る. 中・難は問題集から選んで, 見た目を変えて出す (問題集が無ければ, その場で作る)."""
+    pool = sudoku_pool().get(level) if level != "easy" else None
+    if pool:
+        a, b = rng.choice(pool).split("|")
+        puz, sol = _sd_shuffle([int(x) for x in a], [int(x) for x in b], rng)
+        return {"kind": "sudoku", "puzzle": puz, "solution": sol, "cur": list(puz), "miss": 0}
+    while True:
+        p = sudoku_make(level, rng)
+        if p:
+            return p
 
 
 def sudoku_move(p, mv, rng=random):
@@ -464,7 +611,33 @@ def picross_solve(rows, cols):
     return g
 
 
+_PX_POOL = {}
+
+
+def picross_pool():
+    """絵の問題集 (defaults/picross_pool.json): {段: [{ch, name, rows: ["0101…", …], passes, flips}, …]}."""
+    if not _PX_POOL:
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "defaults", "picross_pool.json")
+        try:
+            with open(p, encoding="utf-8") as f:
+                _PX_POOL.update(json.load(f))
+        except (OSError, ValueError):
+            pass
+    return _PX_POOL
+
+
 def picross_new(level, rng=random):
+    """答えが絵の問題 (問題集から). ピクロスは絵を描き出すパズルで, でたらめな点々では解いてもうれしくない.
+    問題集が無いときだけ, でたらめな盤 (一行ずつの理詰めで解ける) を作る."""
+    pool = picross_pool().get(level)
+    if pool:
+        it = rng.choice(pool)
+        sol = [[int(x) for x in row] for row in it["rows"]]
+        n = len(sol)
+        rows = [clue(r) for r in sol]
+        cols = [clue([sol[r][c] for r in range(n)]) for c in range(n)]
+        return {"kind": "picross", "n": n, "sol": sol, "rows": rows, "cols": cols, "filled": [], "x": [], "miss": 0,
+                "title": it.get("name") or ""}
     n = SIZE["picross"][level]
     for _ in range(400):
         sol = [[1 if rng.random() < 0.58 else 0 for _ in range(n)] for _ in range(n)]
@@ -504,7 +677,10 @@ def picross_progress(p):
 
 def picross_view(p, reveal=False):
     filled = [[r, c] for r in range(p["n"]) for c in range(p["n"]) if p["sol"][r][c]] if reveal else p["filled"]
-    return {"n": p["n"], "rows": p["rows"], "cols": p["cols"], "filled": filled, "x": p["x"]}
+    v = {"n": p["n"], "rows": p["rows"], "cols": p["cols"], "filled": filled, "x": p["x"]}
+    if (reveal or picross_solved(p)) and p.get("title"):
+        v["title"] = p["title"]                 # 何の絵だったか (解き終わってから)
+    return v
 
 
 # ====================================================================== 15 パズル
@@ -774,7 +950,7 @@ def typing_accuracy(p):
 # ====================================================================== トランプの一人遊び (core/solitaire.py)
 _SO_READY = {}                 # 確かめに時間のかかる配り (フリーセルの難など) を一つ, 裏で作っておく
 _SO_LOCK = threading.Lock()
-SO_SLOW = {("freecell", "hard"), ("freecell", "mid")}
+SO_SLOW = set()             # (フリーセルは確かめた配りの一覧から出すので, もう裏で作らなくてよい)
 
 
 def _so_prepared(kind, level, make, rng):
@@ -825,7 +1001,9 @@ def spider_solved(p):
 
 
 def spider_progress(p):
-    return len(p["done"]) / 8.0
+    """片付けたスート (8 組) と, 開けた伏せ札 (はじめ 44 枚). 4 スートでは片付くのは終盤なので, 伏せ札を開けたのも進みに数える."""
+    hidden = sum(min(d, len(c)) for d, c in zip(p["down"], p["cols"]))
+    return 0.6 * len(p["done"]) / 8.0 + 0.4 * (1 - hidden / 44.0)
 
 
 def spider_view(p, reveal=False):
@@ -943,7 +1121,7 @@ def pay(p, sec, mult=1.0, rate=None):
     """稼ぎ (10 円単位). rate: 1 分あたりの額 (economy.side_job_rate_per_min). 解けていなければ進んだぶんの 2 割."""
     b = base_pay(p["kind"], p["level"], rate) * mult
     if not solved(p):
-        return int(round(b * progress(p) * 0.2 / 10.0)) * 10
+        return int(round(b * progress(p) * UNSOLVED_SHARE_LUCK.get(p["kind"], UNSOLVED_SHARE) / 10.0)) * 10
     par = PAR[p["kind"]][p["level"]]
     if p["kind"] == "typing":           # 速さは目安の時間との比で 0.7〜1.4 倍 (目安どおりで 1.2 倍. ほかの内職と同じ), 正確さは 97% 以上で満額 (5 割まで)
         speed = max(0.7, min(1.4, 0.6 + 0.6 * par / max(sec, 1.0)))

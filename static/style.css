@@ -650,6 +650,7 @@ a.btn { color: inherit; }
 .task-pick .cmd { flex-direction: column; align-items: flex-start; gap: 2px; }
 .pz-levels { gap: 6px; align-items: center; }
 .pz-stats { text-align: center; font-variant-numeric: tabular-nums; }
+.pz-title { text-align: center; font-weight: 600; margin: 6px 0; }
 .pz-wrap { display: flex; justify-content: center; overflow-x: auto; }
 .pz-wrap.zoom { justify-content: flex-start; overflow: auto; max-height: 62vh; border-radius: 6px; -webkit-overflow-scrolling: touch; }
 .pz-wrap.zoom .pz-grid { margin: 0 auto; }

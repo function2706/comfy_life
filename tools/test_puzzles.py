@@ -33,6 +33,12 @@ def main():
             assert P.sudoku_human(p["puzzle"], lv) == p["solution"], lv
             assert lv == "easy" or P.sudoku_human(p["puzzle"], "easy") is None, lv
             assert P.sudoku_grade(p["puzzle"]) in (("easy",) if lv == "easy" else ("mid", "hard"))
+            # 人の作る問題に近い流れ: 入口があり, 探し回りが無く, 山場 (手筋の要る局面) の回数がその難しさの範囲. 数字は点対称
+            (lo, hi), tech, peaks = P.SIZE["sudoku"][lv]
+            prof = P.sudoku_profile(p["puzzle"], tech)
+            assert P._sd_good(prof, peaks) and lo <= sum(1 for x in p["puzzle"] if x) <= hi, (lv, prof)
+            assert all(bool(p["puzzle"][i]) == bool(p["puzzle"][80 - i]) for i in range(81)), "点対称"
+    assert P.sudoku_pool().get("mid") and P.sudoku_pool().get("hard"), "中・難は問題集から"
     i = p["puzzle"].index(0)
     r, c = divmod(i, 9)
     bad = next(v for v in range(1, 10) if v != p["solution"][i])
@@ -51,6 +57,8 @@ def main():
             p = P.new("picross", lv, rng)
             assert P.picross_solve(p["rows"], p["cols"]) == p["sol"]
             assert p["rows"] == [P.clue(x) for x in p["sol"]]
+            assert p["n"] == P.SIZE["picross"][lv] and p.get("title"), "答えは絵 (問題集から. 名前つき)"
+            assert "title" not in P.view(p) and P.view(p, reveal=True)["title"] == p["title"], "何の絵かは解き終わってから"
     # 塗る・消すは自由で, 一手ごとの答え合わせはしない (ミスにならない). 答えとぴったり一致したら完成
     empty = next((r, c) for r in range(p["n"]) for c in range(p["n"]) if not p["sol"][r][c])
     out = P.move(p, {"r": empty[0], "c": empty[1]})

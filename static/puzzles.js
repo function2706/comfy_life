@@ -1018,6 +1018,7 @@ function renderTask(result) {
     tools.push(h('button', { class: 'btn small' + (T.zoom ? ' primary' : ''), onclick: () => { T.zoom = !T.zoom; renderTask(); } },
       T.zoom ? '🔍 全体を表示' : '🔍 拡大（盤をずらして遊ぶ）'));
   }
+  if (result && v.kind === 'picross' && v.title) tools.push(h('div', { class: 'pz-title' }, `🎨 「${v.title}」の絵でした`));
   if (!result && v.kind === 'slither') tools.push(h('div', { class: 'row sl-tools', style: 'gap:6px;flex-wrap:wrap' }));
   if (!result && SOL_KINDS.includes(v.kind)) {
     tools.push(h('div', { class: 'row', style: 'gap:6px;justify-content:center' },

@@ -37,7 +37,8 @@ def deck(rng, n_suits=4, copies=1):
 
 
 # ====================================================================== フリーセル
-FC_CELLS = {"easy": 4, "mid": 3, "hard": 2}
+FC_CELLS = {"easy": 4, "mid": 4, "hard": 4}       # セルは 4 つ (標準). 難しさは配りの余裕で分ける (FC_NEED)
+FC_NEED = {"easy": (1, 2), "mid": (3, 3), "hard": (4, 4)}     # その配りを解くのに要るセルの数 (少ないセルでも解ける配りほど余裕がある)
 FC_BUDGET = 25000          # 解く仕組みで調べる局面の上限 (超えたら確かめきれなかった配りとして捨てる)
 
 
@@ -175,14 +176,43 @@ def _fc_moves(cols, cells, found):
     return out
 
 
+def fc_need(seed, budget=FC_BUDGET):
+    """配り (乱数の種) を解くのに要るセルの数 (1〜4. 4 つでも解けなければ None). 少ないセルで解けるほど, 4 つで遊ぶと余裕がある."""
+    for cells in range(1, 5):
+        if fc_solve(fc_deal(random.Random(seed), cells), budget):
+            return cells
+    return None
+
+
+_FC_POOL = {}
+
+
+def fc_pool():
+    """難しさごとの配りの種 (defaults/freecell_pool.json. tools/build_freecell_pool.py で作る)."""
+    if not _FC_POOL:
+        import json
+        import os
+        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "defaults", "freecell_pool.json")
+        if os.path.exists(p):
+            with open(p, encoding="utf-8") as f:
+                _FC_POOL.update(json.load(f))
+    return _FC_POOL
+
+
 def fc_new(level, rng=random):
-    """解ける配り (確かめた) を出す."""
-    cells = FC_CELLS[level]
-    for _ in range(40):
-        st = fc_deal(rng, cells)
-        if fc_solve(st):
-            break
-    st.update(kind="freecell", hist=[], miss=0, moves=0)
+    """その難しさの余裕の配り (要るセルの数が FC_NEED) を出す. 一覧から選ぶ (一覧が無ければ, その場で確かめながら)."""
+    seeds = fc_pool().get(level)
+    lo, hi = FC_NEED[level]
+    if seeds:
+        seed = rng.choice(seeds)
+    else:
+        for _ in range(200):
+            seed = rng.randrange(1, 10 ** 9)
+            need = fc_need(seed)
+            if need and lo <= need <= hi:
+                break
+    st = fc_deal(random.Random(seed), FC_CELLS[level])
+    st.update(kind="freecell", hist=[], miss=0, moves=0, seed=seed)
     fc_autoplay(st)
     return st
 

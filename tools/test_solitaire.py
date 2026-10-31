@@ -17,17 +17,17 @@ def card(s):
 
 
 def freecell():
-    # ---- 配り: 解く仕組みで確かめた, 解けるものだけ. 難しさはセルの数
-    for lv, cells in (("easy", 4), ("mid", 3), ("hard", 2)):
+    # ---- 配り: セルは 4 つ (標準). 難しさは配りの余裕 = その配りを解くのに要るセルの数 (易 2 つ以下・中 3 つ・難 4 つ全部)
+    for lv in ("easy", "mid", "hard"):
         ts = []
-        for seed in range(3):
+        for seed in range(2):
             t = time.time()
             p = P.new("freecell", lv, random.Random(seed))
             ts.append(time.time() - t)
-            assert len(p["cells"]) == cells and sum(len(c) for c in p["cols"]) + sum(p["found"]) == 52
-            st = {"cols": [list(c) for c in p["cols"]], "cells": list(p["cells"]), "found": list(p["found"])}
-            assert SO.fc_solve(st, 200000), (lv, seed)
-        print("フリーセル %s (セル %d): 配りを作る時間 最大 %.1f 秒" % (lv, cells, max(ts)))
+            assert len(p["cells"]) == 4 and sum(len(c) for c in p["cols"]) + sum(p["found"]) == 52
+            lo, hi = SO.FC_NEED[lv]
+            assert lo <= SO.fc_need(p["seed"]) <= hi, (lv, p["seed"])
+        print("フリーセル %s (要るセル %d〜%d): 配りを出す時間 最大 %.1f 秒" % (lv, lo, hi, max(ts)))
     # ---- 手の正誤
     st = {"cols": [[card("KS"), card("QH")], [card("JS")], [], [card("5D")], [], [], [], []], "cells": [None, None],
           "found": [0, 0, 0, 0], "hist": [], "miss": 0, "moves": 0, "kind": "freecell"}

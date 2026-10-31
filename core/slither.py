@@ -335,17 +335,18 @@ def _loop_edges(g, region):
     return st
 
 
-def generate(h, w, rng=random, keep=0.0, level="hard", tries=12):
+def generate(h, w, rng=random, keep=0.0, level="hard", tries=12, harder=True):
     """その難しさの解き方 (human_solve) で解き切れるスリザーリンク. (数字 [マスごと, 無ければ None], 答えの辺の状態).
-    数字は, その解き方で解き切れるあいだ減らす (解き切れれば答えは一つ). keep: 残す数字の割合の下限 (易しくする).
-    中・難は, 一つ易しい解き方では解けない盤を選ぶ (tries 回作って見つからなければ, いちばん近いもの)."""
+    数字は, その解き方で (行き詰まるたびに進める場所が MIN_HITS か所以上ある形で) 解き切れるあいだ減らす (解き切れれば答えは一つ).
+    keep: 残す数字の割合の下限 (易しくする). harder: 一つ易しい解き方では解けない盤を選ぶ (tries 回作って見つからなければ,
+    いちばん近いもの)."""
     g = Grid(h, w)
     best = None
     for _ in range(tries):
         region = board_region(h, w, rng)
         sol = _loop_edges(g, region)
         clues = [sum(1 for e in g.cedges[i] if sol[e] == 1) for i in range(h * w)]
-        if not human_solve(g, clues, level):
+        if not human_solve(g, clues, level, MIN_HITS):
             continue
         order = list(range(h * w))
         rng.shuffle(order)
@@ -354,10 +355,10 @@ def generate(h, w, rng=random, keep=0.0, level="hard", tries=12):
             if sum(1 for x in clues if x is not None) <= floor:
                 break
             v, clues[i] = clues[i], None
-            if not human_solve(g, clues, level):
-                clues[i] = v                    # その解き方で解き切れなくなるなら戻す
+            if not human_solve(g, clues, level, MIN_HITS):
+                clues[i] = v                    # その解き方で解き切れなくなる (・進める場所が 1 か所だけになる) なら戻す
         lv = LEVELS.index(level)
-        if lv == 0 or not human_solve(g, clues, LEVELS[lv - 1]):
+        if lv == 0 or not harder or not human_solve(g, clues, LEVELS[lv - 1]):
             return clues, sol
         if best is None:
             best = (clues, sol)
@@ -377,10 +378,15 @@ def is_solution(g, clues, st):
 #     角の定石 (点に残る辺が 1 つのマスの角の 2 本だけなら, そのマスが 1 なら両方×, 3 なら両方線.
 #     線が 1 本来ている点で残りがマスの角の 2 本なら, 1 ならそのマスの残り 2 本は×, 3 なら残り 2 本は線. 盤の角の 1・3 もこれ)
 # 中: 易 + 近くの数手で行き詰まる形 (隣り合う 3 と 3, 斜めの 3, 2 の絡む形など. ある辺を決めると数手以内に矛盾 → 逆に決まる)
-# 難: 中 + 1 段の仮置き (ある辺を決めて最後まで進めると矛盾 → 逆に決まる)
+# 難: 中 + 1 段の仮置き (ある辺を決めて, もう少し先 (TRIAL_STEPS) まで進めると矛盾 → 逆に決まる)
 # どの推理も正しい推理だけなので, 解き切れれば答えは一つ.
+# 出来の悪い問題にしない: 行き詰まったとき (仮置きが要るとき), 進める手がかり (矛盾の出る仮置き) が盤のどこか 1 か所にしかない,
+# のような「枝の多い樹形図を総当たりする」問題は捨てる. 行き詰まるたびに, 進める場所が MIN_HITS か所以上あること.
+# 仮置きの深さにも上限を置く (最後まで進めないと矛盾が出ない仮置きは, 人には総当たりと同じ).
 LEVELS = ("easy", "mid", "hard")
 LOCAL_STEPS = 10             # 中の「近くの数手」: 決まる辺の数の上限
+TRIAL_STEPS = 30             # 難の仮置き: 決まる辺の数の上限
+MIN_HITS = 2                 # 行き詰まったとき, 進める場所がこれだけはあること
 
 
 class _Ctx:
@@ -561,36 +567,44 @@ def _try_edges(ctx, st):
     return out
 
 
-def human_solve(g, clues, level="hard"):
-    """その難しさの解き方だけで解き切れれば答えの辺の状態 (1 線 / -1), だめなら None."""
+def human_solve(g, clues, level="hard", min_hits=1):
+    """その難しさの解き方だけで解き切れれば答えの辺の状態 (1 線 / -1), だめなら None.
+    min_hits: 行き詰まるたびに, 進める場所 (矛盾の出る仮置き) がこれだけあること (無ければ出来の悪い問題として None)."""
     ctx = _Ctx(g, clues)
     lv = LEVELS.index(level)
     st = [0] * g.n
     if not _prop(ctx, st, []) or not _loop_scan(ctx, st):
         return None
-    limits = {0: (), 1: (LOCAL_STEPS,), 2: (LOCAL_STEPS, None)}[lv]
+    limits = {0: (), 1: (LOCAL_STEPS,), 2: (LOCAL_STEPS, TRIAL_STEPS)}[lv]
     while any(x == 0 for x in st):
-        hit = None
+        hits = []
         for limit in limits:
+            hits = []
             for e in _try_edges(ctx, st):
                 for v in (1, -1):
                     s2 = list(st)
-                    ok = _prop(ctx, s2, [(e, v)], limit)
-                    if ok and limit is None:
-                        ok = _loop_scan(ctx, s2)
-                    if not ok:                      # 矛盾 → 逆に決まる
-                        hit = (e, -v)
+                    if not _prop(ctx, s2, [(e, v)], limit):      # 矛盾 → 逆に決まる
+                        hits.append((e, -v))
                         break
-                if hit:
+                if len(hits) >= min_hits:
                     break
-            if hit:
-                break
-        if not hit:
+            if len(hits) >= min_hits or (hits and not any(x == 0 for x in _rest_after(ctx, st, hits[0]))):
+                break                               # (最後の一手なら, 1 か所でよい)
+        if not hits or (len(hits) < min_hits and any(x == 0 for x in _rest_after(ctx, st, hits[0]))):
             return None
+        hit = hits[0]
         if not _prop(ctx, st, [hit]) or not _loop_scan(ctx, st):
             return None
     st = [1 if x == 1 else -1 for x in st]
     return st if _done(g, clues, st) else None
+
+
+def _rest_after(ctx, st, hit):
+    """hit を置いて基本の定石で進めたあとの盤 (矛盾なら全部埋まった扱いにはしない)."""
+    s2 = list(st)
+    if not _prop(ctx, s2, [hit]) or not _loop_scan(ctx, s2):
+        return [0]
+    return s2
 
 
 def grade(g, clues):
