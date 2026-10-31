@@ -54,9 +54,17 @@ function flushClientErrors() {
   }
 }
 window.addEventListener('error', (ev) => reportClientError(ev.message, ev.filename, ev.lineno, ev.colno, ev.error && ev.error.stack));
+// 受け止めていない失敗も, 画面に出す (ログだけにしない). サーバのお断り (休憩中・お金が足りない など) はそのまま理由を,
+// 画面の側の思わぬエラーは「エラー」として出し, 不具合の報告にも残す
 window.addEventListener('unhandledrejection', (ev) => {
   const r = ev.reason || {};
+  if (r.refusal) {
+    ev.preventDefault();
+    if (typeof toast === 'function' && !r.shown) toast(r.message, 'err');
+    return;
+  }
   reportClientError('(promise) ' + (r.message || String(r)), '', 0, 0, r.stack);
+  if (typeof toast === 'function') toast('画面の処理でエラーが起きました: ' + (r.message || String(r)).slice(0, 120), 'err');
 });
 
 // この画面の目印 (一度に使える画面は 1 つ. server.py の gate)
@@ -66,10 +74,19 @@ async function api(path, body) {
     { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Client': CLIENT_ID }, body: JSON.stringify(body) };
   const r = await fetch(path, opt);
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
-  if (j && j.inactive) { setInactive(true); if (!r.ok) throw new Error(j.error); return j; }
+  if (j && j.inactive) {              // 別の画面で使われている: 止める表示が出るので, お知らせは重ねない
+    setInactive(true);
+    if (!r.ok) throw Object.assign(new Error(j.error), { refusal: true, shown: true });
+    return j;
+  }
   // 失敗判定は HTTP ステータスだけで行う. ジョブ情報などは正常応答でも error 項目を持つため,
   // j.error で判定すると「失敗したジョブ」が取得失敗扱いになり, 生成待ちのまま固まる.
-  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  if (!r.ok) {
+    const err = new Error(j.error || ('HTTP ' + r.status));
+    err.refusal = true;              // サーバのお断り (受け止めていなければ, 画面に出す: unhandledrejection)
+    err.status = r.status;
+    throw err;
+  }
   return j;
 }
 
