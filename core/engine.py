@@ -412,7 +412,7 @@ class App:
     def doing_now(self):
         """いましていること (同時にほかのことを始められない): {kind, label} か None.
         内職の途中 / 休む・家事・研鑽の途中 (家で) / 誰かとミニゲームの途中."""
-        if self.task_active():
+        if self.task_running():
             return {"kind": "task", "label": "内職"}
         exam = self.quals.exam_now()
         if exam:
@@ -446,6 +446,17 @@ class App:
 
     def blocked_view(self):
         return {w: self.blocked(w) for w in self.BLOCK_KINDS}
+
+    def task_running(self):
+        """やりかけの内職を, 一時停止せずにしているところ (ほかのことは始められない)."""
+        tok = self.task_active()
+        return bool(tok) and not puzzles.paused(self._task_store()[tok])
+
+    def stay_home(self):
+        """家を出られない理由 (内職を一時停止したまま: 家事・研鑽・設定などはできるが, 出かける・仕事に行くのは終えてから). 無ければ None."""
+        if self.task_active() and not self.task_running():
+            return "内職を一時停止したままです（家を出るのは、内職を終えてから）"
+        return None
 
     def you_context(self, dt=None):
         """あなた一人の条件式の値 (誰とも関係しない予定・一人の行動の条件用): 時刻・在席・お金・体力・あなたの情報."""
@@ -944,6 +955,9 @@ class App:
                     raise ValueError("%sは閉まっています（%s）" % (places_mod.PLACES[pl]["label"], o["note"]))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
+            if not appt and not opts.get("deliver") and ((a.get("override") or {}).get("outing") or a.get("bond") == "visit_start") \
+                    and self.stay_home():
+                raise ValueError(self.stay_home())
             ovm = st.get("override") or {}
             if ovm.get("outing") and ovm.get("until", 0) > now and (ovm.get("arr", 0) > now or now >= ovm.get("leave", ovm["until"])) \
                     and a.get("category") not in MOVING_OK and not a.get("end_override"):
@@ -2288,7 +2302,8 @@ class App:
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "arrival": arrival, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
-                "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
+                "side_job": self.task_ready(now), "task_active": self.task_active(),
+                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
@@ -2471,6 +2486,8 @@ class App:
 
     def _go_task(self, job, task, text):
         now = time.time()
+        if self.stay_home():
+            raise ValueError(self.stay_home())
         if self.body.level() >= 3:
             raise ValueError("寝込むほどつらくて、出かけられそうにない（休むか、病院へ）")
         for oid in list(self.bonds.company()):        # そばにいる人には告げて (外で会っていたなら, そこで別れる)
@@ -2494,6 +2511,8 @@ class App:
             if not self.earn.shift_now():
                 raise ValueError("いまはシフトの時間ではありません（%s）" % self.earn.shift_text(pt["shifts"]))
             dest = self.earn.job(pt["job"])["place"]
+            if self.stay_home():
+                raise ValueError(self.stay_home())
             if self.solo.near(cid):          # そばに誰かいれば「仕事に行ってくる」と告げて
                 r = self.solo.start_plain("work", cid=cid, dest=dest)
             else:                            # 一人なら, シフトの時間に合わせて (夜のシフトも)
@@ -2694,9 +2713,30 @@ class App:
             t = self._task_store().get(token)
             if not t:
                 raise ValueError("作業が見つかりません（やり直してください）")
-            (puzzles.pause if on else puzzles.unpause)(t)
+            now = time.time()
+            if on:
+                puzzles.pause(t)
+                p = self.presence.rec()
+                if p.get("mode") == "busy" and not p.get("solo"):      # 一時停止のあいだは, 家で手が空いている (家事・研鑽などができる)
+                    p["mode"] = "none"
+                    self.presence.save()
+            else:
+                why = self._task_free(now)
+                if why:
+                    raise ValueError(why)
+                puzzles.unpause(t)
+                self.presence.declare("busy", now)
             self._task_save()
             return self._task_info(token)
+
+    def _task_free(self, now):
+        """内職を再開できない理由 (ほかのことの途中・家にいない). 再開できるなら None."""
+        d = self.doing_now()
+        if d:
+            return "%sの途中です（終えてから再開）" % d["label"]
+        if not self.body.at_home(now):
+            return "家にいないので、内職は再開できません"
+        return None
 
     def task_resume(self, token=None):
         """やりかけの内職の続き (盤面と経過時間)."""
@@ -2704,7 +2744,8 @@ class App:
             token = token or self.task_active()
             if not token or token not in self._task_store():
                 raise ValueError("やりかけの内職はありません")
-            self.presence.declare("busy", time.time())
+            if not puzzles.paused(self._task_store()[token]):      # 一時停止中なら, 開くだけ (再開は「再開」で)
+                self.presence.declare("busy", time.time())
             return self._task_info(token)
 
     def side_job_last(self):

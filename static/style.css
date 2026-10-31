@@ -573,6 +573,8 @@ dialog { color: var(--text); }
 
 /* toast */
 .toasts { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 100; pointer-events: none; }
+/* お知らせは最前面の層 (popover) に出す: 内職などの画面 (モーダル) を開いていても, その上に見える */
+.toasts[popover] { inset: 70px auto auto 50%; margin: 0; padding: 0; border: 0; background: transparent; overflow: visible; color: inherit; width: max-content; max-width: 80vw; }
 .toast { background: var(--panel3); border: 1px solid var(--line); padding: 9px 16px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.4); animation: tin .2s ease; max-width: 80vw; }
 .toast.err { border-color: var(--bad); color: #ffc9d0; }
 .toast.ok { border-color: var(--good); }

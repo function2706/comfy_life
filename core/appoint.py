@@ -620,6 +620,8 @@ class Appoint:
             return {"status": "here", "text": "（もう%sにいる。%sの約束の時刻を待つ）" % (app.places.label(x["place"]), fmt_when(x["t"], now))}
         if x["place"] == places_mod.HOME_ME:
             raise ValueError("あなたの家に来てもらう約束です（%sに家にいれば会えます）" % fmt_when(x["t"], now))
+        if app.stay_home():
+            raise ValueError(app.stay_home())
         pres = app.presence.rec()
         frm = app.geo.where(now)
         if pres.get("mode") == "out":          # 一人で出かけていたなら, そこから向かう (結果は残す)

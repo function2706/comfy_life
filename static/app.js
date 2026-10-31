@@ -116,7 +116,11 @@ async function claimHere() {
 
 function toast(msg, kind = '') {
   const t = h('div', { class: 'toast ' + kind }, msg);
-  $('#toasts').append(t);
+  const box = $('#toasts');
+  box.append(t);
+  if (box.showPopover) {             // 開いている画面 (モーダル) より上へ: 出し直すと最前面に来る
+    try { if (box.matches(':popover-open')) box.hidePopover(); box.showPopover(); } catch (e) { /* popover の無いブラウザは, ふつうに出す */ }
+  }
   setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3200);
 }
 
@@ -206,7 +210,7 @@ async function refresh() {
   S.lastCompany = who;
   renderTop();
   if (S.mapDlg && S.mapDlg.open) renderMap();
-  if (v.task_active && !$('#task-dlg').open && !S.taskOpening && !S.inactive) {     // 内職の途中: 画面に戻ったら続きを開く
+  if (v.task_active && !v.task_paused && !$('#task-dlg').open && !S.taskOpening && !S.inactive) {     // 内職の途中 (一時停止していない): 画面に戻ったら続きを開く
     S.taskOpening = true;
     openTask();
     setTimeout(() => { S.taskOpening = false; }, 3000);
@@ -383,9 +387,10 @@ function renderSoloTab() {
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
       : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで'));
   const pres = v.presence || {};
-  const busyNow = pres.mode === 'busy' && v.task_active ? h('div', { class: 'solo-now' },
-    h('span', {}, '🧵 内職中…'),
-    h('span', { class: 'muted small' }, '終えるときは、内職の画面で「やめる」か、できあがりまで'),
+  const busyNow = v.task_active ? h('div', { class: 'solo-now' },
+    h('span', {}, v.task_paused ? '🧵 内職（一時停止中）' : '🧵 内職中…'),
+    h('span', { class: 'muted small' }, v.task_paused ? '家事・研鑽・休むなどはできます。出かけるのは、内職を終えてから'
+      : '終えるときは、内職の画面で「やめる」か、できあがりまで（✕で一時停止して閉じられます）'),
     h('button', { class: 'btn primary small', disabled: S.busy, onclick: openTask }, '内職の続きを開く'))
     : pres.mode === 'busy' ? h('div', { class: 'solo-now' },
     h('span', {}, pres.solo ? `${pres.solo.icon} ${pres.solo.label}…` : '🖥 作業中…'),
@@ -2541,7 +2546,7 @@ async function finishTask(gaveUp) {
   void gaveUp;
 }
 
-function closeTask() {
+function closeTask() {                // 「やめる」(途中でやめて, 進んだぶんだけ稼ぐ)
   const T = S.task;
   if (T && !T.done) {
     if (!confirm('途中でやめますか？（進んだぶんの少しだけ稼げます）')) return;
@@ -2549,6 +2554,16 @@ function closeTask() {
     return;
   }
   $('#task-dlg').close();
+}
+// ✕・Esc: やめずに, 一時停止して閉じる (家事・研鑽・設定などができる. 続きは「内職」か「内職の続きを開く」から)
+async function hideTask() {
+  const T = S.task;
+  if (T && !T.done && !T.paused && T.view) {
+    await taskPause(true);
+    if (!T.paused) return;              // 止められなかった (理由はお知らせに出ている)
+  }
+  $('#task-dlg').close();
+  await refresh();
 }
 
 const SKILL_HINT = {
@@ -4454,8 +4469,8 @@ function bind() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refresh();
   });
-  $('#task-close').addEventListener('click', closeTask);
-  $('#task-dlg').addEventListener('cancel', (ev) => { ev.preventDefault(); closeTask(); });
+  $('#task-close').addEventListener('click', hideTask);
+  $('#task-dlg').addEventListener('cancel', (ev) => { ev.preventDefault(); hideTask(); });
   $('#task-chat').addEventListener('click', () => openChat());     // 内職の画面の上にスマホを開く (閉じれば内職に戻る)
   for (const t of ['mouseover', 'focusin']) document.addEventListener(t, (ev) => { const el = ev.target.closest?.('.tip'); if (el) showTip(el); });
   for (const t of ['mouseout', 'focusout']) document.addEventListener(t, (ev) => { if (ev.target.closest?.('.tip')) hideTip(); });

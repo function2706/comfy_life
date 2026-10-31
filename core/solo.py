@@ -123,6 +123,9 @@ class Solo:
         why = app.blocked("solo")
         if why:
             raise ValueError(why)
+        if kind in ("out", "jog", "work") or kind in LEGACY:      # 家を出る (内職を一時停止したままなら, 先に終える)
+            if app.stay_home():
+                raise ValueError(app.stay_home())
         if kind in PLAIN:
             return self.start_plain(kind, place, cid, how=how)
         if kind == "kakeibo":
@@ -303,6 +306,8 @@ class Solo:
         p = app.presence.rec()
         if p.get("mode") != "out":
             raise ValueError("いまは出かけていません")
+        if app.stay_home():
+            raise ValueError(app.stay_home())
         self._place("out", place)
         frm = app.geo.where(now)
         if p.get("travel"):                    # 向かう途中・帰る途中で行き先を変える: いまの地点から
