@@ -550,24 +550,24 @@ function solDrag(T, board) {
     const s = st;
     st = null;
     if (s.stock) { if (ev.type === 'pointerup') solMove({ stock: true }); return; }
-    s.els.forEach((el) => { el.classList.remove('dragging'); el.style.transform = ''; });
-    if (ev.type !== 'pointerup') return;
-    if (!s.drag) { solMove({ from: s.src, auto: true }); return; }
+    const back = () => s.els.forEach((el) => { el.classList.remove('dragging'); el.style.transform = ''; });     // 元の場所へ
+    if (ev.type !== 'pointerup') { back(); return; }
+    if (!s.drag) { back(); solMove({ from: s.src, auto: true }); return; }
     s.els.forEach((el) => { el.style.visibility = 'hidden'; });
     const under = document.elementFromPoint(ev.clientX, ev.clientY);
     s.els.forEach((el) => { el.style.visibility = ''; });
     const tgt = under && under.closest('[data-t]');
-    if (!tgt || !board.contains(tgt)) return;
-    const t = tgt.dataset.t;
-    if (!['col', 'cell', 'found'].includes(t)) return;
-    solMove({ from: s.src, to: t === 'found' ? { t } : { t, i: +tgt.dataset.i } });
+    const t = tgt && board.contains(tgt) ? tgt.dataset.t : null;
+    if (!['col', 'cell', 'found'].includes(t)) { back(); return; }
+    // 離したところに置いたまま, サーバの返事で描き直す (返事までの間に元の場所に一瞬戻って見えないように). 動かせなければ戻す
+    solMove({ from: s.src, to: t === 'found' ? { t } : { t, i: +tgt.dataset.i } }).then((ok) => { if (!ok) back(); });
   };
   board.addEventListener('pointerup', end);
   board.addEventListener('pointercancel', end);
 }
-async function solMove(mv) {
+async function solMove(mv) {          // 描き直したら true (動かせなかった・送れなかったら false)
   const T = S.task;
-  if (!T || T.done || T.busy || T.paused) return;
+  if (!T || T.done || T.busy || T.paused) return false;
   T.busy = true;
   let r = null;
   try {
@@ -579,6 +579,7 @@ async function solMove(mv) {
   } catch (e) { toast(e.message, 'err'); }
   finally { T.busy = false; }
   if (r && r.solved) await finishTask(false);
+  return !!r;
 }
 
 // 2048: 寄せる. 動かせなくなったらそこまで (稼ぎは最大のタイルの進み具合のぶん)
