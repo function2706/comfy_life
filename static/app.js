@@ -1854,69 +1854,186 @@ function pickNextShop() {
   dlg.showModal();
 }
 
-// 町の地図 (core/geo.py の位置. 遠い場所は縮めて描く). 行き先を押すと, 行き方の目安と「ここへ行く」
+// 町の地図 (core/geo.py の位置). 拡大・縮小 (ホイール・＋－・近所/駅まわり/町/全体) とドラッグで動かせる.
+// 拡大しているときは名前を全部出す. 下の一覧は, いまいる場所から近い順 (押すとそこへ寄せて, 行き方の目安).
+const MAP_W = 640, MAP_H = 440;
+const MAP_NS = 'http://www.w3.org/2000/svg';
+const mapEl = (tag, at, txt) => { const e = document.createElementNS(MAP_NS, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); if (txt != null) e.textContent = txt; return e; };
+const mapName = (id) => id === 'home:me' ? 'あなたの家' : id === 'office' ? '職場' : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).label || id;
+const mapIcon = (id) => id === 'home:me' ? '🏠' : id === 'office' ? '💼' : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).icon || '📍';
+function mapPreset(k) {
+  const M = ((S.view || {}).outdoor || {}).map || {};
+  const home = M['home:me'] || [0, 0];
+  S.mapView = k === 'near' ? { r: 1.2, c: home.slice() } : k === 'station' ? { r: 0.9, c: [0, 0] } : k === 'town' ? { r: 4, c: [0, 0] }
+    : { all: true, r: 7.5, c: [0, 0] };
+  S.mapView.preset = k;
+}
+function mapProj() {
+  const v = S.mapView;
+  if (v.all) {                              // 全体: 駅前を真ん中に, 4km より遠い場所は縮める
+    const U = (MAP_H / 2 - 24) / 7.2;
+    const sq = (r) => (r <= 4 ? r : 4 + 3.2 * Math.log(r / 4) / Math.log(16));
+    return (p) => { const r = Math.hypot(p[0], p[1]); const k = r ? sq(r) / r : 0; return [MAP_W / 2 + p[0] * k * U, MAP_H / 2 - p[1] * k * U]; };
+  }
+  const u = MAP_H / (2 * v.r);              // 1km あたりの長さ
+  return (p) => [MAP_W / 2 + (p[0] - v.c[0]) * u, MAP_H / 2 - (p[1] - v.c[1]) * u];
+}
+function mapMe() {
+  const od = (S.view || {}).outdoor || {};
+  const M = od.map || {}, tv = od.travel;
+  if (tv && M[tv.from] && M[tv.to]) {
+    const k = Math.min(1, Math.max(0, (Date.now() / 1000 - tv.t0) / Math.max(1, tv.arr - tv.t0)));
+    return [M[tv.from][0] + (M[tv.to][0] - M[tv.from][0]) * k, M[tv.from][1] + (M[tv.to][1] - M[tv.from][1]) * k];
+  }
+  return M[od.here] || M['home:me'];
+}
 function openMap() {
   if (!S.mapDlg) {
-    S.mapDlg = h('dialog', { class: 'modal', style: 'width:min(560px,96vw);height:auto;max-height:94vh;overflow:auto' });
+    S.mapDlg = h('dialog', { class: 'modal', style: 'width:min(760px,98vw);height:auto;max-height:96vh;overflow:auto' });
     document.body.append(S.mapDlg);
+    const svg = mapEl('svg', { viewBox: `0 0 ${MAP_W} ${MAP_H}`, width: '100%',
+      style: 'display:block;background:var(--panel2,#f4f1ea);border-radius:10px;touch-action:none;user-select:none;cursor:grab' });
+    S.mapSvg = svg;
+    const zoom = (f, at) => {                // at: 寄せる点 (画面上. 無ければ真ん中)
+      const v = S.mapView;
+      if (v.all) { const me = mapMe() || [0, 0]; S.mapView = { r: 7.5, c: me.slice() }; }
+      const w = S.mapView;
+      const u = MAP_H / (2 * w.r);
+      const km = at ? [w.c[0] + (at[0] - MAP_W / 2) / u, w.c[1] - (at[1] - MAP_H / 2) / u] : w.c;
+      const r2 = Math.min(80, Math.max(0.25, w.r * f));
+      w.c = [km[0] - (km[0] - w.c[0]) * r2 / w.r, km[1] - (km[1] - w.c[1]) * r2 / w.r];
+      w.r = r2;
+      w.preset = null;
+      drawMap();
+    };
+    S.mapZoom = zoom;
+    const pt = (e) => { const b = svg.getBoundingClientRect(); return [(e.clientX - b.left) * MAP_W / b.width, (e.clientY - b.top) * MAP_H / b.height]; };
+    svg.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.25 : 0.8, pt(e)); }, { passive: false });
+    let drag = null;
+    svg.addEventListener('pointerdown', (e) => { drag = { p: pt(e), moved: false }; svg.setPointerCapture(e.pointerId); svg.style.cursor = 'grabbing'; });
+    svg.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const q = pt(e), dx = q[0] - drag.p[0], dy = q[1] - drag.p[1];
+      if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+      drag.moved = true;
+      if (S.mapView.all) S.mapView = { r: 7.5, c: [0, 0] };
+      const u = MAP_H / (2 * S.mapView.r);
+      S.mapView.c = [S.mapView.c[0] - dx / u, S.mapView.c[1] + dy / u];
+      S.mapView.preset = null;
+      drag.p = q;
+      drawMap();
+    });
+    const up = (e) => {
+      if (!drag) return;
+      const was = drag;
+      drag = null;
+      svg.style.cursor = 'grab';
+      if (was.moved) return;
+      const hit = e.target.closest && e.target.closest('[data-id]');      // 押した (動かしていない): 行き先を選ぶ
+      if (hit) { S.mapSel = hit.getAttribute('data-id'); renderMap(); }
+    };
+    svg.addEventListener('pointerup', up);
+    svg.addEventListener('pointercancel', () => { drag = null; svg.style.cursor = 'grab'; });
   }
   S.mapSel = null;
+  const od = (S.view || {}).outdoor || {};
+  mapPreset((od.here || 'home:me') === 'home:me' || !(od.map || {})[od.here] ? 'near' : 'town');
+  if (od.here && od.here !== 'home:me' && (od.map || {})[od.here]) S.mapView = { r: 1.5, c: od.map[od.here].slice() };
   renderMap();
   S.mapDlg.showModal();
+}
+function drawMap() {
+  const od = (S.view || {}).outdoor || {};
+  const M = od.map || {};
+  const svg = S.mapSvg, v = S.mapView, xy = mapProj();
+  const halo = { stroke: 'var(--bg,#fff)', 'stroke-width': 3, 'paint-order': 'stroke', 'stroke-linejoin': 'round' };
+  const kids = [];
+  // 縮尺 (左下) と, 駅前からの距離の輪 (全体のとき)
+  if (v.all) {
+    const U = (MAP_H / 2 - 24) / 7.2, sq = (r) => (r <= 4 ? r : 4 + 3.2 * Math.log(r / 4) / Math.log(16));
+    for (const r of [1, 2, 4, 10, 30]) kids.push(mapEl('circle', { cx: MAP_W / 2, cy: MAP_H / 2, r: sq(r) * U, fill: 'none', stroke: 'currentColor', 'stroke-opacity': 0.12 }),
+      mapEl('text', { x: MAP_W / 2 + sq(r) * U * 0.71 + 2, y: MAP_H / 2 - sq(r) * U * 0.71 - 2, 'font-size': 11, fill: 'currentColor', 'fill-opacity': 0.45 }, `${r}km`));
+  } else {
+    const u = MAP_H / (2 * v.r);
+    const nice = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50].find((k) => k * u >= 60) || 50;
+    kids.push(mapEl('line', { x1: 14, y1: MAP_H - 16, x2: 14 + nice * u, y2: MAP_H - 16, stroke: 'currentColor', 'stroke-width': 2, 'stroke-opacity': 0.6 }),
+      mapEl('text', Object.assign({ x: 14, y: MAP_H - 22, 'font-size': 12, fill: 'currentColor' }, halo), nice < 1 ? `${nice * 1000}m` : `${nice}km`));
+  }
+  const tv = od.travel;
+  if (tv && M[tv.from] && M[tv.to]) {
+    const a = xy(M[tv.from]), b = xy(M[tv.to]);
+    kids.push(mapEl('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#d55', 'stroke-dasharray': '6 4', 'stroke-width': 3 }));
+  }
+  const close = !v.all && v.r <= 4.5;      // 寄っているときは名前を全部出す
+  const pts = Object.entries(M).map(([id, p]) => [id, xy(p)])
+    .filter(([, q]) => q[0] > -30 && q[0] < MAP_W + 30 && q[1] > -30 && q[1] < MAP_H + 30);
+  // 名前は重ならない位置 (下・上・右・左) に置く. 置けなければ出さない (押せば出る). 選んだ所・家・駅前を先に
+  const boxes = pts.map(([, [x, y]]) => [x - 12, y - 14, x + 12, y + 10]);         // アイコンの場所
+  const hits = (b) => boxes.some((c) => b[0] < c[2] && b[2] > c[0] && b[1] < c[3] && b[3] > c[1]);
+  const order = [...pts].sort(([a], [b]) => (b === S.mapSel) - (a === S.mapSel) || (b === 'home:me' || b === 'station') - (a === 'home:me' || a === 'station'));
+  const labels = {};
+  for (const [id, [x, y]] of order) {
+    const big = id === 'home:me' || id === 'station';
+    if (!(close || big || S.mapSel === id)) continue;
+    const w = mapName(id).length * 12 + 4;
+    const spots = [[x, y + 26, 'middle', [x - w / 2, y + 14, x + w / 2, y + 30]], [x, y - 16, 'middle', [x - w / 2, y - 28, x + w / 2, y - 12]],
+      [x + 15, y + 5, 'start', [x + 13, y - 7, x + 15 + w, y + 9]], [x - 15, y + 5, 'end', [x - 15 - w, y - 7, x - 13, y + 9]]];
+    const ok = spots.find((sp) => !hits(sp[3])) || (S.mapSel === id ? spots[0] : null);
+    if (!ok) continue;
+    boxes.push(ok[3]);
+    labels[id] = ok;
+  }
+  for (const [id, [x, y]] of pts) {
+    const big = id === 'home:me' || id === 'station';
+    const g = mapEl('g', { 'data-id': id, style: 'cursor:pointer' });
+    if (S.mapSel === id) g.append(mapEl('circle', { cx: x, cy: y, r: 17, fill: '#fc6', 'fill-opacity': 0.45 }));
+    g.append(mapEl('text', { x, y: y + 8, 'font-size': big ? 26 : 22, 'text-anchor': 'middle' }, mapIcon(id)), mapEl('title', {}, mapName(id)));
+    const lb = labels[id];
+    if (lb) g.append(mapEl('text', Object.assign({ x: lb[0], y: lb[1], 'font-size': 12, 'text-anchor': lb[2], fill: 'currentColor',
+      'font-weight': S.mapSel === id ? 700 : 400 }, halo), mapName(id)));
+    kids.push(g);
+  }
+  for (const [vid, w] of Object.entries((od.vehicles || {}).own || {})) {
+    if (!M[w.at]) continue;
+    const [x, y] = xy(M[w.at]);
+    kids.push(mapEl('text', { x: x + 14, y: y - 8, 'font-size': 16 }, vid === 'car' ? '🚗' : '🚲'));
+  }
+  const me = mapMe();
+  if (me) { const [x, y] = xy(me); kids.push(mapEl('circle', { cx: x, cy: y, r: 10, fill: 'none', stroke: '#d33', 'stroke-width': 4 }),
+    mapEl('circle', { cx: x, cy: y, r: 3, fill: '#d33' })); }
+  svg.replaceChildren(...kids);
 }
 function renderMap() {
   const od = (S.view || {}).outdoor || {};
   const M = od.map || {}, P = od.places || {};
   const close = () => S.mapDlg.close();
-  const W = 400, C = W / 2, R = 7.2, U = (C - 22) / R;
-  const sq = (r) => (r <= 4 ? r : 4 + 3.2 * Math.log(r / 4) / Math.log(16));           // 遠い場所は縮める
-  const xy = (p) => { const r = Math.hypot(p[0], p[1]); const k = r ? sq(r) / r : 0; return [C + p[0] * k * U, C - p[1] * k * U]; };
-  const name = (id) => id === 'home:me' ? 'あなたの家' : id === 'office' ? '職場' : (P[id] || {}).label || id;
-  const icon = (id) => id === 'home:me' ? '🏠' : id === 'office' ? '💼' : (P[id] || {}).icon || '📍';
-  const ns = 'http://www.w3.org/2000/svg';
-  const el = (tag, at, txt) => { const e = document.createElementNS(ns, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); if (txt != null) e.textContent = txt; return e; };
-  const svg = el('svg', { viewBox: `0 0 ${W} ${W}`, width: '100%', style: 'background:var(--panel2,#f4f1ea);border-radius:10px;touch-action:manipulation' });
-  for (const r of [1, 2, 4, 10, 30]) svg.append(el('circle', { cx: C, cy: C, r: sq(r) * U, fill: 'none', stroke: 'currentColor', 'stroke-opacity': 0.12 }),
-    el('text', { x: C + sq(r) * U * 0.71 + 2, y: C - sq(r) * U * 0.71 - 2, 'font-size': 9, fill: 'currentColor', 'fill-opacity': 0.4 }, `${r}km`));
+  if (!S.mapView) mapPreset('near');
+  drawMap();
   const tv = od.travel;
-  if (tv && M[tv.from] && M[tv.to]) {
-    const a = xy(M[tv.from]), b = xy(M[tv.to]);
-    svg.append(el('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: 'var(--accent,#c66)', 'stroke-dasharray': '4 3', 'stroke-width': 2 }));
-  }
-  for (const [id, p] of Object.entries(M)) {
-    const [x, y] = xy(p);
-    const g = el('g', { style: 'cursor:pointer' });
-    g.append(el('text', { x, y: y + 6, 'font-size': id === 'home:me' || id === 'station' ? 20 : 16, 'text-anchor': 'middle' }, icon(id)),
-      el('title', {}, name(id)));
-    if (S.mapSel === id || id === 'home:me' || id === 'station') g.append(el('text', { x, y: y + 20, 'font-size': 10, 'text-anchor': 'middle', fill: 'currentColor' }, name(id)));
-    g.addEventListener('click', () => { S.mapSel = id; renderMap(); });
-    svg.append(g);
-  }
-  for (const [vid, v] of Object.entries((od.vehicles || {}).own || {})) {
-    if (!M[v.at]) continue;
-    const [x, y] = xy(M[v.at]);
-    svg.append(el('text', { x: x + 11, y: y - 6, 'font-size': 12 }, vid === 'car' ? '🚗' : '🚲'));
-  }
-  // いまいる場所 (移動中は, 進み具合で線の上)
-  let me = M[od.here] || M['home:me'];
-  if (tv && M[tv.from] && M[tv.to]) {
-    const k = Math.min(1, Math.max(0, (Date.now() / 1000 - tv.t0) / Math.max(1, tv.arr - tv.t0)));
-    me = [M[tv.from][0] + (M[tv.to][0] - M[tv.from][0]) * k, M[tv.from][1] + (M[tv.to][1] - M[tv.from][1]) * k];
-  }
-  if (me) { const [x, y] = xy(me); svg.append(el('circle', { cx: x, cy: y, r: 7, fill: 'none', stroke: '#d33', 'stroke-width': 3 })); }
   const sel = S.mapSel;
   const pres = (S.view || {}).presence || {};
   const canGo = sel && sel !== 'office' && sel !== od.here && (OD_CHOICES().out || []).includes(sel) && (P[sel] || {}).open !== false &&
     !tv && (pres.mode === 'none' || pres.mode === 'out');
   const rt = sel ? routeText(sel) : null;
+  const pv = (S.mapView || {}).preset;
+  const pbtn = (k, label) => h('button', { class: 'btn small' + (pv === k ? ' primary' : ''), onclick: () => { mapPreset(k); drawMap(); renderMap(); } }, label);
+  const focus = (id) => { S.mapSel = id; if (M[id] && !S.mapView.all) S.mapView.c = M[id].slice(); else if (M[id]) S.mapView = { r: 1.5, c: M[id].slice() }; renderMap(); };
+  // 一覧: いまいる場所から近い順
+  const me = mapMe() || [0, 0];
+  const list = Object.keys(M).filter((id) => id !== 'station' || P.station).sort((a, b) => Math.hypot(M[a][0] - me[0], M[a][1] - me[1]) - Math.hypot(M[b][0] - me[0], M[b][1] - me[1]));
   S.mapDlg.replaceChildren(h('div', { style: 'padding:12px' },
-    h('div', { class: 'row' }, h('b', {}, '🗺 地図'), h('span', { class: 'muted small', style: 'margin-left:8px' },
-      tv ? `${HOW_ICON[tv.how] || ''} ${tv.label}へ移動中（あと${Math.max(1, Math.round(tv.remain / 60))}分）` : `いま: ${name(od.here || 'home:me')}`),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('b', {}, '🗺 地図'), h('span', { class: 'muted small' },
+      tv ? `${HOW_ICON[tv.how] || ''} ${tv.label}へ移動中（あと${Math.max(1, Math.round(tv.remain / 60))}分）` : `いま: ${mapName(od.here || 'home:me')}`),
       h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
-    svg,
-    h('div', { class: 'muted small' }, '真ん中が駅前。4kmより遠い場所は縮めて描いています。行き先を押すと、行き方の目安が出ます。'),
+    h('div', { class: 'row', style: 'gap:4px;flex-wrap:wrap;margin:6px 0' },
+      pbtn('near', '🏠 家の近所'), pbtn('station', '🚉 駅まわり'), pbtn('town', '🏙 町'), pbtn('all', '🌐 全体'),
+      h('button', { class: 'btn small', title: '拡大', onclick: () => S.mapZoom(0.7) }, '＋'),
+      h('button', { class: 'btn small', title: '縮小', onclick: () => S.mapZoom(1.4) }, '－'),
+      h('button', { class: 'btn small', title: 'いまいる場所を真ん中に', onclick: () => { const m = mapMe(); if (m) { S.mapView = { r: S.mapView.all ? 1.5 : S.mapView.r, c: m.slice() }; drawMap(); renderMap(); } } }, '📍 いま')),
+    S.mapSvg,
+    h('div', { class: 'muted small' }, 'ホイール・＋－で拡大と縮小、ドラッグで動かせます。行き先を押すと、行き方の目安が出ます。赤い丸がいまいる場所です。'),
     sel ? h('div', { class: 'pgroup', style: 'margin-top:6px' },
-      h('h4', {}, `${icon(sel)} ${name(sel)}`),
+      h('h4', {}, `${mapIcon(sel)} ${mapName(sel)}`),
       h('div', { class: 'small', style: 'white-space:pre-line' }, [placeTip(sel), routeTip(sel)].filter(Boolean).join('\n') || '—'),
       canGo ? h('div', { class: 'row', style: 'gap:6px;margin-top:6px;flex-wrap:wrap' }, howPicker(renderMap),
         h('button', { class: 'btn primary small', disabled: S.busy || (rt && rt.ng), onclick: async () => {
@@ -1924,10 +2041,15 @@ function renderMap() {
           if (pres.mode === 'out') {
             if (S.busy) return;
             S.busy = true;
-            try { const r = await api('/api/solo/move', { place: sel, how: S.how !== 'auto' ? S.how : undefined }); if (r.solo) toast(r.solo.text, 'ok'); toast((r.done || `${name(sel)}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
+            try { const r = await api('/api/solo/move', { place: sel, how: S.how !== 'auto' ? S.how : undefined }); if (r.solo) toast(r.solo.text, 'ok'); toast((r.done || `${mapName(sel)}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
             catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
           } else soloStart('out', null, sel, S.how);
-        } }, `ここへ行く${rt ? `（${rt.text}）` : ''}`)) : '') : ''));
+        } }, `ここへ行く${rt ? `（${rt.text}）` : ''}`)) : '') : '',
+    h('details', { style: 'margin-top:6px', open: true }, h('summary', { class: 'small' }, '場所の一覧（いまいる場所から近い順）'),
+      h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 8px;max-height:30vh;overflow:auto' },
+        ...list.map((id) => { const r = routeText(id);
+          return h('button', { class: 'btn ghost small', style: 'justify-content:flex-start;text-align:left' + (id === sel ? ';font-weight:700' : ''), onclick: () => focus(id) },
+            `${mapIcon(id)} ${mapName(id)}`, r ? h('span', { class: 'muted', style: 'margin-left:4px' }, r.text) : ''); })))));
 }
 
 async function comeBack() {
