@@ -16,7 +16,7 @@ from datetime import date, datetime
 
 CATS = {"income": "収入", "food": "食費", "eatout": "外食", "shopping": "買い物", "social": "交際費", "fun": "娯楽",
         "medical": "医療", "fixed": "家賃・光熱費・通信費", "living": "生活費", "borrow": "借りたお金", "repay": "返済",
-        "invest": "株", "other": "その他"}
+        "invest": "株", "transport": "交通費", "other": "その他"}
 FIXED_CATS = ("fixed", "living")                          # 記録しなくても分かる (毎月・毎日決まっている)
 NOT_SPENDING = ("income", "borrow", "repay", "invest")    # 変動費の見積もりに入れない
 RAW_DAYS = 120

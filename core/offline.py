@@ -25,6 +25,9 @@ from datetime import datetime, timedelta
 
 from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
 from .places import effort as effort_of
+from .places import HOME_ME
+from . import geo as geo_mod
+from .geo import HOW_LABEL
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
@@ -198,12 +201,49 @@ class Offline:
                       fallback=[app.planner.label(f) for f in app.planner.rec()["fallback"]], plans=len(app.planner.rec()["items"]),
                       stamina=stamina, money=money0)
         source = self._plan_blocks(t0, t1, lambda: stamina, c.get("enabled")) if use_plan else self.blocks(t0, t1)
+        back_leg = None
+
+        def go_home():
+            """出先から家へ (前の行動の帰り道. 終わった時刻 t から)."""
+            nonlocal t, stamina, back_leg
+            if not back_leg:
+                return
+            lg, dest = back_leg
+            back_leg = None
+            stamina = self._pay_leg(lg, dest, t, stamina)
+            timeline.append({"t": t, "end": t + lg["min"] * 60, "do": "move", "label": "移動",
+                             "text": "%sから家へ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[lg["how"]], round(lg["min"]),
+                                                             "・%s円" % format(lg["fare"], ",") if lg["fare"] else ""), "skipped": False})
+            t += lg["min"] * 60
+
         for s, e, b in source:
+            # 出先にいるまま続ける: 同じ場所での次の行動 (昼休みのあとも職場) / 出先のすぐあとの食事 (近くで食べる)
+            stay = bool(back_leg) and (self._dest(b) == back_leg[1] or (
+                b["do"] == "meal" and b.get("how") in ("out", "buy") and max(s, t) - t < 1800))
+            if not stay:
+                go_home()
             s = max(s, t)                          # 残業などで, 前の行動が延びたぶんは後ろへ
             if e - s < 60:
                 continue
             L.tick_world(s)
             do, h = b["do"], (e - s) / 3600.0
+            pre_skip = self._skip(do, b, s, stamina) if do in ("out", "jog") else None
+            dest = None if pre_skip or stay or geo_mod.INSTANT else self._dest(b)
+            if dest:                               # 出かける行動: 行き帰りの移動 (core/geo.py. 予定の時刻は出る時刻)
+                try:
+                    go = app.geo.leg(HOME_ME, dest, "run" if do == "jog" else None, s)
+                    back = app.geo.leg(dest, HOME_ME, "run" if do == "jog" else None, e, rand=False)
+                except ValueError:
+                    go = back = None
+                if go and go["min"] >= 1:
+                    stamina = self._pay_leg(go, dest, s, stamina)
+                    timeline.append({"t": s, "end": s + go["min"] * 60, "do": "move", "label": "移動",
+                                     "text": "%sへ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
+                                                                 "・%s円" % format(go["fare"], ",") if go["fare"] else ""), "skipped": False})
+                    s = s + go["min"] * 60
+                    e = max(e, s + 600)
+                    h = (e - s) / 3600.0
+                    back_leg = (back, dest)
             if do == "exam":                       # 資格の試験 (受けたかどうかは quals.daily. ここでは時間がふさがるだけ)
                 recover(s, e, None)
                 timeline.append({"t": s, "end": e, "do": "exam", "label": "資格の試験", "text": "%sの試験を受けた" % b.get("label", ""),
@@ -276,7 +316,7 @@ class Offline:
                 timeline.append(ent)
                 continue
             else:
-                skip = self._skip(do, b, s, stamina)
+                skip = pre_skip if do in ("out", "jog") else self._skip(do, b, s, stamina)
                 if skip:
                     recover(s, e, None)
                     ent.update(text=skip, skipped=True)
@@ -299,6 +339,7 @@ class Offline:
                         ent["meets"] = m
             t = max(t, e)
             timeline.append(ent)
+        go_home()
         for x in timeline:
             app.trace.add("offline", "%s: %s" % (x.get("label"), (x.get("text") or "")[:80]), None, x["t"], end=x.get("end"), do=x["do"],
                           skipped=x.get("skipped"), plan=x.get("plan"))
@@ -416,6 +457,31 @@ class Offline:
         if random.random() < 0.25:              # その場にいないので, 相手の様子を読み違える
             choice = "nod" if typ == "call" else "pass"
         return choice, True
+
+    def _dest(self, b):
+        """行動パターンの 1 行で出かける先 (家でする行動なら None)."""
+        do = b["do"]
+        if do in ("out", "jog"):
+            return b.get("place") or ("park" if do == "jog" else None)
+        if do == "work":
+            return "office"
+        if do == "parttime":
+            pt = self.app.earn.pt()
+            return self.app.earn.job(pt["job"])["place"] if pt else None
+        if do == "meal" and b.get("how") in ("out", "buy"):
+            return b.get("place") or ("teishoku" if b["how"] == "out" else "convenience")
+        return None
+
+    def _pay_leg(self, lg, dest, t, stamina):
+        """閉じていた間の移動 1 回: 運賃・歩いた分の疲れと運動. 体力を返す."""
+        from .body import MOVE_PER_H
+        app, L = self.app, self.app.life
+        if lg["fare"]:
+            L.player_state()["money"] -= lg["fare"]
+            L.ledger(t, -lg["fare"], "transport", "交通費（%s）" % app.places.label(dest))
+        walk_h = min(lg["min"], 40) / 60.0 if lg["how"] != "transit" else 0.15
+        app.body.add_exercise(MOVE_PER_H["jog" if lg["how"] == "run" else "walk"] * walk_h)
+        return max(0.0, stamina - (6.0 if lg["how"] == "run" else 2.5) * walk_h)
 
     def _move(self, do, place):
         """行動パターンの行動で体を動かす量 (1 時間あたり)."""

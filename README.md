@@ -378,6 +378,17 @@ python tools/minigame_lab.py --port 8792 --no-browser
 - 品ぞろえ: `items.CATALOG` の `places`（食材はスーパー・商店街・モール、洗剤はドラッグストア・スーパー・コンビニなど、本は本屋、ゲームは家電量販店）。
 - セリフ: 約束なしの訪問 `drop.yes` / `drop.no`（`places.LINES`。留守・出てこないはナレーションだけ）。お出かけのセリフのキーはコマンドのまま（変えていない）。
 
+### 移動（マップの段階 1: 距離と移動時間）
+
+`core/geo.py`。地図の画面はまだない。
+
+- 位置: ワールドの `geo.json` の `pts`（`{id: {xy: [km, km], acc: 最寄りの駅・停留所まで km}}`）。駅前 `station` が原点。決まり `geo.RULES`（駅のまわり / 家の近く / 少し離れている / 電車で行く距離）、あなたの家は駅から `HOME_KM`、相手の家は `CHAR_NEAR`（ときどき `CHAR_FAR`）。職場は `office`。まだ位置の無い場所は、初めて引いたときに決める（以前のワールドもここでそろう。過去の記録には触れない）。道のりは直線の `ROAD` 倍。
+- 行き方: `geo.options(a, b, t)`（目安: `walk` / `transit` / `best`）と `geo.leg(a, b, how, t)`（実際の 1 回。電車・バスは待ちを乱数で）。歩く 4.5 km/h（雨・雪は 1.15 倍の時間）、`WALK_MAX_MIN` を超える道は歩けない。電車・バスは駅まで歩く + 待つ（`headway`: 朝夕 6 分〜夜 25 分。0:30〜5:00 は運休で始発を待つ）+ 乗る（`ride_min`: 10 km まで 25 km/h、その先 50 km/h）+ 降りて歩く。運賃 `fare`（150 円 + 20 円/km、上限 1500 円）は家計簿の `transport`（交通費）。ジョギングは `run`（8 km/h）。
+- 移動中: `presence.travel = {from, to, how, t0, arr, fare, dir: go / home, then}`。`presence.pos` はいまいる場所、`arrived` / `left` はその場所に着いた・出た時刻（`presence.back` の `arr` / `left` / `h_at`。一人の時間の結果・給料はこの間だけ）。`geo.depart`（出かける・通勤・アルバイト・相手の家へ。相手の家は着いてから `solo.arrive_then` で訪ねる）、`geo.tick`（心拍のたび。着いたら `state_view.arrival`）、`geo.head_home`（`come_back` は出先にいればまず家へ移動し、着いたら `come_back(arrived=True)`）。移動中は `outdoor.current` が `moving`（通る道の人の多さ）、店の買い物・約束の「着いた」・職場の知り合い・外食は着いてから。出先から移る `solo.move` は場所どうしの距離。
+- お出かけ: `engine._outing_travel` で `override.arr`（ここまで行きの移動）・`override.leave`（ここから帰りの移動。同居相手とだけ）・`until` をのばす。移動中のコマンドは `MOVING_OK`（会話・見る・連絡）だけ。外で会っていた・訪ねていた相手と別れたら `bonds._head_home` で一人で家へ。
+- 約束: `appoint.row` の `leave`（いまいる場所から、何時に出れば間に合うか）。`appoint.here` は移動中は着いていない。
+- 閉じたとき: `outdoor.check_gap` は最後の心拍で出先を出たことにして、`geo.home_eta` に家に着いてから `offline.simulate` を始める。閉じていた間: `offline._dest` の行動（外出・ジョギング・仕事・アルバイト・外食・買って食べる）は、行き（家から。時刻は家を出る時刻）と帰りの移動 `do: "move"` をまとめに入れ、運賃・疲れ・運動は `_pay_leg`。同じ場所での次の行動・出先のすぐあとの食事は、出先にいるまま。
+
 ### 外出と偶然の出会い
 
 `core/outdoor.py`（外出・天気。行き先の表は `core/places.py`）と `core/street.py`（誰に会うか・段階・反応）。
@@ -599,6 +610,7 @@ tools/test_minigame_lab.py  ミニゲームの単独版のテスト（全ゲー�
 tools/puzzle_lab.py   内職のパズルの単独版（本体のデータに触れずに続けて遊んで試す）
 tools/test_puzzle_lab.py  単独版のテスト（同じ seed で同じ盤面・答え合わせ・試算・data/ に書かない・画面の共通化）
 tools/test_puzzles.py  内職のパズル（盤面の生成と一意解・答え合わせ・稼ぎ・流れ・セリフのキーの移し替え）のテスト
+tools/test_geo.py  移動（場所の位置・徒歩と電車・バス・始発待ち・移動中と着く・家へ帰る・運賃・通勤・約束の場所・閉じていた間の行き帰り・閉じたとき）のテスト
 tools/test_places.py  行き先の表（家・店ごとの品ぞろえ・外出で決まること・約束なしの訪問・お出かけの行き先・行動パターンの移行）のテスト
 tools/test_chat.py  メッセージ（種類 × 状況・既読・未読・会おう・電話や相手からのメッセージ・すぐの返信）のテスト
 tools/test_appoint.py  約束（決まりごと・誘う・誘われる・当日の来る/遅れる/来ない・体調不良のキャンセル・すっぽかし・家）のテスト

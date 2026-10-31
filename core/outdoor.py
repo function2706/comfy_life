@@ -66,6 +66,10 @@ class Outdoor:
         """いまの外出 {kind: out/work/outing, place, with} (外出していなければ None)."""
         app = self.app
         p = app.presence.rec()
+        tr = p.get("travel")
+        if tr and p.get("mode") in ("out", "work"):        # 移動中: 通っていく道 (電車・バスなら駅前, 歩くなら街) の人の多さ
+            return {"kind": "out", "place": "station" if tr.get("how") == "transit" else "town", "with": None, "moving": True,
+                    "dest": tr["to"] if tr.get("dir") == "go" else places_mod.HOME_ME}
         if p.get("mode") == "out":
             pl = p.get("place") or "town"
             if places_mod.is_home(pl):              # 相手の家の前 (約束の訪問で待っている)
@@ -106,6 +110,12 @@ class Outdoor:
             pl = self.app.places.get(cur["place"]) or PLACES["town"]
             out["current"] = dict(cur, label=pl["label"], icon=pl["icon"],
                                   log=(self.app.presence.rec().get("street_log") or [])[-6:])
+            if cur.get("moving"):
+                out["current"].update(label="%sへ移動中" % self.app.places.label(cur["dest"]) if cur["dest"] != places_mod.HOME_ME else "家へ移動中",
+                                      icon="🚃" if cur["place"] == "station" else "🚶")
+        # 行き先ごとの行き方の目安 (いまいる場所から)
+        out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
+        out["travel"] = self.app.geo.view(now)
         return out
 
     # ------------------------------------------------------------------ 心拍のたびに
@@ -130,7 +140,7 @@ class Outdoor:
         app = self.app
         now = now or time.time()
         cur = self.current(now)
-        if not cur or cur["kind"] == "work":
+        if not cur or cur["kind"] == "work" or cur.get("moving"):
             return None
         pl = cur["place"]
         o = places_mod.open_state(pl, datetime.fromtimestamp(now))
@@ -185,11 +195,22 @@ class Outdoor:
                 app.save_state(cid)
                 msgs.append("%sとのお出かけは、そのまま解散して家に帰った" % app.chars[cid].get("name", ""))
         mode = p.get("mode")
+        home_at = beat
         if mode in ("out", "work"):
+            # 出先にいた: 最後の心拍で出先を出て, 家まで移動した (着くまでは閉じていた間の過ごし方に入らない)
+            home_at = min(now, app.geo.home_eta(beat))
+            tr = p.get("travel")
+            if tr and tr.get("dir") == "go":           # 向かう途中で閉じた: その場所にはいなかった / 着いていた
+                p["arrived"] = min(beat, tr["arr"])
+            if not (tr and tr.get("dir") == "home"):
+                p["left"] = beat
+            p.pop("travel", None)
             res = app.come_back(at=beat, quiet=True)
-            msgs.append(res.get("text") or "")
+            msgs.append((res.get("text") or "") + ("。家に着いたのは%s" % datetime.fromtimestamp(home_at).strftime("%H:%M")
+                                                   if home_at - beat >= 300 else ""))
+        p["pos"] = places_mod.HOME_ME
         # オフラインモード: 閉じていた間は, 予定 (勤務時間) に沿って過ごした
-        rep = app.offline.simulate(beat, now)
+        rep = app.offline.simulate(home_at, now)
         if not msgs and not rep:
             return None
         if rep:

@@ -21,6 +21,7 @@ import time
 from datetime import date, datetime, timedelta
 
 from . import cond, llm, store
+from . import geo as geo_mod
 from . import places as places_mod
 from .home import PART_LABEL
 
@@ -114,14 +115,16 @@ class Solo:
             raise ValueError("%sは閉まっています（%s）" % (self.app.places.label(place), o["note"]))
         return place
 
-    def start(self, kind, skill=None, place=None, cid=None):
-        """cid: 告げる相手 (そばにいる人の中から. 無ければ「誰かと」で選んでいる相手)."""
+    def start(self, kind, skill=None, place=None, cid=None, how=None, frm=None):
+        """cid: 告げる相手 (そばにいる人の中から. 無ければ「誰かと」で選んでいる相手).
+        how: 行き方 (walk / transit. 無ければおまかせ). frm: 出るところ (出先から移るとき. 無ければいまいる場所)."""
         app = self.app
+        frm = frm or app.geo.where()
         why = app.blocked("solo")
         if why:
             raise ValueError(why)
         if kind in PLAIN:
-            return self.start_plain(kind, place, cid)
+            return self.start_plain(kind, place, cid, how=how)
         if kind == "kakeibo":
             return self.kakeibo()
         if kind == "read" and app.items.count("novel") <= 0 and not app.life.player_state().get("reading"):
@@ -131,9 +134,37 @@ class Solo:
             kind = "out"
         if kind == "out" and places_mod.is_home(place):      # 相手の家を訪ねる
             self._place(kind, place)
-            done = app.appoint.water_plants(place)            # 留守中の植木の水やり (会わない. 鍵を預かっている)
-            if done:
+            if frm != place:                                  # まず相手の家まで移動する (着いたら arrive_then)
                 now = time.time()
+                app.presence.declare("out", now)
+                pr = app.presence.rec()
+                pr["solo"] = {"kind": "out", "skill": None, "t": now}
+                pr["place"] = place
+                tr = app.geo.depart(place, how, now, then="visit", frm=frm)
+                if tr:
+                    text = "%sへ向かった（%sで%d分ほど）" % (app.places.label(place), geo_mod.HOW_LABEL[tr["how"]],
+                                                     max(1, round((tr["arr"] - now) / 60)))
+                    self.note("out", text, now)
+                    return {"started": "out", "label": "%sへ移動中" % app.places.label(place), "act": None, "done": "（%s）" % text}
+            return self._at_home_of(place)
+        return self._start(kind, skill, place, cid, how, frm)
+
+    def arrive_then(self, then, place, t):
+        """移動して着いたときにすること (core/geo.py の tick から). 相手の家なら, 着いてから訪ねる."""
+        if then == "visit":
+            p = self.app.presence.rec()
+            p["mode"] = "none"                 # 玄関先に着いた (訪ねる処理は家を出るところから)
+            p.pop("solo", None)
+            return self._at_home_of(place, t)
+        return None
+
+    def _at_home_of(self, place, now=None):
+        """相手の家に着いた: 植木の水やり / 約束の訪問 (玄関先で待つ) / 約束なしの訪問."""
+        app = self.app
+        if True:
+            done = app.appoint.water_plants(place, now)       # 留守中の植木の水やり (会わない. 鍵を預かっている)
+            if done:
+                now = now or time.time()
                 app.presence.declare("out", now)
                 pr = app.presence.rec()
                 pr["solo"] = {"kind": "out", "skill": None, "t": now}
@@ -141,9 +172,12 @@ class Solo:
                 app.presence.save()
                 app.solo.note("out", done.strip("（）"), now)
                 return {"started": "out", "label": "%sへ" % app.places.label(place), "act": None, "done": done}
-            if app.appoint.due_at(place):                     # 約束の訪問: 玄関先で約束の時刻を待つ
-                return app.appoint.arrive_home_of(place)
-            return app.drop_in(places_mod.home_of(place))
+            if app.appoint.due_at(place, now):                # 約束の訪問: 玄関先で約束の時刻を待つ
+                return app.appoint.arrive_home_of(place, now)
+            return app.drop_in(places_mod.home_of(place), now)
+
+    def _start(self, kind, skill, place, cid, how, frm):
+        app = self.app
         k = KINDS.get(kind)
         if not k:
             raise ValueError("一人でできることではありません: %s" % kind)
@@ -177,10 +211,16 @@ class Solo:
             if not places_mod.is_home(place) and places_mod.solo_kind(place) == "shopping":    # 店: 品を選び終えるまでの時間
                 p["solo"]["shop_need"] = round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1)
         app.presence.save()
+        tr = app.geo.depart(place, "run" if kind == "jog" else how, now, frm=frm) if place else None
         if k["mode"] == "out":
             app.life.train("groom", 0.15)           # 出かける前に整える
         self.note(kind, ("資格の勉強を始めた" if str(skill or "").startswith("qual:") else START_TEXT[kind]).replace("{skill}", SKILL_LABEL.get(skill or "", ""))
                   .replace("{place}", app.places.label(place) if place else ""), now)
+        if tr:
+            mins = max(1, round((tr["arr"] - now) / 60))
+            return {"started": kind, "label": "%sへ移動中" % app.places.label(place), "act": res, "travel": app.geo.view(now),
+                    "done": None if res else "（%sへ向かった。%sで%d分ほど%s）" % (
+                        app.places.label(place), geo_mod.HOW_LABEL[tr["how"]], mins, "・%s円" % format(tr["fare"], ",") if tr["fare"] else "")}
         return {"started": kind, "label": k["doing"], "act": res}
 
     def kakeibo(self, now=None):
@@ -209,12 +249,13 @@ class Solo:
         sl = p.get("solo") or {}
         place = p.get("place")
         if p.get("mode") != "out" or sl.get("kind") != "out" or sl.get("shop_done") \
-                or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping":
+                or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping" or p.get("travel"):
             return None
         need = sl.setdefault("shop_need", round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1))
-        if now - sl.get("t", now) < need * 60:
+        t_at = p.get("arrived", sl.get("t", now))          # 店に着いてから
+        if now - t_at < need * 60:
             return None
-        res = self._shop_now(place, (now - sl["t"]) / 3600.0, now)
+        res = self._shop_now(place, (now - t_at) / 3600.0, now)
         sl["shop_done"] = res
         app.presence.save()
         self.note("shopping", "%sで買い物を終えた。%s" % (res["label"], res["text"]), now, place=place)
@@ -252,24 +293,31 @@ class Solo:
             self.app.presence.save()
         return {"ok": True}
 
-    def move(self, place, now=None):
-        """出かけている先から, ほかの行き先へ (いまの外出の結果を出して, そのまま出かける)."""
+    def move(self, place, now=None, how=None):
+        """出かけている先から, ほかの行き先へ (いまの外出の結果を出して, そのまま出かける. 場所どうしの距離の移動)."""
         app = self.app
         now = now or time.time()
         p = app.presence.rec()
         if p.get("mode") != "out":
             raise ValueError("いまは出かけていません")
+        if (p.get("travel") or {}).get("dir") == "home":
+            raise ValueError("家へ向かっている途中です")
         self._place("out", place)
+        frm = app.geo.where(now)
+        if p.get("travel"):                    # 向かう途中で行き先を変える: 出たところから
+            frm = p["travel"]["from"]
         ll = app.presence.back(now)
         res = self.finish(ll) if ll else None
-        r = self.start("out", place=place)
+        r = self.start("out", place=place, how=how, frm=frm)
         r["solo"] = res
         return r
 
-    def start_plain(self, kind, place=None, cid=None):
-        """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で."""
+    def start_plain(self, kind, place=None, cid=None, how=None, dest=None):
+        """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で.
+        仕事は職場 (dest: アルバイト先など) まで通う (core/geo.py)."""
         app = self.app
         k = PLAIN[kind]
+        frm = app.geo.where()
         if kind == "busy" and not app.bonds.living():
             raise ValueError("一人暮らしでは「作業する」はありません（同居している相手に、作業中と伝えるためのものです）")
         place = self._place(kind, place)
@@ -283,6 +331,8 @@ class Solo:
             if place and app.presence.rec().get("mode") == "out":
                 app.presence.rec()["place"] = place
                 app.presence.save()
+            if kind == "work" and app.presence.rec().get("mode") == "work":
+                app.geo.depart(dest or "office", how, frm=frm)
             return {"started": kind, "label": k["label"], "act": r}
         if not self._plain_ok(k["go"], None):
             raise ValueError("いまは「%s」できません（%s）" % (k["label"], app.action(k["go"]).get("when", "")))
@@ -291,16 +341,21 @@ class Solo:
         if place:
             app.presence.rec()["place"] = place
             app.presence.save()
+        tr = app.geo.depart(dest or "office", how, now, frm=frm) if kind == "work" else None
         self.note(kind, k["text"], now)
+        if tr:
+            return {"started": kind, "label": k["label"], "act": None, "travel": app.geo.view(now),
+                    "done": "（%sへ向かった。%sで%d分ほど）" % ("職場" if not dest else app.places.label(dest), geo_mod.HOW_LABEL[tr["how"]],
+                                                       max(1, round((tr["arr"] - now) / 60)))}
         return {"started": kind, "label": k["label"], "act": None}
 
     # ------------------------------------------------------------------ 戻ったとき (come_back から)
     def finish(self, ll):
         """ll: presence.back() の結果. 一人の時間だったら結果を返す (なければ None)."""
         sl = ll.get("solo")
-        if not sl:
+        if not sl or sl.get("parted"):          # 別れて家へ帰ってきただけ (core/bonds.py)
             return None
-        h = max(0.0, float(ll.get("h", 0)))
+        h = max(0.0, float(ll.get("h_at", ll.get("h", 0))))     # その場所にいた時間 (移動の時間は入れない)
         shop = sl.get("shop_done")
         if not shop and sl.get("shop_need") and h * 60 >= sl["shop_need"]:
             # 品を選び終える時間は店にいた (心拍の間に済んでいた / 画面を閉じた時点で済んでいた): そこで買い物は済んでいる

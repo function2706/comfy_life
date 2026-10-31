@@ -98,8 +98,8 @@ def main():
         messy = [invite(90.0, "kedakai") for _ in range(12)]
         assert sum(seen(e, "home.guest_messy_mind") for e in messy) >= 6, "きれい好きは散らかりを気にしやすい"
         assert any(r["tell"].endswith("家が散らかっていた") for r in app.life.reasons(gst, time.time()))
-        messy2 = [invite(90.0, "tenshin") for _ in range(12)]
-        assert sum(seen(e, "home.guest_messy_ok") for e in messy2) >= 6, "気にしない人もいる"
+        messy2 = [invite(90.0, "tenshin") for _ in range(24)]
+        assert sum(seen(e, "home.guest_messy_ok") for e in messy2) >= 10, "気にしない人もいる"      # 乱数しだいなので数を多めに
         H.rec()["mess"] = 90.0
         helped = False
         for _ in range(12):

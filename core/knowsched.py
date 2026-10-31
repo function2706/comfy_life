@@ -125,7 +125,7 @@ class KnowSched:
         app = self.app
         now = now or time.time()
         p = app.presence.rec()
-        if p.get("mode") not in ("out", "work") or not p.get("place"):
+        if p.get("mode") not in ("out", "work") or not p.get("place") or p.get("travel"):
             return []       # 外出の行き先, またはアルバイト先
         place = p.get("place")
         seen = p.setdefault("work_seen", [])

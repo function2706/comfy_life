@@ -352,7 +352,7 @@ class Body:
     def here(self, now=None):
         """いる行き先 (一人の外出・誰かとのお出かけ). 家なら None."""
         cur = self.app.outdoor.current(now)
-        return cur["place"] if cur else None
+        return cur["place"] if cur and not cur.get("moving") else None
 
     def menu(self, place, now=None):
         from datetime import datetime as _dt

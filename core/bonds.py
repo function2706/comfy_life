@@ -153,7 +153,8 @@ class Bonds:
         self.rec()["with"] = w
         self.save()
 
-    def end(self):
+    def end(self, go_home=True):
+        """別れる. go_home: 外で会っていた / 相手の家にいたなら, そこから家へ移動する (同居を始めたときなどは移動しない)."""
         w = self.rec().get("with") or {}
         if w.get("mode") == "guest":
             self.app.home.guest_left()          # 来客のあとは少し散らかる
@@ -165,6 +166,35 @@ class Bonds:
         if self.rec().get("with"):
             self.rec()["with"] = None
             self.save()
+        if go_home and w.get("mode") in ("meet", "visit") and w.get("cid") in self.app.chars:
+            self._head_home(w)
+
+    def _head_home(self, w):
+        """外で会っていた / 相手の家にいた: 別れたら, そこから一人で家へ移動する (core/geo.py).
+        別れてすぐ仕事・外出などに向かうとき (告げてから) は, そちらで移動する."""
+        app = self.app
+        if app.presence.rec().get("mode") != "none":
+            return
+        from . import places as places_mod
+        if w["mode"] == "visit":
+            loc = "home:" + w["cid"]
+        else:
+            loc = w.get("place") or (app.state(w["cid"]).get("override") or {}).get("place") or "town"
+        from . import geo as geo_mod
+        if loc == places_mod.HOME_ME or geo_mod.INSTANT:
+            return
+        now = time.time()
+        app.presence.declare("out", now)
+        p = app.presence.rec()
+        p["solo"] = {"kind": "out", "skill": None, "t": now, "parted": True}
+        p["place"], p["pos"] = loc, loc
+        try:
+            r = app.geo.head_home(now)
+        except ValueError:
+            r = None
+        if not r:                               # 移動がいらなかった: そのまま家
+            app.presence.back(now)
+        app.presence.save()
 
     def sync(self, cid, st, now):
         """外で会っていてお出かけの一時シーンが終わった / 遊びに来ていて時間が過ぎた → 別れる."""
@@ -187,10 +217,10 @@ class Bonds:
             self.set_stage(cid, "visit", now)
         elif b == "to_live":
             self.set_stage(cid, "live", now)
-            self.end()
+            self.end(go_home=False)
         elif b == "end_live" and self.stage(cid) == "live":
             self.set_stage(cid, "visit", now)
-            self.end()
+            self.end(go_home=False)
         elif b == "visit_start":
             self.start(cid, "visit", now)
         elif b == "guest_start":

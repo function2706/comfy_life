@@ -113,6 +113,9 @@ class Presence:
         p.pop("work_contacts", None)
         p.pop("job", None)           # アルバイト・副業・頼まれごと (earn) のときは, このあと入れる
         p.pop("task", None)
+        p.pop("travel", None)        # 移動 (core/geo.py) も. 出かけるなら, このあと geo.depart で
+        p.pop("arrived", None)
+        p.pop("left", None)
         p["street_log"], p["enc_check"] = [], now
         self.save()
 
@@ -125,6 +128,15 @@ class Presence:
         ll = {"t": p.get("since", now), "said": True, "mode": p["mode"], "back": now,
               "h": round((now - p.get("since", now)) / 3600, 2), "solo": p.pop("solo", None), "place": p.get("place"),
               "job": p.pop("job", None), "task": p.pop("task", None)}
+        # 移動があった (core/geo.py): その場所にいたのは, 着いてから出るまで (行き帰りの移動の時間は入れない)
+        tr = p.pop("travel", None)
+        arr = p.pop("arrived", None)
+        left = p.pop("left", None)
+        if tr and tr.get("dir") == "go" and now < tr["arr"]:
+            arr = now                                  # 着く前に戻った
+        if arr is not None:
+            ll["arr"], ll["left"] = arr, min(now, left or now)
+            ll["h_at"] = round(max(0.0, ll["left"] - arr) / 3600, 3)
         p["last_left"] = ll
         p["mode"] = "none"
         p["input"] = p["beat"] = now
@@ -152,8 +164,12 @@ class Presence:
             elif sl.get("shop_need"):
                 out["shop_wait"] = max(0, int(sl["t"] + sl["shop_need"] * 60 - now))
             out["label"] = doing or out["label"]
-        if p["mode"] == "work":
-            pay, h, raw = self.app.life.work_pay(p.get("since", now), now)
+        tv = self.app.geo.view(now)
+        if tv:                      # 移動中 (core/geo.py)
+            out["travel"] = tv
+            out["label"] = "%sへ移動中（%s・あと%d分）" % (tv["label"], tv["how_label"], max(1, round(tv["remain"] / 60)))
+        if p["mode"] == "work" and not (tv and tv["dir"] == "go"):
+            pay, h, raw = self.app.life.work_pay(p.get("arrived", p.get("since", now)), p.get("left", now))
             out["work"] = {"hours": round(h, 2), "raw": round(raw, 2), "pay": pay}
         return out
 

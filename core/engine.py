@@ -34,6 +34,7 @@ from . import quals as quals_mod
 from . import chores as chores_mod
 from . import quarrel as quarrel_mod
 from . import moneytalk as moneytalk_mod
+from . import geo as geo_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
@@ -144,6 +145,9 @@ def join_tags(chunks):
     return ", ".join(out)
 
 
+MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
+
+
 class App:
     def __init__(self):
         store.bootstrap()
@@ -187,6 +191,7 @@ class App:
         self.chat = chat_mod.Chat(self)
         self.home = home_mod.Home(self)
         self.places = places_mod.Places(self)
+        self.geo = geo_mod.Geo(self)
         self.appoint = appoint_mod.Appoint(self)
         self.kakeibo = kakeibo_mod.Kakeibo(self)
         self.body = body_mod.Body(self)
@@ -570,6 +575,11 @@ class App:
         ov = st.get("override")
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
+            tt = dt.timestamp()
+            if ov.get("outing") and ov.get("arr", 0) > tt:            # お出かけの移動中 (core/geo.py)
+                s["label"] = "%sへ向かっている" % ov.get("location", "")
+            elif ov.get("outing") and ov.get("leave") and tt >= ov["leave"]:
+                s["label"] = "%sからの帰り道" % ov.get("location", "")
             s["plain_outfit"] = s["outfit"] == "@outing" or (not s["outfit"] and (s["outing"] or base.get("plain_outfit")))
             if s["outfit"] == "@outing" or (s["outing"] and not s["outfit"]):
                 s["outfit"] = char.get("outfit_outing") or char.get("outfit_default", "")
@@ -929,6 +939,10 @@ class App:
                     raise ValueError("%sは閉まっています（%s）" % (places_mod.PLACES[pl]["label"], o["note"]))
             if a.get("home_only") and ctx["outing"]:
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
+            ovm = st.get("override") or {}
+            if ovm.get("outing") and ovm.get("until", 0) > now and (ovm.get("arr", 0) > now or now >= ovm.get("leave", ovm["until"])) \
+                    and a.get("category") not in MOVING_OK and not a.get("end_override"):
+                raise ValueError("移動中は、話すくらいしかできません（着いてから）")
             apart = ctx["apart"]
             if apart and a.get("category") == "連絡" and not opts.get("deliver") and opts.get("msg_kind") != "apology":
                 self._phoned(st, now, char, opts.get("msg_kind"), phone=bool(a.get("phone")))      # スマホで連絡した (謝るメッセージは数えない)
@@ -1091,7 +1105,7 @@ class App:
                 meal_note = self.body.eat_with(pl, char, now)          # あなたも食べる (払いは上の費用で済んでいる)
             else:
                 meal_note = None
-            dress_note = None
+            dress_note = travel_note = None
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
                 ov["until"] = now + float(ov.get("minutes", 30)) * 60
@@ -1101,6 +1115,7 @@ class App:
                     pl = pl if pl in places_mod.PLACES else places_mod.from_location(ov.get("location"))
                     ov["place"] = pl
                     ov["location"] = places_mod.PLACES[pl]["label"]
+                    travel_note = self._outing_travel(cid, ov, pl, now)      # 行き (同居なら帰りも) の移動 (core/geo.py)
                 st["override"] = ov
                 worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
@@ -1223,6 +1238,8 @@ class App:
             text += "\n" + self.format_text(home_note, char, scene, dt)
         if dress_note:
             text += "\n" + self.format_text(dress_note, char, scene, dt)
+        if travel_note:
+            text += "\n" + travel_note
         if meal_note:
             text += "\n" + meal_note
         with self.lock:
@@ -2229,6 +2246,7 @@ class App:
                 self.tick(oid, now)         # 先に, 心拍が途絶えていた間を「いない」として進める
             if beat:
                 self.presence.beat(time.time(), idle)
+            arrival = self.geo.tick() if beat else None             # 移動していて着いた (行き先 / 家)
             closed = self.outdoor.closing() if beat else None       # いる行き先が閉まったら出される
             street_auto = self.street.live()                 # 声をかけられたまま返事をしなかった: 無難な対応に
             street = self.outdoor.live() if beat else None     # 外出中の偶然の出会い (心拍のたびに)
@@ -2263,7 +2281,7 @@ class App:
                 "you": dict(self.life.player_view(), care=round(self.life.skill_soft("care"), 2)), "earn": self.earn.view(now), "kakeibo": self.kakeibo.view(now), "meal": self.body.view(now),
                 "log": log, "log_total": log_total, "jobs": pending,
                 "solo": self.solo.view(), "home": self.home.view(), "replies": replies, "outdoor": self.outdoor.view(), "gap": gap,
-                "street": street, "items": self.items.view(), "shop_done": shop_done, "workplace": workplace,
+                "street": street, "items": self.items.view(), "shop_done": shop_done, "arrival": arrival, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
                 "side_job": self.task_ready(now), "task_active": self.task_active(), "blocked": self.blocked_view(),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
@@ -2277,6 +2295,32 @@ class App:
                 "auto": max(autos, key=lambda x: x["t"]) if autos else None,
             }
             return out
+
+    def _outing_travel(self, cid, ov, pl, now):
+        """お出かけの移動: いまいる場所から行き先まで (同居相手となら, 帰りの移動も一緒). お出かけの時間はその分のびる.
+        移動中は ov["arr"] まで / ov["leave"] から. 運賃はあなたの分 (相手の分は相手の財布から). ナレーションを返す."""
+        frm = self.geo.where(now)
+        if frm == pl or geo_mod.INSTANT:
+            return None
+        try:
+            go = self.geo.leg(frm, pl, None, now)
+            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] != "run" else None, now, rand=False) \
+                if self.bonds.mode(cid) == "home" else None
+        except ValueError:
+            return None
+        ov["arr"] = now + go["min"] * 60
+        ov["until"] += (go["min"] + (back["min"] if back else 0)) * 60
+        ov["how"] = go["how"]
+        if back:
+            ov["leave"] = ov["until"] - back["min"] * 60
+        fare = go["fare"] + (back["fare"] if back else 0)
+        if fare:
+            self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % places_mod.PLACES[pl]["label"])
+            hm = self.life.her_money(self.state(cid))
+            hm["a"] = max(0, hm["a"] - fare)
+        self.life.tire(2.0 * min(go["min"], 60) / 60.0)
+        return "（%sまで%sで%d分ほど%s）" % (places_mod.PLACES[pl]["label"], geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),
+                                     "・%s円" % format(fare, ",") if fare else "")
 
     def _company_item(self, cid):
         b = self.bonds.view(cid)
@@ -2324,11 +2368,16 @@ class App:
                 "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
-    def come_back(self, cid=None, at=None, quiet=False):
+    def come_back(self, cid=None, at=None, quiet=False, arrived=False):
         """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る.
         at: 戻った時刻 (心拍が途絶えていたときは最後の心拍). quiet: 誰の反応もなく, 結果だけ (画面を閉じていたとき).
-        偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない."""
+        偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない.
+        出先にいれば, まず家へ移動する (core/geo.py. 着いたら arrived=True でここに戻ってくる)."""
         with self.lock:
+            if not quiet and not arrived and self.presence.rec().get("mode") in ("out", "work") and self.geo.away():
+                r = self.geo.head_home()
+                if r:
+                    return r
             wc = self.presence.rec().pop("work_contacts", 0)
             ll = self.presence.back(at)
             if not ll:
@@ -2349,7 +2398,7 @@ class App:
                 return self._back_parttime(ll, near, quiet, wc)
             if ll.get("job") in ("gig", "favor"):
                 return self._back_task(ll, near, quiet)
-            pay, h, raw = self.life.work_pay(ll["t"], ll["back"], record=True)
+            pay, h, raw = self.life.work_pay(ll.get("arr", ll["t"]), ll.get("left", ll["back"]), record=True)    # 職場にいた間 (通勤は入れない)
             work_note = ""
             if wc > 2:       # 仕事中にしょっちゅうスマホを見ていた: 効率が落ちて, 評価にも響く
                 pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
@@ -2376,7 +2425,7 @@ class App:
     def _back_parttime(self, ll, near, quiet, wc):
         """アルバイトから戻った: シフトと重なった分だけ. (誰かいれば「仕事から帰る」の反応)."""
         pt = self.earn.pt() or {}
-        pay, h, gain = self.earn.pt_pay(ll["t"], ll["back"])
+        pay, h, gain = self.earn.pt_pay(ll.get("arr", ll["t"]), ll.get("left", ll["back"]))
         note = ""
         if wc > 2:
             pay = int(pay * max(0.6, 1 - 0.05 * (wc - 2)) / 10) * 10
@@ -2384,7 +2433,7 @@ class App:
         mv = self.life.move(None, dp=pay, cat="income", note="バイト代") if pay else {}
         label = self.earn.job(pt["job"])["label"] if pt.get("job") else "アルバイト"
         text = ("%sのバイトを終えた（%s円）%s" % (label, format(pay, ","), note)) if h \
-            else "バイト先に着いてすぐ、引き返してきた" if float(ll.get("h", 0)) < 0.25 \
+            else "バイト先に着いてすぐ、引き返してきた" if float(ll.get("h_at", ll.get("h", 0))) < 0.25 \
             else "%sのバイトに行ったが、シフトの時間ではなかった" % self.places.label(ll.get("place") or "")
         if quiet:
             return {"text": text, "pay": pay}
@@ -2436,20 +2485,26 @@ class App:
                 raise ValueError("アルバイトをしていません（求人から応募できます）")
             if not self.earn.shift_now():
                 raise ValueError("いまはシフトの時間ではありません（%s）" % self.earn.shift_text(pt["shifts"]))
+            dest = self.earn.job(pt["job"])["place"]
             if self.solo.near(cid):          # そばに誰かいれば「仕事に行ってくる」と告げて
-                r = self.solo.start_plain("work", cid=cid)
+                r = self.solo.start_plain("work", cid=cid, dest=dest)
             else:                            # 一人なら, シフトの時間に合わせて (夜のシフトも)
                 if self.body.level() >= 3:
                     raise ValueError("寝込むほどつらくて、バイトに行けそうにない（休むか、病院へ）")
                 if self.presence.rec().get("mode") != "none":
                     raise ValueError("いまは出かけられません（先に戻ってください）")
                 now = time.time()
+                frm = self.geo.where(now)
                 self.presence.declare("work", now)
+                tr = self.geo.depart(dest, None, now, frm=frm)
                 self.solo.note("work", "バイトに出かけた", now)
                 r = {"started": "work", "label": "バイトに行く", "act": None}
+                if tr:
+                    r["done"] = "（バイト先の%sへ向かった。%sで%d分ほど）" % (self.places.label(dest), geo_mod.HOW_LABEL[tr["how"]],
+                                                                 max(1, round((tr["arr"] - now) / 60)))
             p = self.presence.rec()
             p["job"] = "parttime"
-            p["place"] = self.earn.job(pt["job"])["place"]
+            p["place"] = dest
             self.presence.save()
             return r
 

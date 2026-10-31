@@ -11,7 +11,7 @@
 - 約束の場所へは, 自分で出向く: ふつうの外出 (一人の「外出」で行き先を約束の場所に) で行く. 約束の場所にいる状態で約束の時刻を
   迎えると会える (早く着けば, その場で待つ. 待っている間も外出中で, 偶然の出会いなども普段どおり. 別の用事で同じ場所に来ていても会える).
   相手の家での約束は, 相手の家へ出向く (約束の前後なら, 約束なしの訪問ではなく玄関先で待つ). あなたの家に招く約束は, 家にいればよい.
-  移動に時間はかからない (ほかの外出と同じく, 出かけたらすぐ着く). 外出は画面を開いている間だけなので, 閉じれば家に帰る (= いない).
+  移動には時間がかかる (core/geo.py. 約束の時刻は着く時刻. row の leave に何時に出れば間に合うか). 外出は画面を開いている間だけなので, 閉じれば家に帰る (= いない).
 - 相手の側は, 約束したときに決まっている (見えない):
   すっぽかし (仲が浅いほど・時間にルーズな性格ほど) / 遅刻 (性格の punctual しだい) / 体調不良のキャンセル (3 時間前ごろ, 健康しだい).
   来なければ, その場所で待ちぼうけ (30 分待って来なければあきらめる. あとで謝りのメッセージが来ることも). 遅れて来れば, それまで待つ.
@@ -583,7 +583,7 @@ class Appoint:
         w = app.bonds.with_rec()
         if place == places_mod.HOME_ME:
             return mode in ("none", "busy") and not (w and w["mode"] in ("meet", "visit")) and not app.outdoor.current(now)
-        return mode == "out" and (p.get("place") or "town") == place and not w
+        return mode == "out" and (p.get("place") or "town") == place and not w and not p.get("travel")     # 移動中はまだ着いていない
 
     def go(self, aid, now=None):
         """約束の場所へ出かける (ふつうの外出. 行き先を約束の場所に). あなたの家に招く約束なら, 家にいればよい."""
@@ -597,11 +597,16 @@ class Appoint:
         if x["place"] == places_mod.HOME_ME:
             raise ValueError("あなたの家に来てもらう約束です（%sに家にいれば会えます）" % fmt_when(x["t"], now))
         pres = app.presence.rec()
+        frm = app.geo.where(now)
         if pres.get("mode") == "out":          # 一人で出かけていたなら, そこから向かう (結果は残す)
+            if (pres.get("travel") or {}).get("dir") == "home":
+                raise ValueError("家へ向かっている途中です")
+            if pres.get("travel"):
+                frm = pres["travel"]["from"]
             ll = app.presence.back(now)
             if ll:
                 app.solo.finish(ll)
-        r = app.solo.start("out", place=x["place"])
+        r = app.solo.start("out", place=x["place"], frm=frm)
         return dict(r, status="going", text="（%sへ出かけた。約束は%s）" % (app.places.label(x["place"]), fmt_when(x["t"], now)))
 
     def arrive_home_of(self, place, now=None):
@@ -873,4 +878,20 @@ class Appoint:
                 "status_label": self.favor_status(x, now) if x.get("favor") else STATUS_LABEL.get(st, st), "due": due,
                 "favor": bool(x.get("favor")), "fixed": bool(x.get("fixed")), "ask": bool(x.get("ask")),
                 "plants": bool(x.get("plants")), "until": x.get("until"),
-                "when_label": self.when_of(x, now)}
+                "when_label": self.when_of(x, now), "leave": self.leave_by(x, now) if st in ("set", "waiting") else None}
+
+    def leave_by(self, x, now=None):
+        """何時に出れば間に合うか (いまいる場所から. 電車・バスなら待ちも見込む). あなたの家なら None."""
+        if x["place"] == places_mod.HOME_ME:
+            return None
+        app = self.app
+        try:
+            o = app.geo.options(app.geo.where(now), x["place"], x["t"] - 3600)
+        except Exception:  # noqa: BLE001 - 目安なので
+            return None
+        how = o["best"]
+        m = (o["transit"] or {}).get("min", 0) + 5 if how == "transit" else o["walk"]["min"]
+        if not m:
+            return None
+        t = x["t"] - m * 60
+        return {"t": t, "label": datetime.fromtimestamp(t).strftime("%H:%M"), "min": int(m), "how": how}

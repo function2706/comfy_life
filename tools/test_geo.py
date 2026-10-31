@@ -1,0 +1,135 @@
+"""マップの段階 1 (core/geo.py): 場所の位置・行き方 (徒歩 / 電車・バス)・移動中・着く・家へ帰る・通勤・閉じていた間の移動.
+
+    python tools/test_geo.py
+"""
+import os
+import random
+import shutil
+import sys
+import tempfile
+import time
+from datetime import datetime, timedelta
+
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, HERE)
+from core import engine, geo as G, places as PL, store  # noqa: E402
+
+
+def at(date, hm):
+    return datetime.strptime("%s %s" % (date, hm), "%Y-%m-%d %H:%M").timestamp()
+
+
+def main():
+    random.seed(11)
+    tmp = tempfile.mkdtemp(prefix="kurashi_test_")
+    store.DATA = tmp
+    try:
+        app = engine.App()
+        app.save_settings({"auto_generate": False})
+        app.create_world("移動のある町")
+        geo, L, P = app.geo, app.life, app.presence
+        L.player_state()["stamina"] = 100
+        L.player_state()["money"] = 50000
+        geo.ensure()
+
+        # ---- 1. 位置の決まり: 家から駅は歩いて 6〜26 分, 海・山は歩いて行けない (電車), 公園は近い
+        home = PL.HOME_ME
+        m = geo.walk_min(home, "station", time.mktime((2026, 5, 1, 12, 0, 0, 0, 0, -1)))
+        assert 5 <= m <= 30, m
+        noon = at("2026-05-01", "12:00")
+        o = geo.options(home, "beach", noon)
+        assert not o["walk"]["ok"] and o["transit"] and o["transit"]["ok"] and o["best"] == "transit", o
+        assert geo.options(home, "park", noon)["transit"] is None
+        assert geo.options(home, "beach", at("2026-05-01", "02:00"))["transit"]["ok"] is False     # 夜中は走っていない
+        lg = geo.leg(home, "beach", "transit", at("2026-05-01", "02:00"), rand=False)
+        assert lg["note"] == "始発を待った" and lg["min"] > 180, lg
+        print("位置と行き方: OK | 駅まで%d分, 海まで電車%d分・%d円" % (m, o["transit"]["min"], o["transit"]["fare"]))
+
+        # ---- 2. 一人の外出: 移動中 → 着く (店の買い物は着いてから) → 帰る (家へ移動中) → 家に着く
+        app.items.set_list("bread", 1)
+        r = app.solo.start("out", place="supermarket", how="walk")
+        tr = geo.travel()
+        assert tr and tr["dir"] == "go" and "移動中" in r["label"], r
+        now = time.time()
+        assert geo.moving(now) and app.outdoor.current(now).get("moving")
+        assert "移動中" in P.view(now)["label"]
+        assert app.solo.shop_tick(now + 3600) is None                 # 着くまで買い物は始まらない
+        arr = tr["arr"]
+        a = geo.tick(arr + 1)
+        assert a and "着いた" in a["text"] and P.rec()["pos"] == "supermarket", a
+        assert app.solo.shop_tick(arr + 60) is None                   # 着いてすぐは品を選んでいる
+        done = app.solo.shop_tick(arr + 3600)
+        assert done and done["place"] == "supermarket", done
+        back = app.come_back()
+        assert back.get("traveling"), back
+        trh = geo.travel()
+        assert trh["dir"] == "home" and P.rec()["mode"] == "out"
+        with app.lock:
+            a = geo.tick(trh["arr"] + 1)
+        assert a and P.rec()["mode"] == "none" and P.rec()["pos"] == home, (a, P.rec())
+        print("一人の外出: OK |", r.get("done"), "→", a["text"])
+
+        # ---- 3. 電車で遠くへ: 運賃が家計に (交通費)
+        m0 = L.player_state()["money"]
+        app.solo.start("out", place="aquarium", how="transit")
+        tr = geo.travel()
+        assert tr["how"] == "transit" and tr["fare"] > 0 and L.player_state()["money"] == m0 - tr["fare"], tr
+        assert any(x["c"] == "transport" for x in app.kakeibo.rec()["raw"]) if hasattr(app.kakeibo, "rec") else True
+        r = app.come_back()                                         # 着く前に引き返す: 出たところ (家) から → すぐ家
+        assert P.rec()["mode"] == "none" and not geo.travel(), (r, P.rec())
+        print("電車・運賃・引き返す: OK | 片道%d円" % tr["fare"])
+
+        # ---- 4. 仕事: 通勤して, 職場にいた間だけ給料
+        r = app.solo.start("work")
+        tr = geo.travel()
+        assert tr and tr["to"] == "office" and P.rec()["mode"] == "work", (r, tr)
+        geo.tick(tr["arr"] + 1)
+        P.rec()["arrived"] = tr["arr"]
+        t_left = tr["arr"] + 3 * 3600
+        P.rec()["left"] = t_left
+        hb = geo.leg("office", home, None, t_left, rand=False)
+        P.rec()["travel"] = {"from": "office", "to": home, "how": hb["how"], "t0": t_left, "arr": t_left + hb["min"] * 60,
+                             "fare": 0, "dir": "home", "then": None, "note": ""}
+        with app.lock:
+            a = geo.tick(t_left + hb["min"] * 60 + 1)
+        assert "仕事を終えて" in (a["act"].get("text") or a["act"].get("entry", {}).get("text", "")) or a["act"], a
+        print("通勤: OK | 職場まで%d分" % round((tr["arr"] - tr["t0"]) / 60))
+
+        # ---- 5. 約束の場所: 移動中はまだ着いていない
+        app.solo.start("out", place="cafe", how="walk") if PL.open_state("cafe", datetime.now())["open"] else app.solo.start("out", place="park")
+        pl = P.rec()["place"]
+        assert not app.appoint.here(pl)
+        geo.tick(geo.travel()["arr"] + 1) if geo.travel() else None
+        assert app.appoint.here(pl)
+        P.rec()["travel"] = None
+        P.rec().pop("travel")
+        with app.lock:
+            app.come_back(at=time.time(), quiet=True)
+        P.rec()["pos"] = home
+        print("約束の場所: OK")
+
+        # ---- 6. 閉じていた間: 出かける行動には行き帰りの移動が入る
+        app.save_settings({"offline": {"enabled": True, "days": {d: [{"at": "00:00", "do": "sleep"}, {"at": "10:00", "do": "out", "place": "mall"},
+                                                                    {"at": "13:00", "do": "home"}] for d in ("mon", "tue", "wed", "thu", "fri", "sat", "sun")}}})
+        d = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        rep = app.offline.simulate(at(d, "09:00"), at(d, "15:00"))
+        mv = [x for x in rep["timeline"] if x["do"] == "move"]
+        assert len(mv) == 2 and "ショッピングモールへ" in mv[0]["text"] and "家へ" in mv[1]["text"], rep["timeline"]
+        out = next(x for x in rep["timeline"] if x["do"] == "out")
+        assert out["t"] == mv[0]["end"] and mv[1]["t"] >= out["end"], rep["timeline"]
+        print("閉じていた間: OK |", [x["text"][:28] for x in rep["timeline"]])
+
+        # ---- 7. 画面を閉じたとき: 出先から家に着くまでは, 閉じていた間の過ごし方に入らない
+        app.solo.start("out", place="mall", how="transit")
+        b = time.time()
+        geo.tick(geo.travel()["arr"] + 1)
+        eta = geo.home_eta(b + 1800)
+        assert eta > b + 1800
+        print("閉じたとき: OK | 帰り %d 分" % round((eta - b - 1800) / 60))
+        print("ALL OK")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

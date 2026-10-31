@@ -136,7 +136,7 @@ def route(method, path, q, body):
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid, b.get("choice"))
         if path == "/api/solo/start":
-            return a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid)
+            return a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid, how=b.get("how"))
         if path == "/api/medicine":
             with a.lock:
                 return a.body.medicine()
@@ -147,7 +147,7 @@ def route(method, path, q, body):
             return a.solo.shop_ack()
         if path == "/api/solo/move":
             with a.lock:
-                return a.solo.move(b["place"])
+                return a.solo.move(b["place"], how=b.get("how"))
         if path == "/api/diary/write":
             return {"diary": a.solo.write_diary()}
         if path == "/api/items/list":

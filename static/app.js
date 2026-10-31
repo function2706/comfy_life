@@ -147,6 +147,7 @@ async function refresh() {
   if (v.street_auto) toast(v.street_auto.text.split('\n')[0], 'ok');
   for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
   if (v.closed) toast(v.closed.text, 'ok');
+  if (v.arrival) { if (v.arrival.act) handleActResult(v.arrival.act); toast(`📍 ${v.arrival.text.replace(/^（|）$/g, '')}`, 'ok'); }
   for (const w of v.workplace || []) toast(`🏪 ${w}`, 'ok');
   noteMemos();
   if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
@@ -352,10 +353,15 @@ function renderSoloTab() {
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'), sj ? h('small', { class: 'muted' }, sj.reason.replace(/^.*（(.*)）$/, '$1')) : null))),
     S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '行き先（行き先しだいで、することが決まります。人の多さは時間帯と天気しだい）'),
+      S.placeFor === 'jog' ? h('div', { class: 'muted small', style: 'grid-column:1/-1' }, '家から走って向かいます') : howPicker(),
       ...placeGroups(OD_CHOICES()[S.placeFor], (pl) => { const P = (S.view.outdoor.places || {})[pl] || {};
         if (P.open === false) return h('button', { class: 'cmd', disabled: true, title: `${P.label}は閉まっています（${P.hours}）` },
           h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
-        return btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl); }, placeTip(pl)); })) : null,
+        const rt = S.placeFor === 'jog' ? null : routeText(pl);
+        const b = btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl, S.how); },
+          [placeTip(pl), routeTip(pl)].filter(Boolean).join('\n'), rt && rt.ng);
+        if (rt) b.append(h('small', { class: 'muted' }, rt.text));
+        return b; })) : null,
     S.choresOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       btn('🧹', '全部', () => { S.choresOpen = false; soloStart('chores'); }, '散らかり・洗い物・洗濯物・ゴミをまとめて片付ける（戻るまで。洗剤があるとはかどる）'),
       ...[['mess', '🧺', '部屋の片付け', ''], ['dishes', '🍽', '洗い物', ''], ['laundry', '👕', '洗濯', (v.home || {}).wet ? '（雨なので部屋干し。乾きにくい）' : ''],
@@ -396,6 +402,32 @@ function renderSoloTab() {
 }
 
 const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) || {};
+// 行き方 (core/geo.py): おまかせ / 歩く / 電車・バス. 行き先ごとの目安は outdoor.routes (いまいる場所から)
+S.how = 'auto';
+const HOW_NAME = { auto: 'おまかせ', walk: '🚶 歩く', transit: '🚃 電車・バス' };
+function howPicker(onchange) {
+  return h('div', { class: 'row', style: 'grid-column:1/-1;gap:4px;align-items:center' }, h('span', { class: 'muted small' }, '行き方:'),
+    ...Object.entries(HOW_NAME).map(([k, label]) => h('button', { class: 'btn small' + (S.how === k ? ' primary' : ''),
+      onclick: () => { S.how = k; (onchange || renderSoloTab)(); } }, label)));
+}
+function routeOf(id) { return (((S.view || {}).outdoor || {}).routes || {})[id]; }
+// 選んでいる行き方での目安 (行けなければ ng)
+function routeText(id) {
+  const r = routeOf(id);
+  if (!r) return null;
+  const how = S.how === 'auto' ? r.best : S.how;
+  if (how === 'transit') {
+    if (!r.transit) return { text: '電車・バスは使えない距離', ng: S.how === 'transit' };
+    return { text: `🚃${r.transit.min}分・${r.transit.fare}円${r.transit.ok ? '' : '（運休中）'}`, ng: !r.transit.ok && !r.walk.ok };
+  }
+  return { text: r.km < 0.05 ? 'いまいる所' : `🚶${r.walk.min}分`, ng: !r.walk.ok };
+}
+function routeTip(id) {
+  const r = routeOf(id);
+  if (!r) return '';
+  return `道のり ${r.km}km・徒歩 ${r.walk.min}分${r.walk.ok ? '' : '（遠すぎる）'}` +
+    (r.transit ? `・電車/バス ${r.transit.min}分（待ちを含む目安）片道 ${r.transit.fare}円${r.transit.note ? '・' + r.transit.note : ''}` : '');
+}
 // 行き先を分類 (近所・お店・遊びに・家) ごとに並べる
 function placeGroups(ids, mk) {
   const od = (S.view || {}).outdoor || {};
@@ -424,11 +456,11 @@ function pickPlace(a) {
   document.body.append(dlg);
   dlg.showModal();
 }
-async function soloStart(kind, skill, place) {
+async function soloStart(kind, skill, place, how) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const r = await api('/api/solo/start', withT({ kind, skill, place }));
+    const r = await api('/api/solo/start', withT({ kind, skill, place, how: how && how !== 'auto' ? how : undefined }));
     if (r.act) handleActResult(r.act); else toast(r.done || `${r.label}…`, 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
@@ -1673,12 +1705,13 @@ function appointLine(x, withBtn) {
   return h('div', { class: 'appoint-line' },
     h('div', {}, x.status === 'waiting' ? `📍 ${x.place_label}で待っている（${x.name}はまだ来ていない）`
       : x.plants ? `🪴 ${x.when_label}のうちに${x.place_label}へ「${x.do_label}」（会わない。鍵を預かっている）`
-        : `📅 ${x.when}に${x.place_label}で${x.name}と「${x.do_label}」`, set && !x.plants ? h('span', { class: 'muted small' }, `（${remainText(x.remain)}）`) : ''),
+        : `📅 ${x.when}に${x.place_label}で${x.name}と「${x.do_label}」`, set && !x.plants ? h('span', { class: 'muted small' }, `（${remainText(x.remain)}）`) : '',
+      set && x.leave && !x.here ? h('span', { class: 'muted small' }, `　${x.leave.label}に出れば間に合う（${x.leave.how === 'transit' ? '電車・バス' : '徒歩'}${x.leave.min}分）`) : ''),
     withBtn && set ? h('div', { class: 'row' },
       x.here ? h('span', { class: 'muted small' }, x.home_me ? '家にいれば、時間に来てくれます' : 'もう着いている。時間まで、ここで待つ')
         : x.home_me ? h('span', { class: 'muted small' }, 'あなたの家に来てもらう約束（その時間に家にいる）')
           : h('button', { class: 'btn small', disabled: S.busy || ((S.view.presence || {}).mode !== 'none' && (S.view.presence || {}).mode !== 'out'),
-            title: '行き先を約束の場所にして出かけます（すぐ着きます）。画面を閉じると家に帰るので、約束の場所にいないことになります',
+            title: '行き先を約束の場所にして出かけます（移動に時間がかかります）。画面を閉じると家に帰るので、約束の場所にいないことになります',
             onclick: () => goAppoint(x.id) }, x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : '');
 }
 // 約束の時刻が近い: 出かける (着いていれば, 時間まで待つ)
@@ -1735,7 +1768,9 @@ function renderAway() {
   box.hidden = false;
   box.replaceChildren(h('div', { class: 'away-card' },
     h('div', { class: 'away-ic' }, a[0]),
-    h('div', { class: 'away-title' }, p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
+    h('div', { class: 'away-title' }, p.travel ? `${p.travel.how === 'transit' ? '🚃' : '🚶'} ${p.label}` : p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
+    p.travel ? h('div', { class: 'muted small' }, p.travel.dir === 'home' ? '家に着くまでは、まだ外です（スマホは使えます）'
+      : `着くまでは、${p.travel.label}でのことはできません（スマホは使えます）${p.travel.note ? '。' + p.travel.note : ''}`) : '',
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     shopCard(p),
@@ -1760,7 +1795,8 @@ function renderAway() {
       h('br'), p.mode === 'work' ? '戻ったときに、働いた時間ぶんのお給料が入ります（上限あり）。' : '「' + a[2] + '」で戻ります。')
       : h('p', { class: 'muted small' }, comp ? `${comp}のそばを離れています。このまま画面を閉じてもかまいません。`
         : '一人で過ごしています。このまま画面を閉じてもかまいません。', h('br'), '「' + a[2] + '」で戻ります。'),
-    h('button', { class: 'btn primary', disabled: S.busy, onclick: comeBack }, a[2])));
+    h('button', { class: 'btn primary', disabled: S.busy || (p.travel && p.travel.dir === 'home'), onclick: comeBack },
+      p.travel && p.travel.dir === 'home' ? '家へ向かっている' : p.travel ? '引き返す' : a[2])));
 }
 
 // 店での買い物: 品を選んでいる間は「買い物中」, 済んだら目立つ知らせ (読んだら閉じる. 帰る・ほかの店へ)
@@ -1791,18 +1827,21 @@ function pickNextShop() {
   const ids = (OD_CHOICES().out || []).filter((id) => id !== ((S.view.presence || {}).solo ? (od.current || {}).place : null));
   const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto;max-height:86vh;overflow:auto' });
   const close = () => { dlg.close(); dlg.remove(); };
-  dlg.append(h('div', { style: 'padding:14px' },
-    h('div', { class: 'row' }, h('b', {}, 'ほかの行き先へ'), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
-    h('div', { class: 'cmds', style: 'margin-top:8px' }, ...placeGroups(ids, (id) => {
+  const body = h('div', { class: 'cmds', style: 'margin-top:8px' });
+  const fill = () => body.replaceChildren(howPicker(fill), ...placeGroups(ids, (id) => {
       const P = (od.places || {})[id] || {};
-      return h('button', { class: 'cmd', disabled: P.open === false || S.busy, title: placeTip(id), onclick: async () => {
+      const rt = routeText(id);
+      return h('button', { class: 'cmd', disabled: P.open === false || S.busy || (rt && rt.ng), title: [placeTip(id), routeTip(id)].filter(Boolean).join('\n'), onclick: async () => {
         close();
         if (S.busy) return;
         S.busy = true;
-        try { const r = await api('/api/solo/move', { place: id }); if (r.solo) toast(r.solo.text, 'ok'); toast(`${P.label}へ向かった`, 'ok'); }
+        try { const r = await api('/api/solo/move', { place: id, how: S.how !== 'auto' ? S.how : undefined }); if (r.solo) toast(r.solo.text, 'ok'); toast((r.done || `${P.label}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
         catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
-      } }, h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || id), P.open === false ? h('small', { class: 'muted' }, P.note) : null);
-    }))));
+      } }, h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || id), P.open === false ? h('small', { class: 'muted' }, P.note) : rt ? h('small', { class: 'muted' }, rt.text) : null);
+    }));
+  fill();
+  dlg.append(h('div', { style: 'padding:14px' },
+    h('div', { class: 'row' }, h('b', {}, 'ほかの行き先へ'), h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')), body));
   document.body.append(dlg);
   dlg.showModal();
 }
@@ -1812,7 +1851,8 @@ async function comeBack() {
   if (p.mode === 'out' && p.shop_wait != null && !p.shop && !confirm('まだ買い物の途中です（品を選んでいる）。何も買わずに帰りますか？')) return;
   if (S.busy) return;
   S.busy = true;
-  try { handleActResult(await api('/api/presence/back', withT({}))); } catch (e) { toast(e.message, 'err'); }
+  try { const r = await api('/api/presence/back', withT({})); if (r.traveling) toast(r.text.replace(/^（|）$/g, ''), 'ok'); else handleActResult(r); }
+  catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
 
