@@ -572,6 +572,10 @@ class App:
 
     def scene_at(self, char, st, dt):
         base = self.scheduled_scene(char, dt)
+        hx = self.appoint.heading(char["id"], dt.timestamp()) if hasattr(self, "appoint") and not st.get("override") else None
+        if hx:                                  # 約束の場所へ向かっている (相手の移動. core/appoint.py の plan.go)
+            base = dict(base, label="%sへ向かっている" % self.places.label(hx["place"]),
+                        away=True, busy=True, activity="moving")
         ov = st.get("override")
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")

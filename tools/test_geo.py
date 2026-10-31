@@ -169,6 +169,39 @@ def main():
         res = app.solo.result("out", 2.0, time.time(), place="driving_school")
         assert "教習" in res["text"] and app.quals.rec()["study"]["drive"] > 0, res
         print("自転車・車・タクシー・教習所: OK |", res["text"])
+
+        # ---- 9. 段階 3: 途中の出来事 (遅延・パンク). 地図の点
+        G.EV_DELAY, G.EV_FLAT = 1.0, 1.0
+        lg = geo.leg(home, "beach", "transit", noon)
+        assert "遅れた" in lg["note"], lg
+        lg = geo.leg(home, "riverside", "bike", noon)
+        assert "パンク" in lg["note"] and lg["fare"] == G.FLAT_FIX, lg
+        G.EV_DELAY, G.EV_FLAT = 0.04, 0.015
+        mv = app.state_view()["outdoor"]
+        assert home in mv["map"] and "station" in mv["map"] and "mall" in mv["map"] and mv["here"] == home
+        assert "modes" in mv["routes"]["mall"] and "taxi" in mv["routes"]["mall"]["modes"]
+        print("途中の出来事・地図: OK")
+
+        # ---- 10. 段階 4: 約束の相手も, 自分の家から移動してくる (約束の前は「向かっている」. 遠いと遅れやすい)
+        cid = app.settings["active_character"]
+        app.bonds.set_stage(cid, "contact")
+        char, st = app.char(cid), app.state(cid)
+        st["override"] = None
+        t_ap = time.time() + 3 * 3600
+        x = {"id": "geo1", "cid": cid, "t": t_ap, "place": "aquarium", "do": "date", "by": "me", "status": "set"}
+        x["plan"] = app.appoint._plan(char, st, x)
+        x["plan"].update(noshow=False, late=0)
+        app.appoint.all().append(x)
+        go = x["plan"]["go"]
+        assert go > 10, x["plan"]
+        assert app.appoint.heading(cid, t_ap - go * 60 - 120) is None
+        assert app.appoint.heading(cid, t_ap - 60)["id"] == "geo1"
+        sc = app.scene_at(char, st, datetime.fromtimestamp(t_ap - 60))
+        assert "水族館へ向かっている" in sc["label"] and sc["away"], sc
+        x2 = dict(x, place="home:" + cid)
+        assert app.appoint._plan(char, st, x2)["go"] == 0          # 相手の家での約束: 相手は動かない
+        app.appoint.all().remove(x)
+        print("相手の移動: OK | 相手の家から水族館まで%d分" % go)
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

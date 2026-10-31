@@ -300,7 +300,7 @@ class Appoint:
             fv = app.attach.factor(char, st, "devotion")
             if fv > 0 and random.random() < 0.4 * fv:          # 献身的なら, 自分の予定のほうを動かして合わせてくれることも
                 x["status"] = "set"
-                x["plan"] = self._plan(char, st)
+                x["plan"] = self._plan(char, st, x)
                 x["rearranged"] = True
                 st.pop("date_promise", None)
                 self.save()
@@ -320,7 +320,7 @@ class Appoint:
             pa = 0
         if random.random() < max(0.03, min(0.95, pa)):
             x["status"] = "set"
-            x["plan"] = self._plan(char, st)
+            x["plan"] = self._plan(char, st, x)
             st.pop("date_promise", None)
             self.save()
             return "appoint_yes", {"heart": 2, "mood": 2}, extra
@@ -358,8 +358,9 @@ class Appoint:
         extra = dict(extra, when=fmt_when(t, now), place=app.places.label(x["place"]))
         return "appoint_counter", {}, extra
 
-    def _plan(self, char, st):
-        """相手の側の, 当日のこと (約束したときに決まる. 画面には出さない). 体調不良のキャンセルは当日の健康で決める."""
+    def _plan(self, char, st, x=None):
+        """相手の側の, 当日のこと (約束したときに決まる. 画面には出さない). 体調不良のキャンセルは当日の健康で決める.
+        相手も自分の家から約束の場所へ移動する (core/geo.py): 電車・バスなら遅延, 車なら渋滞で遅れることがある. go: 移動の分."""
         p = st["params"]
         low = max(0.0, -self.app.attach.factor(char, st, "devotion"))      # 自分優先なほど, すっぽかし・遅刻しやすい
         punctual = float(self.app.traits(char).get("punctual", 0.75)) - 0.15 * low
@@ -368,7 +369,30 @@ class Appoint:
         if not noshow and random.random() > punctual:
             late = int(random.uniform(5, 40) * (1.5 - punctual))
         move = not noshow and random.random() < 0.3 * low           # 自分の都合で, 日を動かしたいと言ってくる
-        return {"noshow": noshow, "late": late, "cancel_checked": False, "move": move}
+        go = 0
+        if x and x.get("place") and (not places_mod.is_home(x["place"]) or x["place"] == places_mod.HOME_ME):    # 相手の家なら移動なし
+            try:
+                lg = self.app.geo.leg("home:" + char["id"], x["place"], None, x["t"])
+                go = int(lg["min"])
+                if not noshow and lg.get("note") and lg["how"] in ("transit", "car", "taxi", "bike"):
+                    late += int(random.uniform(5, 20))         # 途中の遅れ (遅延・渋滞・パンク)
+            except ValueError:
+                go = 0
+        return {"noshow": noshow, "late": late, "cancel_checked": False, "move": move, "go": go}
+
+    def heading(self, cid, now=None):
+        """相手がいま約束の場所へ向かっているところなら, その約束 (相手の様子に「向かっている」と出す)."""
+        now = now or time.time()
+        for x in self.all():
+            if x["cid"] != cid or x["status"] not in ("set", "waiting"):
+                continue
+            pl = x.get("plan") or {}
+            if pl.get("noshow") or not pl.get("go"):
+                continue
+            come = x["t"] + pl.get("late", 0) * 60
+            if come - pl["go"] * 60 <= now < come:
+                return x
+        return None
 
     # ------------------------------------------------------------------ 相手から誘われる
     def answer(self, aid, yes, now=None):
@@ -402,7 +426,7 @@ class Appoint:
                 return {"ok": True, "status": x["status"]}
             if yes:
                 x["status"] = "set"
-                x["plan"] = self._plan(char, st)
+                x["plan"] = self._plan(char, st, x)
                 eff, _ = app.bonds.realize(char, st, {"mood": 3, "heart": 2, "affection": 0.5}, "_appoint", now)
                 app.bonds.touch(st, now)
                 app.chat.add(x["cid"], "me", "（%s、%sの約束をした）" % (fmt_when(x["t"], now), app.places.label(x["place"])),

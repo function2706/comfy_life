@@ -118,6 +118,8 @@ class Outdoor:
         out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
         out["travel"] = self.app.geo.view(now)
         out["vehicles"] = self.app.geo.vehicles_view(now)
+        out["here"] = self.app.geo.where(now)
+        out["map"] = self.app.geo.map_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
         return out
 
     # ------------------------------------------------------------------ 心拍のたびに

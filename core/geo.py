@@ -27,6 +27,8 @@ RIDE_ADD = 3.0             # 乗り降りの分 (分)
 WALK_MAX_MIN = 180         # これより長く歩く道は選べない (始発を待つ)
 SERVICE = (5.0, 24.5)      # 電車・バスの走っている時間 (5:00〜翌 0:30)
 INSTANT = False            # テスト用: 移動に時間をかけない (tools/testclock.py. 移動そのものは tools/test_geo.py で)
+EV_DELAY, EV_DOZE, EV_JAM, EV_FLAT = 0.04, 0.15, 0.03, 0.015      # 途中の出来事の起きやすさ (1 回あたり)
+FLAT_FIX = 1000
 HOW_LABEL = {"walk": "徒歩", "transit": "電車・バス", "run": "走って", "bike": "自転車", "car": "車", "taxi": "タクシー"}
 BIKE_KMH, BIKE_MAX_MIN = 15.0, 90
 CAR_ADD = 6.0              # 車: 乗り込む・停める分 (分)
@@ -234,7 +236,40 @@ class Geo:
         return "taxi" if "taxi" in modes else "walk"
 
     def leg(self, a, b, how, t, rand=True):
-        """実際の移動 1 回: {how, min, fare, wait (待った分), note}. 行けなければ ValueError."""
+        """実際の移動 1 回: {how, min, fare, wait (待った分), note}. 行けなければ ValueError.
+        rand: 待ちの揺らぎと, 途中の出来事 (遅延・渋滞・パンク・乗り過ごし) を入れる."""
+        r = self._leg(a, b, how, t, rand)
+        return self._event(r, a, b, t) if rand else r
+
+    def _event(self, r, a, b, t):
+        """移動の途中の出来事 (まれ. 補正なし): 電車・バスの遅延 / 乗り過ごし (疲れているとき) / 車・タクシーの事故渋滞 /
+        自転車のパンク (押して歩く. 修理代). 時間とお金が足され, note に残る."""
+        how = r["how"]
+        h = _hour(t)
+        notes = [r["note"]] if r["note"] else []
+        if how == "transit":
+            if random.random() < (EV_DELAY * 2 if _rush(h) else EV_DELAY):
+                d = random.uniform(5, 30)
+                r["min"] += d
+                notes.append("電車が遅れた（%d分）" % round(d))
+            if self.app.life.stamina() < 25 and random.random() < EV_DOZE:
+                d = random.uniform(10, 25)
+                r["min"] += d
+                notes.append("うとうとして乗り過ごした（%d分）" % round(d))
+        elif how in ("car", "taxi") and random.random() < EV_JAM:
+            d = random.uniform(10, 30)
+            r["min"] += d
+            r["fare"] += int(d * 40 / 10) * 10 if how == "taxi" else 0
+            notes.append("事故で道が混んでいた（%d分）" % round(d))
+        elif how == "bike" and random.random() < EV_FLAT:
+            part = random.uniform(0.2, 0.8)          # 途中でパンク: 残りは押して歩く
+            r["min"] = r["min"] * part + self.walk_min(a, b, t) * (1 - part)
+            r["fare"] += FLAT_FIX
+            notes.append("自転車がパンクして、押して歩いた（修理代%d円）" % FLAT_FIX)
+        r["note"] = "。".join(notes)
+        return r
+
+    def _leg(self, a, b, how, t, rand):
         o = self.options(a, b, t)
         if how in (None, "", "auto"):
             how = o["best"]
@@ -417,7 +452,7 @@ class Geo:
             p["pos"] = places_mod.HOME_ME
             app.presence.save()
             r = app.come_back(at=tr["arr"], arrived=True)
-            return {"text": "（家に着いた）", "act": r}
+            return {"text": "（家に着いた%s）" % ("。" + tr["note"] if tr.get("note") else ""), "act": r}
         p["pos"], p["arrived"] = tr["to"], tr["arr"]
         app.presence.save()
         label = app.places.label(tr["to"])
@@ -426,8 +461,9 @@ class Geo:
             r = app.solo.arrive_then(then, tr["to"], tr["arr"])
             if r:
                 return dict(r, text=r.get("done") or r.get("text") or "（%sに着いた）" % label)
-        app.solo.note("out", "%sに着いた" % label, tr["arr"])
-        return {"text": "（%sに着いた）" % label}
+        text = "%sに着いた%s" % (label, "（%s）" % tr["note"] if tr.get("note") else "")
+        app.solo.note("out", text, tr["arr"])
+        return {"text": "（%s）" % text}
 
     # ------------------------------------------------------------------ 画面
     def view(self, now=None):
@@ -435,9 +471,19 @@ class Geo:
         tr = self.travel()
         if not tr:
             return None
-        return {"to": tr["to"], "label": self.app.places.label(tr["to"]) if tr["dir"] == "go" else "家",
+        return {"to": tr["to"], "from": tr["from"], "t0": tr["t0"], "label": self.app.places.label(tr["to"]) if tr["dir"] == "go" else "家",
                 "how": tr["how"], "how_label": HOW_LABEL.get(tr["how"], ""), "dir": tr["dir"],
                 "remain": max(0, int(tr["arr"] - now)), "arr": tr["arr"], "fare": tr["fare"], "note": tr.get("note", "")}
+
+    def map_view(self, ids, now=None):
+        """地図に出す点: 駅前・あなたの家・行き先・職場 (と, 表にある相手の家). {id: [x, y]} (km)."""
+        out = {}
+        for pid in ["station", places_mod.HOME_ME, "office"] + list(ids):
+            try:
+                out[pid] = self.pt(pid)["xy"]
+            except Exception:  # noqa: BLE001
+                continue
+        return out
 
     def choices_view(self, ids, now=None):
         """行き先ごとの行き方の目安 (画面の行き先の欄に出す): {id: {walk, transit, best}}."""
@@ -449,5 +495,5 @@ class Geo:
                 o = self.options(frm, pid, now)
             except Exception:  # noqa: BLE001 - 目安なので, 出せなければ出さない
                 continue
-            out[pid] = {"walk": o["walk"], "transit": o["transit"], "best": o["best"], "km": o["km"]}
+            out[pid] = {"walk": o["walk"], "transit": o["transit"], "modes": o["modes"], "best": o["best"], "km": o["km"]}
         return out

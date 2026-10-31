@@ -212,8 +212,9 @@ class Offline:
             back_leg = None
             stamina = self._pay_leg(lg, HOME_ME, t, stamina, dest)
             timeline.append({"t": t, "end": t + lg["min"] * 60, "do": "move", "label": "移動",
-                             "text": "%sから家へ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[lg["how"]], round(lg["min"]),
-                                                             "・%s円" % format(lg["fare"], ",") if lg["fare"] else ""), "skipped": False})
+                             "text": "%sから家へ（%s・%d分%s）%s" % (app.places.label(dest), HOW_LABEL[lg["how"]], round(lg["min"]),
+                                                               "・%s円" % format(lg["fare"], ",") if lg["fare"] else "",
+                                                               "。" + lg["note"] if lg.get("note") else ""), "skipped": False})
             t += lg["min"] * 60
 
         for s, e, b in source:
@@ -238,12 +239,13 @@ class Offline:
                     stamina = self._pay_leg(go, dest, s, stamina, HOME_ME)
                     try:                           # 帰り: 乗っていった自転車・車があれば, それで
                         back = app.geo.leg(dest, HOME_ME, "run" if do == "jog" else go["how"] if go["how"] in ("bike", "car") else None,
-                                           e, rand=False)
+                                           e)
                     except ValueError:
                         back = app.geo.leg(dest, HOME_ME, "taxi", e, rand=False)
                     timeline.append({"t": s, "end": s + go["min"] * 60, "do": "move", "label": "移動",
-                                     "text": "%sへ（%s・%d分%s）" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
-                                                                 "・%s円" % format(go["fare"], ",") if go["fare"] else ""), "skipped": False})
+                                     "text": "%sへ（%s・%d分%s）%s" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
+                                                                   "・%s円" % format(go["fare"], ",") if go["fare"] else "",
+                                                                   "。" + go["note"] if go.get("note") else ""), "skipped": False})
                     s = s + go["min"] * 60
                     e = max(e, s + 600)
                     h = (e - s) / 3600.0
