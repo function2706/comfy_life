@@ -189,6 +189,11 @@ async function refresh() {
   S.lastCompany = who;
   renderTop();
   if (S.mapDlg && S.mapDlg.open) renderMap();
+  if (v.task_active && !$('#task-dlg').open && !S.taskOpening && !S.inactive) {     // 内職の途中: 画面に戻ったら続きを開く
+    S.taskOpening = true;
+    openTask();
+    setTimeout(() => { S.taskOpening = false; }, 3000);
+  }
   renderStageMode();
   renderAway();
   renderApproach();
@@ -361,7 +366,11 @@ function renderSoloTab() {
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
       : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで'));
   const pres = v.presence || {};
-  const busyNow = pres.mode === 'busy' ? h('div', { class: 'solo-now' },
+  const busyNow = pres.mode === 'busy' && v.task_active ? h('div', { class: 'solo-now' },
+    h('span', {}, '🧵 内職中…'),
+    h('span', { class: 'muted small' }, '終えるときは、内職の画面で「やめる」か、できあがりまで'),
+    h('button', { class: 'btn primary small', disabled: S.busy, onclick: openTask }, '内職の続きを開く'))
+    : pres.mode === 'busy' ? h('div', { class: 'solo-now' },
     h('span', {}, pres.solo ? `${pres.solo.icon} ${pres.solo.label}…` : '🖥 作業中…'),
     h('span', { class: 'muted small' }, '終えると、過ごした時間で結果が出ます'),
     h('button', { class: 'btn primary small', disabled: S.busy, onclick: comeBack }, pres.solo ? `${pres.solo.label.replace(/中$/, '')}を終える` : '作業を終える')) : null;
@@ -1887,14 +1896,22 @@ function mapProj() {
   const u = MAP_H / (2 * v.r);              // 1km あたりの長さ
   return (p) => [MAP_W / 2 + (p[0] - v.c[0]) * u, MAP_H / 2 - (p[1] - v.c[1]) * u];
 }
+// 場所の位置 (km). 移動の途中の地点 ("pt:x,y") も
+function mapXY(id) {
+  const M = ((S.view || {}).outdoor || {}).map || {};
+  if (M[id]) return M[id];
+  if (typeof id === 'string' && id.startsWith('pt:')) return id.slice(3).split(',').map(Number);
+  return null;
+}
 function mapMe() {
   const od = (S.view || {}).outdoor || {};
-  const M = od.map || {}, tv = od.travel;
-  if (tv && M[tv.from] && M[tv.to]) {
+  const tv = od.travel;
+  const a = tv && mapXY(tv.from), b = tv && mapXY(tv.to === 'home:me' || tv.dir !== 'home' ? tv.to : 'home:me');
+  if (tv && a && b) {
     const k = Math.min(1, Math.max(0, (Date.now() / 1000 - tv.t0) / Math.max(1, tv.arr - tv.t0)));
-    return [M[tv.from][0] + (M[tv.to][0] - M[tv.from][0]) * k, M[tv.from][1] + (M[tv.to][1] - M[tv.from][1]) * k];
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
   }
-  return M[od.here] || M['home:me'];
+  return mapXY(od.here) || mapXY('home:me');
 }
 function openMap() {
   if (!S.mapDlg) {
@@ -1919,7 +1936,12 @@ function openMap() {
     const pt = (e) => { const b = svg.getBoundingClientRect(); return [(e.clientX - b.left) * MAP_W / b.width, (e.clientY - b.top) * MAP_H / b.height]; };
     svg.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.25 : 0.8, pt(e)); }, { passive: false });
     let drag = null;
-    svg.addEventListener('pointerdown', (e) => { drag = { p: pt(e), moved: false }; svg.setPointerCapture(e.pointerId); svg.style.cursor = 'grabbing'; });
+    svg.addEventListener('pointerdown', (e) => {
+      const hit = e.target.closest && e.target.closest('[data-id]');           // 押した行き先 (離したときは, ポインタを捕まえているので分からない)
+      drag = { p: pt(e), moved: false, id: hit ? hit.getAttribute('data-id') : null };
+      svg.setPointerCapture(e.pointerId);
+      svg.style.cursor = 'grabbing';
+    });
     svg.addEventListener('pointermove', (e) => {
       if (!drag) return;
       const q = pt(e), dx = q[0] - drag.p[0], dy = q[1] - drag.p[1];
@@ -1937,14 +1959,19 @@ function openMap() {
       const was = drag;
       drag = null;
       svg.style.cursor = 'grab';
-      if (was.moved) return;
-      const hit = e.target.closest && e.target.closest('[data-id]');      // 押した (動かしていない): 行き先を選ぶ
-      if (hit) { S.mapSel = hit.getAttribute('data-id'); renderMap(); }
+      if (was.moved || !was.id) return;
+      S.mapSel = was.id;                     // 押した (動かしていない): 行き先を選ぶ
+      renderMap();
     };
     svg.addEventListener('pointerup', up);
     svg.addEventListener('pointercancel', () => { drag = null; svg.style.cursor = 'grab'; });
   }
   S.mapSel = null;
+  clearInterval(S.mapTimer);
+  S.mapTimer = setInterval(() => {
+    if (!S.mapDlg.open) { clearInterval(S.mapTimer); return; }
+    if (((S.view || {}).outdoor || {}).travel) drawMap();
+  }, 1000);
   const od = (S.view || {}).outdoor || {};
   mapPreset((od.here || 'home:me') === 'home:me' || !(od.map || {})[od.here] ? 'near' : 'town');
   if (od.here && od.here !== 'home:me' && (od.map || {})[od.here]) S.mapView = { r: 1.5, c: od.map[od.here].slice() };
@@ -1969,8 +1996,8 @@ function drawMap() {
       mapEl('text', Object.assign({ x: 14, y: MAP_H - 22, 'font-size': 12, fill: 'currentColor' }, halo), nice < 1 ? `${nice * 1000}m` : `${nice}km`));
   }
   const tv = od.travel;
-  if (tv && M[tv.from] && M[tv.to]) {
-    const a = xy(M[tv.from]), b = xy(M[tv.to]);
+  if (tv && mapXY(tv.from) && mapXY(tv.to)) {
+    const a = xy(mapXY(tv.from)), b = xy(mapXY(tv.to));
     kids.push(mapEl('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#d55', 'stroke-dasharray': '6 4', 'stroke-width': 3 }));
   }
   const close = !v.all && v.r <= 4.5;      // 寄っているときは名前を全部出す
@@ -2422,7 +2449,10 @@ async function trade(asset, qty) {
 /* ---- 内職 (パズル: マインスイーパ・数独・ピクロス・15パズル). 盤面と答え合わせはサーバ */
 function openTask() {
   const dlg = $('#task-dlg');
-  if (S.view && S.view.task_active && !S.task) {        // やりかけの内職: 続きから (再起動のあとも)
+  const act = S.view && S.view.task_active;
+  if (S.task && (!act || S.task.tk.token !== act || S.task.done)) S.task = null;     // 画面に残っていた古い作業 (サーバに無い) は捨てる
+  if (act) {                                            // やりかけの内職: いつも続きから (再起動・別の画面から戻ったあとも)
+    if (S.task) { if (!dlg.open) dlg.showModal(); renderTask(); return; }
     $('#task-body').replaceChildren(h('p', { class: 'muted' }, 'やりかけの内職を読み込んでいます…'));
     if (!dlg.open) dlg.showModal();                     // 先に開く (盤の大きさは作業画面の幅で決める)
     resumeTask();
@@ -2461,7 +2491,12 @@ async function resumeTask() {
 async function startTask(kind, level) {
   let tk;
   $('#task-body').replaceChildren(h('p', { class: 'muted' }, '盤面を作っています…'));      // スリザーリンクの難などは数秒かかる
-  try { tk = await api('/api/task/start', { kind, level }); } catch (e) { toast(e.message, 'err'); await refresh(); return; }
+  try { tk = await api('/api/task/start', { kind, level }); } catch (e) {
+    toast(e.message, 'err');
+    await refresh();
+    if ((S.view || {}).task_active) { S.task = null; openTask(); }      // やりかけがあった: その続きを開く
+    return;
+  }
   beginTask(tk);
 }
 // 盤の描画と操作 (beginTask / renderTask など) は static/puzzles.js (単独版 puzzle_lab と同じもの)

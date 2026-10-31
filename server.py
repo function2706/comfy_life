@@ -6,6 +6,7 @@ import argparse
 import json
 import mimetypes
 import os
+import socket
 import sys
 import threading
 import traceback
@@ -429,6 +430,35 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
 
+class Server(ThreadingHTTPServer):
+    """同じポートに二つ目を重ねて起動させない (Windows の SO_REUSEADDR は, 使用中のポートにも重ねて bind できてしまう)."""
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def single_instance():
+    """同じデータ (data/) を使うサーバは一つだけ. ロックを取れたらそのファイルを返す (開いたままにしておく). 取れなければ None.
+    二つ目が同じセーブを別々の記憶で書き合わないように (ポートが違っても)."""
+    os.makedirs(store.DATA, exist_ok=True)
+    f = open(os.path.join(store.DATA, "server.lock"), "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        return None
+    return f
+
+
 def main():
     global APP
     ap = argparse.ArgumentParser()
@@ -438,9 +468,27 @@ def main():
     args = ap.parse_args()
     mimetypes.add_type("application/javascript", ".js")
     mimetypes.add_type("text/css", ".css")
-    APP = engine.App()
-    srv = ThreadingHTTPServer((args.host, args.port), Handler)
     url = "http://%s:%d/" % ("127.0.0.1" if args.host in ("0.0.0.0", "") else args.host, args.port)
+    url_file = os.path.join(store.DATA, "server.url")
+    lock = single_instance()
+    if not lock:                     # もう起動している: そちらを開くだけ (データには触れない)
+        try:
+            with open(url_file, encoding="utf-8") as f:
+                url = f.read().strip() or url
+        except OSError:
+            pass
+        print("Comfy LIFE はもう起動しています: %s （二つ目は起動しません）" % url)
+        if not args.no_browser:
+            webbrowser.open(url)
+        return
+    try:
+        srv = Server((args.host, args.port), Handler)
+    except OSError as e:
+        print("ポート %d は使われています（ほかのアプリか、別の Comfy LIFE）: %s" % (args.port, e))
+        return
+    with open(url_file, "w", encoding="utf-8") as f:
+        f.write(url)
+    APP = engine.App()
     print("Comfy LIFE: %s で起動しました (Ctrl+C で終了)" % url)
     if not args.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()

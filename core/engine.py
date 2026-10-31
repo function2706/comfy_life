@@ -207,6 +207,7 @@ class App:
         rc = self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
         self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
         paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
+        self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -2712,6 +2713,40 @@ class App:
         old = [max(self.state(c)["cooldowns"].get("side_job", [0]) or [0]) for c in self.chars]
         return max([float(ps.get("side_job_t", 0))] + old)
 
+    def task_fix_comp(self, now=None):
+        """不具合のお詫び (一度だけ. ワールドごと): 内職の画面を開き直せず, やりかけの内職が途中でやめた扱いになった分.
+        直す前の最近 7 日のうち, いちばん新しい「〇〇の内職を途中でやめた」に, 仕上げていたら受け取れた額 (難しさは分からないので「中」)
+        との差額を払い, 内職のあとの休憩をなしに, 使った体力を戻す. 記録に「お詫び」として残す. 払った額を返す (無ければ 0)."""
+        now = now or time.time()
+        ps = self.life.player_state()
+        done = ps.setdefault("fix_comp", {})
+        if done.get("task_reopen"):
+            return 0
+        done["task_reopen"] = now
+        log = [e for e in self.solo.mylog() if e.get("kind") == "side_job" and "途中でやめた" in (e.get("text") or "")
+               and now - e.get("t", 0) < 7 * 86400]
+        if not log:
+            self.life.save_player()
+            return 0
+        e = log[-1]
+        kind = next((k for k, v in puzzles.KINDS.items() if (e.get("text") or "").startswith(v + "の内職")), None)
+        if not kind:
+            self.life.save_player()
+            return 0
+        got = int((e.get("money") or {}).get("p", 0))
+        full = puzzles.base_pay(kind, "mid", self.world.get("economy", {}).get("side_job_rate_per_min")) \
+            * puzzles.skill_mult(kind, self.life.skill_mult)
+        pay = max(0, int(round((full - got) / 10.0)) * 10)
+        if pay:
+            self.life.move(None, dp=pay, cat="income", note="内職（不具合のお詫び）")
+        ps["side_job_t"] = 0                       # 内職のあとの休憩はなし
+        ps["stamina"] = min(self.body.stamina_cap(), float(ps.get("stamina", 100)) + float(self.world.get("economy", {}).get("stamina_per_side_job", 10)))
+        self.life.save_player()
+        self.solo.note("side_job", "🛠 不具合のお詫び: %sの内職が、画面を開き直せずに途中でやめた扱いになった分として、仕上げていたら受け取れた額との差（%s円）を受け取った。休憩もなしで、使った体力も戻った" % (
+            puzzles.KINDS[kind], format(pay, ",")), now, icon="🛠", name="お詫び", **({"money": {"p": pay}} if pay else {}))
+        self.trace.add("retro", "内職の中断のお詫び", None, now, kind=kind, got=got, pay=pay, at=e.get("t"))
+        return pay
+
     def task_ready(self, now=None):
         """内職を始められないなら理由 {reason, wait (休憩の残り秒)}. 始められるなら None. 画面にも先に出す.
         内職はあなたのこと (誰がそばにいるかは関係ない. 家にいるかどうかと, 休憩・体力)."""
@@ -3050,6 +3085,7 @@ class App:
             self.reload()
             self.manners.rejudge_thanks()
             self.manners.retro_contacts()
+            self.task_fix_comp()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
