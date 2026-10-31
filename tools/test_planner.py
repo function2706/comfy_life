@@ -60,8 +60,8 @@ def main():
 
         # ---- 3. 決まる順番: 予定 → (できなければ) 未指定時コマンド (優先度順. できないものは飛ばす) → 設定の行動パターン → 何もしない
         P.add(tom, "03:00", {"do": "out", "place": "supermarket"})        # 夜中は閉まっている
-        P.add(tom, "09:00", {"do": "out", "place": "supermarket"})        # 30 分で次の予定 → 切り上げ
-        P.add(tom, "09:30", {"do": "chores"})
+        P.add(tom, "09:00", {"do": "out", "place": "supermarket"})        # 5 分で次の予定 → 切り上げ (スーパーのふだんの買い物より短い)
+        P.add(tom, "09:05", {"do": "chores"})
         P.set_fallback([{"do": "out", "place": "mall"}, {"do": "practice", "skill": "work"}])     # 夜中はモールも閉まっている
         t0, t1 = at(tom, "02:00"), at(tom, "12:00")
         L.player_state()["stamina"] = 100
@@ -73,7 +73,7 @@ def main():
         assert night["plan"]["src"] == "fallback" and "閉まっていた" in night["plan"]["why"] and night["do"] == "practice", night
         shop = next(x for x in tl if x["plan"] and x["plan"].get("at") == "09:00")
         assert shop["plan"]["src"] == "plan" and shop["plan"]["cut"], shop
-        ch = next(x for x in tl if x["plan"] and x["plan"].get("at") == "09:30")
+        ch = next(x for x in tl if x["plan"] and x["plan"].get("at") == "09:05")
         assert ch["plan"]["src"] == "plan" and ch["do"] == "chores"
         # 未指定時コマンドが無ければ設定の行動パターン. それも無ければ何もしない
         P.set_fallback([])

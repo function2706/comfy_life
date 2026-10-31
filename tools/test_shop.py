@@ -36,7 +36,7 @@ def main():
         I.set_list("veggies", 1)
         S.start("out", place="supermarket")
         sl = P.rec()["solo"]
-        assert sl.get("shop_need", 0) > 8 and S.shop_tick() is None and "shop_wait" in P.view(time.time())
+        assert 3 < sl.get("shop_need", 0) < 25 and S.shop_tick() is None and "shop_wait" in P.view(time.time())
         sl["t"] -= sl["shop_need"] * 60 + 1
         res = S.shop_tick()
         assert res and res["label"] == "スーパー" and res["total"] == sum(b["price"] for b in res["bought"]), res

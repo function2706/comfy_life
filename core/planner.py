@@ -19,7 +19,6 @@ from .places import OUT_PLACES, open_state
 PLAN_DO = ("sleep", "rest", "home", "work", "out", "chores", "kakeibo", "practice", "meal", "parttime", "jog", "read", "movie")
 STREET_POLICY = ("chat", "nod", "decline")
 NATURAL = {"chores": 3600, "practice": 3600, "kakeibo": 900}      # これより短ければ「切り上げた」
-SHOP_NATURAL = 3600                                                  # 買い物 (店への外出) の目安
 APPOINT_SPAN = 2 * 3600                                              # 約束で会う時間の目安
 
 

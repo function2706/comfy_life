@@ -48,6 +48,16 @@ WEEKEND = [{"at": "00:00", "do": "sleep"}, {"at": "09:00", "do": "meal", "how": 
            {"at": "23:30", "do": "sleep"}]
 
 
+def _peek(it):
+    """(いまの行動, 次の行動 or None) を順に (次の行動の時刻を見て, 残業を打ち切る)."""
+    it = iter(it)
+    cur = next(it, None)
+    while cur is not None:
+        nxt = next(it, None)
+        yield cur, nxt
+        cur = nxt
+
+
 def normalize(b):
     """行動パターンの 1 行を今の語彙に (以前の 散歩・買い物・カフェ → 外出 + 行き先. 行き先は公共の表から)."""
     b = dict(b)
@@ -217,7 +227,8 @@ class Offline:
                                                                "。" + lg["note"] if lg.get("note") else ""), "skipped": False, "plan": None})
             t += lg["min"] * 60
 
-        for s, e, b in source:
+        for (s, e, b), nb in _peek(source):
+            fixed = nb[0] if nb and nb[2]["do"] in ("exam", "appoint") else None     # 次が時刻の決まったこと (試験・約束): 残業はその前まで
             # 出先にいるまま続ける: 同じ場所での次の行動 (昼休みのあとも職場) / 出先のすぐあとの食事 (近くで食べる)
             stay = bool(back_leg) and (self._dest(b) == back_leg[1] or (
                 b["do"] == "meal" and b.get("how") in ("out", "buy") and max(s, t) - t < 1800))
@@ -310,7 +321,7 @@ class Offline:
                     if not ph:
                         recover(s, e, None)
             elif do == "work":
-                w = self._work(s, e, stamina)
+                w = self._work(s, e, stamina, fixed)
                 stamina = max(0.0, stamina - per_h * w["hours"])
                 app.body.add_exercise(2.0 * w["hours"])
                 works.append(w)
@@ -423,11 +434,11 @@ class Offline:
             else:
                 yield s2, e2, dict(b2, _plan=None)
 
-    @staticmethod
-    def _cut(b, s, e, t1):
-        """次の予定の時刻で切り上げたか (買い物・家事・研鑽などの目安より短い)."""
-        from .planner import NATURAL, SHOP_NATURAL
-        nat = NATURAL.get(b["do"]) or (SHOP_NATURAL if b["do"] == "out" and solo_kind(b.get("place")) == "shopping" else 0)
+    def _cut(self, b, s, e, t1):
+        """次の予定の時刻で切り上げたか (家事・研鑽などの目安・その店でのふだんの買い物の長さより短い)."""
+        from .planner import NATURAL
+        nat = NATURAL.get(b["do"]) or (self.app.solo.shop_typical(b.get("place")) * 60
+                                       if b["do"] == "out" and solo_kind(b.get("place")) == "shopping" else 0)
         return bool(nat) and e - s < nat and e < t1
 
     def _appoint(self, aid, s):
@@ -541,8 +552,8 @@ class Offline:
         res = app.street.resolve(choice, auto=True, weak=weak)
         return [(r.get("text") or "").strip("（）") + "。" + (res or {}).get("text", "").split("\n")[0].strip("（）")]
 
-    def _work(self, s, e, stamina):
-        """予定の勤務 1 回. 体力・仕事スキルしだいで, うまくいかない・早退・残業."""
+    def _work(self, s, e, stamina, limit=None):
+        """予定の勤務 1 回. 体力・仕事スキルしだいで, うまくいかない・早退・残業. limit: 残業はこの時刻まで (次の試験・約束)."""
         L = self.app.life
         skill = L.skill("work")
         notes = []
@@ -555,7 +566,10 @@ class Offline:
             notes.append("体調がすぐれず、早退した")
         elif random.random() < 0.15:
             end = e + random.uniform(0.5, 2.0) * 3600                       # 残業
-            notes.append("残業になった")
+            if limit:
+                end = max(e, min(end, limit))
+            if end > e:
+                notes.append("残業になった")
         pay, h, raw = L.work_pay(s, end, record=True)
         if random.random() < max(0.03, 0.12 + (0.2 if stamina < 40 else 0.0) - skill / 400.0):
             pay = int(pay * random.uniform(0.6, 0.85) / 10) * 10           # うまくいかない日も

@@ -15,6 +15,7 @@
 作業する・出かける・仕事に行く・寝る・席を外す (PLAIN) も同じ: そばに誰かいれば「〜してくるね」と告げ,
 誰もいなければ告げる相手なしで, あなたの予定としてそうする. 一人の時間の記録と日記は data/worlds/<id>/mylog.json / diary.json.
 """
+import math
 import random
 import re
 import time
@@ -34,6 +35,11 @@ KINDS = {
     "read": {"label": "本を読む", "icon": "📖", "mode": "busy", "doing": "読書中", "go": "go_busy"},
     "movie": {"label": "映画を観る", "icon": "🎬", "mode": "busy", "doing": "映画を観ている", "go": "go_busy"},
 }
+# 店で買い物を済ませる時間 (分): 店ごとの, 見て回るふだんの長さ (中央値)・揺れ (長いほうに裾がある. 本屋・モールは長居しがち)・
+# リストの品 1 つあたり (その店に売っているものだけ). コンビニに 15 分いることはまず無く, モールは 30 分ほどいることが多い
+SHOP_BASE = {"convenience": (3, 0.3, 0.5), "station": (3, 0.3, 0.5), "drugstore": (7, 0.35, 0.8), "bookstore": (10, 0.5, 0.8),
+             "supermarket": (10, 0.3, 0.9), "shopping_street": (15, 0.4, 1.0), "electronics": (20, 0.45, 1.0), "mall": (25, 0.45, 1.0),
+             "car_dealer": (45, 0.35, 1.0)}
 READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (合計. 途中でやめても続きから. core/topics.py)
 JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先
 # 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
@@ -215,7 +221,7 @@ class Solo:
         if place:
             p["place"] = place
             if not places_mod.is_home(place) and places_mod.solo_kind(place) == "shopping":    # 店: 品を選び終えるまでの時間
-                p["solo"]["shop_need"] = round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1)
+                p["solo"]["shop_need"] = round(self.shop_minutes(place, now), 1)
         app.presence.save()
         tr = app.geo.depart(place, "run" if kind == "jog" else how, now, frm=frm) if place else None
         if k["mode"] == "out":
@@ -242,10 +248,24 @@ class Solo:
         return {"started": None, "label": "家計簿", "done": r["text"], "kakeibo": r}
 
     # ------------------------------------------------------------------ 店での買い物 (画面を開いている外出)
-    @staticmethod
-    def shop_minutes(n_items):
-        """品を選び終えるまでの時間 (分). 買うものリストが多いほど長い. 日によって少し揺れる."""
-        return random.uniform(8, 15) + 2.5 * min(n_items, 10)
+    def _shop_items_here(self, place):
+        from .items import CATALOG
+        return sum(1 for i in self.app.items.ps()["shop_list"] if place in (CATALOG.get(i) or {}).get("places", []))
+
+    def shop_minutes(self, place, now=None):
+        """店に着いてから買い物を済ませるまでの時間 (分): 店ごとの見て回る長さ (ふだんの長さのまわりに揺れる. 長居することも) +
+        その店に売っているリストの品の数 + レジ (混む時間は長め). 売っていない品は数えない."""
+        med, sigma, per = SHOP_BASE.get(place, (6, 0.35, 0.8))
+        crowd = 1.0
+        pl = places_mod.PLACES.get(place)
+        if pl:
+            crowd = float(pl["crowd"].get(self.app.phase_at(datetime.fromtimestamp(now or time.time())).get("id", "noon"), 1.0))
+        return min(random.lognormvariate(math.log(med), sigma), 3 * med) + per * random.uniform(0.8, 1.2) * min(self._shop_items_here(place), 15)             + random.uniform(0.5, 2.0) * max(0.5, crowd)
+
+    def shop_typical(self, place):
+        """その店でのふだんの買い物の長さ (分. 揺れなし): 閉じていた間に「切り上げた」かを見る目安."""
+        med, _, per = SHOP_BASE.get(place, (6, 0.35, 0.8))
+        return med + per * min(self._shop_items_here(place), 15) + 1.2
 
     def shop_tick(self, now=None):
         """店に出かけていて, 品を選び終える時間がたったら, その場で買い物を済ませる (心拍のたび). 済んだら結果を返す."""
@@ -257,7 +277,7 @@ class Solo:
         if p.get("mode") != "out" or sl.get("kind") != "out" or sl.get("shop_done") \
                 or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping" or p.get("travel"):
             return None
-        need = sl.setdefault("shop_need", round(self.shop_minutes(len(app.items.ps()["shop_list"])), 1))
+        need = sl.setdefault("shop_need", round(self.shop_minutes(place, now), 1))
         t_at = p.get("arrived", sl.get("t", now))          # 店に着いてから
         if now - t_at < need * 60:
             return None
