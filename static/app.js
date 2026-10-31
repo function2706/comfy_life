@@ -563,7 +563,7 @@ function openMeal() {
         : h('p', { class: 'muted small' }, 'ここでは食べられません（閉まっているか、食べるところがない）')) : '',
     M.home ? h('div', { class: 'pgroup' }, h('h4', {}, '自炊（持ち物の食材を使う）'),
       (S.view.blocked || {}).cook ? h('div', { class: 'blocked-note' }, `⏸ ${S.view.blocked.cook}`) : '',
-      (M.dishes || []).map((d) => row(d.name, `${d.need.join('・')}${d.ok ? '' : '　— ' + d.why}`,
+      (M.dishes || []).map((d) => row(d.name, `${d.need.join('・')}（${d.hint}）${d.ok ? '' : '　— ' + d.why}`,
         h('button', { class: 'btn small', disabled: S.busy || !d.ok || !!(S.view.blocked || {}).cook, onclick: () => eat('cook', d.id) }, '作って食べる'))),
       h('p', { class: 'hint' }, '料理スキルが上がると作れる献立が増え、主食・たんぱく質・野菜がそろいやすくなります。食材は買い物（買うものリスト）で。')) : '',
     M.home && (M.items || []).length ? h('div', { class: 'pgroup' }, h('h4', {}, '買ってきたもの'),

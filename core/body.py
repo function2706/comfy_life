@@ -4,8 +4,10 @@
   空腹のあいだは体力が戻りにくい (life.tick_world).
 - 栄養 (nutri: staple 主食 / protein たんぱく質 / veg 野菜. 各 0〜100): 数日分の蓄え. 1 日に 36 ほど減り, 食べたものの中身で戻る.
   一つだけ多く食べても, ほかの不足は埋まらない (偏り). 細かい栄養素までは見ない.
-- 自炊 (cook): 持ち物の食材 (items の nut: staple / protein / veg. 1 個 = 1 回分) を使う. 料理スキルが高いほど作れる献立が増え,
-  一度に使える食材が増えて栄養がそろう. 低いと失敗することも. 食材がなければ作れない. 家でだけ.
+- 自炊 (cook): 持ち物の食材 (items の nut: staple / protein / veg. 1 個 = 1 回分) を使う. 食材がなければ作れない. 家でだけ.
+  どの献立も, 食材があれば作れる (作り方はスマホで調べられる. 知らないから作れない, はない). 出来ばえ (栄養とお腹の入り方・
+  焦がす・味がいまいち) は, 腕前 (料理スキル) と献立の難しさの差で決まる. 何度か作った献立は作り慣れて (レパートリー),
+  失敗しにくく出来も安定する. 初めての献立は調べながらなので, 慣れたものより崩れやすい (レシピ本があると少しまし).
 - 外食 (out): 行き先の表の食べに行く店 (定食屋・ラーメン屋・ファストフード・レストラン・ファミレス. 営業時間つき) とカフェ.
   お腹は満たされるが, 栄養と値段は店とメニューしだい.
 - 買って食べる (buy): コンビニ・スーパー・駅前で, お弁当・おにぎり・サラダなど. 手軽だが栄養は偏りがち.
@@ -36,7 +38,7 @@ SATIETY_PER_H_SLEEP = 1.5    # 寝ている間
 NUTRI_PER_DAY = 24.0         # 栄養の蓄えの減り (1 日あたり. 4 日ほどで尽きる)
 NUTRI_GAIN = 1.3             # 食べたものの栄養 (表の値) の入り方. そろった食事 2〜3 回で, その日の減りを埋められるくらい
 
-# 自炊の献立: (id, 名前, 使う食材の栄養 (1 回分ずつ), いる料理スキル)
+# 自炊の献立: (id, 名前, 使う食材の栄養 (1 回分ずつ), 難しさ (料理スキルの目安. 足りなくても作れるが, 崩れやすい))
 DISHES = [
     ("rice", "ご飯だけ", ("staple",), 0),
     ("tkg", "卵かけご飯", ("staple", "protein"), 0),
@@ -76,6 +78,10 @@ EAT_OUT_PLACES = ("teishoku", "ramen", "fastfood", "restaurant", "family", "cafe
 BUY_PLACES = ("convenience", "supermarket", "station")
 # 持ち物の食べもの (家で食べる): 品物の id → (栄養, お腹)
 ITEM_MEALS = {"bento": ({"staple": 11, "protein": 7, "veg": 2}, 52), "cup_noodle": ({"staple": 9, "protein": 1, "veg": 1}, 38)}
+FAMILIAR = 3              # 作り慣れる (レパートリーになる) までに作る回数
+FAMILIAR_BONUS = 4.0      # 作った回数 1 回ごとに, 腕前に足す分 (作り慣れるまで)
+FIRST_PENALTY = 8.0       # 初めて (調べながら) のとき, 腕前から引く分. レシピ本があれば半分
+BASIC = 5                 # この難しさまでの献立 (ご飯・卵かけご飯・味噌汁など) は, 誰でもはじめから作り慣れている
 
 
 EXERCISE_PER_DAY = 30.0      # 運動の蓄えの減り (1 日あたり. 30 分ほど歩けば, その日の分になる)
@@ -106,6 +112,13 @@ class Body:
         b.setdefault("today", {})
         b.setdefault("exercise", 50.0)
         b.setdefault("lazy_days", 0)          # 運動が足りない日が続いた日数
+        if "cooked" not in b:                 # 献立ごとに作った回数 (作り慣れ). 以前のセーブは, 食事の記録から数える
+            names = {d[1]: d[0] for d in DISHES}
+            b["cooked"] = {}
+            for m in b["meals"]:
+                did = names.get(m.get("label")) if m.get("how") == "cook" else None
+                if did:
+                    b["cooked"][did] = b["cooked"].get(did, 0) + 1
         return b
 
     # ------------------------------------------------------------------ 時間の経過 (life.tick_world の 5 分ごと)
@@ -308,18 +321,33 @@ class Body:
                                  "（%s円）" % format(price, ",") if price else "") + (note and "。" + note)
         return {"text": text, "satiety": round(b["satiety"]), "how": how}
 
+    def _cooked(self, did):
+        """作った回数 (作り慣れ). 基本の献立は, はじめから作り慣れている."""
+        n = self.rec()["cooked"].get(did, 0)
+        return max(n, FAMILIAR) if next(d for d in DISHES if d[0] == did)[3] <= BASIC else n
+
+    def _skill_for(self, did):
+        """その献立を作るときの腕前: 料理スキル + 作り慣れ (回数) − 初めて (調べながら. レシピ本があれば半分)."""
+        n = self._cooked(did)
+        eff = self.app.life.skill("cook") + FAMILIAR_BONUS * min(n, FAMILIAR)
+        if not n:
+            eff -= FIRST_PENALTY * (0.5 if self.app.items.count("book_cook") > 0 else 1.0)
+        return eff
+
     def dishes(self):
-        """いま作れる献立 (食材と料理スキルしだい) と, 作れない理由."""
+        """献立の一覧: 作れるか (食材だけで決まる) と, 慣れ・難しさの目安 (数値は出さない)."""
         items = self.app.items
-        sk = self.app.life.skill("cook")
         have = {n: items.count_nut(n) for n in NUTRI}
         out = []
-        for did, name, need, req in DISHES:
+        for did, name, need, diff in DISHES:
             want = {n: need.count(n) for n in set(need)}
             miss = [NUTRI_LABEL[n] for n, c in want.items() if have[n] < c]
-            out.append({"id": did, "name": name, "need": [NUTRI_LABEL[n] for n in need], "skill": req,
-                        "ok": sk >= req and not miss, "why": ("料理スキルが足りない" if sk < req else "") or
-                        ("%sの食材がない" % "・".join(miss) if miss else "")})
+            n, gap = self._cooked(did), diff - self._skill_for(did)
+            fam = "作り慣れた" if n >= FAMILIAR else "何度か作った" if n else "初めて・調べながら"
+            hard = "難しそう" if gap > 25 else "少し難しそう" if gap > 8 else ""
+            out.append({"id": did, "name": name, "need": [NUTRI_LABEL[n] for n in need], "diff": diff, "gap": round(gap, 1),
+                        "familiar": n >= FAMILIAR, "hint": "・".join(x for x in (fam, hard) if x),
+                        "ok": not miss, "why": "%sの食材がない" % "・".join(miss) if miss else ""})
         return out
 
     def cook(self, did, now=None):
@@ -467,23 +495,36 @@ class Body:
         """作れる献立のうち, いま足りないものを補えるもの (行動パターンの自炊で選ぶ)."""
         n = self.rec()["nutri"]
         lab = {v: k for k, v in NUTRI_LABEL.items()}
-        return max(ok, key=lambda d: (sum(100 - n[lab[x]] for x in d["need"]), d["skill"]))
+        easy = [d for d in ok if d["familiar"] or d["gap"] <= 8] or ok       # 普段は, 作り慣れたもの・腕前に合ったものを作る
+        return max(easy, key=lambda d: (sum(100 - n[lab[x]] for x in d["need"]), d["familiar"], -d["gap"]))
 
     def cook_at(self, did, t):
-        """行動パターンの自炊 (家にいる扱い. 在席の確かめはしない)."""
+        """自炊して食べる (行動パターンからも. 家にいる扱い. 在席の確かめはしない).
+        出来ばえは腕前 (_skill_for: スキル・作り慣れ・初めて) と難しさの差: 届かないほど崩れやすく, 栄養とお腹の入り方が落ちる.
+        失敗しても食べられる. 作った回数を数える (作り慣れ)."""
         d = next(x for x in DISHES if x[0] == did)
-        sk = self.app.life.skill("cook")
+        b = self.rec()
+        first = not self._cooked(did)
+        eff = self._skill_for(did)
+        short = max(0.0, d[3] - eff)                 # 腕前の足りない分
         for n in d[2]:
             self.app.items.use_nut(n)
-        q = 0.75 + sk / 200.0 * random.uniform(0.8, 1.2)
-        fail = random.random() < max(0.0, 0.22 - sk / 180.0)
+        q = max(0.5, 0.75 + max(0.0, eff) / 200.0 * random.uniform(0.8, 1.2) - short / 200.0)
+        fail = random.random() < min(0.5, max(0.0, 0.22 - eff / 180.0) + short / 100.0)
         nutri = {}
         for n in d[2]:
-            nutri[n] = nutri.get(n, 0) + 13.0 * q
-        self.app.life.train("cook", 0.6)
+            nutri[n] = nutri.get(n, 0) + 13.0 * q * (0.8 if fail else 1.0)
+        self.app.life.train("cook", 0.6 * (1.3 if first or short > 0 else 1.0))      # 慣れないもの・背伸びしたものほど身につく
         self.app.home.add(dishes=8)
-        return self._eat(t, "cook", d[1], nutri, (30 + 10 * len(d[2])) * (0.6 if fail else 1.0),
-                         note="少し焦がしてしまった" if fail else "")
+        b["cooked"][did] = b["cooked"].get(did, 0) + 1
+        notes = []
+        if first:
+            notes.append("作り方を調べながら作った")
+        if fail:
+            notes.append("うまくいかず、味がいまいちだった" if short > 15 else "少し焦がしてしまった")
+        if b["cooked"][did] == FAMILIAR and d[3] > BASIC:
+            notes.append("%sは作り慣れてきた" % d[1])
+        return self._eat(t, "cook", d[1], nutri, (30 + 10 * len(d[2])) * (0.6 if fail else 1.0), note="。".join(notes))
 
     def eat_item_at(self, iid, t):
         self.app.items.add(iid, -1)

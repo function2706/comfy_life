@@ -55,17 +55,63 @@ def main():
         I.add("rice", 10)
         I.add("veggies", 3)
         I.add("eggs_tofu", 4)
+        # 献立は料理スキルで足切りしない (作り方は調べられる). 食材があればどれも作れる. 難しさは目安として出る
         L.player_state()["skills"]["cook"] = 10.0
-        ok = {d["id"] for d in B.dishes() if d["ok"]}
-        assert {"rice", "tkg", "miso"} <= ok and "curry" not in ok, ok
+        ds = {d["id"]: d for d in B.dishes()}
+        assert all(d["ok"] for d in ds.values()), ds
+        assert "初めて" in ds["curry"]["hint"] and "難しそう" in ds["nabe"]["hint"] and "難しそう" not in ds["rice"]["hint"], ds
+        # 腕前が足りないほど崩れやすい (栄養の入り方が落ちる). 調べながら作ったことが書かれる
+        def trial(skill, did, n=60):
+            got = []
+            for _ in range(n):
+                L.player_state()["skills"]["cook"] = skill
+                b["cooked"] = {}
+                b["nutri"] = {k: 20.0 for k in b["nutri"]}
+                b["satiety"] = 20.0
+                I.add("rice", 2)
+                I.add("veggies", 3)
+                I.add("eggs_tofu", 2)
+                r = B.cook_at(did, time.time())
+                got.append((sum(b["nutri"].values()) - 60.0, r["text"]))
+            return got
+        low, high = trial(5, "nabe"), trial(70, "nabe")
+        avg = lambda xs: sum(x for x, _ in xs) / len(xs)
+        assert avg(low) < avg(high) * 0.85, (avg(low), avg(high))
+        assert sum("いまいち" in t or "焦がして" in t for _, t in low) > sum("いまいち" in t or "焦がして" in t for _, t in high)
+        assert all("調べながら" in t for _, t in low)
+        # 作るたびに作り慣れていく (3 回でレパートリー). 慣れると崩れにくい
+        L.player_state()["skills"]["cook"] = 20.0
+        b["cooked"] = {}
+        texts = []
+        for _ in range(3):
+            I.add("rice", 1)
+            I.add("veggies", 1)
+            I.add("eggs_tofu", 1)
+            texts.append(B.cook("curry")["text"])
+        assert "調べながら" in texts[0] and "調べながら" not in texts[1] and "作り慣れてきた" in texts[2], texts
+        assert next(d for d in B.dishes() if d["id"] == "curry")["familiar"]
+        assert B._skill_for("curry") > B._skill_for("stirfry"), "作り慣れた献立のほうが腕前が出る"
+        # 自動で作るとき (行動パターン) は, 作り慣れたもの・腕前に合ったものを選ぶ
+        b["nutri"] = {"staple": 30.0, "protein": 30.0, "veg": 30.0}
+        I.add("rice", 3)
+        I.add("veggies", 3)
+        I.add("eggs_tofu", 3)
+        pick = B.best_dish([d for d in B.dishes() if d["ok"]])
+        assert pick["id"] == "curry", pick
+        # 以前のセーブ: 食事の記録から, 作った回数を数える
+        b.pop("cooked")
+        b["meals"] = [{"t": 1, "how": "cook", "label": "焼き魚の定食"}] * 4 + [{"t": 2, "how": "out", "label": "カレーライス"}]
+        assert B.rec()["cooked"] == {"teishoku": 4}, B.rec()["cooked"]
         L.player_state()["skills"]["cook"] = 45.0
-        ok = {d["id"] for d in B.dishes() if d["ok"]}
-        assert {"curry", "teishoku"} <= ok, ok
+        I.ps()["items"] = {}
+        I.add("rice", 10)
+        I.add("veggies", 3)
+        I.add("eggs_tofu", 4)
         n0 = dict(b["nutri"])
         r = B.cook("teishoku")
         assert b["satiety"] > 50 and all(b["nutri"][k] > n0[k] for k in n0), (r, b)
         assert I.count("rice") == 9 and I.count("veggies") == 2 and I.count("eggs_tofu") == 3
-        print("自炊:", r["text"])
+        print("自炊:", r["text"], "| 腕前が足りない鍋 %.1f / 足りる鍋 %.1f" % (avg(low), avg(high)))
 
         # ---- 3. 外食: 行き先のメニュー. 払ったお金は家計簿の元の記録にも
         app.solo.start("out", place="ramen")

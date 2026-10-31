@@ -310,10 +310,10 @@ python tools/minigame_lab.py --port 8792 --no-browser
 
 `core/body.py`。`player.json` の `body`: `satiety`（お腹 0〜100。起きている間は 1 時間に 4、寝ている間は 1.5 減る）・`nutri`（`staple` / `protein` / `veg` 各 0〜100。数日分の蓄えで、1 日に `NUTRI_PER_DAY`（24）ずつ減る）・`meals`（食べた記録）。時間の経過は `life.tick_world` の 5 分ごとに `body.step`。空腹（30 未満）は体力の戻りを落とす（`body.stamina_mult`）。画面には自覚できる言葉だけ（`hunger_word` / `nutri_words`）。
 
-- 自炊 `body.cook`: 持ち物の食材（`items.NUT`: お米・パン = 主食、野菜、肉と魚・卵と豆腐 = たんぱく質。1 個で `servings` 回分。買うと回数ぶん持ち物に入る）を、献立（`body.DISHES`: 使う食材と、いる料理スキル）ぶん使う。出来ばえと失敗は料理スキルしだい。家でだけ。料理スキルが伸び、洗い物が出る。
+- 自炊 `body.cook`: 持ち物の食材（`items.NUT`: お米・パン = 主食、野菜、肉と魚・卵と豆腐 = たんぱく質。1 個で `servings` 回分。買うと回数ぶん持ち物に入る）を、献立（`body.DISHES`: 使う食材と難しさ）ぶん使う。献立は料理スキルで足切りしない（作り方は調べられる）。食材があればどれも作れ、出来ばえ（栄養とお腹の入り方・焦がす・味がいまいち）は腕前と難しさの差で決まる。腕前は料理スキル＋作り慣れ（作った回数 `body.cooked`。`FAMILIAR` 回で作り慣れる＝レパートリー）−初めて（調べながら。レシピ本があれば半分）。ご飯・卵かけご飯・味噌汁など基本の献立（`BASIC` 以下）ははじめから作り慣れている。以前のセーブは食事の記録から作った回数を数える。家でだけ。料理スキルが伸び（慣れないもの・背伸びしたものほど伸びる）、洗い物が出る。
 - 外食・買って食べる `body.eat_at`: いる行き先のメニュー（`body.MENUS`: 名前・値段・栄養・お腹）。行き先の表に「食べに」（`teishoku` 定食屋・`ramen`・`fastfood`・`family` ファミレス・`restaurant`。営業時間つき）と病院（`clinic`）を足した。コンビニ・スーパー・駅前は「買って食べる」（お弁当・おにぎり・サラダなど）。食べに行く店に出かけて何も選ばずに帰ると、`solo.result` の `eat` で帰る前に一番安いものを食べる。持ち物のお弁当・カップ麺は `body.eat_item`（家で）。
-- API: `POST /api/meal {how: cook | out | item, id}`、`state_view.meal`（言葉・作れる献立と理由・買ってきたもの・いる行き先のメニュー）。
-- 行動パターン: `do: meal` + `how`（`cook` / `out` / `buy`）+ `place`（`offline.MEAL_PLACES`）。`body.routine_meal`: 自炊は足りない栄養を補える献立（`best_dish`）、食材がなければ買い置き、それも無ければ食べない。外食・買って食べるは、閉まっている・お金が足りなければ食べない。食事の予定が無い時間は、何も食べない。既定の行動パターンに朝・昼・夕の食事を入れた。閉じていた間のお腹と栄養が食事の前後で正しく動くよう、`offline.simulate` は行動の順に `tick_world` を進める。
+- API: `POST /api/meal {how: cook | out | item, id}`、`state_view.meal`（言葉・献立（食材で作れるか・作り慣れ・難しさの目安）・買ってきたもの・いる行き先のメニュー）。
+- 行動パターン: `do: meal` + `how`（`cook` / `out` / `buy`）+ `place`（`offline.MEAL_PLACES`）。`body.routine_meal`: 自炊は作り慣れた・腕前に合った献立のうち、足りない栄養を補えるもの（`best_dish`）、食材がなければ買い置き、それも無ければ食べない。外食・買って食べるは、閉まっている・お金が足りなければ食べない。食事の予定が無い時間は、何も食べない。既定の行動パターンに朝・昼・夕の食事を入れた。閉じていた間のお腹と栄養が食事の前後で正しく動くよう、`offline.simulate` は行動の順に `tick_world` を進める。
 - 生活費 `economy.living_cost_per_day` は食費抜き（既定 1,200 円。二人暮らしの額）。以前の既定（3,000 円。食費込み）のままのワールドは、起動時に直す（`App._migrate_living_cost`。自動バックアップ。`economy.living_cost_no_food`）。
 
 ### 同時にできないこと
