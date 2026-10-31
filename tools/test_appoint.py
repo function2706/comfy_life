@@ -85,10 +85,10 @@ def main():
         assert yes["lo"] < yes["hi"] and yes["hi"] >= 7, yes
         app.scheduled_scene = lambda c, d: dict(sched(c, d), away=True, busy=False, asleep=False)
         busy = 0
-        for i in range(10):
+        for i in range(20):                       # 予定があると 8 割は予定のことで返す (断る・別の案・献身的なら予定を動かして合わせる)
             x, text = ask(now + 10 * 86400 + i * 4 * 3600, affection=90, mood=80)
-            busy += (x["status"] == "declined" and "予定" in text) or bool(x.get("_counter"))
-        assert busy >= 5, "その時間に予定があれば断られる: %d" % busy
+            busy += (x["status"] == "declined" and "予定" in text) or bool(x.get("_counter")) or bool(x.get("rearranged"))
+        assert busy >= 10, "その時間に予定があれば断られる (か, 予定を動かして合わせてくれる): %d / 20" % busy
         app.scheduled_scene = free
         st["date_promise"] = 0
         for x in A.all():

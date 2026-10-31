@@ -24,7 +24,17 @@ def fix_noon(engine):
         c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
         return c
     App.context = context
-    from core import geo, market, offline, places, presence
+    you = App.you_context
+
+    def you_context(self, dt=None):          # いまのあなた一人の条件 (一人で出かける・仕事に行く・研鑽など) も昼.
+        c = you(self, dt)                      # 時刻を指定したとき (約束の時刻のあなたの都合など) は, その時刻のまま
+        if dt is None:
+            c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
+        return c
+    App.you_context = you_context
+    from core import geo, market, nori, offline, places, presence
+    nori.hour_at_real = nori.hour_at                          # 会話のノリの時刻 (夜中は乗りにくい) も昼
+    nori.hour_at = lambda now: NOON.hour
     geo.INSTANT = True
     presence.hour_factor_real = presence.hour_factor          # 離れている相手からのメッセージの時刻の重み (夜中はまず来ない)
     presence.hour_factor = lambda dt: presence.hour_factor_real(NOON)

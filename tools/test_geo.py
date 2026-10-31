@@ -13,6 +13,10 @@ from datetime import datetime, timedelta
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 from core import engine, geo as G, places as PL, store  # noqa: E402
+from testclock import fix_noon  # noqa: E402
+
+fix_noon(engine)          # 予定・時間帯・店の営業時間を昼に (夜中に流すと店が閉まっている・仕事の時間外で進めない)
+G.INSTANT = False         # 移動の時間は本物のまま (このテストで確かめる)
 
 
 def at(date, hm):

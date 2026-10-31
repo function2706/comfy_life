@@ -149,8 +149,14 @@ def main():
         print("おかえり:", r["entry"]["text"])
         print("留守中のお金: あなた %+d" % (me() - m0))
         assert any(w in r["entry"]["text"] for w in ("猫", "久しぶり", "留守", "いない間")), r["entry"]["text"]
-        rent = int(L.econ().get("home_cost_per_month", 0)) // 2             if __import__("datetime").date.fromtimestamp(now - 30 * 3600).month != __import__("datetime").date.fromtimestamp(now).month else 0
-        assert me() - m0 >= 1000 - 3000 - rent, "日をまたいだ収入 (日給 - 生活費の折半. 月をまたげば家賃の折半も)"
+        # 日をまたいだ数だけ, 日々の収入と生活費 (一人なら折半の半分). 月をまたげば家賃・光熱費・通信費も (払いきれなければ払える分).
+        # 流す時刻で, またぐ日数・月が変わる (夜中なら 2 日, 月初めなら月も) ので, 記録で確かめる
+        from datetime import date
+        days = (date.fromtimestamp(now) - date.fromtimestamp(now - 30 * 3600)).days
+        raw = [x for x in app.kakeibo.rec()["raw"] if x["t"] >= now - 31 * 3600]
+        assert sum(1 for x in raw if x["n"] == "日々の収入") == days and sum(1 for x in raw if x["n"] == "生活費") == days, raw
+        month = date.fromtimestamp(now - 30 * 3600).month != date.fromtimestamp(now).month
+        assert month == any("家賃" in x["n"] for x in raw), raw
         v = dict(app.state_view()["you"], **app.person_view("hina")["life"])
         print("view:", {k: v[k] for k in ("my_money", "pay_policy", "hint")}, [x["tell"] for x in v["reasons"]])
         for e in app.log("hina"):

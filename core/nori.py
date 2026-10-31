@@ -38,10 +38,15 @@ def level(st, now):
     return _rec(st)["v"] / 100.0 if active(st, now) else None
 
 
+def hour_at(now):
+    """その時刻の時 (0〜23). テストでは時計を固定するので, ここから取る (tools/testclock.py)."""
+    return datetime.fromtimestamp(now).hour
+
+
 def base(app, char, st, now, boost=0.0):
     """会話の始まりのノリ."""
     p = st["params"]
-    h = datetime.fromtimestamp(now).hour
+    h = hour_at(now)
     v = 40 + 0.35 * (p.get("boredom", 30) - 30) + 0.3 * (p.get("loneliness", 30) - 30) + 0.3 * (p.get("mood", 50) - 50) \
         + 0.35 * (p.get("affection", 50) - 50) + 20 * (float(app.traits(char).get("approach", 1)) - 1) \
         + 8 * app.attach.factor(char, st, "dependence") - (25 if app.quarrel.active(st, now) else 0) - (12 if h >= 23 or h < 6 else 0) - (0.2 * max(0.0, p.get("stress", 0) - 50)) + boost + random.uniform(-12, 12)
@@ -99,7 +104,7 @@ def close_key(app, char, st, now):
     p = st["params"]
     if p.get("affection", 50) < 40 or p.get("mood", 50) < 35:
         return "close_cold"
-    h = datetime.fromtimestamp(now).hour
+    h = hour_at(now)
     return "close_night" if h >= 21 or h < 5 else "close_busy"
 
 
