@@ -64,6 +64,7 @@ def main():
         B.set_stage(cid, "visit")
         assert "会いたい" in send("flirt", affection=70)
         B.set_stage(cid, "contact")
+        st["reasons"] = []                  # 甘えて引かれたのは謝る理由に残る. それも無ければ
         assert "何が" in send("apology"), "理由を知らずに謝ると戸惑われる"
         L.add_reason(st, "player", "bad", "ユウさんが約束を忘れていた", time.time(), told=True)
         app.set_params({"mood": 45, "affection": 60, "trust": 60}, cid)

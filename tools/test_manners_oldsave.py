@@ -66,7 +66,7 @@ def main():
         r = app.deliver_due()
         it = app.chat.thread(cid)["items"][-1]
         assert r and it["kind"] in ("apology", "apology_half", "apology_deeds", "apology_refuse"), it
-        assert st["apologies"] and st["apology_last"]["action"] == "_too_often"
+        assert bool(st["apologies"]) == (it["kind"] == "apology") and st["apology_last"]["action"] == "_too_often"   # 続けて謝ったに数えるのは許したときだけ
         print("以前の返信待ちの「ごめんね」:", it["kind"], it["text"])
 
         # ---- 2. 以前の連絡しすぎ (いま効いている) は「今さら？」にならない. 許し方の割合も新しいセーブと同じ

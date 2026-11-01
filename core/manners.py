@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 
 from . import knowsched as ks
 
+COUNTED_APOLOGY = ("quick", "late", "enough", "irritated")
 APOLOGY_SPAN = 4 * 3600          # この間に続けて謝ると「もういいって」
 LATE_AFTER = 12 * 3600           # これより前のことを謝ると「今さら？」
 FAULT_DAYS = 4                   # 謝る対象として見る, あなたのせいの理由の古さ
@@ -54,6 +55,11 @@ class Manners:
         return float(self.app.traits(char).get("grudge", 1.0))
 
     # ------------------------------------------------------------------ 謝罪
+    # メッセージへの返事で嫌がったこと → 機嫌の理由 (あなたのせい). 連絡しすぎ・何度も「今何してる？」などは別に残している
+    BAD_REPLY_TELL = {"flirt_cold": "%sに軽々しく甘えられた", "tease_hurt": "%sにからかわれて、傷ついた",
+                      "late_night": "%sから夜中に連絡が来た", "stamp_spam": "%sにスタンプばかり続けて送られた",
+                      "selfie_pester": "%sに何度も自撮りをせがまれた"}
+
     def _faults(self, st, now):
         return [r for r in st.get("reasons") or [] if r["kind"] == "player" and r["mood"] == "bad"
                 and not r.get("resolved") and now - r["t"] <= FAULT_DAYS * 86400]
@@ -88,8 +94,10 @@ class Manners:
     def apply_apology(self, char, st, v, now):
         """謝罪の結果を反映する (理由を消す・弱める・残す. 謝罪の間隔)."""
         L = self.app.life
-        st["apologies"] = [t for t in st.get("apologies") or [] if now - t < 86400] + [now]
         r, out = v.get("r"), v["out"]
+        st["apologies"] = [t for t in st.get("apologies") or [] if now - t < 86400]
+        if out in COUNTED_APOLOGY:     # 「もういいって」と言えるのは, 許したあと (何のことかわからない・まだ許していないなら数えない)
+            st["apologies"].append(now)
         if out in ("quick", "late"):
             L.resolve(st, "bad", now, kind="player")            # 謝って消えるのは あなたのせいの理由だけ
             if r:
@@ -180,6 +188,47 @@ class Manners:
         return out
 
     PARAM_LABEL = {"mood": "機嫌", "trust": "信頼", "affection": "好感度"}
+
+    COUNTED_KEYS = {"apology": "quick", "apology_late": "late", "apology_enough": "enough", "apology_irritated": "irritated"}
+
+    def apology_count_comp(self, now=None):
+        """不具合のお詫び (一度だけ. ワールドごと): 謝ることが見当たらなかった (「何のこと？」)・まだ許していない謝罪まで
+        「続けて謝った」に数えていた. 2 日のうちのトークを見て, 許したあとでないのに「もういいって」(enough / irritated) と
+        返していた分の効き目を戻し, 数え直す (トークの文面は書き換えない). 戻した {cid: 回数} を返す."""
+        app = self.app
+        now = now or time.time()
+        done = app.life.player_state().setdefault("fix_comp", {})
+        if done.get("apology_count"):
+            return {}
+        done["apology_count"] = now
+        app.life.save_player()
+        out = {}
+        for cid, char in app.chars.items():
+            st = app.state(cid)
+            replies = sorted((it for it in app.chat.load(cid)["items"] if it.get("who") == "her" and now - it["t"] < 2 * 86400
+                              and (it.get("kind") or "").startswith("apology")), key=lambda it: it["t"])
+            counted, drop, before, n = [], [], {k: float(st["params"].get(k, 0)) for k in self.PARAM_LABEL}, 0
+            for it in replies:
+                out_ = self.COUNTED_KEYS.get(it["kind"])
+                if out_ in ("enough", "irritated") and not [t for t in counted if 0 <= it["t"] - t < APOLOGY_SPAN]:
+                    app.apply_effects(st, {k: -v for k, v in APOLOGY_EFF[out_].items()})
+                    n += 1
+                    out_ = None
+                if out_:
+                    counted.append(it["t"])
+                else:
+                    drop.append(it["t"])
+            if not drop:
+                continue
+            st["apologies"] = [t for t in st.get("apologies") or [] if not any(abs(t - d) < 2 for d in drop)]
+            if n:
+                diff = ["%s %+.1f" % (self.PARAM_LABEL[k], float(st["params"].get(k, 0)) - v) for k, v in before.items()
+                        if abs(float(st["params"].get(k, 0)) - v) >= 0.05]
+                app.chat.add(cid, "sys", "（不具合のお詫び: 許したあとでないのに「もういい」と返していた分を戻した%s）"
+                             % ("：" + "・".join(diff) if diff else ""), kind="rejudge", t=now)
+                out[cid] = n
+            app.save_state(cid)
+        return out
 
     def _rejudge_note(self, cid, st, before):
         """当て直したことを, その人のトークとサーバのログに残す (効いたかが分かるように)."""

@@ -5,6 +5,8 @@
 - 「会おう」にもう応じているのに, また「会おう」と送ると, その話の続きとして返す
 - 誕生日を前にも教えた・聞いたのに, またやりとりすると「前にも」と返す
 - 「今いい？」に「あとで」と言われてすぐ電話すると, そう言われる (喜ばない. お礼の心当たりにもならない)
+- 謝ることが見当たらない謝罪は「続けて謝った」に数えない. 甘えて引かれた・からかって傷つけた などは謝る理由に残る
+- お詫び (一度だけ): 「何のこと？」のあとの謝罪に「もういい」と返していた分を戻す
 
     python tools/test_reply_context.py
 """
@@ -96,6 +98,34 @@ def main():
         assert "あとで" in r["entry"]["text"] and not st["favors"], (r["entry"]["text"], st["favors"])
         assert st["params"]["mood"] <= m0 + 1.5, (m0, st["params"]["mood"])
         print("あとでと言われて電話:", r["entry"]["text"])
+
+        # ---- 謝ることが見当たらない謝罪 (「何のこと？」) は, 続けて謝ったに数えない
+        st["reasons"], st["apologies"], st["apology_last"] = [], [], None
+        for _ in range(2):
+            v = M.apology(char, st, time.time())
+            assert v["out"] == "none", v
+            M.apply_apology(char, st, v, time.time())
+        # 嫌がったこと (甘えて引かれた) は理由に残り, 謝ればそのことへの謝罪になる
+        app.set_params({"affection": 20}, cid)
+        assert C.reply(char, st, "flirt", time.time(), {})[0] == "flirt_cold"
+        st["msg_pending"] = {"kind": "flirt", "t": time.time(), "meta": {}}
+        app._chat_reply(char, st, st.pop("msg_pending"), time.time())
+        assert any(r["kind"] == "player" and r.get("action") == "_chat_flirt_cold" for r in st["reasons"]), st["reasons"]
+        v = M.apology(char, st, time.time())
+        assert v["out"] not in ("none", "enough", "irritated") and "甘え" in v["r"]["tell"], v
+        print("甘えて引かれたあとの謝罪:", v["out"], v["r"]["tell"])
+
+        # ---- お詫び: 「何のこと？」のあとの謝罪に「もういい」と返していた分を戻す (一度だけ)
+        t0 = time.time() - 3600
+        C.add(cid, "her", "x", kind="apology_confused", t=t0)
+        C.add(cid, "her", "x", kind="apology_enough", t=t0 + 600)
+        st["apologies"] = [t0, t0 + 600]
+        app.life.player_state().setdefault("fix_comp", {}).pop("apology_count", None)
+        m0 = st["params"]["mood"]
+        got = M.apology_count_comp()
+        assert got == {cid: 1} and abs(st["params"]["mood"] - m0 - 2) < 0.01 and st["apologies"] == [], (got, st["apologies"])
+        assert M.apology_count_comp() == {}
+        print("お詫び:", C.load(cid)["items"][-1]["text"])
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

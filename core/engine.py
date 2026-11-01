@@ -218,6 +218,7 @@ class App:
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
+        self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -1634,6 +1635,9 @@ class App:
             self.bonds.met(st, now, contact=True)
             st["last_interaction"] = now
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
+            if key in self.manners.BAD_REPLY_TELL:          # 嫌だったこと: 謝れば「何のこと？」ではなく, そのことへの謝罪になる
+                self.life.add_reason(st, "player", "bad", self.manners.BAD_REPLY_TELL[key] % self.pronouns(char)[2], now, told=True,
+                                     delta=deltas.get("mood") or deltas.get("affection") or -1.0, action="_chat_" + key)
             text = self.chat.line(char, key, extra)
             selfie = key == "selfie_yes" or (
                 key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
@@ -3471,6 +3475,7 @@ class App:
             self.task_fix_comp()
             self.lonely_comp()
             self.task_marks_comp()
+            self.manners.apology_count_comp()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
