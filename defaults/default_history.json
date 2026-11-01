@@ -282,7 +282,8 @@
    "c7c70e6869003e205920b927251ef5c5",
    "c9820c3a6c82cf4f7b64c12c57cddcb5",
    "3a047f3e4799c6541f71b1a699de06ae",
-   "46fe4e20c406762a07f2f261c79eb9a3"
+   "46fe4e20c406762a07f2f261c79eb9a3",
+   "6ecbf3b41c33fcefa401c182d9716b44"
   ],
   "sleep_together": [
    "3a6bd7c3b78fbbbbb285a607f752a750",
@@ -557,9 +558,9 @@
  },
  "params": {
   "affection": [
+   "94c91f3887a49e3a7e74e26bdf0073cd",
    "3d1797e2d03cf2d7af96ebdd3b3ae896",
-   "74eb2efd7365306888c4709ef4d00e45",
-   "94c91f3887a49e3a7e74e26bdf0073cd"
+   "74eb2efd7365306888c4709ef4d00e45"
   ],
   "boredom": [
    "b54601aec6f847d52c6d770d5a6364b5",

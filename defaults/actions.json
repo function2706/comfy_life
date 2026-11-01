@@ -3661,7 +3661,7 @@
   "icon": "🧵",
   "category": "お金",
   "when": "",
-  "cooldown": 30,
+  "cooldown": 0,
   "effects": {
    "boredom": -3
   },

@@ -92,7 +92,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 
 キャラの状態 (`state/<cid>.json`) の主な項目: `params`・`override`（一時的な過ごし方）・`dress`・`cooldowns`・`last_interaction`・`money.a`・`events`・`reasons`（機嫌の理由）・`request`（おねだり）・`approach` / `ap_last`（働きかけ）・`gain_day` / `touch_days` / `last_touch` / `gifts`（現実的な深まり方）・`contacts`（連絡の回数）・`msg_pending`（返信の予定. 一つだけ）・`date_promise`（会う約束）・`peek_until`（電話中だけ様子が見える）・`jealous`・`lent`（あなたに貸したお金）・`last_met` / `last_contact`（最後に会った・連絡した）・`known`（あなたが知ったこと: 好き・苦手・聞いた話）。
 
-あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`appoints`（約束）・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）/ `side_job_t`（最後に内職を終えた時刻. 休憩はあなたの記録）。
+あなたの状態 (`player.json`) の主な項目: `money`・`market`・`skills`・`stamina`・`work_log`・`presence`（在席・一人の時間・行き先・出先の記録・ばったりの返事待ち）・`bonds` / `with`（間柄・いま誰と一緒か）・`encounter`（登録を尋ねている人）・`items` / `shop_list`・`offline_report`・`appoints`（約束）・`debt` / `debt_t`（借金の残高・始まった時）/ `loans` / `loan_t`（誰にいくら借りているか・借り始め）/ `money_notes`（お金のできごと）/ `side_job_t` / `side_job_streak`（最後に内職を終えた時刻・続けている疲れ）。
 
 ## 4. 主要な概念
 

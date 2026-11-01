@@ -179,7 +179,7 @@ def main():
         # ---- 内職
         st["cooldowns"] = {}
         free()
-        L.player_state()["stamina"] = 5
+        L.player_state()["stamina"] = 2
         try:
             app.task_start("slide")
             raise AssertionError("疲れていても内職できてしまう")
@@ -195,11 +195,8 @@ def main():
         r = app.task_finish(tk["token"])
         print("内職:", {k: v for k, v in r["task"].items() if k != "view"}, r["entry"]["text"])
         assert r["task"]["solved"] and L.player_state()["money"] - m0 == r["task"]["pay"] > 0 and P.rec()["mode"] == "none"
-        try:
-            app.task_start("slide")
-            raise AssertionError("連続で内職できてしまう")
-        except ValueError as e:
-            print("  連続:", e)
+        tk = app.task_start("slide")                       # 続けてもできる (休憩の縛りはない. 続けるほど疲れが早い)
+        app.task_finish(tk["token"])
 
         # ---- 投資: 銘柄の売買とニュース
         L.player_state()["money"] = 100000

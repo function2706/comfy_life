@@ -192,7 +192,8 @@
   "stamina_recover": 5,
   "stamina_recover_sleep": 12,
   "stamina_per_work_hour": 9,
-  "stamina_per_side_job": 10,
+  "side_job_stamina_per_hour": 12,
+  "side_job_min_stamina": 3,
   "news_session_hours": [
    0.5,
    2

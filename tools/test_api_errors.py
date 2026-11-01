@@ -1,7 +1,7 @@
 """API のお断りとログの確認 (一時データ).
 - 利用者へのお断り (ValueError: 休憩中 など) は 400 で返し, ログはトレースバックなしの 1 行
 - 想定外の例外はトレースバックをログに残す. 見つからないものは 404
-- 内職を始められないときは, 画面に先に理由が出る (state_view.side_job: 休憩の残り・体力不足)
+- 内職を始められないときは, 画面に先に理由が出る (state_view.side_job: 体力不足)
 
     python tools/test_api_errors.py
 """
@@ -48,23 +48,19 @@ def main():
         app.state(cid)["override"] = {"activity": "relax", "label": "くつろぎ", "location": "リビング", "until": 9e12}
         drain(app)
 
-        # ---- 内職: 始められる → 終える → 休憩中 (画面に先に出る. API はお断りの 1 行)
+        # ---- 内職: 始められる → 終える → すぐ次も始められる. 体力が足りなければ先に理由が出る (API はお断りの 1 行)
         assert app.state_view(cid)["side_job"] is None
         tk, code = server.call_api("POST", "/api/task/start", {}, {"kind": "slide", "level": "easy"})
         assert code == 200 and tk["token"]
         server.call_api("POST", "/api/task/finish", {}, {"token": tk["token"]})
-        why = app.state_view(cid)["side_job"]
-        assert why and "あと" in why["reason"] and 0 < why["wait"] <= 1800, why
+        assert app.state_view(cid)["side_job"] is None, "休憩の縛りはない"
+        app.life.player_state()["stamina"] = 2
+        assert "体力" in app.state_view(cid)["side_job"]["reason"]
         drain(app)
         r, code = server.call_api("POST", "/api/task/start", {}, {"kind": "slide", "level": "easy"})
         logs = drain(app)
         assert code == 400 and "疲れ" in r["error"]
         assert len(logs) == 1 and "[INFO]" in logs[0] and "Traceback" not in logs[0] and "\n" not in logs[0], logs
-        # 体力が足りないときも, 先に理由が出る
-        app.state(cid)["cooldowns"] = {}
-        app.life.player_state()["side_job_t"] = 0           # 内職の休憩はあなたの記録
-        app.life.player_state()["stamina"] = 3
-        assert "体力" in app.state_view(cid)["side_job"]["reason"]
         app.life.player_state()["stamina"] = 100
         assert app.state_view(cid)["side_job"] is None
         print("refusals: OK")

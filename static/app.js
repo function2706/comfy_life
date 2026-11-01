@@ -2484,7 +2484,7 @@ function openTask() {
   if (why) {
     $('#task-sub').textContent = '';
     $('#task-body').replaceChildren(h('p', {}, `🧵 ${why.reason}`),
-      h('p', { class: 'muted small' }, '内職は1回ごとに体力を10使い、終わると30分休憩です。'),
+      h('p', { class: 'muted small' }, '内職は手を動かした時間ぶん体力を使います（1時間でおよそ12）。続けてやるほど疲れが早く、間に休むと戻ります。'),
       h('button', { class: 'btn', onclick: () => dlg.close() }, '閉じる'));
     if (!dlg.open) dlg.showModal();
     return;
@@ -2494,7 +2494,7 @@ function openTask() {
   const draw = () => {
     $('#task-sub').textContent = '';
     $('#task-body').replaceChildren(
-      h('p', { class: 'muted' }, '知られたパズルを解いて稼ぎます。解けたら難しさに応じた額（仕事スキルで上がる）、速いほど・ミスが少ないほど多め。途中でやめると少しだけ。終わると30分休憩です。'),
+      h('p', { class: 'muted' }, '知られたパズルを解いて稼ぎます。解けたら難しさに応じた額（仕事スキルで上がる）、速いほど・ミスが少ないほど多め。途中でやめると少しだけ。体力はかかった時間ぶん使い、続けてやるほど疲れが早くなります。'),
       h('div', { class: 'row pz-levels' }, h('span', { class: 'muted small' }, '難しさ'),
         cat.levels.map((l) => h('button', { class: 'btn small' + (S.taskLevel === l.id ? ' primary' : ''), onclick: () => { S.taskLevel = l.id; draw(); } }, l.name))),
       h('div', { class: 'task-pick' }, cat.kinds.map((k) => h('button', { class: 'cmd', onclick: () => startTask(k.id, S.taskLevel) },
@@ -2536,6 +2536,7 @@ async function finishTask(gaveUp) {
     renderTask(h('div', { class: 'task-result' },
       h('div', {}, k.solved ? `✨ できあがり（${fmtSec(k.sec)}${k.fast ? '・速い！' : ''}・ミス ${k.miss}）` : `${k.view && k.view.stuck ? '動かせなくなった' : '途中でやめた'}（${fmtSec(k.sec)}・ミス ${k.miss}）`),
       h('div', { class: 'big' }, yen(k.pay)),
+      h('div', { class: 'muted' }, `体力 −${k.stamina}${k.tired ? '（続けてやっているので、疲れが早い）' : ''}`),
       r.entry && r.entry.skill && r.entry.skill.work ? h('div', { class: 'muted' }, `仕事スキル +${r.entry.skill.work}`) : '',
       r.entry && r.entry.skill && r.entry.skill.write ? h('div', { class: 'muted' }, `文章スキル +${r.entry.skill.write}`) : '',
       h('button', { class: 'btn primary', onclick: () => $('#task-dlg').close() }, '閉じる')));

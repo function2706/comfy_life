@@ -148,6 +148,12 @@ def join_tags(chunks):
 MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
 
 
+SIDE_JOB_STAMINA_H = 12         # 内職の体力 (1 時間あたり. 続けていなければ. 仕事は 9)
+SIDE_JOB_STREAK_HL = 30         # 続けている疲れが半分抜けるまで (分)
+SIDE_JOB_TIRED_MIN = 30         # 続けている分がこれ以上なら「続けてやっているので疲れが早い」
+SIDE_JOB_MIN_STAMINA = 3        # 内職を始められる体力
+
+
 class App:
     def __init__(self):
         store.bootstrap()
@@ -2913,7 +2919,7 @@ class App:
             return {"market": self.market.view()}
 
     def task_start(self, kind, level="easy", cid=None):
-        """内職 (パズル) を始める. 連続ではできない (コマンド side_job のクールダウン). 盤面はサーバで作る."""
+        """内職 (パズル) を始める. 休憩の縛りはない (続けるほど疲れやすい. side_job_tire). 盤面はサーバで作る."""
         with self.lock:
             now = time.time()
             why = self.task_ready(now)
@@ -3002,11 +3008,22 @@ class App:
                 self.presence.declare("busy", time.time())
             return self._task_info(token)
 
-    def side_job_last(self):
-        """最後に内職を終えた時刻 (あなたの記録. 以前はキャラの状態に残していたので, そちらも見る)."""
+    def side_job_tire(self, t, sec, now):
+        """内職を終えたときの体力の減り. 手を動かした時間 (一時停止は数えない) ぶん, 続けているほど速く減る.
+        続けている疲れ (player.json の side_job_streak = {min: 直近に内職した分, t}) は, 内職のほかで過ごすと SIDE_JOB_STREAK_HL 分ごとに半分抜ける.
+        減りの速さは 1 時間あたり rate × (1 + 続けている分 / 60): 続けて 1 時間で 2 倍, 2 時間で 3 倍. (使った体力, 続けていて疲れが早かったか)."""
+        e = self.world.get("economy", {})
+        rate = float(e.get("side_job_stamina_per_hour", SIDE_JOB_STAMINA_H))
         ps = self.life.player_state()
-        old = [max(self.state(c)["cooldowns"].get("side_job", [0]) or [0]) for c in self.chars]
-        return max([float(ps.get("side_job_t", 0))] + old)
+        sk = ps.get("side_job_streak") or {}
+        gap = max(0.0, min(float(t.get("t0", now)), now - sec) - float(sk.get("t", 0)))
+        p0 = float(sk.get("min", 0)) * 0.5 ** (gap / 60.0 / SIDE_JOB_STREAK_HL)
+        w = sec / 60.0
+        used = round(rate / 60.0 * (w + ((p0 + w) ** 2 - p0 ** 2) / 120.0), 1)
+        ps["side_job_streak"] = {"min": round(p0 + w, 1), "t": now}
+        ps["side_job_t"] = now
+        self.life.tire(used)
+        return used, p0 + w / 2 >= SIDE_JOB_TIRED_MIN
 
     def task_fix_comp(self, now=None):
         """不具合のお詫び (一度だけ. ワールドごと): 内職の画面を開き直せず, やりかけの内職が途中でやめた扱いになった分.
@@ -3057,11 +3074,7 @@ class App:
             return {"reason": "いまは家にいないので内職できません", "wait": 0}
         if not cond.check(a.get("when", ""), self.you_context(datetime.fromtimestamp(now))):
             return {"reason": "今は内職できません", "wait": 0}
-        cd = float(a.get("cooldown", 0)) * 60
-        last = self.side_job_last()
-        if cd and now - last < cd:
-            return {"reason": "まだ疲れが残っています（あと%d分）" % math.ceil((last + cd - now) / 60), "wait": int(last + cd - now)}
-        need = float(self.world.get("economy", {}).get("stamina_per_side_job", 10))
+        need = float(self.world.get("economy", {}).get("side_job_min_stamina", SIDE_JOB_MIN_STAMINA))
         if self.life.stamina() < need:
             return {"reason": "疲れていて作業できません（体力 %d / %d 必要）" % (self.life.stamina(), need), "wait": 0}
         return None
@@ -3091,22 +3104,21 @@ class App:
             e = self.world.get("economy", {})
             pay = puzzles.pay(pz, sec, puzzles.skill_mult(pz["kind"], self.life.skill_mult), e.get("side_job_rate_per_min"))
             mv = self.life.move(None, dp=pay, cat="income", note="内職") if pay else {}
-            self.life.player_state()["side_job_t"] = time.time()
+            used, tired = self.side_job_tire(t, sec, time.time())
             solved = puzzles.solved(pz)
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
             k2 = puzzles.SKILL_MIX.get(pz["kind"])          # タイピングは文章のスキルも少し伸びる
             gain2 = self.life.train(k2, 0.5 * puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz))) if k2 else 0
-            self.life.tire(float(e.get("stamina_per_side_job", 10)))
             p = self.presence.rec()
             if p["mode"] == "busy":
                 p["mode"] = "none"
         fast = puzzles.fast(pz, sec)
         near = self.target(cid)
         task = {"solved": solved, "fast": fast, "miss": pz["miss"], "sec": round(sec), "pay": pay, "kind": pz["kind"],
-                "level": pz["level"], "view": puzzles.view(pz, reveal=not solved)}
+                "level": pz["level"], "view": puzzles.view(pz, reveal=not solved), "stamina": used, "tired": tired}
         if not near:                # 一人で: 黙々と. あなたの記録だけ
-            r = self.my_entry("side_job", "内職", "🧵", "%sの内職を%s。%s円になった" % (
-                puzzles.KINDS[pz["kind"]], "仕上げた" if solved else "途中でやめた", format(pay, ",")),
+            r = self.my_entry("side_job", "内職", "🧵", "%sの内職を%s。%s円になった%s" % (
+                puzzles.KINDS[pz["kind"]], "仕上げた" if solved else "途中でやめた", format(pay, ","), "（続けてやっているので、疲れが早い）" if tired else ""),
                 money=mv, skill={k: v for k, v in (("work", gain), (k2, gain2)) if k and v} or None)
             r["task"] = task
             return r

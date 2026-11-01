@@ -2,7 +2,7 @@
 - 盤面の生成: 数独とピクロスは解が一つだけ, マインスイーパは最初に開けたマスの周りに地雷が無い, 15 パズルは崩れている
 - 答え合わせはサーバ: 爆発・誤入力・誤りマスはミス, 正しい手だけが入る, できあがりの判定
 - 稼ぎ: 難しさ・速さ・ミス・仕事スキル. 解けずにやめたら進んだぶんの少しだけ
-- 内職の流れ (体力・休憩・キャラの反応) と, 反応のセリフのキーの移し替え (旧いキーの編集分も新しいキーとして読む)
+- 内職の流れ (体力・キャラの反応) と, 反応のセリフのキーの移し替え (旧いキーの編集分も新しいキーとして読む)
 
     python tools/test_puzzles.py
 """
@@ -272,17 +272,10 @@ def main():
         r = run(0)
         assert r["task"]["solved"] and r["task"]["fast"] and L.player_state()["money"] - m0 == r["task"]["pay"] > 0
         assert said(r["entry"]["text"], "side_job.fast"), r["entry"]["text"]
-        assert r["entry"]["skill"]["work"] > 0 and L.player_state()["stamina"] < 100
+        assert r["entry"]["skill"]["work"] > 0 and r["task"]["stamina"] >= 0
         r = run(6, fast=False)
         assert said(r["entry"]["text"], "side_job.sloppy") and "6" in r["entry"]["text"], r["entry"]["text"]
-        try:
-            app.task_start("slide")
-            raise AssertionError("休憩なしで続けられる")
-        except ValueError:
-            pass
-        st["cooldowns"] = {}
-        app.life.player_state()["side_job_t"] = 0
-        tk = app.task_start("mines", "easy")
+        tk = app.task_start("mines", "easy")              # 休憩の縛りはない (続けるほど疲れが早い. test_side_job_tire.py)
         try:
             app.task_move("nope", {"r": 0, "c": 0})
             raise AssertionError("知らない作業に手を打てる")
