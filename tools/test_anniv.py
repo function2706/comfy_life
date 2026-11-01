@@ -64,6 +64,10 @@ def main():
         assert N.reply(char, st, "ask_bday", time.time())[0] == "bday_refuse"
         app.set_params({"affection": 30, "mood": 40}, cid)
         assert N.reply(char, st, "ask_bday", time.time())[0] == "bday_tell"
+        # 教えてもらったお礼は「何度も」ではなく, ちゃんとしたお礼になる
+        st["favors"] = []
+        N.reply(char, st, "ask_bday", time.time())
+        assert app.manners.thanks(st, time.time(), char)[0] == "thanks", st["favors"]
         print("聞く: OK |", r["entry"]["text"].replace("\n", " "))
 
         # ---- 4. 記念日: 一周年は多くの人, 月ごとは甘えたがり (か依存度が高い人) だけ

@@ -267,6 +267,7 @@ class Anniv:
             md = self.birthday(char)
             st["bday_known"] = True
             app.bonds.learn(st, "heard", "誕生日は%s" % fmt_md(md), now)
+            app.manners.favor(st, "told", now)          # 教えてくれた (お礼の心当たり)
             return "bday_tell", {}, {"date": fmt_md(md)}
         if kind == "tell_bday":
             md = self.my_birthday()

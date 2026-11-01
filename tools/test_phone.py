@@ -94,6 +94,19 @@ def main():
         assert st["params"]["mood"] > m0, "好感度がふつうなら, 電話で機嫌が上がる"
         print("cold call: OK")
 
+        # ---- 2c. 「今いい？」と聞いてからかけると, 待っていた電話として出る (「どうしたの」と聞かない). 出てくれたことはお礼の心当たり
+        for _ in range(40):
+            reset()
+            st["favors"] = []
+            st["call_ok_until"] = time.time() + 600
+            r = app.act("call")
+            if not r.get("missed"):
+                break
+        assert "待って" in r["entry"]["text"] and "どうした" not in r["entry"]["text"], r["entry"]["text"]
+        assert [f["what"] for f in st["favors"]] == ["call"], st["favors"]
+        assert app.manners.thanks(st, time.time(), app.char(cid))[0] == "thanks"
+        print("asked call: OK", r["entry"]["text"])
+
         # ---- 3. 連絡しすぎは引かれる (許容は性格と間柄しだい). 夜中の電話は迷惑がられる
         char = app.char(cid)
         char["persona_id"] = "cool"

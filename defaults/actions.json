@@ -2806,6 +2806,14 @@
     "neg": "smile"
    },
    {
+    "key": "asked",
+    "text": "もしもし、{call}。待ってましたよ。……声が聞けてうれしいです。",
+    "when": "call_ok=true, affection>=35, activity!=class",
+    "priority": 1,
+    "pos": "talking on phone, holding phone to ear, smile",
+    "neg": ""
+   },
+   {
     "key": "cold",
     "text": "……はい。……何か用ですか？ すみません、今ちょっと……手短にお願いします。",
     "when": "affection<35, activity!=class",
