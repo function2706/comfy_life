@@ -145,7 +145,7 @@ def main():
                 if kind in ("too_often", "too_often_again"):
                     app.life.add_reason(st, "player", "bad", "連絡が多くて、少し疲れた", now - ago, told=True, delta=-2.0, action="_too_often")
             st["contacts"] = [now - a for a in contacts]
-            for k in ("contacts_rejudged", "contacts_v2", "contacts_rejudged3", "contacts_v3", "thanks_rejudged"):
+            for k in ("contacts_rejudged", "contacts_v2", "contacts_rejudged3", "contacts_v3", "contacts_settled", "thanks_rejudged"):
                 st.pop(k, None)
             if rejudged:
                 st["thanks_rejudged"] = [now - a for a in rejudged]

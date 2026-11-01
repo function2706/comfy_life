@@ -372,6 +372,8 @@ def route(method, path, q, body):
         if path == "/api/state/reset":
             a.reset_state(cid)
             return {"ok": True}
+        if path == "/api/cheat/status":
+            return a.cheat_view(cid)
         if path == "/api/state/clear_override":
             a.clear_override(cid)
             return {"ok": True}

@@ -17,6 +17,7 @@
 どれも確定的にはしない (効き目は bonds.realize を通る).
 """
 import random
+import re
 import time
 from datetime import datetime, timedelta
 
@@ -219,6 +220,10 @@ class Manners:
                     new.append({"t": float(x), "w": round(hit[1], 2), "k": hit[2], "retro": True} if hit else x)
                 st["contacts"] = new
                 changed = True
+            if st.get("contacts_settled"):          # 精算済み (settle_contacts): 以前の判定はもう当て直さない
+                if changed:
+                    app.save_state(cid)
+                continue
             done = st.setdefault("contacts_rejudged", [])           # 2 版目で判定し直したもの
             done3 = st.setdefault("contacts_rejudged3", [])
             since = st.setdefault("contacts_v3", now)       # この数え方になった時刻: これより前の判定だけ判定し直す
@@ -264,6 +269,67 @@ class Manners:
                 del done3[:-40]
                 app.save_state(cid)
         return out
+    REFUND_RE = re.compile(r"(好感度|信頼) ([+-][\d.]+)")
+
+    def settle_contacts(self):
+        """起動したとき一度 (contacts_settled): 連絡しすぎの判定で下がりすぎていた好感度・信頼を, 今の決まりで精算する.
+        retro_contacts は 4 日より古い判定・その時点で好感度 35 未満なら好感度を戻さない・電話の「また電話？」は見ない, ので取りこぼしていた.
+        ・以前 (contacts_v3 より前) の「連絡多くない？」「謝ったばかりなのに」の全部と, 好感度が下がった「また電話？」について,
+          実際に下がった分 (ログの記録. なければ決まりの値) と, 今の決まりで下がるはずの分を比べる
+          (多くなかった → 0. 多かった「連絡多くない？」→ そのとき好感度 35 未満なら好感度だけ. 「謝ったばかりなのに」→ そのまま)
+        ・そのときの好感度は, いまの値に, その後に下がった分を足し戻して見積もる (下がったせいで 35 を切った分を「嫌われていた」にしない)
+        ・これまでの当て直し (トークの「連絡が多い」を受け止め直した知らせ) で戻した分を引いて, 足りない分だけ戻す.
+          お礼の当て直しで戻した分 (thanks_rejudged) は済んでいるので数えない
+        ・機嫌は時間で戻っているので戻さない. 好感度・信頼だけ. 知らせを一度."""
+        app, B = self.app, self.app.bonds
+        now = time.time()
+        out = []
+        for cid, char in app.chars.items():
+            st = app.state(cid)
+            if st.get("contacts_settled"):
+                continue
+            st["contacts_settled"] = now
+            since = st.get("contacts_v3") or now
+            items = app.chat.load(cid)["items"]
+            hist = B.history_weights(items)
+            log = {e["t"]: e for e in app.log(cid) if e.get("action") in ("_chat", "call")}
+            graced = set(st.get("thanks_rejudged") or [])
+            hits = []           # (時刻, 実際に下がった好感度, 信頼, 今の決まりで下がる信頼, 好感度を残すのは好かれていなかったときだけか, 多かったか)
+            for it in items:
+                if it.get("who") != "her" or it.get("kind") not in ("too_often", "too_often_again") or it["t"] >= since                         or it["t"] in graced:
+                    continue
+                d = (log.get(it["t"]) or {}).get("deltas") or self.TOO_OFTEN_EFF[it["kind"]]
+                total = sum(w for t, w, _ in hist if it["t"] - 86400 < t <= it["t"])
+                over = total > B.TOO_OFTEN_RATIO * B.tolerance(char, cid, st, it["t"])
+                hits.append((it["t"], -min(0.0, float(d.get("affection", 0))), -min(0.0, float(d.get("trust", 0))),
+                             -min(0.0, float(d.get("trust", 0))) if over else 0.0, it["kind"] == "too_often", over))
+            for e in log.values():
+                d = e.get("deltas") or {}
+                if e["action"] == "call" and e["t"] < since and float(d.get("affection", 0)) < 0 and float(d.get("mood", 0)) < 0:
+                    hits.append((e["t"], -float(d["affection"]), 0.0, 0.0, False, False))    # 今の決まりでは電話で好感度は下がらない
+            back = {"affection": 0.0, "trust": 0.0}
+            for it in items:
+                if it.get("kind") == "rejudge" and "連絡が多い" in it.get("text", ""):
+                    for name, v in self.REFUND_RE.findall(it["text"]):
+                        back["affection" if name == "好感度" else "trust"] += float(v)
+            aff = float(st["params"].get("affection", 50)) - back["affection"]
+            owed = {"affection": -back["affection"], "trust": -back["trust"]}
+            for t, a, tr, keep_tr, mild, over in sorted(hits, key=lambda x: -x[0]):
+                aff += a                          # この判定の直前の好感度 (の見積もり)
+                keep_a = a if over and (not mild or aff < 35) else 0.0
+                owed["affection"] += a - keep_a
+                owed["trust"] += tr - keep_tr
+            eff = {k: round(v, 1) for k, v in owed.items() if v >= 0.1}
+            if eff:
+                got = app.apply_effects(st, eff)
+                parts = ["%s %+g" % (self.PARAM_LABEL[k], v) for k, v in got.items()]
+                app.chat.add(cid, "sys", "（以前の「連絡多くない？」「また電話？」で下がりすぎていた分を、今の決まりで精算した%s）"
+                             % ("：" + "・".join(parts) if parts else ""), kind="rejudge", t=now)
+                app.logq.put("%s [INFO] 連絡しすぎの精算 %s: %d 件 %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, len(hits), "・".join(parts)))
+                out.append((cid, "settled"))
+            app.save_state(cid)
+        return out
+
     APOLOGY_KEY_OUT = {"apology": "quick", "apology_half": "half", "apology_deeds": "deeds", "apology_late": "late"}
 
     def _regrace(self, cid, char, st, al, done):

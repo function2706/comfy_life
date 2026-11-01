@@ -4317,6 +4317,36 @@ SEC.llm = () => {
   ];
 };
 
+// 詳しい状態 (チート): ふだん見えない値も, 判定に使う形のまま. 上の「対象」の人について. 離れている人でも見える
+function cheatBox(cid) {
+  const out = h('div', { class: 'cheat' });
+  const kv = (title, obj) => h('div', { class: 'pgroup' }, h('h4', {}, title),
+    ...Object.entries(obj).map(([k, v]) => h('div', { class: 'prow look' }, h('span', {}, k), h('span', {}, String(v)))));
+  const show = async () => {
+    out.replaceChildren(h('div', { class: 'muted small' }, '読み込み中…'));
+    try {
+      const r = await api('/api/cheat/status', { character: cid });
+      out.replaceChildren(
+        h('div', { class: 'muted small' }, `${r.name}　いま: ${r.scene}`),
+        h('div', { class: 'pgroup' }, h('h4', {}, 'パラメータ（→ は時間とともに向かう先）'),
+          ...r.params.map((p) => h('div', { class: 'prow look' }, h('span', {}, p.name),
+            h('span', {}, p.target == null ? `${p.v}` : `${p.v} → ${p.target}`)))),
+        kv('関係', r.bond), kv('連絡', r.contact), kv('関わり方の傾き', r.attach),
+        h('div', { class: 'pgroup' }, h('h4', {}, '気分の理由（効くのは 12 時間・解決するまで）'),
+          r.reasons.length ? r.reasons.map((x) => h('div', { class: 'reason ' + x.mood },
+            h('span', {}, x.mood === 'good' ? '😊' : '😣'),
+            h('span', {}, `${x.tell || '（中身なし）'}　${x.delta > 0 ? '+' : ''}${x.delta}${x.kind === 'player' ? '・あなたのせい' : ''}${x.resolved ? '・解決済み' : x.live ? '' : '・もう効いていない'}${x.told ? '' : '・まだ聞いていない'}`),
+            h('span', { class: 'muted small' }, fmtTime(x.t)))) : h('div', { class: 'muted small' }, 'なし')),
+        h('div', { class: 'pgroup' }, h('h4', {}, '続けてできないコマンド（あと何分）'),
+          r.cooldowns.length ? h('div', { class: 'small' }, r.cooldowns.map((x) => `${x.name} ${x.min}分`).join('、')) : h('div', { class: 'muted small' }, 'なし')),
+        kv(`性格の傾向（${r.persona || '—'}）`, r.traits));
+    } catch (e) { out.replaceChildren(h('div', { class: 'result err' }, e.message)); }
+  };
+  return h('div', {},
+    h('p', { class: 'lead' }, 'ふだん画面に出さない値（好感度・信頼の正確な値、今日の上がり幅、連絡の許容、依存度など）を見ます。遊びの手がかりではなく、確かめる・調べるためのものです。'),
+    h('div', { class: 'row' }, h('button', { class: 'btn', onclick: show }, '表示・更新')), out);
+}
+
 /* ---- データ */
 SEC.data = () => {
   const people = S.view.people || [];
@@ -4351,6 +4381,8 @@ SEC.data = () => {
         if (!confirm('パラメータを初期値に戻しますか？（ログと画像は残ります）')) return;
         await api('/api/state/reset', C); toast('初期化しました', 'ok'); await refresh(); showSection('data');
       } }, 'パラメータ初期化')),
+    h('div', { class: 'sect' }, '🔍 詳しい状態を見る（チート）'),
+    cheatBox(SE.dbg),
     h('div', { class: 'sect' }, '出来事を起こす（テスト用）'),
     (() => {
       const sel = h('select', {}, (S.boot.events || []).map((e) => h('option', { value: e.id }, `${e.label}（${e.mood}）`)));

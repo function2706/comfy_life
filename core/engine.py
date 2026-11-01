@@ -205,6 +205,7 @@ class App:
         self._load_index()
         rt = self.manners.rejudge_thanks()          # 謝ったあとのお礼が以前の判定で「何が？」と返っていたら, 本来の効き目を当て直す
         rc = self.manners.retro_contacts()          # 連絡しすぎの数え方を以前の記録にも遡って効かせる
+        rc += self.manners.settle_contacts()        # それでも取りこぼしていた, 下がりすぎの好感度・信頼を一度だけ精算する
         self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
         paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
@@ -2397,6 +2398,87 @@ class App:
                 "approach": self.presence.pending_view(char, st),
                 "peek": st.get("peek_until", 0) > now}
 
+    def cheat_view(self, cid=None):
+        """設定の「詳しい状態を見る (チート)」: ふだん画面に出さない値も, いまの判定に使う形のまま返す.
+        離れている人でも見える (操作者が察するための画面には使わない. 確かめる・調べる用)."""
+        with self.lock:
+            char = self.char(cid)
+            cid = char["id"]
+            st = self.state(cid)
+            dt = datetime.now()
+            now = dt.timestamp()
+            scene = self.scene_at(char, st, dt)
+            ctx = self.context(char, st, dt, scene)
+            B, c = self.bonds, self.bonds.cfg()
+            tr = self.traits(char)
+            params = []
+            for p in self.params:
+                v = float(st["params"].get(p["id"], p.get("init", 50)))
+                dr, target = p.get("drift"), None
+                if dr:
+                    target = float(dr.get("target", v)) + float((tr.get("drift") or {}).get(p["id"], 0)) + sum(
+                        float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
+                params.append({"id": p["id"], "name": p.get("name", p["id"]), "v": round(v, 1),
+                               "target": None if target is None else round(target, 1)})
+            p = st["params"]
+            gd = st.get("gain_day") or {}
+            today = gd.get("d") == B._day(now)
+            gap = B.gap_days(st, now)
+            tol = B.tolerance(char, cid, st, now)
+            cds = []
+            for aid, ts in (st.get("cooldowns") or {}).items():
+                try:
+                    a = self.action(aid)
+                except KeyError:
+                    continue
+                left = float(a.get("cooldown", 0)) * 60 - (now - max(ts or [0]))
+                if left > 0:
+                    cds.append({"name": a.get("name", aid), "min": round(left / 60.0)})
+            until = lambda k: max(0.0, st.get(k, 0) - now) / 60.0    # noqa: E731
+            return {
+                "name": char.get("name", ""), "persona": char.get("persona_id") or "",
+                "scene": "%s（%s）%s" % (scene["label"], scene.get("location") or "—",
+                                       "・".join(x for x, on in (("睡眠中", scene["asleep"]), ("手が離せない", scene["busy"]),
+                                                                ("出かけている", scene["away"])) if on)),
+                "params": params,
+                "bond": {
+                    "間柄": B.view(cid)["stage_label"] + " / " + B.view(cid)["label"],
+                    "会ってもらえるか": "誘いに応じうる" if p.get("affection", 0) >= float(c["meet_min_affection"])
+                    else "離れているときの誘いは断られる（好感度 %g 未満。待ち合わせの約束・会おうという話の後は別）" % float(c["meet_min_affection"]),
+                    "深い仲": "はい" if B.deep(cid) else "いいえ（好感度 %g 以上で）" % float(c["deep_affection"]),
+                    "最近14日で交流した日数": B.freq(st, now),
+                    "最後の交流から": "%.1f 日" % gap,
+                    "ご無沙汰で冷める": ("冷めている最中（1日 %g ずつ、%g まで）" % (float(c["cool_per_day"]), float(c["cool_floor"]))
+                                    if gap >= float(c["cool_after_days"]) else "あと %.1f 日で冷め始める" % (float(c["cool_after_days"]) - gap))
+                    if B.stage(cid) != "live" else "同居中は冷めない",
+                    "今日上がった好感度": "%.1f（上限の目安 %g。上がるほど次が上がりにくい: いまは ×%.2f）" % (
+                        gd.get("affection", 0) if today else 0, float(c["gain_cap_affection"]),
+                        1 / (1 + (gd.get("affection", 0) if today else 0) / float(c["gain_cap_affection"]))),
+                    "今日上がった信頼": "%.1f（上限の目安 %g。いまは ×%.2f）" % (
+                        gd.get("trust", 0) if today else 0, float(c["gain_cap_trust"]),
+                        1 / (1 + (gd.get("trust", 0) if today else 0) / float(c["gain_cap_trust"]))),
+                    "機嫌が低くて上がり方が半分": "はい" if p.get("mood", 50) < 35 else "いいえ",
+                },
+                "contact": {
+                    "24時間の連絡（重み）": round(B._contacts(st, now), 1),
+                    "返事が遅くなる線": round(tol, 1),
+                    "「多い」と言われる線": round(B.TOO_OFTEN_RATIO * tol, 1),
+                    "返事待ち": "あり" if st.get("msg_pending") else "なし",
+                    "既読のままにした後、気軽な連絡を控える": "あと %d 分" % until("ap_ignored_until") if until("ap_ignored_until") else "なし",
+                    "会おうという話（約束しやすい）": "あと %d 分" % until("date_promise") if until("date_promise") else "なし",
+                    "電話に出る見込み": "%d%%" % round(100 * min(1.0, 0.9 * (0.6 if p.get("mood", 50) < 30 else 1)
+                                                         * (0.5 if ctx.get("too_often") else 1) * (0.7 if p.get("affection", 50) < 35 else 1)
+                                                         * (1.15 if st.get("call_ok_until", 0) > now else 1))) + "（寝ている・手が離せないときは別）",
+                },
+                "attach": {attach_mod.LABEL.get(k, k): round(v, 1) for k, v in self.attach.view(char, st).items()},
+                "traits": {k: v for k, v in sorted(tr.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)},
+                "reasons": [{"mood": r["mood"], "tell": r.get("tell") or "", "delta": r.get("delta", 0), "t": r["t"],
+                             "told": bool(r.get("told")), "resolved": bool(r.get("resolved")), "kind": r.get("kind"),
+                             "live": now - r["t"] <= 12 * 3600 and not r.get("resolved")}
+                            for r in sorted(st.get("reasons") or [], key=lambda r: -r["t"])],
+                "cooldowns": sorted(cds, key=lambda x: -x["min"]),
+            }
+
     def _dress_view(self, char, st, scene, ctx):
         try:
             da = self.action("_dress")
@@ -3143,6 +3225,7 @@ class App:
             self.reload()
             self.manners.rejudge_thanks()
             self.manners.retro_contacts()
+            self.manners.settle_contacts()
             self.task_fix_comp()
             return self.worlds_view()
 
