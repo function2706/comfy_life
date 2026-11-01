@@ -71,6 +71,7 @@ PERSONA_LIKES = {
     "byoujaku": (["flowers", "tea", "books"], ["games"]), "hitonatsukko": (["sweets", "cute", "food"], []),
     "fushigi": (["flowers", "cute"], ["practical"]), "rikejo": (["books", "practical", "tea"], ["cute"]),
     "shikkari": (["food", "practical", "sweets"], []), "yareyare": (["sweets", "games", "food"], ["practical"]),
+    "rakuten": (["food", "games", "sweets"], []), "seijitsu": (["practical", "tea", "flowers"], []),
 }
 # 家での行動 → 使う品物の種類. 無いときのひとこと
 USES = {"cook": "food", "tea": "tea", "snack": "sweets", "clean": "detergent"}

@@ -27,7 +27,7 @@ STAGE_WHAT = {"contact": "出会って", "visit": "家に行けるようにな�
 CARE = {"amaenbo": 1.3, "ojousama": 1.3, "hitonatsukko": 1.2, "teinei": 1.1, "tsundere": 1.1, "genki": 1.1, "kedakai": 1.1,
         "byoujaku": 1.0, "uchiki": 1.0, "ottori": 1.0, "sadist": 1.0, "itazura": 1.0, "hikutsu": 0.9, "aneki": 0.9,
         "osananajimi": 0.9, "mukuchi": 0.8, "tenshin": 0.8, "boyish": 0.7, "otokomae": 0.7, "jimuteki": 0.6, "rikejo": 0.6,
-        "cool": 0.5, "fushigi": 0.5, "shikkari": 1.0, "yareyare": 0.8}
+        "cool": 0.5, "fushigi": 0.5, "shikkari": 1.0, "yareyare": 0.8, "rakuten": 0.8, "seijitsu": 1.1}
 MONTHLY = ("amaenbo", "hitonatsukko", "ojousama")          # 月ごとの記念日も気にする性格 (ほかは依存度が高ければ)
 STAGE_W = {"contact": 0.3, "visit": 0.6, "live": 1.0}
 LATE_DAYS = 3

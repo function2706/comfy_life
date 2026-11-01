@@ -39,6 +39,7 @@ TASTE = {
     "genki": {"cheerful": 10, "curt": -8}, "ottori": {"worry": 4, "expand": 4}, "boyish": {"tease": 6, "curt": 2},
     "cool": {"curt": 8, "cheerful": -4}, "ojousama": {"cheerful": 4, "tease": -8, "curt": -8},
     "shikkari": {"tease": 4, "worry": 2, "expand": 4}, "yareyare": {"cheerful": 4, "expand": 6, "curt": 2},
+    "rakuten": {"cheerful": 10, "tease": 4, "worry": -4}, "seijitsu": {"worry": 6, "expand": 4, "tease": -4, "curt": -6},
 }
 OUTCOMES = ("good", "neutral", "bad")
 MORE_RATE = {"good": 0.55, "neutral": 0.3, "bad": 0.45}       # もう一言返ってくる割合

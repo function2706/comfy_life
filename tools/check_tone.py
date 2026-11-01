@@ -64,6 +64,7 @@ RULES = {
     "tenshin": {"register": "casual"}, "tsundere": {"register": "casual"}, "sadist": {"register": "casual"},
     "cool": {"register": "casual"}, "mukuchi": {"register": "casual"},
     "shikkari": {"register": "casual", "no_feminine": True}, "yareyare": {"register": "polite"},
+    "rakuten": {"register": "casual", "no_feminine": True}, "seijitsu": {"register": "polite"},
 }
 
 
