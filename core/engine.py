@@ -79,7 +79,8 @@ MY_KIND_ICON = {"rest": "🛋", "chores": "🧹", "practice": "📚", "out": "�
                 "visit": "🚪", "home": "🏠", "money": "💴", "diary": "📓", "kakeibo": "📒", "meal": "🍚", "health": "🤒", "busy": "🖥", "work": "💼", "sleep": "🌙", "leave": "👋",
                 "back": "🏠", "side_job": "🧵", "invest": "📈", "offline": "🌙"}
 PERSONA_ORDER = ["teinei", "osananajimi", "aneki", "ottori", "ojousama", "kedakai", "tsundere", "sadist", "itazura", "cool", "mukuchi", "jimuteki",
-                 "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "amaenbo"]
+                 "rikejo", "otokomae", "genki", "tenshin", "fushigi", "hitonatsukko", "uchiki", "hikutsu", "byoujaku", "boyish", "shikkari", "yareyare",
+                 "amaenbo"]
 
 
 def hm(s):

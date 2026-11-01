@@ -63,6 +63,7 @@ RULES = {
     "amaenbo": {"register": "casual"}, "hitonatsukko": {"register": "casual"}, "itazura": {"register": "casual"},
     "tenshin": {"register": "casual"}, "tsundere": {"register": "casual"}, "sadist": {"register": "casual"},
     "cool": {"register": "casual"}, "mukuchi": {"register": "casual"},
+    "shikkari": {"register": "casual", "no_feminine": True}, "yareyare": {"register": "polite"},
 }
 
 

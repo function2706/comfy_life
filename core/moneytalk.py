@@ -15,9 +15,10 @@ from datetime import datetime
 MANAGE = {"jimuteki": 0.9, "aneki": 0.8, "rikejo": 0.7, "kedakai": 0.6, "sadist": 0.6, "tsundere": 0.6, "osananajimi": 0.6,
           "teinei": 0.5, "otokomae": 0.5, "cool": 0.4, "hikutsu": 0.4, "uchiki": 0.4, "byoujaku": 0.4, "amaenbo": 0.4,
           "ojousama": 0.3, "mukuchi": 0.3, "ottori": 0.3, "genki": 0.3, "boyish": 0.3, "hitonatsukko": 0.3, "itazura": 0.3,
-          "tenshin": 0.1, "fushigi": 0.1}
+          "tenshin": 0.1, "fushigi": 0.1, "shikkari": 0.7, "yareyare": 0.2}
 PAY_PREF = {"ojousama": "treat", "amaenbo": "treat", "sadist": "treat", "kedakai": "treat", "tenshin": "treat",
-            "jimuteki": "split", "rikejo": "split", "cool": "split", "boyish": "split", "osananajimi": "split", "aneki": "split"}
+            "jimuteki": "split", "rikejo": "split", "cool": "split", "boyish": "split", "osananajimi": "split", "aneki": "split",
+            "shikkari": "split"}
 BIG = 5000
 CHOICES = {"explain": "わけを説明する", "sorry": "謝る", "push": "言い返す", "ignore": "聞き流す"}
 LINES = {

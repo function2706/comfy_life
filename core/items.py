@@ -70,6 +70,7 @@ PERSONA_LIKES = {
     "sadist": (["accessories", "fashion"], ["cute"]), "itazura": (["games", "sweets"], []), "hikutsu": (["books", "tea"], []),
     "byoujaku": (["flowers", "tea", "books"], ["games"]), "hitonatsukko": (["sweets", "cute", "food"], []),
     "fushigi": (["flowers", "cute"], ["practical"]), "rikejo": (["books", "practical", "tea"], ["cute"]),
+    "shikkari": (["food", "practical", "sweets"], []), "yareyare": (["sweets", "games", "food"], ["practical"]),
 }
 # 家での行動 → 使う品物の種類. 無いときのひとこと
 USES = {"cook": "food", "tea": "tea", "snack": "sweets", "clean": "detergent"}
