@@ -990,17 +990,45 @@ function renderTask(result) {
   } else if (v.kind === 'picross') {
     grid.style.gridTemplateColumns = `max-content repeat(${v.n}, var(--cell))`;
     const filled = new Set(v.filled.map(([r, c]) => key(r, c))), wrong = new Set(v.x.map(([r, c]) => key(r, c)));
-    // 塗り方がヒントどおりになった行・列は済み (答えと合っているとは限らない. 一手ごとの答え合わせはしない)
-    const runs = (cells) => { const o = []; let k = 0; cells.forEach((x) => { if (x) k++; else if (k) { o.push(k); k = 0; } }); if (k) o.push(k); return o.join(','); };
-    const same = (cl, cells) => runs(cells) === cl.filter((x) => x).join(',');
-    const rowDone = (r) => same(v.rows[r], [...Array(v.n)].map((_, c) => filled.has(key(r, c))));
-    const colDone = (c) => same(v.cols[c], [...Array(v.n)].map((_, r) => filled.has(key(r, c))));
+    // ヒントの済み (答えと合っているとは限らない. 一手ごとの答え合わせはしない):
+    // 塗り方がヒントどおりになった行・列は全部. そうでなくても, 端から見て形が決まったかたまりの数字は一つずつ
+    // (端・×・✕ で挟まれた塗りのかたまりが, 端から順にヒントと同じ長さ. 空きのマスに触れたら, その先は見ない)
+    const runs = (cells) => { const o = []; let k = 0; cells.forEach((x) => { if (x === 1) k++; else if (k) { o.push(k); k = 0; } }); if (k) o.push(k); return o.join(','); };
+    const doneNums = (cl, cells) => {        // cells: 1 塗り / 0 ×・✕ / -1 空き. 済んだ数字の添え字の集まり
+      const nums = cl.filter((x) => x), out = new Set();
+      if (runs(cells) === nums.join(',')) { cl.forEach((_, i) => out.add(i)); return out; }
+      const scan = (order, idx) => {         // order: 見ていくマスの並び, idx: 数字を見る順
+        let k = 0, i = 0;
+        while (i < order.length && k < idx.length) {
+          const x = cells[order[i]];
+          if (x === 0) { i++; continue; }
+          if (x === -1) return;
+          let j = i;
+          while (j < order.length && cells[order[j]] === 1) j++;
+          if (j < order.length && cells[order[j]] === -1) return;       // 空きに続く: まだ伸びるかもしれない
+          if (j - i !== cl[idx[k]]) return;
+          out.add(idx[k++]);
+          i = j;
+        }
+      };
+      const fw = [...cells.keys()], ix = [...cl.keys()].filter((i) => cl[i]);
+      scan(fw, ix);
+      scan([...fw].reverse(), [...ix].reverse());
+      return out;
+    };
+    const line = (r, c) => (filled.has(key(r, c)) ? 1 : wrong.has(key(r, c)) || T.xs.has(key(r, c)) ? 0 : -1);
+    const rowNums = (r) => doneNums(v.rows[r], [...Array(v.n)].map((_, c) => line(r, c)));
+    const colNums = (c) => doneNums(v.cols[c], [...Array(v.n)].map((_, r) => line(r, c)));
+    const clue = (cl, dn) => cl.map((x, i) => h('span', { class: dn.has(i) ? 'done' : '' }, String(x)));
     const [hr, hc] = T.hover || [-1, -1];
     grid.append(h('div', {}));
-    v.cols.forEach((cl, c) => grid.append(h('div', { class: 'pz-clue col' + (colDone(c) ? ' done' : '') + (c === hc ? ' cur' : '') },
-      cl.map((x) => h('span', {}, String(x))))));
+    v.cols.forEach((cl, c) => {
+      const dn = colNums(c);
+      grid.append(h('div', { class: 'pz-clue col' + (dn.size === cl.length ? ' done' : '') + (c === hc ? ' cur' : '') }, clue(cl, dn)));
+    });
     for (let r = 0; r < v.n; r++) {
-      grid.append(h('div', { class: 'pz-clue row' + (rowDone(r) ? ' done' : '') + (r === hr ? ' cur' : '') }, v.rows[r].join(' ')));
+      const dn = rowNums(r);
+      grid.append(h('div', { class: 'pz-clue row' + (dn.size === v.rows[r].length ? ' done' : '') + (r === hr ? ' cur' : '') }, clue(v.rows[r], dn)));
       for (let c = 0; c < v.n; c++) {
         const k = key(r, c), f = filled.has(k), w = wrong.has(k), x = T.xs.has(k);
         grid.append(h('button', { class: 'pz-c pc' + (f ? ' fill' : '') + (w ? ' wrong' : '') + (r === hr || c === hc ? ' hl' : '')

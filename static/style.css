@@ -690,7 +690,9 @@ a.btn { color: inherit; }
 .pz-clue { background: var(--panel); color: var(--text); font-size: clamp(12px, calc(var(--cell) * .48), 15px); font-weight: 600; display: flex;
   align-items: center; justify-content: flex-end; padding: 0 5px; white-space: nowrap; letter-spacing: .02em; touch-action: pan-x pan-y; }
 .pz-clue.col { flex-direction: column; justify-content: flex-end; padding: 3px 0; min-height: calc(var(--cell) * 1.6); line-height: 1.2; }
-.pz-clue.done { color: var(--muted); opacity: .45; }
+.pz-clue.row { gap: .3em; }
+.pz-clue.done, .pz-clue span.done { color: var(--muted); opacity: .45; }
+.pz-clue.done span.done { opacity: 1; }
 .pz-clue.cur { background: #3a3346; }
 .pz-slide .tile { background: var(--accent-d); border-radius: 6px; }
 .pz-paused { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 260px;
