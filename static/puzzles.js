@@ -581,6 +581,12 @@ function solDrag(T, board) {
   board.addEventListener('pointerup', end);
   board.addEventListener('pointercancel', end);
 }
+// カードの手が通らなかったとき, 盤面を見ればわかる理由 (重ね方・同じ列・裏のカードなど) は知らせない (カードが元に戻るだけ).
+// 見ただけではわからない決まり (一度に動かせる枚数・空き列があると配れない・山を戻せる回数) だけ知らせる
+const SOL_QUIET = ['同じ列です', '色違いで', '組札には', 'セルには一枚だけ', 'そのセルは空です', '動かすカードが違います', '行き先が違います',
+  '裏のカードは', '同じスートのひと続きだけ', '1 つ大きいカードの上にだけ', 'ひと続きになっていないカード', 'その枚数は動かせません',
+  '列にだけ動かせます', '動かせる行き先がありません', '捨て札がありません', '組札がありません', '山がありません', '山がもうありません',
+  '戻せる手がありません'];
 async function solMove(mv) {          // 描き直したら true (動かせなかった・送れなかったら false)
   const T = S.task;
   if (!T || T.done || T.busy || T.paused) return false;
@@ -592,7 +598,7 @@ async function solMove(mv) {          // 描き直したら true (動かせな�
     T.view = r.view;
     renderTask();
     if (r.view.stuck && !was) toast('もう動かせる手がありません（元に戻すか、やめる）', 'err');
-  } catch (e) { toast(e.message, 'err'); }
+  } catch (e) { if (!SOL_QUIET.some((q) => e.message.startsWith(q))) toast(e.message, 'err'); }
   finally { T.busy = false; }
   if (r && r.solved) await finishTask(false);
   return !!r;
