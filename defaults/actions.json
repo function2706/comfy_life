@@ -2806,6 +2806,18 @@
     "neg": "smile"
    },
    {
+    "key": "later",
+    "text": "……もしもし。あとでって言ったじゃないですか。……少しだけなら、いいですけど。",
+    "when": "call_later=true, activity!=class",
+    "priority": 2,
+    "effects": {
+     "mood": -4,
+     "heart": -3
+    },
+    "pos": "holding phone to ear, troubled, sigh",
+    "neg": "smile"
+   },
+   {
     "key": "asked",
     "text": "もしもし、{call}。待ってましたよ。……声が聞けてうれしいです。",
     "when": "call_ok=true, affection>=35, activity!=class",

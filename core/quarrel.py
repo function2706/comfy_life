@@ -27,12 +27,17 @@ LINES = {
     "fight.sorry": "……さっきは、ごめんなさい。言いすぎました",
     "fight.forgiven": "……ありがとうございます。ほっとしました",
     "fight.not_forgiven": "……そうですよね。……ごめんなさい",
+    "fight.appoint_forgiven": "……ありがとうございます。次は絶対、行きますから",
+    "fight.appoint_not_forgiven": "……はい。待たせたのは、わたしですから。……ごめんなさい",
 }
 SCENE_LABEL = {"disagree": "行き先の意見が割れる ({place} に相手の行きたい所)", "push_unhappy": "行き先を押し切られて, 渋々",
                "push_fight": "行き先を押し切られて, 言い争いに", "yield_happy": "行き先を譲ってもらって, 喜ぶ",
                "compromise_ok": "折衷案に乗る ({place})", "compromise_meh": "折衷案が微妙 ({place})",
                "dodge": "話をそらされて, むっとする", "cold": "言い争いのあと, 素っ気ない返事",
-               "sorry": "言い争いのあと, 自分から謝る", "forgiven": "謝って, 許してもらえた", "not_forgiven": "謝ったが, まだ許してもらえない"}
+               "sorry": "言い争いのあと, 自分から謝る", "forgiven": "謝って, 許してもらえた", "not_forgiven": "謝ったが, まだ許してもらえない",
+               "appoint_forgiven": "約束をすっぽかしたのを謝って, 許してもらえた",
+               "appoint_not_forgiven": "約束をすっぽかしたのを謝ったが, 許してもらえない"}
+APPOINT_SORRY_SPAN = 24 * 3600     # すっぽかしの謝罪に答えられる間 (過ぎたら, 答えないままになる)
 
 
 class Quarrel:
@@ -111,6 +116,10 @@ class Quarrel:
             if st.get("fight_sorry"):
                 return {"kind": "sorry", "cid": cid, "name": char.get("name", ""), "text": "（%sが謝ってきた）" % char.get("name", ""),
                         "choices": [{"id": k, "label": v} for k, v in SORRY.items()]}
+            if st.get("appoint_sorry") and time.time() - st["appoint_sorry"] < APPOINT_SORRY_SPAN:
+                return {"kind": "appoint_sorry", "cid": cid, "name": char.get("name", ""), "icon": "📅",
+                        "text": "（%sが、約束をすっぽかしたことを謝ってきた）" % char.get("name", ""),
+                        "choices": [{"id": k, "label": v} for k, v in SORRY.items()]}
         return None
 
     def respond(self, choice, cid=None, now=None):
@@ -123,6 +132,8 @@ class Quarrel:
         st = app.state(char["id"])
         if pv["kind"] == "sorry":
             return self._sorry_answer(char, st, choice, now)
+        if pv["kind"] == "appoint_sorry":
+            return self._appoint_sorry_answer(char, st, choice, now)
         d = st.pop("disagree")
         if choice not in CHOICES:
             raise ValueError("選び方が違います")
@@ -221,6 +232,26 @@ class Quarrel:
                 st["fight"]["until"] += 6 * 3600
         said = "（許した）" if choice == "forgive" else "（まだ許せないと言った）"
         e = self._entry(char, st, now, key, said + "\n" + self.line(char, key), deltas)
+        app.save_state(char["id"])
+        return {"entry": e, "key": key}
+
+    def _appoint_sorry_answer(self, char, st, choice, now):
+        """約束をすっぽかしたのを謝ってきた: 許す / まだ許さない. そばにいなければトークで."""
+        app = self.app
+        if choice not in SORRY:
+            raise ValueError("選び方が違います")
+        st.pop("appoint_sorry", None)
+        if choice == "forgive":
+            key, deltas = "appoint_forgiven", self._eff(char, st, {"mood": 3, "trust": 1}, now, "appoint_forgive")
+        else:
+            key, deltas = "appoint_not_forgiven", self._eff(char, st, {"mood": -3, "affection": -1}, now, "appoint_not_yet")
+        said = "（許した）" if choice == "forgive" else "（まだ許せないと言った）"
+        e = None
+        if app.bonds.together(char["id"]):
+            e = self._entry(char, st, now, key, said + "\n" + self.line(char, key), deltas)
+        else:
+            app.chat.add(char["id"], "me", said, kind=key, t=now)
+            app.chat.add(char["id"], "her", self.line(char, key, phone=True), kind=key, t=now + 0.001)
         app.save_state(char["id"])
         return {"entry": e, "key": key}
 

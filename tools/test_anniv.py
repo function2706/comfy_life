@@ -63,7 +63,7 @@ def main():
         app.set_params({"affection": 10}, cid)
         assert N.reply(char, st, "ask_bday", time.time())[0] == "bday_refuse"
         app.set_params({"affection": 30, "mood": 40}, cid)
-        assert N.reply(char, st, "ask_bday", time.time())[0] == "bday_tell"
+        assert N.reply(char, st, "ask_bday", time.time())[0] == "bday_tell_again"      # 前にも教えた
         # 教えてもらったお礼は「何度も」ではなく, ちゃんとしたお礼になる
         st["favors"] = []
         N.reply(char, st, "ask_bday", time.time())

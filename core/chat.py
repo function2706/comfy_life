@@ -61,6 +61,7 @@ LINES = {
     "chat.flirt_cold": "📱『え……えっと、急にどうしたんですか……？』",
     "chat.invite_yes": "📱『いいですね！ 会いましょう』",
     "chat.invite_no": "📱『ごめんなさい、しばらくはちょっと……』",
+    "chat.invite_again": "📱『さっき会おうって話しましたよね。いつにします？』",
     "chat.photo": "📱『わ、いい写真ですね！』",
     "chat.stamp": "📱『（スタンプが返ってきた）』",
     "chat.apology_half": "📱『……うん』",
@@ -132,7 +133,7 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "ask_how_news": "近況の中身: 出来事があったとき ({tell} に出来事. 一文のかけら)",
                "ask_how_nothing": "近況の中身: 特に何もないとき (一文のかけら)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
-               "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "photo": "写真",
+               "flirt_cold": "甘える (引かれた)", "invite_yes": "会おう (応じた)", "invite_no": "会おう (断った)", "invite_again": "会おう (もう応じている話をまた)", "photo": "写真",
                "stamp": "スタンプ",
                "apology_half": "謝罪 (半分だけ許す. 理由は弱まるが残る)", "apology_deeds": "謝罪 (謝るなら態度で)",
                "apology_refuse": "謝罪 (受け付けない)", "apology_late": "謝罪 (日が経ってから. 今さら？)",
@@ -316,10 +317,13 @@ class Chat:
                 return "flirt", {"heart": 6, "affection": 2, "loneliness": -6}, extra
             return "flirt_cold", {"shyness": 5, "affection": -2, "trust": -1}, extra
         if kind == "invite":
+            if st.get("date_promise", 0) > now:               # 「会おう」にもう応じている: 改めて聞かれても, その話の続き
+                return "invite_again", {}, extra
             ok = p.get("affection", 0) >= float(app.bonds.cfg()["meet_min_affection"]) and p.get("mood", 50) >= 40 \
                 and random.random() < 0.75
             if ok:
                 st["date_promise"] = now + 12 * 3600
+                app.manners.favor(st, "invite", now)          # 誘いに乗ってくれた (お礼の心当たり)
                 return "invite_yes", {"heart": 3, "mood": 3}, extra
             return "invite_no", {}, extra
         eff = {"greet_morning": {"loneliness": -3, "mood": 1}, "greet_night": {"loneliness": -3, "mood": 1},

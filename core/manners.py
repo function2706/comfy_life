@@ -5,7 +5,8 @@
   控えめ)・怒りの大きさ (理由の delta)・同じ失敗の何度目か・謝るまでの間 (日が経つと「今さら？」= late)・その日の機嫌・揺らぎ.
   数時間のうちに続けて謝ると「もういいって」(enough), さらに続くと苛立たれる (irritated). 謝ったばかりなのに同じことをすると強く響く.
   メッセージの謝罪 (chat.apology_*) も, その場で謝る (コマンド apologize. 反応の条件 apology=...) も同じ判定.
-- お礼: 最近 (1 日) 相手が何かしてくれた (favors: 会った・お金を貸した・相談にのった・自撮りを送った・おごった・看病した) なら効く.
+- お礼: 最近 (1 日) 相手が何かしてくれた (favors: 会った・お金を貸した・相談にのった・自撮りを送った・おごった・看病した・
+  電話に出た・誕生日を教えた・誘いや約束を受けた・祝ってくれた・片付けてくれた) なら効く.
   心当たりがなければ「え、何が？」, 同じことに何度も言うと「何回言うの」で効き目も薄い.
   謝ったあと (1 日のうち) のお礼は, 謝罪の結果しだい: 許してもらえた (quick・受け入れた late) → 心当たり (小さく効く) /
   半分だけ (half) → 効くことも「……まだ許したわけじゃないけど」(thanks_not_yet) のことも / 態度で・受け付けない・また同じこと
@@ -127,12 +128,13 @@ class Manners:
         """お礼を言った: (場面, 効き目). 謝ったあと (1 日のうち) なら, 謝罪の結果しだい (forgave)."""
         fs = [f for f in st.get("favors") or [] if now - f["t"] < FAVOR_SPAN]
         al = st.get("apology_last") or {}
+        fresh = [f for f in fs if not f["thanked"]]
+        # 許してくれたことへのお礼. もう言ったあとで, まだお礼していない心当たりがあれば そちらへのお礼
         if al and 0 <= now - al.get("t", 0) < FAVOR_SPAN and al.get("out") and \
-                al["t"] >= max([f["t"] for f in fs if not f["thanked"]] or [0]):
+                al["t"] >= max([f["t"] for f in fresh] or [0]) and not (al.get("thanked") and fresh):
             got = self._thanks_forgave(st, al, char)
             if got:
                 return got
-        fresh = [f for f in fs if not f["thanked"]]
         self.app.trace.add("manners", "お礼の判定", (char or {}).get("id"), now, favors=[f["what"] for f in fs], fresh=len(fresh),
                            apology_last=al.get("out"))
         if not fs:
@@ -478,7 +480,10 @@ class Manners:
         if kind == "may_call":
             busy = ctx.get("busy") or p.get("stress", 0) > 70 or random.random() < 0.15 + max(0.0, 40 - p.get("mood", 50)) / 100.0
             if busy:
+                st.pop("call_ok_until", None)
+                st["call_later_until"] = now + 30 * 60        # 「あとで」と言ったばかり: すぐかかってきたら, そう言う
                 return "may_call_later", {}, {}
+            st.pop("call_later_until", None)
             st["call_ok_until"] = now + 30 * 60
             return "may_call_ok", {"mood": 1}, {}
         if kind == "otsukare":

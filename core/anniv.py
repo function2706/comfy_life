@@ -38,6 +38,8 @@ LINES = {
     "anniv.bday_refuse": "……今、それを聞きます？ 教えたくないです",
     "anniv.bday_hint": "そういえば、来月の{date}、{fp}の誕生日なんです",
     "anniv.bday_noted": "{date}ですね。覚えておきます",
+    "anniv.bday_tell_again": "{date}って、前にも言いましたよ。……ちゃんと覚えててくださいね",
+    "anniv.bday_noted_again": "知ってますよ、{date}ですよね。ちゃんと覚えてます",
     "anniv.congrats_yes": "えっ……覚えててくれたんですか？ ありがとうございます、すごくうれしいです",
     "anniv.congrats_anniv": "{what}ですもんね。……ふふ、ありがとうございます",
     "anniv.congrats_late": "……遅いですよ。でも、ありがとうございます",
@@ -48,6 +50,7 @@ LINES = {
 }
 SCENE_LABEL = {"bday_tell": "誕生日を聞かれて教える ({date})", "bday_refuse": "誕生日を聞かれたが, 険悪で教えない",
                "bday_hint": "1 か月前ごろ, 自分の誕生日に触れる ({date})", "bday_noted": "あなたの誕生日を教わる ({date})",
+               "bday_tell_again": "前にも教えた誕生日を, また聞かれる ({date})", "bday_noted_again": "前にも聞いたあなたの誕生日を, また教わる ({date})",
                "congrats_yes": "誕生日当日のおめでとうへの返事", "congrats_anniv": "記念日のおめでとうへの返事 ({what})",
                "congrats_late": "遅れたおめでとうへの返事", "congrats_what": "何でもない日のおめでとうに",
                "bday_forgot": "誕生日を忘れられていたことに, 翌日触れる", "anniv_her": "記念日を自分から言ってくる ({what})",
@@ -205,6 +208,8 @@ class Anniv:
             if m["key"] == "bday_hint":
                 st["bday_known"] = True
                 self.app.bonds.learn(st, "heard", "誕生日は%s" % m["extra"]["date"], now)
+            if m["key"] == "your_bday":
+                self.app.manners.favor(st, "celebrate", m["at"])      # 祝ってくれた (お礼の心当たり)
             self.speak(char, st, m["key"], m["extra"], m["at"])
 
     def speak(self, char, st, key, extra, t):
@@ -265,13 +270,18 @@ class Anniv:
             if p.get("affection", 50) < 20 or (p.get("mood", 50) < 25 and bad and bad.get("kind") == "player"):
                 return "bday_refuse", {"mood": -1}, {}
             md = self.birthday(char)
+            again = st.get("bday_known")                   # 前にも教えた
             st["bday_known"] = True
             app.bonds.learn(st, "heard", "誕生日は%s" % fmt_md(md), now)
             app.manners.favor(st, "told", now)          # 教えてくれた (お礼の心当たり)
-            return "bday_tell", {}, {"date": fmt_md(md)}
+            return ("bday_tell_again", {"mood": -1}, {"date": fmt_md(md)}) if again else ("bday_tell", {}, {"date": fmt_md(md)})
         if kind == "tell_bday":
             md = self.my_birthday()
+            again = st.get("knows_my_bday") and st.get("my_bday_told") == fmt_md(md)      # 同じ日をもう聞いている
             st["knows_my_bday"] = True
+            st["my_bday_told"] = fmt_md(md)
+            if again:
+                return "bday_noted_again", {}, {"date": fmt_md(md)}
             return "bday_noted", {"mood": 1}, {"date": fmt_md(md)}
         # おめでとう
         today = datetime.fromtimestamp(now).date().isoformat()

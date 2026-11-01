@@ -1102,6 +1102,8 @@ class App:
                     return missed
                 called = True
                 st["peek_until"] = now + 600        # 電話のあいだ, 相手がいまどこで何をしているかは少しわかる
+                if st.pop("call_later_until", 0) > now:  # 「あとで」と言われたのに, すぐかけた
+                    ctx["call_later"] = True
                 if st.pop("call_ok_until", 0) > now:     # 「今いい？」と聞いてからかけた: いきなりより少しだけ感じがいい
                     ctx["call_ok"] = True                # 待っていた電話: 「どうしたの」とは聞かない
                     fx = dict(opts.get("effects") or {})
@@ -1416,7 +1418,8 @@ class App:
             if a.get("meal_out") or a.get("id") in ("date", "eat_out"):
                 self.anniv.mark(char, st, "meal", now)
         if called:          # 電話で話した: トークにも並べる
-            if entry and (r or {}).get("key") != "cold" and not (r or {}).get("override") and not ctx.get("too_often"):
+            if entry and (r or {}).get("key") != "cold" and not (r or {}).get("override") and not ctx.get("too_often") \
+                    and (r or {}).get("key") != "later":
                 self.manners.favor(st, "call", now)         # 電話に付き合ってくれた (お礼の心当たり)
             self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
             self.chat.add(cid, "her", text, kind="call", t=now + 0.001)

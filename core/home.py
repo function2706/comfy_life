@@ -223,6 +223,7 @@ class Home:
                 app.life.add_reason(st, "player", "bad", "家が散らかっている", now, told=True, delta=eff["mood"], action="_home")
             elif att == "help":
                 key, eff = "home.live_messy_help", {"energy": -6}
+                app.manners.favor(st, "tidy", now)         # 片付けてくれた (お礼の心当たり)
                 self.clean(random.uniform(20, 35))
         if not key:
             return None, {}
