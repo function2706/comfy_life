@@ -387,21 +387,25 @@ function renderSoloTab() {
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
       : btn(k.icon, k.label, () => soloStart(k.id), '家で、戻るまで'));
   const pres = v.presence || {};
-  const busyNow = v.task_active ? h('div', { class: 'solo-now' },
-    h('span', {}, v.task_paused ? '🧵 内職（一時停止中）' : '🧵 内職中…'),
-    h('span', { class: 'muted small' }, v.task_paused ? '家事・研鑽・休むなどはできます。出かけるのは、内職を終えてから'
-      : '終えるときは、内職の画面で「やめる」か、できあがりまで（✕で一時停止して閉じられます）'),
-    h('button', { class: 'btn primary small', disabled: S.busy, onclick: openTask }, '内職の続きを開く'))
-    : pres.mode === 'busy' ? h('div', { class: 'solo-now' },
+  // 一人でしていること (研鑽など). 内職を一時停止して始めたときも, こちらで終える (終えるまで内職は再開できない)
+  const soloNow = pres.mode === 'busy' && (!v.task_active || pres.solo) ? h('div', { class: 'solo-now' },
     h('span', {}, pres.solo ? `${pres.solo.icon} ${pres.solo.label}…` : '🖥 作業中…'),
     h('span', { class: 'muted small' }, '終えると、過ごした時間で結果が出ます'),
     h('button', { class: 'btn primary small', disabled: S.busy, onclick: comeBack }, pres.solo ? `${pres.solo.label.replace(/中$/, '')}を終える` : '作業を終える')) : null;
+  const taskNow = v.task_active ? h('div', { class: 'solo-now' },
+    h('span', {}, v.task_paused ? '🧵 内職（一時停止中）' : '🧵 内職中…'),
+    h('span', { class: 'muted small' }, soloNow ? `内職の続きは、${pres.solo.label.replace(/中$/, '')}を終えてから`
+      : v.task_paused ? '家事・研鑽・休むなどはできます。出かけるのは、内職を終えてから'
+      : '終えるときは、内職の画面で「やめる」か、できあがりまで（✕で一時停止して閉じられます）'),
+    h('button', { class: 'btn primary small', disabled: S.busy || !!soloNow, onclick: openTask }, '内職の続きを開く')) : null;
+  const busyNow = soloNow || taskNow;
   const near = so.near;
   const sj = v.side_job;
   const bl = (v.blocked || {}).solo;
   $('#tab-solo').replaceChildren(...[
-    busyNow,
-    bl && !busyNow ? h('div', { class: 'blocked-note' }, `⏸ ${bl}`) : null,
+    soloNow,
+    taskNow,
+    bl && !busyNow ?h('div', { class: 'blocked-note' }, `⏸ ${bl}`) : null,
     h('div', { class: 'cat solo' },
       h('div', { class: 'cat-title' }, near ? `一人で（${near.name}には告げてから）` : '一人で'),
       h('div', { class: 'cmds' }, ...kinds,
