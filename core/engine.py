@@ -20,6 +20,7 @@ import uuid
 from datetime import datetime
 
 from . import bonds as bonds_mod
+from . import rhythm as rhythm_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -189,6 +190,7 @@ class App:
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
+        self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
         self.market = market_mod.Market(self)
         self.earn = earn_mod.Earn(self)
         self.rumors = rumor_mod.Rumors(self)
@@ -679,6 +681,13 @@ class App:
         return s
 
     def scheduled_scene(self, char, dt):
+        """予定の場面. 基本の予定に, その日の生活リズムの揺らぎ (寝坊・夜ふかし・残業など. core/rhythm.py) を効かせる."""
+        if not char.get("schedule") or not hasattr(self, "rhythm"):
+            return self._base_scene(char, dt)
+        return self.rhythm.adjust(char, dt, lambda t: self._base_scene(char, t))
+
+    def _base_scene(self, char, dt):
+        """基本の予定の場面 (揺らぎなし)."""
         mins = dt.hour * 60 + dt.minute
         sched = char.get("schedule") or []
         for e in sched:
