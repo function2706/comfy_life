@@ -217,6 +217,7 @@ class App:
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
+        self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -2965,7 +2966,21 @@ class App:
         return {"token": token, "view": None if paused else puzzles.view(pz), "paused": paused, "skill": round(self.life.skill("work"), 1),
                 "base": int(round(float(base) * mult / 10.0)) * 10, "par": puzzles.PAR[kind][level],
                 "name": puzzles.KINDS[kind], "level_name": puzzles.LEVEL_LABEL[level], "desc": puzzles.DESC[kind],
-                "elapsed": round(puzzles.elapsed(t), 1)}
+                "elapsed": round(puzzles.elapsed(t), 1), "marks": t.get("marks")}
+
+    def task_marks(self, token, marks):
+        """画面の側の印 (ピクロスの×・マインスイーパの旗・数独のメモ) を, やりかけの内職と一緒に残す.
+        答え合わせには使わない. 読み込み直す・閉じて開き直すと, _task_info の marks から戻る."""
+        with self.lock:
+            t = self._task_store().get(token)
+            if not t:
+                raise ValueError("作業が見つかりません（やり直してください）")
+            m = marks if isinstance(marks, dict) else {}
+            if len(json.dumps(m)) > 60000:
+                raise ValueError("印が多すぎます")
+            t["marks"] = {k: m[k] for k in ("xs", "flags", "memo") if k in m}
+            self._task_save()
+            return {"ok": True}
 
     def task_pause(self, token, on=True):
         """内職の一時停止 (離席用) / 再開. 止めている間は経過時間に数えず, 盤面も返さない."""
@@ -3024,6 +3039,58 @@ class App:
         ps["side_job_t"] = now
         self.life.tire(used)
         return used, p0 + w / 2 >= SIDE_JOB_TIRED_MIN
+
+    TASK_MARKS_UNTIL = time.mktime((2026, 11, 8, 0, 0, 0, 0, 0, -1))
+
+    def task_marks_comp(self, now=None):
+        """不具合のお詫び (一度だけ. ワールドごと. TASK_MARKS_UNTIL まで): ピクロスの×印が読み込み直すと消えて, 続けられなくなった分.
+        やりかけのピクロスがあれば, 仕上げた扱いにして終える (目安どおりの速さ・ミスなしの額. 仕事スキルも仕上げた分. 体力は使わない).
+        もう途中でやめていれば (2 日以内), 仕上げていたら受け取れた額との差を払う (難しさが分からなければ「中」). 払った額を返す (無ければ 0)."""
+        now = now or time.time()
+        if now >= self.TASK_MARKS_UNTIL:
+            return 0
+        ps = self.life.player_state()
+        done = ps.setdefault("fix_comp", {})
+        if done.get("task_marks"):
+            return 0
+        done["task_marks"] = now
+        e = self.world.get("economy", {})
+        mult = puzzles.skill_mult("picross", self.life.skill_mult)
+        full = lambda lv: int(round(puzzles.base_pay("picross", lv, e.get("side_job_rate_per_min")) * mult * 1.0 / 10.0)) * 10
+        tasks = self._task_store()
+        tk = next((k for k, v in tasks.items() if v["puzzle"]["kind"] == "picross"), None)
+        if tk:
+            lv = tasks[tk]["puzzle"]["level"]
+            tasks.pop(tk)
+            self._task_save()
+            pay, how = full(lv), "仕上げた扱いにして終えた"
+            self.life.train("work", puzzles.TRAIN[lv])
+            if self.presence.rec().get("mode") == "busy":
+                self.presence.rec()["mode"] = "none"
+        else:
+            # いちばん新しい内職 (2 日以内). 一人なら記録に種類と額が残る. 誰かのそばでした分は種類が残らないので, ピクロスを途中でやめたものとみなす (額は 0 円とみなす)
+            last = ps.get("side_job_last") or {}
+            mine = [(x["t"], x) for x in self.solo.mylog() if x.get("kind") == "side_job" and x.get("name") != "お詫び"]
+            near = [(x["t"], None) for c in self.chars for x in self.log(c) if x.get("action") == "side_job"]
+            cand = [y for y in mine + near if now - y[0] < 2 * 86400]
+            if not cand:
+                self.life.save_player()
+                return 0
+            t_, x = max(cand, key=lambda y: y[0])
+            rec = last if abs(last.get("t", 0) - t_) < 60 else {}
+            if (x and not (x.get("text") or "").startswith(puzzles.KINDS["picross"] + "の内職を途中でやめた"))                     or (rec and (rec.get("kind") != "picross" or rec.get("solved"))):
+                self.life.save_player()
+                return 0
+            lv = rec.get("level") or "mid"
+            got = int((x.get("money") or {}).get("p", 0)) if x else int(rec.get("pay", 0))
+            pay, how = max(0, full(lv) - got), "途中でやめた分を、仕上げていたら受け取れた額との差で埋めた"
+        if pay:
+            self.life.move(None, dp=pay, cat="income", note="内職（不具合のお詫び）")
+        self.life.save_player()
+        self.solo.note("side_job", "🛠 不具合のお詫び: 読み込み直すと×印が消えて続けられなくなったピクロス（%s）の内職を、%s（%s円）" % (
+            puzzles.LEVEL_LABEL[lv], how, format(pay, ",")), now, icon="🛠", name="お詫び", **({"money": {"p": pay}} if pay else {}))
+        self.trace.add("retro", "ピクロスの×印が消えた分のお詫び", None, now, level=lv, pay=pay, active=bool(tk))
+        return pay
 
     def task_fix_comp(self, now=None):
         """不具合のお詫び (一度だけ. ワールドごと): 内職の画面を開き直せず, やりかけの内職が途中でやめた扱いになった分.
@@ -3106,6 +3173,8 @@ class App:
             mv = self.life.move(None, dp=pay, cat="income", note="内職") if pay else {}
             used, tired = self.side_job_tire(t, sec, time.time())
             solved = puzzles.solved(pz)
+            self.life.player_state()["side_job_last"] = {"t": time.time(), "kind": pz["kind"], "level": pz["level"],      # お詫びの見積もり用
+                                                          "solved": solved, "pay": pay}
             gain = self.life.train("work", puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz)))
             k2 = puzzles.SKILL_MIX.get(pz["kind"])          # タイピングは文章のスキルも少し伸びる
             gain2 = self.life.train(k2, 0.5 * puzzles.TRAIN[pz["level"]] * (1.0 if solved else 0.3 * puzzles.progress(pz))) if k2 else 0
@@ -3395,6 +3464,7 @@ class App:
             self.manners.settle_contacts()
             self.task_fix_comp()
             self.lonely_comp()
+            self.task_marks_comp()
             return self.worlds_view()
 
     def rename_world(self, wid, name):

@@ -7,7 +7,7 @@
 - できること: 種類と難しさを選んで何度でも続けて遊ぶ, すぐ新しい盤面, 答えを表示, かかった時間・ミス・本体ならいくら稼げたか
   (仕事スキルを入れて試算), 乱数の種 (seed) を指定して同じ盤面を出す.
 API (本体の内職と同じ形): POST /api/task/start {kind, level, seed?, skill?} / /api/task/move {token, move} /
-/api/task/answer {token} / /api/task/pause {token, on} / /api/task/finish {token}, GET /api/catalog.
+/api/task/answer {token} / /api/task/pause {token, on} / /api/task/marks {token, marks} / /api/task/finish {token}, GET /api/catalog.
 """
 import argparse
 import json
@@ -46,7 +46,7 @@ class Lab:
         return {"token": token, "view": None if paused else puzzles.view(pz), "paused": paused,
                 "name": puzzles.KINDS[k], "level_name": puzzles.LEVEL_LABEL[lv],
                 "desc": puzzles.DESC[k], "par": puzzles.PAR[k][lv], "base": int(round(base / 10.0)) * 10,
-                "elapsed": round(puzzles.elapsed(g), 1), "seed": g["seed"], "skill": g["skill"]}
+                "elapsed": round(puzzles.elapsed(g), 1), "seed": g["seed"], "skill": g["skill"], "marks": g.get("marks")}
 
     def start(self, kind, level, seed=None, skill=10):
         seed = int(seed) if seed not in (None, "") else random.randrange(1, 10 ** 9)
@@ -75,6 +75,12 @@ class Lab:
                 raise ValueError("一時停止中です（再開してから）")
             r = puzzles.task_move(g, mv, g["rng"])
             return dict(r, view=puzzles.view(g["puzzle"]), sec=round(puzzles.elapsed(g), 1))
+
+    def marks(self, token, marks):
+        """画面の側の印 (×・旗・メモ) を覚えておく (本体と同じ. メモリだけ)."""
+        with self.lock:
+            self._get(token)["marks"] = marks if isinstance(marks, dict) else {}
+        return {"ok": True}
 
     def pause(self, token, on=True):
         """一時停止 / 再開 (本体と同じ. 止めている間は時間に数えず, 盤面も返さない)."""
@@ -121,6 +127,8 @@ def call_api(method, path, body):
             return LAB.move(b["token"], b.get("move") or {}), 200
         if method == "POST" and path == "/api/task/answer":
             return LAB.answer(b["token"]), 200
+        if method == "POST" and path == "/api/task/marks":
+            return LAB.marks(b["token"], b.get("marks")), 200
         if method == "POST" and path == "/api/task/pause":
             return LAB.pause(b["token"], b.get("on", True) is not False), 200
         if method == "POST" and path == "/api/task/finish":

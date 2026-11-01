@@ -74,7 +74,7 @@ def gate(method, path, client):
 
 
 # あなたの操作として残さない POST (画面が自動で送るもの・書き出しそのもの)
-QUIET_POST = ("/api/chat/seen", "/api/offline/ack", "/api/debug/dump", "/api/client_error", "/api/task/move")
+QUIET_POST = ("/api/chat/seen", "/api/offline/ack", "/api/debug/dump", "/api/client_error", "/api/task/move", "/api/task/marks")
 
 
 def call_api(method, path, q, body):
@@ -283,6 +283,8 @@ def route(method, path, q, body):
             return a.task_resume(b.get("token"))
         if path == "/api/task/move":
             return a.task_move(b["token"], b.get("move") or {})
+        if path == "/api/task/marks":
+            return a.task_marks(b["token"], b.get("marks") or {})
         if path == "/api/task/pause":
             return a.task_pause(b["token"], b.get("on", True) is not False)
         if path == "/api/task/finish":

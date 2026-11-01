@@ -9,10 +9,12 @@
      closeTask(): 「やめる」で呼ばれる.
    サーバの API: POST /api/task/move {token, move} → {view, wrong?, short?, solved} (答え合わせはサーバ).
    POST /api/task/pause {token, on} → tk (一時停止中は view が null. 経過時間も止まる).
-   beginTask(tk) で始める. tk = {token, view, name, level_name, base, par, desc, elapsed, paused}. */
+   POST /api/task/marks {token, marks: {xs, flags, memo}}: 画面の側の印 (答え合わせには使わない) を残す. 読み込み直しても tk.marks から戻る.
+   beginTask(tk) で始める. tk = {token, view, name, level_name, base, par, desc, elapsed, paused, marks}. */
 
 function beginTask(tk) {
-  S.task = { tk, view: tk.view, flags: new Set(), xs: new Set(), memo: {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false,
+  const mk = tk.marks || {};
+  S.task = { tk, view: tk.view, flags: new Set(mk.flags || []), xs: new Set(mk.xs || []), memo: mk.memo || {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false,
     paused: !!tk.paused, pausedSec: tk.elapsed || 0 };
   if (tk.view && tk.view.kind === 'slither') slInit(S.task);
   S.task.timer = setInterval(taskStats, 500);
@@ -933,9 +935,23 @@ function slTools(T) {
       h('input', { type: 'checkbox', checked: slColor(), onchange: (ev) => { setSlColor(ev.target.checked); if (T.slDraw) T.slDraw(); } }), ' つながっていない線を色分け'));
 }
 
+// 印 (ピクロスの×・旗・数独のメモ) をサーバに残す. 変わったときだけ, 送っている間の変化は送り終えてから最新の分を
+function marksSave(T) {
+  const j = JSON.stringify({ xs: [...T.xs], flags: [...T.flags], memo: T.memo });
+  if (T.marksJ === undefined) { T.marksJ = j; return; }           // 開いた直後 (受け取ったまま)
+  if (j === T.marksJ) return;
+  T.marksJ = j;
+  if (T.marksBusy) { T.marksMore = true; return; }
+  T.marksBusy = true;
+  api('/api/task/marks', { token: T.tk.token, marks: JSON.parse(j) }).catch(() => {}).finally(() => {
+    T.marksBusy = false;
+    if (T.marksMore) { T.marksMore = false; T.marksJ = null; marksSave(T); }
+  });
+}
 function renderTask(result) {
   const T = S.task;
   if (!T) return;
+  if (!result && !T.done) marksSave(T);
   const v = T.view;
   $('#task-sub').textContent = `${T.tk.name}（${T.tk.level_name}）・解けたら ${yen(T.tk.base)}前後`;
   if (!result && (T.paused || !v)) {          // 一時停止中: 盤面は隠す (覆い). 操作もできない
