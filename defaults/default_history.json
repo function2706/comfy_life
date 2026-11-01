@@ -90,12 +90,12 @@
    "e1a4f024127fc93c931394a435650941"
   ],
   "call": [
+   "f809ca6b804e17371da6a9f2aab43945",
    "c96992ce61c6d56b16d90de862f34e0d",
    "97ef341d1d098a431194c3f4d10a1c90",
    "7d0fd24f1821ef86f6a16531fb7e022e",
    "5ade445de2f6ac29277bb8493a415649",
-   "4ad7afc857b9553f4e40df4f0fa2d21d",
-   "f809ca6b804e17371da6a9f2aab43945"
+   "4ad7afc857b9553f4e40df4f0fa2d21d"
   ],
   "clean": [
    "134f515124cd1734834a7ed87f7fb462",
@@ -553,6 +553,51 @@
   "yakyuken": [
    "e3400dd2592cde1605bf9ba0fd8af45d",
    "e48ca65b436887e8d8965f4e1abdfd8e"
+  ]
+ },
+ "params": {
+  "affection": [
+   "74eb2efd7365306888c4709ef4d00e45",
+   "3d1797e2d03cf2d7af96ebdd3b3ae896"
+  ],
+  "boredom": [
+   "fad1a907816519f17243c42dd2db0809"
+  ],
+  "energy": [
+   "a5b83acf362ae98e60f6f2e65f7eeb48"
+  ],
+  "health": [
+   "055d8ff7f09d605f9df1335b1677b43e"
+  ],
+  "heart": [
+   "66936dddf4bfd86d68255a329473462d"
+  ],
+  "hydration": [
+   "1cdb40af14350bc903b3d537f5bbcc3c"
+  ],
+  "hygiene": [
+   "70c55c82cfeb5b3479c0bb13a0cd5269"
+  ],
+  "loneliness": [
+   "3a403e34b5fff68292683a8ea5550e3c"
+  ],
+  "mood": [
+   "b7d8b1ee9f2fa26c046ed00c404d9b05"
+  ],
+  "satiety": [
+   "6f022a854c27dfc6783f06300473ae3f"
+  ],
+  "shyness": [
+   "9333826b737f6d475f5a567dc838b370"
+  ],
+  "sleepiness": [
+   "24961087b9049f7b750d902135618412"
+  ],
+  "stress": [
+   "a6db7d380549dd618739fa39e38ba317"
+  ],
+  "trust": [
+   "c60d091dac0658c933aaf927a45eb347"
   ]
  }
 }

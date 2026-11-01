@@ -3,7 +3,7 @@
     python tools/build_default_history.py
 
 起動時の移行で, data/ のコマンドやミニゲームが「過去の既定のまま (未編集)」かを判定し,
-未編集なら最新の既定に更新するために使う. 既定の actions.json / minigames.json を変えたら
+未編集なら最新の既定に更新するために使う. 既定の actions.json / minigames.json / params.json などを変えたら
 コミット前に実行すること (現在の作業中の版も含める).
 """
 import io
@@ -17,7 +17,7 @@ sys.path.insert(0, BASE)
 from core.store import obj_hash  # noqa: E402
 
 FILES = {"actions": "defaults/actions.json", "minigames": "defaults/minigames.json", "events": "defaults/events.json",
-         "approaches": "defaults/approaches.json"}
+         "approaches": "defaults/approaches.json", "params": "defaults/params.json"}
 
 
 def versions(path):

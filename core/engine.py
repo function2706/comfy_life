@@ -209,6 +209,7 @@ class App:
         self.earn.migrate_favors()             # 以前から頼まれていたものも, 日時のすり合わせで答えられるように
         paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
+        self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -248,6 +249,8 @@ class App:
         self._sync_defaults("minigames", self.minigames, "minigames.json")
         self._sync_defaults("events", self.events, "events.json")
         self._sync_defaults("approaches", self.approaches, "approaches.json")
+        self._sync_defaults("params", self.params, "params.json")
+        self._migrate_lonely_rule()
         for c in self.chars.values():
             if "outfit_outing" not in c or "clothes" not in c:
                 store.backup("キャラの定義に後から増えた項目を補う")      # 定義を書き換える前に (一回の起動で一度だけ)
@@ -268,6 +271,55 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["clothes"] = d.get("clothes") or [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER]
                 store.save_character(c)
+
+    OLD_LONELY_RULE = {"when": "loneliness>=85", "rate": -0.3}
+
+    def _migrate_lonely_rule(self):
+        """以前の既定の「寂しさが 85 以上なら好感度が 1 時間に 0.3 下がる」を今の決まりに置き換える (パラメータを編集していても,
+        この決まりが以前のままなら). 連絡先・知り合いの相手にまで, あなたが何もしなくても好感度が下限まで下がり続けていた."""
+        a = next((p for p in self.params if p.get("id") == "affection"), None)
+        rules = (a or {}).get("rate_rules") or []
+        if self.OLD_LONELY_RULE not in rules:
+            return
+        d = next((p for p in store.load(os.path.join(store.DEFAULTS, "params.json"), []) if p.get("id") == "affection"), {})
+        new = next((r for r in d.get("rate_rules") or [] if "loneliness" in r.get("when", "")), None)
+        a["rate_rules"] = [new if r == self.OLD_LONELY_RULE else r for r in rules if new or r != self.OLD_LONELY_RULE]
+        store.save(store.wpath("params.json"), self.params)
+        self.logq.put("%s [INFO] 寂しさで好感度が下がる決まりを今の決まりに置き換えた" % datetime.now().strftime("%m-%d %H:%M:%S"))
+
+    def lonely_comp(self, now=None):
+        """不具合のお詫び (一度だけ. ワールドごと): 寂しさが 85 以上のあいだ, 間柄にかかわらず好感度が 1 時間に 0.3 下がり続けていた分.
+        下がった量の記録はないので, 見積もる: 初めの値 + 記録に残る出来事での増減 (ログ・当て直しの知らせ・嫉妬の理由)
+        から, いまの値が下回っている分. 連絡先・知り合いは今は下がらないので全部, 家に行ける仲・同居は今も弱く下がるので 2/3 を戻す.
+        戻した量を返す {cid: 量}."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("lonely_drain"):
+            return {}
+        done["lonely_drain"] = now
+        self.life.save_player()
+        init = float((self.param_def("affection") or {}).get("init", 40))
+        out = {}
+        for cid in self.chars:
+            st = self.state(cid)
+            est = init + sum(float((e.get("deltas") or {}).get("affection", 0)) for e in self.log(cid))
+            for it in self.chat.load(cid)["items"]:
+                if it.get("kind") == "rejudge":
+                    est += sum(float(v) for v in re.findall(r"好感度 ([+-][\d.]+)", it.get("text", "")))
+            est += sum(3.0 / 8.0 * min(0.0, float(r.get("delta", 0))) for r in st.get("reasons") or [] if r.get("action") == "_jealous")
+            cur = float(st["params"].get("affection", init))
+            k = 1.0 if self.bonds.stage(cid) in ("known", "contact") else 2.0 / 3.0
+            back = round(min(est, 100.0) - cur, 1) * k
+            if back < 0.5:
+                continue
+            got = self.apply_effects(st, {"affection": round(back, 1)}).get("affection", 0)
+            if got:
+                out[cid] = got
+                self.chat.add(cid, "sys", "（不具合のお詫び: 寂しさだけで好感度が下がり続けていた分を戻した：好感度 %+g）" % got, kind="rejudge", t=now)
+                self.logq.put("%s [INFO] 寂しさでの目減りのお詫び %s: 好感度 %+g (見積もり %.1f / いま %.1f)" % (
+                    datetime.now().strftime("%m-%d %H:%M:%S"), cid, got, est, cur))
+            self.save_state(cid)
+        return out
 
     def _migrate_assets(self):
         """銘柄を店の種類ぶん増やした: 以前の既定の 4 銘柄のまま保存しているワールドに, 新しい既定の銘柄を足す
@@ -3227,6 +3279,7 @@ class App:
             self.manners.retro_contacts()
             self.manners.settle_contacts()
             self.task_fix_comp()
+            self.lonely_comp()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
