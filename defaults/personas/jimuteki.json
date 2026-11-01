@@ -346,6 +346,9 @@
   "call.asked": [
    "はい、{name}。{call}、時間どおりね。……待ってたわ。"
   ],
+  "call.later": [
+   "……はい。あとでと伝えたはずよ。用件は手短に。"
+  ],
   "call.activity_class": [
    "（小声で）い、今授業中……あとで折り返すわ。"
   ],
@@ -1843,6 +1846,9 @@
   "chat.invite_no": [
    "📱『しばらくは予定が埋まっているわ』"
   ],
+  "chat.invite_again": [
+   "📱『その件は合意済みよ。日時を提案して』"
+  ],
   "chat.photo": [
    "📱『いい写真ね。記録しておくわ』"
   ],
@@ -1933,6 +1939,9 @@
   "anniv.bday_tell": [
    "誕生日は{date}よ。記録しておいて"
   ],
+  "anniv.bday_tell_again": [
+   "{date}よ。前にも伝えたわ。今度は記録しておいて"
+  ],
   "anniv.bday_refuse": [
    "……その質問には、今は答えたくないわ"
   ],
@@ -1941,6 +1950,9 @@
   ],
   "anniv.bday_noted": [
    "{date}ね。記録したわ"
+  ],
+  "anniv.bday_noted_again": [
+   "{date}ね。記録済みよ"
   ],
   "anniv.congrats_yes": [
    "覚えていたのね。……ありがとう。悪くない気分よ"
@@ -2031,6 +2043,12 @@
   ],
   "fight.not_forgiven": [
    "……そうね。……ごめんなさい"
+  ],
+  "fight.appoint_forgiven": [
+   "……ありがとう。次は必ず守るわ"
+  ],
+  "fight.appoint_not_forgiven": [
+   "……そうね。{fp}の落ち度よ。……ごめんなさい"
   ],
   "money.complain": [
    "また{what}？ 支出の計画はあるの？"

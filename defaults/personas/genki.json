@@ -353,6 +353,9 @@
   "call.asked": [
    "もしもーし、{call}！ 待ってたよー！ ……えへへ、声聞けてうれしいっ！"
   ],
+  "call.later": [
+   "もしもし……って、あとでって言ったじゃーん！ ちょっとだけだよ？"
+  ],
   "call.activity_class": [
    "（小声で）い、今授業中だから……あとでかけ直すねっ！"
   ],
@@ -1848,6 +1851,9 @@
   "chat.invite_no": [
    "📱『ごめん、しばらく予定ぎっしりなの……』"
   ],
+  "chat.invite_again": [
+   "📱『会うって言ったじゃん！ で、いつにする？』"
+  ],
   "chat.photo": [
    "📱『わー、いい写真！』"
   ],
@@ -1938,6 +1944,9 @@
   "anniv.bday_tell": [
    "誕生日？ {date}だよ！ 覚えててね！"
   ],
+  "anniv.bday_tell_again": [
+   "{date}だってば！ 前にも言ったよ〜、ちゃんと覚えてね！"
+  ],
   "anniv.bday_refuse": [
    "……今は教えたくない！ ぷいっ"
   ],
@@ -1946,6 +1955,9 @@
   ],
   "anniv.bday_noted": [
    "{date}ね！ 絶対お祝いするから！"
+  ],
+  "anniv.bday_noted_again": [
+   "知ってる知ってる！ {date}でしょ！"
   ],
   "anniv.congrats_yes": [
    "わーい、覚えててくれたんだ！ ありがとう！ 最高の誕生日！"
@@ -2036,6 +2048,12 @@
   ],
   "fight.not_forgiven": [
    "……そっか。……ごめんね"
+  ],
+  "fight.appoint_forgiven": [
+   "ほんと！？ ありがとー！ 次は絶対行くから！"
+  ],
+  "fight.appoint_not_forgiven": [
+   "……そっか。待たせちゃったもんね……ほんとにごめん"
   ],
   "money.complain": [
    "また{what}！？ 大丈夫なの？"

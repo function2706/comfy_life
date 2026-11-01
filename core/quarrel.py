@@ -28,7 +28,7 @@ LINES = {
     "fight.forgiven": "……ありがとうございます。ほっとしました",
     "fight.not_forgiven": "……そうですよね。……ごめんなさい",
     "fight.appoint_forgiven": "……ありがとうございます。次は絶対、行きますから",
-    "fight.appoint_not_forgiven": "……はい。待たせたのは、わたしですから。……ごめんなさい",
+    "fight.appoint_not_forgiven": "……はい。待たせたのは、{fp}ですから。……ごめんなさい",
 }
 SCENE_LABEL = {"disagree": "行き先の意見が割れる ({place} に相手の行きたい所)", "push_unhappy": "行き先を押し切られて, 渋々",
                "push_fight": "行き先を押し切られて, 言い争いに", "yield_happy": "行き先を譲ってもらって, 喜ぶ",

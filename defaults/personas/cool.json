@@ -339,6 +339,9 @@
   "call.asked": [
    "……もしもし、{call}。待ってた。……声、聞けてうれしい。"
   ],
+  "call.later": [
+   "……もしもし。あとでって言った。……少しだけ。"
+  ],
   "call.activity_class": [
    "（小声で）今授業中。あとでかけ直す。"
   ],
@@ -1832,6 +1835,9 @@
   "chat.invite_no": [
    "📱『……しばらくは、無理』"
   ],
+  "chat.invite_again": [
+   "📱『……さっき会うって言った。いつ？』"
+  ],
   "chat.photo": [
    "📱『……いい写真』"
   ],
@@ -1922,6 +1928,9 @@
   "anniv.bday_tell": [
    "{date}。……別に、覚えなくていい"
   ],
+  "anniv.bday_tell_again": [
+   "……{date}。前にも言った"
+  ],
   "anniv.bday_refuse": [
    "……今は教えない"
   ],
@@ -1930,6 +1939,9 @@
   ],
   "anniv.bday_noted": [
    "{date}。……覚えた"
+  ],
+  "anniv.bday_noted_again": [
+   "……知ってる。{date}"
   ],
   "anniv.congrats_yes": [
    "……覚えてたんだ。……ありがと"
@@ -2020,6 +2032,12 @@
   ],
   "fight.not_forgiven": [
    "……そう。……ごめん"
+  ],
+  "fight.appoint_forgiven": [
+   "……ありがと。次は行く"
+  ],
+  "fight.appoint_not_forgiven": [
+   "……そう。……待たせたの、{fp}だから"
   ],
   "money.complain": [
    "……また{what}？ 使いすぎ"

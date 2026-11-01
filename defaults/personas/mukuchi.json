@@ -349,6 +349,9 @@
   "call.asked": [
    "……もしもし、{call}。……待ってた。"
   ],
+  "call.later": [
+   "……もしもし。……あとでって、言った。"
+  ],
   "call.activity_class": [
    "（小声で）……いま授業。あとで、かけなおす。"
   ],
@@ -1844,6 +1847,9 @@
   "chat.invite_no": [
    "📱『……しばらく、むり』"
   ],
+  "chat.invite_again": [
+   "📱『……会うって、言った。……いつ？』"
+  ],
   "chat.photo": [
    "📱『……いい』"
   ],
@@ -1934,6 +1940,9 @@
   "anniv.bday_tell": [
    "……{date}"
   ],
+  "anniv.bday_tell_again": [
+   "……{date}。……前にも、言った"
+  ],
   "anniv.bday_refuse": [
    "……いまは、いわない"
   ],
@@ -1942,6 +1951,9 @@
   ],
   "anniv.bday_noted": [
    "……{date}。……おぼえた"
+  ],
+  "anniv.bday_noted_again": [
+   "……知ってる。{date}"
   ],
   "anniv.congrats_yes": [
    "……おぼえてて、くれたんだ。……ありがと"
@@ -2031,6 +2043,12 @@
    "……ありがと"
   ],
   "fight.not_forgiven": [
+   "……うん。……ごめん"
+  ],
+  "fight.appoint_forgiven": [
+   "……ありがと。……次は、行く"
+  ],
+  "fight.appoint_not_forgiven": [
    "……うん。……ごめん"
   ],
   "money.complain": [

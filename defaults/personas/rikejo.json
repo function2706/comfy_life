@@ -617,6 +617,9 @@
   "call.asked": [
    "もしもし、{call}。待ってた。……やっぱり、声のほうが情報量が多くていいね。"
   ],
+  "call.later": [
+   "……もしもし。あとでって言ったよね。三十分も経ってないよ。……少しだけなら。"
+  ],
   "call.activity_class": [
    "（小声で）い、今授業中だから……あとでかけ直すね！"
   ],
@@ -1793,6 +1796,9 @@
   "chat.invite_no": [
    "📱『しばらくは実験が忙しくて……』"
   ],
+  "chat.invite_again": [
+   "📱『それ、さっき合意したよ。あとは日時を決めるだけ』"
+  ],
   "chat.photo": [
    "📱『いい写真。構図が整ってる』"
   ],
@@ -1883,6 +1889,9 @@
   "anniv.bday_tell": [
    "誕生日は{date}。データとして保存しておいて"
   ],
+  "anniv.bday_tell_again": [
+   "{date}。前にも言ったよ。保存されてなかったみたいだね"
+  ],
   "anniv.bday_refuse": [
    "……今その質問には答えない"
   ],
@@ -1891,6 +1900,9 @@
   ],
   "anniv.bday_noted": [
    "{date}ね。記録した"
+  ],
+  "anniv.bday_noted_again": [
+   "{date}ね。もう記録してあるよ"
   ],
   "anniv.congrats_yes": [
    "覚えてたんだ。……正直、予想外。ありがと、うれしい"
@@ -1981,6 +1993,12 @@
   ],
   "fight.not_forgiven": [
    "……そうだよね。……ごめん"
+  ],
+  "fight.appoint_forgiven": [
+   "……ありがと。次は再発させない"
+  ],
+  "fight.appoint_not_forgiven": [
+   "……そうだよね。非は全部こっちにある。……ごめん"
   ],
   "money.complain": [
    "また{what}？ 期待値、計算した？"
