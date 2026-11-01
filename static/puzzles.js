@@ -546,20 +546,30 @@ function solDrag(T, board) {
     if (!st || st.stock) return;
     const dx = ev.clientX - st.x, dy = ev.clientY - st.y;
     if (!st.drag && Math.hypot(dx, dy) < 6) return;
-    st.drag = true;
-    st.els.forEach((el) => { el.classList.add('dragging'); el.style.transform = `translate(${dx}px, ${dy}px)`; });
+    if (!st.drag) {         // 列の枠は中をスクロールさせるため外を切る. 持っている間は盤の上に写しを重ねて, 枠の外 (セル・組札) でも見えるように
+      st.drag = true;
+      const b = board.getBoundingClientRect();
+      st.ghosts = st.els.map((el) => {
+        const r = el.getBoundingClientRect(), g = el.cloneNode(true);
+        g.removeAttribute('data-src');
+        g.classList.add('dragging');
+        g.style.cssText = `position:absolute;left:${r.left - b.left}px;top:${r.top - b.top}px`;
+        board.append(g);
+        el.style.visibility = 'hidden';
+        return g;
+      });
+    }
+    st.ghosts.forEach((g) => { g.style.transform = `translate(${dx}px, ${dy}px)`; });
   });
   const end = (ev) => {
     if (!st) return;
     const s = st;
     st = null;
     if (s.stock) { if (ev.type === 'pointerup') solMove({ stock: true }); return; }
-    const back = () => s.els.forEach((el) => { el.classList.remove('dragging'); el.style.transform = ''; });     // 元の場所へ
+    const back = () => { (s.ghosts || []).forEach((g) => g.remove()); s.els.forEach((el) => { el.style.visibility = ''; }); };     // 元の場所へ
     if (ev.type !== 'pointerup') { back(); return; }
     if (!s.drag) { back(); solMove({ from: s.src, auto: true }); return; }
-    s.els.forEach((el) => { el.style.visibility = 'hidden'; });
-    const under = document.elementFromPoint(ev.clientX, ev.clientY);
-    s.els.forEach((el) => { el.style.visibility = ''; });
+    const under = document.elementFromPoint(ev.clientX, ev.clientY);       // 元は隠れていて, 写しは触れないので, 下にあるものが拾える
     const tgt = under && under.closest('[data-t]');
     const t = tgt && board.contains(tgt) ? tgt.dataset.t : null;
     if (!['col', 'cell', 'found'].includes(t)) { back(); return; }
