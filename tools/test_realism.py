@@ -87,11 +87,12 @@ def main():
         app.tick(mio["id"])
         assert B.stage(mio["id"]) == "contact", "しばらく会わないと, 家に行ける仲から遠のく"
         assert any("距離" in r["tell"] for r in sm.get("reasons") or [])
+        app.set_params({"affection": 40}, mio["id"])      # ほかの人と深い仲でない (嫉妬は別に確かめる. ここでは冷めるかだけ)
         st["last_touch"] = time.time() - 30 * 86400        # 同居相手は冷めない (在席の仕組みで別に扱う)
         a0 = st["params"]["affection"]
         st["last_tick"] = time.time() - 86400
         app.tick("hina")
-        assert st["params"]["affection"] >= a0 - 0.01
+        assert st["params"]["affection"] >= a0 - 0.01, (a0, st["params"]["affection"])
         print("cooling: OK", round(sm["params"]["affection"], 1))
 
         # ---- 4. 段階の提案: 数値を満たしても, 最近の交流が少なく久しぶりなら断られる
