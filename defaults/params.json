@@ -47,7 +47,7 @@
   "drift": {"target": 30, "rate": 0.02, "mods": []},
   "tags": [{"when": "loneliness>=70, asleep=false", "label": "寂しげ", "pos": "lonely, hugging pillow, looking down", "neg": ""}]},
  {"id": "affection", "name": "好感度", "group": "mental", "min": 0, "max": 100, "init": 40, "rate": 0,
-  "rate_rules": [{"when": "loneliness>=85, stage=visit|live, asleep=false", "rate": -0.1}],
+  "rate_rules": [{"when": "loneliness>=85, stage=visit|live, affection>=40, asleep=false", "rate": -0.1}],
   "tags": [{"when": "affection>=80, asleep=false", "label": "べた惚れ", "pos": "loving gaze, gentle smile", "neg": ""}]},
  {"id": "trust", "name": "信頼", "group": "mental", "min": 0, "max": 100, "init": 40, "rate": 0, "tags": []},
  {"id": "shyness", "name": "照れ", "group": "mental", "neutral": true, "min": 0, "max": 100, "init": 5, "rate": 0,

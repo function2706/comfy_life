@@ -558,11 +558,12 @@
  "params": {
   "affection": [
    "3d1797e2d03cf2d7af96ebdd3b3ae896",
-   "74eb2efd7365306888c4709ef4d00e45"
+   "74eb2efd7365306888c4709ef4d00e45",
+   "94c91f3887a49e3a7e74e26bdf0073cd"
   ],
   "boredom": [
-   "fad1a907816519f17243c42dd2db0809",
-   "b54601aec6f847d52c6d770d5a6364b5"
+   "b54601aec6f847d52c6d770d5a6364b5",
+   "fad1a907816519f17243c42dd2db0809"
   ],
   "energy": [
    "a5b83acf362ae98e60f6f2e65f7eeb48"
@@ -580,8 +581,8 @@
    "70c55c82cfeb5b3479c0bb13a0cd5269"
   ],
   "loneliness": [
-   "3a403e34b5fff68292683a8ea5550e3c",
-   "191a45119ef45fd3b338c92e062c3a30"
+   "191a45119ef45fd3b338c92e062c3a30",
+   "3a403e34b5fff68292683a8ea5550e3c"
   ],
   "mood": [
    "b7d8b1ee9f2fa26c046ed00c404d9b05"

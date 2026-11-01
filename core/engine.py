@@ -210,6 +210,7 @@ class App:
         paid = self.offline.retro_missed_work()        # 以前の取りこぼし (予定を組んでいない日の仕事) を一度だけ払う
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
+        self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -320,6 +321,56 @@ class App:
                     datetime.now().strftime("%m-%d %H:%M:%S"), cid, got, est, cur))
             self.save_state(cid)
         return out
+
+    FAVOR_REDO_UNTIL = time.mktime((2026, 11, 4, 0, 0, 0, 0, 0, -1))
+
+    def favor_redo_comp(self, now=None):
+        """不具合のお詫び (一度だけ. ワールドごと. 2026-11-04 まで): 頼まれごとの手伝いが, 相手の記録も画像もない「仕事中」に
+        なっていたので, あなたがその日の手伝いを途中で切り上げた分. 途中で帰った罰 (信頼・機嫌 -1) を戻し,
+        相手から すぐ 明日の同じ時刻で頼み直してくる (約束の欄で受ける / 別の日時を返す). 手伝っている最中なら, 切り上げるまで待つ.
+        頼み直した約束を返す (無ければ None)."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("favor_redo"):
+            return None
+        task = (self.presence.rec().get("task") or {}) if self.presence.rec().get("job") == "favor" else {}
+        for x in sorted(self.appoint.all(), key=lambda x: -x["t"]):
+            if not x.get("favor") or x["status"] != "met" or x.get("plants") or x["cid"] not in self.chars                     or not 0 <= now - x["t"] <= 2 * 86400 or x["favor"] == task.get("id"):
+                continue
+            f = self.earn.favor(x["favor"])
+            if not f:
+                # 途中で帰ったあと, 頼まれごとの一覧から外れていた (終えていれば, トークに「…を終えた」がある)
+                if any(it.get("who") == "sys" and 0 <= it["t"] - x["t"] <= 12 * 3600 and "%sを終えた" % x.get("label", "") in it.get("text", "")
+                       for it in self.chat.load(x["cid"])["items"]):
+                    continue
+                k = earn_mod.FAVOR_KIND.get(x.get("fkind")) or earn_mod.FAVOR_KIND["clean"]
+                f = {"id": x["favor"], "cid": x["cid"], "kind": k[0], "label": x.get("label") or k[1], "h": k[2], "tire": k[3],
+                     "t": now, "until": now + 3 * 86400}
+                self.earn.favors().append(f)
+            done["favor_redo"] = now
+            cid, char, st = f["cid"], self.chars[f["cid"]], self.state(f["cid"])
+            self.apply_effects(st, {"trust": 1, "mood": 1})
+            t = x["t"] + 86400
+            while t < now + 3 * 3600:
+                t += 86400
+            nx = {"id": uuid.uuid4().hex[:8], "cid": cid, "place": x["place"], "do": x.get("do"), "by": "her", "status": "offered",
+                  "made": now, "favor": f["id"], "fkind": f.get("kind"), "label": f["label"], "t": t}
+            f["appoint"] = nx["id"]
+            f["until"] = max(f.get("until", 0), t + 86400)
+            self.appoint.all().append(nx)
+            self.appoint.save()
+            self.chat.add(cid, "sys", "（不具合のお詫び: 手伝いを途中で切り上げた分の、信頼・機嫌の目減りを戻した）", kind="rejudge", t=now)
+            self.chat.add(cid, "her", self.chat.line(char, "favor_ask_offer", {"what": "%sの続き" % f["label"], "when": self.appoint.when_of(nx, now)}),
+                          kind="favor_ask", t=now + 1, appoint=nx["id"])
+            self.picked_up_phone(char, st, now)
+            self.save_state(cid)
+            self.life.save_player()
+            self.logq.put("%s [INFO] 手伝いの頼み直し %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, datetime.fromtimestamp(t).strftime("%m-%d %H:%M")))
+            return nx
+        if now >= self.FAVOR_REDO_UNTIL:
+            done["favor_redo"] = now
+            self.life.save_player()
+        return None
 
     def _migrate_assets(self):
         """銘柄を店の種類ぶん増やした: 以前の既定の 4 銘柄のまま保存しているワールドに, 新しい既定の銘柄を足す
@@ -700,6 +751,18 @@ class App:
     def _clamp(self, p, v):
         return max(float(p.get("min", 0)), min(float(p.get("max", 100)), v))
 
+    LONELY_BASE_K = 25       # 寂しがりの倍率 1 あたり, 何もないときに落ち着く寂しさがどれだけ上下するか
+
+    @classmethod
+    def lonely_base(cls, tr):
+        """性格による, 一人でいて落ち着く寂しさの上下 (寂しがり +・一人が平気 −). 性格の寂しくなりやすさ (rate.loneliness) から."""
+        return (float((tr.get("rate") or {}).get("loneliness", 1)) - 1) * cls.LONELY_BASE_K
+
+    @staticmethod
+    def lonely_bond(st):
+        """あなたの在・不在が寂しさに響く度合い (0〜1): 好感度 25 以下で 0, 60 以上で 1."""
+        return max(0.0, min(1.0, (float(st["params"].get("affection", 50)) - 25) / 35.0))
+
     def _step(self, char, st, dt, h):
         scene = self.scene_at(char, st, dt)
         if scene["asleep"] and st.get("dress") and char.get("dress_reset_on_sleep", True):
@@ -717,6 +780,9 @@ class App:
         if pres and self.presence.at(dt.timestamp()) == "gone":     # 黙っていなくなった: 性格しだいで堪える
             ab = float(tr.get("absence", 1)) * (1 + 0.5 * self.attach.factor(char, st, "dependence"))     # 依存しているほど堪える
             pres = {k: float(v) * ab for k, v in pres.items()}
+        if pres.get("loneliness"):
+            # あなたがいる・いないで寂しさが動くのは, あなたに気持ちがあるときだけ. 関係が冷えていれば, いなくても寂しくならず, いても紛れない
+            pres = dict(pres, loneliness=float(pres["loneliness"]) * self.lonely_bond(st))
         for p in self.params:
             pid = p["id"]
             v = vals.get(pid, float(p.get("init", 50)))
@@ -725,13 +791,14 @@ class App:
                 if cond.check(r.get("when", ""), ctx):
                     rate = float(r.get("rate", 0))
                     break
-            rate *= float(t_rate.get(pid, 1))
-            if pid == "loneliness" and rate > 0:      # 依存しているほど寂しくなりやすい
-                rate *= 1 + 0.3 * self.attach.factor(char, st, "dependence")
+            if pid != "loneliness":
+                rate *= float(t_rate.get(pid, 1))
+            elif rate > 0:      # 寂しがりの性格ほど・依存しているほど, 一人だと寂しくなりやすい (外で紛れる速さは性格によらない)
+                rate *= float(t_rate.get(pid, 1)) * (1 + 0.3 * self.attach.factor(char, st, "dependence"))
             d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
-                target = float(dr.get("target", v)) + float(t_drift.get(pid, 0)) + sum(
+                target = float(dr.get("target", v)) + float(t_drift.get(pid, self.lonely_base(tr) if pid == "loneliness" else 0)) + sum(
                     float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
                 d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
             if d < 0 and pid in FLOORED:
@@ -2468,7 +2535,8 @@ class App:
                 v = float(st["params"].get(p["id"], p.get("init", 50)))
                 dr, target = p.get("drift"), None
                 if dr:
-                    target = float(dr.get("target", v)) + float((tr.get("drift") or {}).get(p["id"], 0)) + sum(
+                    target = float(dr.get("target", v)) + float((tr.get("drift") or {}).get(
+                        p["id"], self.lonely_base(tr) if p["id"] == "loneliness" else 0)) + sum(
                         float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
                 params.append({"id": p["id"], "name": p.get("name", p["id"]), "v": round(v, 1),
                                "target": None if target is None else round(target, 1)})
@@ -2627,6 +2695,9 @@ class App:
         else:
             pay, text = self.earn.favor_done(task, h, ll["back"])
             gain, icon, name = {}, "🤝", "頼まれごと"
+            if not quiet:
+                self.favor_scene(task, text, ll["back"], start=False)
+            self.favor_redo_comp()
         self.life.save_player()
         if quiet:
             return {"text": text, "pay": pay}
@@ -2634,6 +2705,38 @@ class App:
         if near:
             r["back"] = self.act("_back", near)
         return r
+
+    FAVOR_POS = {"move": "moving day, cardboard boxes, carrying a box together, apartment",
+                 "clean": "cleaning the room together, holding a cloth, tidying up, apron, indoors",
+                 "furniture": "assembling furniture together, screwdriver, flat-pack parts on the floor, indoors",
+                 "pc": "setting up a computer together, desk, looking at monitor, indoors",
+                 "carry": "carrying luggage together, bags, indoors"}
+
+    def favor_scene(self, f, text, now, start):
+        """頼まれごとを相手の家で一緒にしている (start) / 終えた場面を, 相手の記録に残す (対面なので画像も. あなたの記録とは別).
+        手伝っている間は, 相手もその手伝いをして家にいる (予定より優先)."""
+        cid = f.get("cid")
+        if cid not in self.chars or f.get("kind") == "plants":       # 水やりは相手の留守中 (会わない)
+            return None
+        char, st = self.chars[cid], self.state(cid)
+        pos = self.FAVOR_POS.get(f.get("kind"), "helping each other, indoors")
+        if start:
+            st["override"] = {"activity": "favor", "label": "%sを手伝ってもらっている" % f.get("label", ""), "location": "自宅",
+                              "until": now + float(f.get("h", 1)) * 3600, "pos": pos, "neg": ""}
+        elif (st.get("override") or {}).get("activity") == "favor":
+            st["override"] = None
+        dt = datetime.fromtimestamp(now)
+        scene = self.scene_at(char, st, dt)
+        act = {"id": "_favor", "name": f.get("label", "頼まれごと"), "icon": "🤝",
+               "pos": "" if start else "smile, grateful, relieved, indoors", "neg": ""}      # 手伝っている場面は上書きの pos で
+        pos_, neg_, parts = self.build_prompt(char, st, dt, act)
+        e = self._new_entry(cid, now, act, text, {}, scene, dt, pos_, neg_, parts)
+        e.pop("apart", None)            # 離れているのではなく, 相手の家で一緒にいる
+        if self.settings.get("auto_generate"):
+            e["job"] = self._present_image(cid, e)
+        self.save_state(cid)
+        self.save_log(cid)
+        return e
 
     def _go_task(self, job, task, text):
         now = time.time()

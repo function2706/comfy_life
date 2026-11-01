@@ -655,9 +655,13 @@ class Appoint:
         at = self.here(x["place"], now)
         if now < x["t"] - NEAR:
             return False
-        if at:
-            x.setdefault("arrived", now)          # 着いた時刻 (早く着いていれば, 約束の時刻より前)
-        elif now < x["t"]:
+        if at and "arrived" not in x:
+            x["arrived"] = now                    # 着いた時刻 (早く着いていれば, 約束の時刻より前)
+            if now < x["t"]:                      # 早く着いた: 時刻になれば会える (それまで画面は変わらないので, 待つことを知らせる)
+                out.append("%sに着いた。約束の%sまで、ここで待つ（時間になれば%sと会える）" % (
+                    app.places.label(x["place"]), datetime.fromtimestamp(x["t"]).strftime("%H:%M"), char.get("name", "")))
+                return True
+        elif not at and now < x["t"]:
             x.pop("arrived", None)                # 時刻の前に離れた: 着いていないことに
         if now < x["t"]:
             return False
@@ -767,6 +771,9 @@ class Appoint:
             return {"status": "met", "entry": {"text": text}}
         r = app._go_task("favor", f, "%sの家で%sに取りかかった（%s時間ほど）%s" % (char.get("name", ""), f["label"], f["h"],
                                                                          "。約束に遅れてしまった" if me_late else ""))
+        e = app.favor_scene(f, "（%sと一緒に%sに取りかかった）" % (char.get("name", ""), f["label"]), now, start=True)
+        if e:
+            r["entry_her"] = e
         return dict(r, status="met", entry={"text": r.get("label", "")})
 
     def live(self, now=None):

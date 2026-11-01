@@ -216,7 +216,9 @@ def main():
         x = make(time.time() + 3600, {})
         r = A.go(x["id"])
         assert r["status"] == "going" and P.rec()["mode"] == "out" and P.rec()["place"] == "riverside", r
-        assert A.view()[-1]["here"] and A.live(time.time()) == [] and x["status"] == "set" and x.get("arrived")
+        early = A.live(time.time())                        # 早く着いた: 時間まで待つと一度だけ知らせる
+        assert A.view()[-1]["here"] and len(early) == 1 and "待つ" in early[0] and x["status"] == "set" and x.get("arrived"), early
+        assert A.live(time.time()) == []
         x["t"] = time.time() - 1
         A.live(time.time())
         assert x["status"] == "met" and B.mode(cid) == "meet" and st["override"]["place"] == "riverside" and P.rec()["mode"] == "none"

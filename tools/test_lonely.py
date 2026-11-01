@@ -1,5 +1,7 @@
 """寂しさと好感度 (一時データ, 画像生成なし).
 - 寂しさが 85 以上でも, 連絡先の相手の好感度は時間だけでは下がらない. 家に行ける仲・同居は弱く下がる (下限で止まる)
+- あなたと関わらなくても, 本人の生活で寂しさ・退屈は紛れる. 一人でいて落ち着く寂しさは性格しだい
+- 同居していても, 関係が冷えていれば あなたがいる・いないで寂しさは動かない
 - 以前の決まり (間柄にかかわらず 1 時間に 0.3) が残っているワールドは, 起動したとき今の決まりに置き換わる
 - お詫び (一度だけ): 記録に残る出来事から見積もった値を下回る分を戻す (連絡先は全部・同居は 2/3)
 
@@ -59,7 +61,38 @@ def main():
         avg = {k: sum(x[k] for x in xs) / len(xs) for k in xs[0]}
         print("一人で 1 週間: 平均", {k: round(v) for k, v in avg.items()}, "寂しさの最大 %.0f" % max(x["loneliness"] for x in xs))
         assert max(x["loneliness"] for x in xs) < 70 and avg["boredom"] < 60 and avg["mood"] > 45, avg
+        # 性格: 一人が平気な性格ほど寂しくならず, 寂しがりほど寂しい
+        def alone(persona):
+            char["persona_id"] = persona
+            st["params"].update(loneliness=50)
+            t, xs = datetime(2026, 11, 2, 0, 0), []
+            for i in range(24 * 7):
+                app._step(char, st, t, 1.0)
+                t += timedelta(hours=1)
+                if i >= 24 * 3:
+                    xs.append(st["params"]["loneliness"])
+            return sum(xs) / len(xs)
+        per = {p: alone(p) for p in ("cool", "teinei", "amaenbo")}
+        print("性格ごとの一人の寂しさ:", {k: round(v) for k, v in per.items()})
+        assert per["cool"] < per["teinei"] - 8 and per["amaenbo"] > per["teinei"] + 15, per
+        char["persona_id"] = "teinei"
         del app.scheduled_scene
+
+        # 関係: 同居していても, 冷えていれば あなたが黙っていなくなっても寂しくならず, そばにいても紛れない
+        app.bonds.set_stage(cid, "live")
+        if app.bonds.mode(cid) != "home":
+            app.bonds.start(cid, "home", time.time())
+
+        def with_you(aff, mode):
+            st["params"].update(affection=aff, loneliness=50)
+            pr = app.presence.rec()
+            pr["mode"], pr["since"] = "here", 0
+            pr["beat"] = pr["input"] = time.time() if mode == "here" else 0
+            app._step(char, st, datetime.now(), 3.0)
+            return st["params"]["loneliness"] - 50
+        d = {(a, m): with_you(a, m) for a in (15, 70) for m in ("gone", "here")}
+        print("同居で 3 時間 (寂しさの変化):", {"%s/%s" % k: round(v, 1) for k, v in d.items()})
+        assert d[(70, "gone")] > d[(15, "gone")] + 2 and d[(70, "here")] < d[(15, "here")] - 4, d
 
         # 以前の既定のままのワールド: 起動で今の決まりに追従する
         ps = store.load(store.wpath("params.json"))

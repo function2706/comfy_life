@@ -64,6 +64,7 @@ def main():
         assert app.target("hina") == "hina" and app.target(mio) == mio
         app.set_target(mio)
         assert app.state_view()["target"] == mio
+        st["params"]["affection"] = 70.0       # あなたに気持ちがある (冷えていれば, いてもいなくても寂しさは動かない: test_lonely)
         lon0 = st["params"]["loneliness"] = 60.0
         P.rec()["input"] = P.rec()["beat"] = time.time()          # そばで構っている (here: 寂しさ -3/時)
         app._step(app.chars["hina"], st, datetime.now(), 1.0)
