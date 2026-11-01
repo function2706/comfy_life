@@ -992,28 +992,34 @@ function renderTask(result) {
     const filled = new Set(v.filled.map(([r, c]) => key(r, c))), wrong = new Set(v.x.map(([r, c]) => key(r, c)));
     // ヒントの済み (答えと合っているとは限らない. 一手ごとの答え合わせはしない):
     // 塗り方がヒントどおりになった行・列は全部. そうでなくても, 端から見て形が決まったかたまりの数字は一つずつ
-    // (端・×・✕ で挟まれた塗りのかたまりが, 端から順にヒントと同じ長さ. 空きのマスに触れたら, その先は見ない)
+    // (端・×・✕ で挟まれた塗りのかたまりが, 端から順にヒントと同じ長さ. 空きのマスに触れたら, その先は見ない).
+    // 塗りすぎて明らかに合わない行・列 (塗りがヒントの合計より多い・数字を当て終えた先にも塗り・左右から同じ数字が別のかたまりに) は, 薄くしない
     const runs = (cells) => { const o = []; let k = 0; cells.forEach((x) => { if (x === 1) k++; else if (k) { o.push(k); k = 0; } }); if (k) o.push(k); return o.join(','); };
     const doneNums = (cl, cells) => {        // cells: 1 塗り / 0 ×・✕ / -1 空き. 済んだ数字の添え字の集まり
       const nums = cl.filter((x) => x), out = new Set();
       if (runs(cells) === nums.join(',')) { cl.forEach((_, i) => out.add(i)); return out; }
-      const scan = (order, idx) => {         // order: 見ていくマスの並び, idx: 数字を見る順
+      if (cells.filter((x) => x === 1).length > nums.reduce((a, b) => a + b, 0)) return out;
+      const scan = (order, idx) => {         // order: 見ていくマスの並び, idx: 数字を見る順. 当てたもの {数字の添え字: かたまりの始まり}. 合わなければ null
+        const got = new Map();
         let k = 0, i = 0;
         while (i < order.length && k < idx.length) {
           const x = cells[order[i]];
           if (x === 0) { i++; continue; }
-          if (x === -1) return;
+          if (x === -1) return got;
           let j = i;
           while (j < order.length && cells[order[j]] === 1) j++;
-          if (j < order.length && cells[order[j]] === -1) return;       // 空きに続く: まだ伸びるかもしれない
-          if (j - i !== cl[idx[k]]) return;
-          out.add(idx[k++]);
+          if (j < order.length && cells[order[j]] === -1) return got;       // 空きに続く: まだ伸びるかもしれない
+          if (j - i !== cl[idx[k]]) return got;
+          got.set(idx[k++], Math.min(order[i], order[j - 1]));
           i = j;
         }
+        if (k === idx.length && order.slice(i).some((m) => cells[m] === 1)) return null;     // 数字を当て終えた先にも塗り
+        return got;
       };
       const fw = [...cells.keys()], ix = [...cl.keys()].filter((i) => cl[i]);
-      scan(fw, ix);
-      scan([...fw].reverse(), [...ix].reverse());
+      const a = scan(fw, ix), b = scan([...fw].reverse(), [...ix].reverse());
+      if (!a || !b || [...a].some(([i, at]) => b.has(i) && b.get(i) !== at)) return out;
+      [...a.keys(), ...b.keys()].forEach((i) => out.add(i));
       return out;
     };
     const line = (r, c) => (filled.has(key(r, c)) ? 1 : wrong.has(key(r, c)) || T.xs.has(key(r, c)) ? 0 : -1);
