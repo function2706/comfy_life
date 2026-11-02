@@ -63,6 +63,13 @@ def fmt_when(t, now=None):
     return "%s %d:%02d" % (day, d.hour, d.minute)
 
 
+HOME_INVITE = 0.2            # 家に行ける仲で, 誘いが家になる割合の基本 (慣れで HOME_INVITE_FAM × 慣れ 増える)
+HOME_INVITE_FAM = 0.3
+NOW_RATE = 0.012             # 急な誘いの起きやすさ (1 時間あたり. 退屈・寂しさ・機嫌 × 性格 approach)
+NOW_LEAD = (40, 45, 50, 60)  # 急な誘いの待ち合わせまで (分)
+NOW_HOME = 0.35              # 急な誘いが家になる割合の基本
+
+
 def phase_ok(app, a, dt):
     """コマンドの条件のうち, 時間帯 (phase) だけを見る (ほかの条件は会うときの状態しだいなので, 約束では見ない)."""
     parts = [p.strip() for p in (a.get("when") or "").split(",") if p.strip().startswith("phase")]
@@ -465,19 +472,101 @@ class Appoint:
                 continue
             opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(cid, pid)
                     if phase_ok(app, a, day) and places_mod.open_state(pid, day)["open"]]
-            if not opts:
+            homes = [(pid, a) for pid, a in self._home_opts(cid) if phase_ok(app, a, day)]
+            fam = app.athome.fam(cid, st, now)[0]
+            if homes and (not opts or random.random() < HOME_INVITE + HOME_INVITE_FAM * fam):
+                pid, a = self._pick_home(cid, st, homes, now)
+            elif opts:
+                pid, a = self.pick(char, st, opts)
+            else:
                 continue
-            pid, a = self.pick(char, st, opts)
             x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": day.timestamp(), "place": pid, "do": a["id"], "by": "her",
                  "status": "offered", "made": now}
             self.all().append(x)
             self.save()
-            text = app.chat.line(char, "appoint_invite", {"when": fmt_when(x["t"], now), "place": app.places.label(pid)})
-            app.chat.add(cid, "her", text + "（%s）" % a.get("name", ""), kind="appoint_invite", t=now, appoint=x["id"])
+            text = app.chat.line(char, self.invite_key(pid), {"when": fmt_when(x["t"], now), "place": app.places.label(pid)})
+            app.chat.add(cid, "her", text + "（%s）" % self.invite_label(pid, a), kind="appoint_invite", t=now, appoint=x["id"])
             app.picked_up_phone(char, st, now)
             app.save_state(cid)
             return x
         return None
+
+    def _home_opts(self, cid):
+        """家に行ける仲なら, 家での約束も誘える (相手の家に呼ぶ / あなたの家に行きたい)."""
+        if self.app.bonds.stage(cid) != "visit":
+            return []
+        return [("home:" + cid, self.app.action("visit_home")), (places_mod.HOME_ME, self.app.action("invite_home"))]
+
+    def _pick_home(self, cid, st, homes, now):
+        """相手の家に呼ぶか, あなたの家に行きたいか: 慣れているほど自分の家に呼びやすい. あとは性格 (人懐っこい人ほど行きたがる)."""
+        fam = self.app.athome.fam(cid, st, now)[0]
+        go = float(self.app.traits(self.app.chars[cid]).get("approach", 1))
+        w = {places_mod.HOME_ME: 0.5 * go}
+        return random.choices(homes, [w.get(pid, 0.4 + 0.6 * fam) for pid, _ in homes])[0]
+
+    @staticmethod
+    def invite_key(pid, now=False):
+        k = "appoint_invite_now" if now else "appoint_invite"
+        if pid == places_mod.HOME_ME:
+            return k + "_yourhome"
+        if places_mod.is_home(pid):
+            return k + "_myhome"
+        return k
+
+    def invite_label(self, pid, a):
+        """誘いのメッセージのあとに添える, すること (家なら場所)."""
+        if places_mod.is_home(pid):
+            return self.app.places.label(pid)
+        return a.get("name", "")
+
+    def _maybe_now(self, cid, now, h):
+        """いまから会わない？ (急な誘い): 相手がいま手すきで, 退屈・寂しい・機嫌がいいと. 待ち合わせは少し先 (NOW_LEAD 分).
+        家に行ける仲なら, 家に呼ぶ / 近くにいるから寄っていい？ も (慣れているほど家になりやすい).
+        返事は約束の答えと同じ. 返事がないまま時間が過ぎても, 急な誘いなので気にするのは少しだけ."""
+        app = self.app
+        if app.bonds.stage(cid) not in ("contact", "visit") or app.bonds.together(cid) or self.open_with(cid):
+            return None
+        char, st = app.chars[cid], app.state(cid)
+        p = st["params"]
+        if p.get("affection", 0) < 50:
+            return None
+        want = max(0.0, (p.get("boredom", 30) - 40) / 40.0) + max(0.0, (p.get("loneliness", 30) - 40) / 50.0) \
+            + max(0.0, (p.get("mood", 50) - 55) / 60.0)
+        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p)
+        if not rate or random.random() >= rate * h:
+            return None
+        dt = datetime.fromtimestamp(now)
+        if app.phase_at(dt).get("id") in ("midnight", "dawn"):
+            return None
+        sc = app.scene_at(char, st, dt)
+        if sc["away"] or sc["busy"] or sc["asleep"] or sc.get("source") == "override":
+            return None
+        t = now + random.choice(NOW_LEAD) * 60
+        day = datetime.fromtimestamp(t)
+        later = app.scheduled_scene(char, day + timedelta(hours=1))        # 会ってからも少しは手すき
+        if later["away"] or later["busy"] or later["asleep"]:
+            return None
+        opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(cid, pid)
+                if phase_ok(app, a, day) and places_mod.open_state(pid, day)["open"]]
+        homes = [(pid, a) for pid, a in self._home_opts(cid) if phase_ok(app, a, day)]
+        fam = app.athome.fam(cid, st, now)[0]
+        if homes and (not opts or random.random() < NOW_HOME + HOME_INVITE_FAM * fam):
+            pid, a = self._pick_home(cid, st, homes, now)
+        elif opts:
+            pid, a = self.pick(char, st, opts)
+        else:
+            return None
+        x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": pid, "do": a["id"], "by": "her",
+             "status": "offered", "made": now, "now": True}
+        self.all().append(x)
+        self.save()
+        text = app.chat.line(char, self.invite_key(pid, now=True), {"when": fmt_when(t, now), "place": app.places.label(pid)})
+        app.chat.add(cid, "her", text + "（%s・%s）" % (self.invite_label(pid, a), fmt_when(t, now)), kind="appoint_invite", t=now,
+                     appoint=x["id"])
+        app.picked_up_phone(char, st, now)
+        app.save_state(cid)
+        app.trace.add("appoint", "急に誘ってきた", cid, now, appoint=x["id"], place=pid)
+        return x
 
     @staticmethod
     def mood_factor(p):
@@ -816,8 +905,8 @@ class Appoint:
                     app.chat.add(cid, "her", app.chat.line(char, "favor_lapsed", {"what": x.get("label", "")}), kind="favor_lapsed", t=now)
                     app.save_state(cid)
                     self._favor_drop(x)
-                elif x["status"] == "offered":          # 誘ったのに返事がなかった
-                    app.apply_effects(st, app.trait_effects(char, {"mood": -3, "loneliness": 4}))
+                elif x["status"] == "offered":          # 誘ったのに返事がなかった (急な誘いなら, 少しだけ)
+                    app.apply_effects(st, app.trait_effects(char, {"mood": -1, "loneliness": 2} if x.get("now") else {"mood": -3, "loneliness": 4}))
                     app.save_state(cid)
                 elif x.get("favor"):
                     self._favor_drop(x)
@@ -884,6 +973,8 @@ class Appoint:
             for cid in list(app.chars):
                 if self._maybe_invite(cid, now, h):
                     out.append("%sから誘いのメッセージが来た" % app.chars[cid].get("name", ""))
+                elif self._maybe_now(cid, now, h):
+                    out.append("%sから「これから会わない？」とメッセージが来た" % app.chars[cid].get("name", ""))
         if changed:
             self.save()
         return out
