@@ -26,6 +26,7 @@ from . import care as care_mod
 from . import stay as stay_mod
 from . import replyspeed as replyspeed_mod
 from . import saveedit as saveedit_mod
+from . import charmake as charmake_mod
 from . import askhelp as askhelp_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
@@ -204,6 +205,7 @@ class App:
         self.market = market_mod.Market(self)
         self.earn = earn_mod.Earn(self)
         self.saveedit = saveedit_mod.SaveEdit(self)   # セーブエディタ (設定 → データ)
+        self.charmake = charmake_mod.CharMake(self)   # キャラメイキング (設定 → あなた. 質問に答えてあなたの値を決める)
         self.rumors = rumor_mod.Rumors(self)
         self.street = street_mod.Street(self)
         self.offline = offline_mod.Offline(self)

@@ -3398,6 +3398,8 @@ SEC.player = () => {
   if (!p.name) p.name = SE.settings.player_name || '';
   return [
     saveBar('あなた', async () => { await api('/api/settings', { settings: { player: p, offline: { enabled: off.enabled, days: off.days } } }); await reloadAll('player'); }),
+    h('div', { class: 'sect' }, '📝 キャラメイキング'),
+    charMakeBox(),
     h('p', { class: 'lead' }, 'あなた自身の情報です（全ワールド共通）。キャラクターはこれを踏まえて反応します：セリフの {player} {player_job} {player_like} などに入り、反応の条件（player_gender・player_age・player_has_job・player_likes）で使え、LLM でセリフを作るときにも伝わります。呼ばれ方はキャラクターごと（性格プリセット）です。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(p, 'name', { ph: 'ユウ' })),
@@ -4405,6 +4407,39 @@ SEC.llm = () => {
 };
 
 // 詳しい状態 (チート): ふだん見えない値も, 判定に使う形のまま. 上の「対象」の人について. 離れている人でも見える
+function charMakeBox() {
+  // キャラメイキング (core/charmake.py): 質問に答えて, このワールドのあなたの値 (スキル・貯金・運動・免許) を現実のあなたに近づける
+  const CM = S.charMake || (S.charMake = { qs: null, ans: {}, done: null });
+  const box = h('div', {});
+  const draw = () => {
+    if (CM.done) {
+      box.replaceChildren(h('p', { class: 'hint' }, '反映しました: ' + CM.done.map((c) => `${c.label} ${c.target === 'money' ? yen(c.old) + '→' + yen(c.new) : c.target === 'drive' ? (c.new ? 'あり' : 'なし') : Math.round(c.old) + '→' + c.new}`).join('、')),
+        h('button', { class: 'btn small', onclick: () => { CM.done = null; CM.qs = null; draw(); } }, 'もう一度答える'));
+      return;
+    }
+    if (!CM.qs) {
+      box.replaceChildren(h('button', { class: 'btn', onclick: async () => {
+        const r = await api('/api/charmake/questions', {}); CM.qs = r.questions; CM.ans = {}; draw();
+      } }, '📝 質問に答えて決める'));
+      return;
+    }
+    const n = CM.qs.filter((q) => CM.ans[q.id] !== undefined).length;
+    box.replaceChildren(
+      ...CM.qs.map((q, qi) => h('div', { class: 'card', style: 'margin:6px 0;padding:8px 10px' },
+        h('div', {}, h('b', {}, `${qi + 1}. ${q.q}`), h('span', { class: 'muted small' }, `（${q.label}）`)),
+        h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px;margin-top:4px' },
+          q.options.map((o, i) => h('button', { class: 'btn small' + (CM.ans[q.id] === i ? ' primary' : ' ghost'), onclick: () => { CM.ans[q.id] = i; draw(); } }, o))))),
+      h('div', { class: 'row', style: 'gap:6px;margin-top:6px' },
+        h('button', { class: 'btn primary', disabled: !n, onclick: async () => {
+          if (!confirm(`答えた ${n} 問の分を、このワールドのあなたに反映しますか？（答えていない項目はそのまま。所持金は貯金の額になります）`)) return;
+          const r = await api('/api/charmake/apply', { answers: CM.ans }); CM.done = r.changes; draw(); await refresh();
+        } }, `反映（${n}/${CM.qs.length}問）`),
+        h('button', { class: 'btn ghost', onclick: () => { CM.qs = null; draw(); } }, 'やめる')));
+  };
+  draw();
+  return h('div', {}, h('p', { class: 'hint' }, 'いくつかの質問に答えると、このワールドのあなたのスキル・貯金・運動の習慣・車の免許を、現実のあなたに近づけます。質問は毎回リストから選ばれます。答えなかった項目は変わりません。'), box);
+}
+
 function saveEditor() {
   // セーブエディタ (core/saveedit.py): 入れ物を選ぶと中身を木で出す. 値はその場で書き換えて保存, × で消す
   const SV = S.saveEdit || (S.saveEdit = { root: null, open: {} });

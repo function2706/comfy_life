@@ -329,6 +329,12 @@ def route(method, path, q, body):
             a.trace.add("client", "%s" % (b.get("msg") or "")[:300], src=b.get("src"), line=b.get("line"), col=b.get("col"),
                         stack=(b.get("stack") or "")[:2000], screen=b.get("screen"), count=int(b.get("count") or 1), first=b.get("first"))
             return {"ok": True}
+        if path == "/api/charmake/questions":   # キャラメイキング: 質問 (決める値ごとに 1 つ, くじ) といまの値
+            with a.lock:
+                return {"questions": a.charmake.questions(), "current": a.charmake.current()}
+        if path == "/api/charmake/apply":
+            with a.lock:
+                return a.charmake.apply(b.get("answers") or {})
         if path.startswith("/api/save/"):       # セーブエディタ (設定 → データ): 入れ物の一覧・読む・書く・消す
             with a.lock:
                 op = path[len("/api/save/"):]
