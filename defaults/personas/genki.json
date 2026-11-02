@@ -30,6 +30,7 @@
   "neat": -3,
   "carer": 0.3,
   "punctual": 0.65,
+  "repay": 0.7,
   "modesty": -3,
   "grudge": 0.85,
   "poker": 0.7,

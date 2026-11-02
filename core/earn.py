@@ -447,6 +447,17 @@ class Earn:
         app.chat.add(f["cid"], "me", "（%sを引き受けた）" % f["label"], kind="favor", t=now)
         return f, None
 
+    def closeness(self, cid, st):
+        """手伝いのお礼を考えるときの近さ (0〜1): 間柄 (連絡先 0・家に行ける仲 0.35・同居 0.7) + 好感度・信頼."""
+        base = {"live": 0.7, "visit": 0.35}.get(self.app.bonds.stage(cid), 0.0)
+        p = st["params"]
+        return max(0.0, min(1.0, base + (p.get("affection", 50) - 50) / 80.0 + (p.get("trust", 50) - 50) / 160.0))
+
+    @staticmethod
+    def money_chance(close, repay):
+        """お礼がお金になる見込み: 近い仲ほど基本はお金のやりとりなし ((1 − 近さ)^1.5). 律儀な性格 (repay > 1) は近くてもときどき."""
+        return max(0.0, min(0.85, 0.6 * repay * (1 - close) ** 1.5 + 0.35 * max(0.0, repay - 1) * close))
+
     def favor_done(self, f, h, t, stay=False):
         """手伝いを終えた (stay: 相手の家にまだいる. 戻ったのではない): 終わっていれば, お礼 (お金をもらえることも, もらえないことも. 仲しだい). (お礼の額, 文)."""
         app = self.app
@@ -461,13 +472,13 @@ class Earn:
             app.apply_effects(st, {"trust": -1, "mood": -1})
             app.save_state(cid)
             return 0, ("%sの%sを、途中で切り上げてしまった" if stay else "%sの%sに行ったが、途中で帰ってきてしまった") % (name, f["label"])
-        stage = app.bonds.stage(cid)
-        aff = float(st["params"].get("affection", 50))
         eff, _ = app.bonds.realize(char, st, {"affection": 2, "trust": 3, "mood": 3}, "_favor_done", t)    # 必ず深まる, ではない
         app.apply_effects(st, app.trait_effects(char, eff))
         app.bonds.met(st, t)
         app.bonds.touch(st, t)
-        p_money = (0.6 if stage == "contact" else 0.35) - (aff - 50) / 250.0       # 仲がいいほど, お金よりほかの形で
+        close = self.closeness(cid, st)
+        repay = float(app.traits(char).get("repay", 1.0))
+        p_money = self.money_chance(close, repay)
         her = self.L.her_money(st)
         amt = 0
         if f.get("kind") == "plants":          # 留守中の水やり: 会っていないので, お礼は帰ってきてからのメッセージで
@@ -478,7 +489,7 @@ class Earn:
                 self.favors().remove(f)
             return 0, "%sの%sを終えた。鍵をかけて帰った（お礼は、帰ってきてからメッセージで）" % (name, f["label"])
         if random.random() < p_money and her["a"] > 3000:
-            amt = min(int(her["a"] * 0.3), int(1000 * f["h"] * random.uniform(0.8, 1.5) / 500) * 500)
+            amt = min(int(her["a"] * 0.3), max(500, int(1000 * f["h"] * random.uniform(0.8, 1.5) * (1 - 0.6 * close) / 500) * 500))     # 近い仲なら気持ち程度
         if amt > 0:
             her["a"] -= amt
             self.ps()["money"] += amt
