@@ -134,11 +134,25 @@ th { background: var(--panel2); font-weight: 500; }
 /* キー */
 kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width: 3px; border-radius: 6px; padding: 0 7px; font-family: inherit; font-size: 13px; }
 
+.search { margin: 4px 0 10px; }
+.search input { width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 13.5px; }
+.search input:focus { outline: none; border-color: var(--accent); }
+.search .count { color: var(--muted); font-size: 12px; margin: 4px 2px 0; }
+.hits { margin: 6px 0 10px; display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
+.hits a { display: block; padding: 5px 8px !important; border-radius: 8px; font-size: 12.5px !important; line-height: 1.5; color: var(--text); background: var(--panel2); }
+.hits a .sec { display: block; color: var(--accent2); font-size: 11.5px; }
+.hits a:hover { background: var(--panel3); }
+mark.hit { background: rgba(243,194,124,.35); color: inherit; border-radius: 3px; padding: 0 1px; }
+.flash { animation: flash 1.6s ease-out; }
+#back-search { position: fixed; right: 14px; bottom: 14px; background: var(--panel3); color: var(--text); border: 1px solid var(--line);
+  border-radius: 99px; padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+@keyframes flash { 0% { background: rgba(240,138,166,.28); } 100% { background: transparent; } }
 @media (max-width: 860px) {
   .wrap { grid-template-columns: 1fr; }
   nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 2px; padding: 12px 16px; }
   nav.toc .grp, nav.toc .sub { display: none; }
   nav.toc .brand { width: 100%; }
+  nav.toc .search, nav.toc .hits { width: 100%; }
   main { padding: 18px 16px 60px; }
   .sc-body { grid-template-columns: 1fr; height: auto; }
   .sc-stage { height: 280px; }
@@ -152,6 +166,9 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
 <nav class="toc" id="toc">
   <div class="brand">Comfy LIFE</div>
   <div class="sub">説明書</div>
+  <div class="search"><input id="q" type="search" placeholder="🔍 説明書を検索（空白で区切ると、すべてを含むもの）" autocomplete="off">
+    <div class="count" id="qcount"></div></div>
+  <div class="hits" id="hits"></div>
   <div class="grp">はじめに</div>
   <a href="#start">最初にすること</a>
   <a href="#screen">画面の見方</a>
@@ -477,7 +494,7 @@ kbd { background: var(--panel3); border: 1px solid #4a4256; border-bottom-width:
   <li><b>当日</b>: 約束の時刻に相手の家にいると会えて、相手の家に上がります。「誰かと」タブの「🏠 ○○の家で」から「🤝 ○○を始める」で手伝います（数時間。遅刻はふつうの約束と同じ）。手伝っているあいだは話しかけるくらいしかできません。「☕ ひと休みする」（終わりが少し延びる）と「✋ 手伝いを切り上げる」（早すぎると途中でやめたことに）もあります。終わってもすぐには帰らず、「そろそろ帰るね」で帰ります。始めずに帰ったり、途中で帰ったりすると、当てにしていたぶんがっかりされます。画面を閉じていても、時間が来ればひと通り済ませたことになります。手伝うと仲が深まりやすく、お礼をもらえることもあります。お礼はお金のこともあれば、ごちそうやお菓子、言葉だけのこともあります（近しい仲なら、ふつうはお金のやりとりはしません。律儀な人は、親しくなっても気持ち程度のお金で返してくることがあります。あなたに尽くしたい気持ちが強い人はごちそうや手料理で、あなたと一緒にいたい気持ちが強い人は「今度一緒にどこか行こうね」と、お金以外の形で返したがります。仲がまだ浅いうちは、お金で返されやすくなります。相手の懐具合しだいでも）。必ず喜ばれるとは限りません。すっぽかすと、当てにしていたぶん、ふつうの約束より重く受け止められます。</li>
   <li><b>そのほか</b>: 相手の都合で日がずれたり、取りやめになったりすることもまれにあります。断ると少しがっかりされます。返事を丸一日放っておくと、ほかの人に頼んで済んでしまい、信頼が少し下がります。画面を閉じているあいだの約束は、ふつうの約束と同じ扱いです。</li>
 </ul>
-<h3>🤝 手伝いを頼む</h3>
+<h3 id="askhelp">🤝 手伝いを頼む</h3>
 <p>トークの「📅 約束する」で、行き先を「あなたの家」にして「大掃除を手伝ってもらう」などを選ぶと、手伝いを頼めます（大掃除・家具の組み立て・パソコンの設定・荷物の片付け）。</p>
 <ul>
   <li><b>返事</b>: ふつうの誘いと同じく時間差で届きます。受けてくれるかは、仲・世話焼きかどうか・その日の機嫌しだいです。仲がまだ浅いと、見返りが見込めない手伝いには乗り気でない人もいます。その時間に予定があれば、別の日時を返してくれることも、断られることもあります。</li>
@@ -917,13 +934,13 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
 <h2 id="appoint"><span class="ic">📅</span>約束</h2>
 <p>一緒に暮らしていない相手とは、好きなときにいきなり出かけるのではなく、<b>約束してから</b>会います（同居している相手とは、約束しなくても出かけられます）。</p>
 <ul>
-  <li><b>約束する</b>: トークの「📅 約束する」で、日にち・時刻・行き先（<a href="#places">行き先の表</a>から）・何をするか（散歩・水族館・デートなど。家に行ける仲なら、相手の家を訪ねる・あなたの家に招く も）を決めて誘います。返事はいつものメッセージのように時間差で届きます。その時間に相手の予定（大学やバイトなど）があれば、たいてい断られます。仲や機嫌しだいで断られることもあります。「会おうよ」に応じてもらったあとだと、受けてもらいやすくなります。断られるとき、相手から「その時間はちょっと……◯◯なら」と別の日時（ときどき別の行き先も）が返ってくることがあります（予定が合わないだけのときほど返ってきやすく、仲がいい・機嫌がいい・人懐っこい人ほど。慎重な人ほど少なめ。必ずではありません）。返ってきた案には、誘われたときと同じく「行く」「断る」「別の日時なら」で答えます。</li>
+  <li><b>約束する</b>: トークの「📅 約束する」で、日にち・時刻・行き先（<a href="#places">行き先の表</a>から）・何をするか（散歩・水族館・デートなど。家に行ける仲なら、相手の家を訪ねる・あなたの家に招く も。あなたの家なら、連絡先の段階から「○○を手伝ってもらう」も → <a href="#askhelp">手伝いを頼む</a>）を決めて誘います。返事はいつものメッセージのように時間差で届きます。その時間に相手の予定（大学やバイトなど）があれば、たいてい断られます。仲や機嫌しだいで断られることもあります。「会おうよ」に応じてもらったあとだと、受けてもらいやすくなります。断られるとき、相手から「その時間はちょっと……◯◯なら」と別の日時（ときどき別の行き先も）が返ってくることがあります（予定が合わないだけのときほど返ってきやすく、仲がいい・機嫌がいい・人懐っこい人ほど。慎重な人ほど少なめ。必ずではありません）。返ってきた案には、誘われたときと同じく「行く」「断る」「別の日時なら」で答えます。</li>
   <li><b>誘われる</b>: 仲が深まると、相手から「今度の〇〇、△△に行きませんか？」と誘われることがあります。誘ってくるかは、仲・寂しさ・性格に加えて、その日の気分しだいです（機嫌がいい日は誘いやすく、落ち込んでいる・ストレスが高い・体調が悪い日は誘いにくい）。行き先は、その人の好きなものに合う所・一緒に行って楽しかった所・まだ行ったことのない所が、気持ち選ばれやすい程度で、基本は偶然です（性格で決まった所ばかりにはなりません）。トークで「行く」「断る」か、<b>「別の日時なら」</b>（日時・行き先を選んで返す）を選びます。別の案には、相手がその時間の予定・仲・機嫌しだいで、受ける・断る・さらに別の日時を返してくる、のどれか（やりとりは3回まで）。丸一日返事をしないと、誘いは流れます（相手は少し寂しがります）。家に行ける仲なら「うちに遊びに来ませんか？」「そっちに遊びに行ってもいいですか？」と家に誘われることもあります（何度も上げてもらっている相手ほど増えます）。</li>
   <li><b>急に誘われる</b>: 画面を開いているとき、相手がちょうど手すきで、退屈していたり寂しかったり機嫌がよかったりすると、「これから〇〇に行きませんか？」「これからうちに来ませんか？」「いま近くにいるんですけど、寄ってもいいですか？」と急に誘われることがあります。待ち合わせは40分〜1時間ほど先です。答え方はふつうの誘いと同じです。返事をしないまま時間が過ぎても、急な話なので、相手はほんの少し気にするくらいです。</li>
-  <li><b>当日は自分で出向く</b>: 約束の場所へは、ふつうの外出で行きます（「一人で」の「外出」で行き先を約束の場所に。「一人で」やトークの約束の「🚶 ◯◯へ出かける」からもすぐ出かけられます）。<b>約束の場所にいる状態で約束の時刻を迎えると会えます</b>。早く着けば、その場で待ちます（待っている間も外出中で、偶然の出会いなども普段どおり）。別の用事で同じ場所に来ていても会えます。移動に時間はかかりません（ほかの外出と同じく、出かけるとすぐ着きます）。外出中の画面には「約束: ◯時 ◯◯さん（あと◯分）」が出ます。</li>
-  <li><b>相手の家・あなたの家</b>: 相手の家での約束は、相手の家へ出向きます（約束の時刻の前後なら、約束なしの訪問ではなく玄関先で待ちます）。あなたの家に招く約束は、その時間に家にいれば、相手が来ます。</li>
+  <li><b>当日は自分で出向く</b>: 約束の場所へは、ふつうの外出で行きます（「一人で」の「外出」で行き先を約束の場所に。「一人で」やトークの約束の「🚶 ◯◯へ出かける」からもすぐ出かけられます）。<b>約束の場所にいる状態で約束の時刻を迎えると会えます</b>。早く着けば、その場で待ちます（待っている間も外出中で、偶然の出会いなども普段どおり）。別の用事で同じ場所に来ていても会えます。移動には時間がかかります（行き方と時間の目安は<a href="#places">行き先の表</a>。約束の時刻に間に合うように出かけましょう）。外出中の画面には「約束: ◯時 ◯◯さん（あと◯分）」が出ます。</li>
+  <li><b>相手の家・あなたの家</b>: 相手の家での約束は、外出中の画面や地図の「○○の家へ向かう」で相手の家へ出向きます（約束の3時間前から45分後までに着けば、約束なしの訪問ではなく玄関先で時刻まで待ちます）。会えると相手の家に上がり、「誰かと」タブに「🏠 ○○の家で」の欄が出ます（お客としてできることだけ。<a href="#bond">間柄</a>の「家に行ける仲」を参照）。相手の家を行き先に選べるのは家に行ける仲からです（連絡先の段階では、頼まれごとの約束があるあいだだけ）。あなたの家に招く約束は、その時間に家にいれば、相手が来ます。</li>
   <li><b>相手のほう</b>: 時間どおりに来ることもあれば、遅れて来ることも（待っていれば来ます）、来ないこともあります（時間にルーズな性格ほど・仲が浅いほど。30 分ほど待ってあきらめます。あとで謝ってくることもあり、そのときは許すか、まだ許さないかを選べます。1 日のうちに答えなければそのままです）。体調を崩して、前もってキャンセルの連絡が来ることもあります。</li>
-  <li><b>いなかったら</b>: 約束の時刻にその場所にいなければ遅刻です。遅れて着くと少し機嫌を損ね、45 分たってもいなければ、すっぽかしたことになります。外出は画面を開いている間だけなので、画面を閉じると家に帰り、約束の場所にはいないことになります（行動パターンでは出向きません）。すっぽかすと相手は傷つき、信頼が下がります。</li>
+  <li><b>いなかったら</b>: 約束の時刻にその場所にいなければ遅刻です。遅れて着くと少し機嫌を損ね、45 分たってもいなければ、すっぽかしたことになります。外出は画面を開いている間だけなので、画面を閉じると家に帰り、約束の場所にはいないことになります。ただし「一人で」の<a href="#plan">予定</a>（予定か未指定時コマンド）を組んでいれば、閉じている間も約束の時間は約束が先になり、出向いて会います（自動で過ごした分は、よい影響が出にくくなります）。行動パターンだけでは出向きません。すっぽかすと相手は傷つき、信頼が下がります。</li>
 </ul>
 
 <h2 id="places"><span class="ic">📍</span>行き先の表</h2>
@@ -1011,7 +1028,7 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
   <li><b>決まる順番</b>: 予定のコマンド → できなければ（店が閉まっている・お金や体力が足りない・時間外など）未指定時コマンドを上から順に → それも無い・どれもできなければ設定の行動パターン → それもできなければ何もしない。<b>予定を一つも組んでいない日は、設定の行動パターンどおり</b>に過ごします（未指定時コマンドがあっても）。予定を組んだ日の空き時間は未指定時コマンドからですが、行動パターンの仕事・アルバイトの時間は、そのとおり働きます。</li>
   <li><b>以前の取りこぼし</b>: 以前は、未指定時コマンドがあると予定を組んでいない日も未指定時コマンドで埋まり、行動パターンの仕事をしていませんでした。直したときに一度だけ、残っている記録から、行動パターンでは仕事の時間に未指定時コマンドのことをしていた分の給料を受け取ります（家計簿に「給料（◯/◯ の分。あとから）」、一人の時間の記録にその日の仕事として）。休みの日・その日に給料やバイト代が入っている日・仕事や約束をしていた時間・自分で組んだ予定かもしれない行動の時間には払いません。その時間の練習などの記録は仕事に置き換わり、日記には出ません（伸びたスキルはそのままです）。</li>
   <li>買い物など時間のかかるコマンドは、次の予定の時刻が来たら、終わっていなくても切り上げます（買い物なら、それまでに買えた分だけ）。</li>
-  <li><b>約束が先</b>: 相手との約束がある時刻は、約束の場所へ行って会います。予定を組むときに、約束の時刻とぶつからないように見せます。閉じているあいだに会った分は、自分で過ごすより良い影響が出にくく、仲の深まりも小さくなります。</li>
+  <li><b>約束が先</b>: 相手との約束がある時刻は、約束の場所へ行って会います。予定を組むときに、約束の時刻とぶつからないように見せます。閉じているあいだに会った分は、自分で過ごすより良い影響が出にくく、仲の深まりも小さくなります。頼まれごと・頼んだ手伝い・看病の約束なら、ひと通り済ませたことになります（頼んだ手伝いで見返りの話が出たら、その場で答えられないので「今度おごって」の貸しになります）。</li>
   <li><b>画面を開いているとき</b>は、予定の時刻になっても「予定の時刻になった（○時 △△）」と知らせて記録するだけで、何もしません。</li>
   <li><b>自動の応答</b>: 閉じているあいだの、出先のばったり（応じる・会釈・断る）と届いたメッセージの返事（明るく・素っ気なく など）の方針を決められます（無料）。その場にいないので、手で選ぶより効き目は弱く、相手の様子を読み違えることもあります（4 回に 1 回ほど、方針どおりにならない）。決めていなければ今までどおり無難な対応です。</li>
   <li><b>戻ったとき</b>のまとめに、実際にこなした予定を時刻つきで並べます。予定ごとに「予定どおり（切り上げた）」「代わりに何をしたか（理由つき）」「何もしなかった」が分かります。</li>
@@ -1124,6 +1141,102 @@ const mark = () => {
 };
 addEventListener('scroll', mark, { passive: true });
 mark();
+
+// 検索: 段落・項目・表の行ごとに探して, 見出しつきで一覧に. 当たった語には印. カタカナとひらがな・大文字小文字は区別しない
+const norm = (t) => t.toLowerCase().replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+// 言い換え (普段の言い方 → 説明書の言い方). 書き方は norm したもの (ひらがな・小文字)
+const ALIAS = { 'あぽ': ['約束'], 'あぽなし': ['約束なし'], 'どたきゃん': ['きゃんせる', 'すっぽかし'], 'ばいと': ['あるばいと'],
+  'おとまり': ['お泊り', '泊ま'], 'とまる': ['泊ま'], 'おごり': ['おご'], 'おごる': ['おご'], 'かね': ['お金'], 'きゅうりょう': ['給料'],
+  'かぜ': ['風邪'], 'びょうき': ['体調', '風邪'], 'てつだい': ['手伝'], 'けんか': ['言い争い', '喧嘩'], 'でーと': ['お出かけ', 'デート'],
+  'すまほ': ['スマホ'], 'めっせ': ['メッセージ'], 'でんわ': ['電話'], 'いえ': ['家'] };
+const BLOCKS = [...document.querySelectorAll('main p, main li, main tr, main .note, main h2, main h3, main .card')]
+  .filter((el) => !el.closest('li li, .card p') || el.matches('.card'));
+let n = 0;
+document.querySelectorAll('main h2, main h3').forEach((h) => { if (!h.id) h.id = 'sec-' + (++n); });
+const secOf = (el) => {
+  let cur = null;
+  for (const h of document.querySelectorAll('main h2, main h3')) {
+    if (h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING || h === el) cur = h; else break;
+  }
+  return cur;
+};
+const unmark = () => {
+  const parents = new Set();
+  document.querySelectorAll('mark.hit').forEach((m) => { parents.add(m.parentNode); m.replaceWith(document.createTextNode(m.textContent)); });
+  parents.forEach((p) => p.normalize());          // 分かれた文字をつなぎ直す (次の検索で語の途中が切れないように)
+};
+const markIn = (el, words) => {
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walk.nextNode()) nodes.push(walk.currentNode);
+  for (const tn of nodes) {
+    const t = tn.textContent, nt = norm(t);
+    const spans = [];
+    for (const w of words) { let i = 0; while ((i = nt.indexOf(w, i)) >= 0) { spans.push([i, i + w.length]); i += w.length; } }
+    if (!spans.length) continue;
+    spans.sort((a, b) => a[0] - b[0]);
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const [a, b] of spans) {
+      if (a < last) continue;
+      frag.append(t.slice(last, a));
+      const m = document.createElement('mark'); m.className = 'hit'; m.textContent = t.slice(a, b); frag.append(m);
+      last = b;
+    }
+    frag.append(t.slice(last));
+    tn.replaceWith(frag);
+  }
+};
+const snippet = (text, w) => {
+  const i = Math.max(0, norm(text).indexOf(w) - 24);
+  return (i ? '…' : '') + text.slice(i, i + 90) + (text.length > i + 90 ? '…' : '');
+};
+const q = document.getElementById('q'), hits = document.getElementById('hits'), qcount = document.getElementById('qcount');
+let timer = null;
+const search = () => {
+  unmark();
+  hits.replaceChildren();
+  const words = norm(q.value.trim()).split(/\s+/).filter(Boolean);
+  if (!words.length) { qcount.textContent = ''; return; }
+  const alts = (w) => [w, ...(ALIAS[w] || []).map(norm)];
+  const found = BLOCKS.filter((el) => { const t = norm(el.textContent); return words.every((w) => alts(w).some((x) => t.includes(x))); })
+    .filter((el, i, a) => !a.some((o) => o !== el && o.contains(el) && !o.matches('main h2, main h3')));     // 入れ子は外側だけ
+  qcount.textContent = found.length ? `${found.length} 件` : '見つかりませんでした';
+  const marks = words.flatMap(alts);
+  for (const el of found.slice(0, 80)) {
+    markIn(el, marks);
+    const sec = el.matches('h2, h3') ? el : secOf(el);
+    const a = document.createElement('a');
+    a.href = '#';
+    a.innerHTML = '';
+    const sp = document.createElement('span'); sp.className = 'sec'; sp.textContent = sec ? sec.textContent.trim() : '';
+    const tx = el.textContent.replace(/\s+/g, ' ').trim();
+    a.append(sp, snippet(tx, alts(words[0]).find((x) => norm(tx).includes(x)) || words[0]));
+    a.onclick = (ev) => {
+      ev.preventDefault();
+      // (表の行は scrollIntoView が効かないことがある. なめらかな移動は止まることがあるので, すぐに飛ぶ. 飛んだ先は flash で分かる)
+      scrollTo({ top: el.getBoundingClientRect().top + scrollY - innerHeight / 3, behavior: 'instant' });
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      setTimeout(showBack, 60);
+    };
+    hits.append(a);
+  }
+  if (found.length > 80) qcount.textContent += '（先頭の 80 件を表示）';
+};
+q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(search, 180); });
+q.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { const a = hits.querySelector('a'); if (a) a.click(); } if (ev.key === 'Escape') { q.value = ''; search(); } });
+addEventListener('keydown', (ev) => { if (ev.key === '/' && document.activeElement !== q) { ev.preventDefault(); q.focus(); } });
+// 検索中, 結果の一覧が画面の外に出たら「検索結果へ」(スマホ幅では目次が上にあるので, 本文へ飛んだあと戻りやすく)
+const back = document.createElement('button');
+back.id = 'back-search'; back.textContent = '🔍 検索結果へ'; back.hidden = true;
+back.onclick = () => {
+  scrollTo({ top: document.querySelector('.search').getBoundingClientRect().top + scrollY - 10, behavior: 'instant' });
+  setTimeout(showBack, 60);
+};
+document.body.append(back);
+const showBack = () => { back.hidden = !q.value.trim() || hits.getBoundingClientRect().bottom > 0 && hits.getBoundingClientRect().top < innerHeight; };
+addEventListener('scroll', showBack, { passive: true });
+q.addEventListener('input', showBack);
 </script>
 </body>
 </html>
