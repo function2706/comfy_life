@@ -2493,6 +2493,48 @@
   ],
   "stay.offer_no": [
    "……そう。気をつけて"
+  ],
+  "chat.help_yes": [
+   "📱『{when}、{what}。いいよ、行く』"
+  ],
+  "chat.help_no": [
+   "📱『……{what}は無理。ほかを当たって』"
+  ],
+  "chat.help_busy": [
+   "📱『その時間は予定がある。{what}は無理』"
+  ],
+  "chat.help_counter": [
+   "📱『その時間は無理。{when}なら、{what}行ける』"
+  ],
+  "chat.help_iou_remind": [
+   "📱『{call}。この前の{what}のおごり、まだ』"
+  ],
+  "help.arrive": [
+   "……来た。{what}、始めよう"
+  ],
+  "help.done_none": [
+   "……別にいい。気にしないで"
+  ],
+  "help.done_treat": [
+   "……けっこう働いた。今度、何かおごって"
+  ],
+  "help.done_money": [
+   "……手伝った分、{amount}円。もらっていい？"
+  ],
+  "help.paid": [
+   "……ありがと"
+  ],
+  "help.refused": [
+   "……そう。わかった"
+  ],
+  "help.offer_yes": [
+   "……じゃあ、もらう"
+  ],
+  "help.offer_no": [
+   "……いらない。そういうのは、いい"
+  ],
+  "help.iou_paid": [
+   "……これで、この前の分はなし"
   ]
  }
 }

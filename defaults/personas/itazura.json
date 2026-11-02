@@ -2953,6 +2953,48 @@
   ],
   "stay.offer_no": [
    "そっか。じゃあ、気をつけて帰ってね"
+  ],
+  "chat.help_yes": [
+   "📱『{when}に{what}ね。いいよ、手伝ってあげる。貸しひとつね』"
+  ],
+  "chat.help_no": [
+   "📱『{what}はパス。ほかの人に頼んで？』"
+  ],
+  "chat.help_busy": [
+   "📱『その時間は予定あるの。ごめんね、{what}は無理』"
+  ],
+  "chat.help_counter": [
+   "📱『その時間はダメ。{when}なら、{what}手伝ってあげる』"
+  ],
+  "chat.help_iou_remind": [
+   "📱『{call}、この前の{what}の貸し、まだ返ってきてないよ？』"
+  ],
+  "help.arrive": [
+   "来たよ、{call}。{what}、さくっとやっちゃお"
+  ],
+  "help.done_none": [
+   "今日はタダでいいよ。……たまにはね"
+  ],
+  "help.done_treat": [
+   "がんばったんだから、今度おいしいものおごってね。約束"
+  ],
+  "help.done_money": [
+   "手伝った分、{amount}円ね。……払ってくれるよね？"
+  ],
+  "help.paid": [
+   "毎度あり。ありがと"
+  ],
+  "help.refused": [
+   "えー、けち。……ま、いいけど"
+  ],
+  "help.offer_yes": [
+   "え、くれるの？ じゃあ、ありがたく"
+  ],
+  "help.offer_no": [
+   "いらないよ。そういうの、なんか照れくさいし"
+  ],
+  "help.iou_paid": [
+   "ごちそうさま。これで貸し借りなしね"
   ]
  }
 }

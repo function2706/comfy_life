@@ -2443,6 +2443,48 @@
   ],
   "stay.offer_no": [
    "そうか。気をつけて帰ってくれ"
+  ],
+  "chat.help_yes": [
+   "📱『{when}に{what}か。わかった、手伝いに行く』"
+  ],
+  "chat.help_no": [
+   "📱『すまない、{what}は引き受けられない』"
+  ],
+  "chat.help_busy": [
+   "📱『その時間は予定があるんだ。{what}は手伝えない、すまない』"
+  ],
+  "chat.help_counter": [
+   "📱『その時間は無理だ。{when}なら、{what}手伝える』"
+  ],
+  "chat.help_iou_remind": [
+   "📱『{call}、この前の{what}のおごり、まだだろう？』"
+  ],
+  "help.arrive": [
+   "来たよ、{call}。{what}、今日中に片付けよう"
+  ],
+  "help.done_none": [
+   "いいよ、これくらい。気にしないでくれ"
+  ],
+  "help.done_treat": [
+   "けっこう頑張っただろう？ 今度、何かおごってくれ"
+  ],
+  "help.done_money": [
+   "手伝った分、{amount}円もらってもいいか？"
+  ],
+  "help.paid": [
+   "確かに。ありがとう"
+  ],
+  "help.refused": [
+   "そうか。……わかった"
+  ],
+  "help.offer_yes": [
+   "いいのか？ じゃあ、ありがたくもらっておく"
+  ],
+  "help.offer_no": [
+   "いらないよ。{call}からお金はもらえない"
+  ],
+  "help.iou_paid": [
+   "ごちそうさま。これで、この前の分はなしだ"
   ]
  }
 }

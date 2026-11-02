@@ -2454,6 +2454,48 @@
   ],
   "stay.offer_no": [
    "そっか。気をつけて帰ってね"
+  ],
+  "chat.help_yes": [
+   "📱『{when}に{what}ね。いいよ、手伝いに行く』"
+  ],
+  "chat.help_no": [
+   "📱『ごめん、{what}は今回はパス。ほかの人に頼める？』"
+  ],
+  "chat.help_busy": [
+   "📱『その時間は予定がある。{what}は手伝えないな、ごめん』"
+  ],
+  "chat.help_counter": [
+   "📱『その時間は無理。{when}なら、{what}手伝える』"
+  ],
+  "chat.help_iou_remind": [
+   "📱『{call}、この前の{what}のおごり、まだ未処理だよね』"
+  ],
+  "help.arrive": [
+   "来たよ、{call}。{what}、効率よく片付けよう"
+  ],
+  "help.done_none": [
+   "いいよ、今回は。いいデータが取れたし"
+  ],
+  "help.done_treat": [
+   "けっこうな作業量だったね。今度、何かおごってもらえる？"
+  ],
+  "help.done_money": [
+   "作業時間から計算すると、{amount}円くらいが妥当だと思う"
+  ],
+  "help.paid": [
+   "受け取った。ありがとう"
+  ],
+  "help.refused": [
+   "そっか。……了解"
+  ],
+  "help.offer_yes": [
+   "いいの？ じゃあ、ありがたく"
+  ],
+  "help.offer_no": [
+   "いらないよ。この程度でお金をもらうのは、割に合わない気がする"
+  ],
+  "help.iou_paid": [
+   "ごちそうさま。これで、この前の分は相殺だね"
   ]
  }
 }

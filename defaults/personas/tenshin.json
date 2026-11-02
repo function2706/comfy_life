@@ -2505,6 +2505,48 @@
   ],
   "stay.offer_no": [
    "そっか。じゃあ、気をつけてね！"
+  ],
+  "chat.help_yes": [
+   "📱『{when}に{what}だね！ いいよ、手伝いに行く！』"
+  ],
+  "chat.help_no": [
+   "📱『ごめんね、{what}は気が乗らないの。ほかの人に頼んで？』"
+  ],
+  "chat.help_busy": [
+   "📱『その時間は予定があるの。ごめんね、{what}は手伝えない』"
+  ],
+  "chat.help_counter": [
+   "📱『その時間はだめ！ {when}なら、{what}手伝えるよ』"
+  ],
+  "chat.help_iou_remind": [
+   "📱『{call}、この前の{what}のおごり、まだだよ？』"
+  ],
+  "help.arrive": [
+   "来たよ、{call}！ {what}、やろやろ！"
+  ],
+  "help.done_none": [
+   "いいよー！ 楽しかったから"
+  ],
+  "help.done_treat": [
+   "がんばったから、今度なんかおいしいものおごって！"
+  ],
+  "help.done_money": [
+   "ねぇ、手伝った分、{amount}円くらいほしいな"
+  ],
+  "help.paid": [
+   "わーい、ありがと！"
+  ],
+  "help.refused": [
+   "えー、そっかぁ……"
+  ],
+  "help.offer_yes": [
+   "くれるの？ ありがと！"
+  ],
+  "help.offer_no": [
+   "いらないよー。{call}からはもらわない"
+  ],
+  "help.iou_paid": [
+   "ごちそうさま！ これでこの前の分はおあいこ！"
   ]
  }
 }
