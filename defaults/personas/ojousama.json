@@ -105,7 +105,7 @@
    "さっきも挨拶したじゃない？ ふふ、おかしな{call}。"
   ],
   "praise.default": [
-   "な、褒めても何も出ないわよ……？",
+   "な、急に褒めないで……照れるじゃない。",
    "と、当然よ！ ……当然、だけど。"
   ],
   "praise.default_2": [
@@ -120,7 +120,7 @@
   ],
   "tease.default": [
    "もうっ、{call}の意地悪！ 許さないから！",
-   "な、なんですって！？ 今のは取り消して！"
+   "ちょっと、今のは聞き捨てならないわ。取り消して！"
   ],
   "tease.affection_ge_70": [
    "そうやって{fp}をからかうのは、{call}だけよ……？"
@@ -153,7 +153,7 @@
   ],
   "hug.default": [
    "きゃっ……！ も、もう、いきなりなんて……！",
-   "なっ、何するの！？ ……は、離してとは言ってないわ。"
+   "ちょっと、急に何するの！？ ……は、離してとは言ってないわ。"
   ],
   "hug.affection_ge_70": [
    "……あったかい。もう少しだけ、ぎゅっとしてて。"
@@ -204,7 +204,7 @@
    "今はお腹いっぱいなの……あとでいただくわね。"
   ],
   "water.default": [
-   "ありがとう。……こく、こく。ふぅ。",
+   "ありがとう。……ふぅ、おいしい。",
    "ちょうど欲しかったところなの。気が利くのね。"
   ],
   "water.hydration_ge_85": [
@@ -357,7 +357,7 @@
   ],
   "_dress.default": [
    "着替えてきたわ。……どう？ 似合ってる？",
-   "ふふん、どうかしら。見とれてもいいのよ？"
+   "どうかしら。見とれてもいいのよ？"
   ],
   "_dress.mood_ge_60": [
    "じゃーん！ ……なんて、ちょっと照れるわね。"
@@ -454,7 +454,7 @@
    "や、野球拳……。……いいわ、受けて立つわよ！"
   ],
   "mg.yakyuken.start.mood_ge_60": [
-   "ふふん、{fp}じゃんけんは強いのよ？ 覚悟して。"
+   "言っておくけど、{fp}じゃんけんは強いのよ？ 覚悟して。"
   ],
   "mg.yakyuken.hint.default": [
    "……次は{hint_hand}を出そうかしら？"
@@ -469,7 +469,7 @@
    "また{her_hand}！ 気が合うわね……"
   ],
   "mg.yakyuken.round_win.default": [
-   "くっ……「{stage}」になっちゃった……"
+   "もう……「{stage}」になっちゃった……"
   ],
   "mg.yakyuken.round_win.game_stage_le_1": [
    "ま、まだ平気よ！ 次こそ勝つもの！"
@@ -478,7 +478,7 @@
    "こ、これ以上は……本当に次で最後よ……！"
   ],
   "mg.yakyuken.round_lose.default": [
-   "{fp}の勝ち！ {call}、1枚脱いでね♪"
+   "{fp}の勝ち！ {call}、1枚脱いでね。"
   ],
   "mg.yakyuken.round_lose.default_2": [
    "ふふ、{my_hand}を出すと思ってたわ。"
@@ -508,7 +508,7 @@
    "あいこでしょ！"
   ],
   "mg.acchimuite.rps_me.default": [
-   "くっ、負けちゃった……どっちを指すの？"
+   "悔しい、負けちゃった……どっちを指すの？"
   ],
   "mg.acchimuite.rps_her.default": [
    "{fp}の勝ち！ いくわよ……あっち向いて……"
@@ -517,13 +517,13 @@
    "ああっ！ つられちゃった……"
   ],
   "mg.acchimuite.dodge_me.default": [
-   "ふふん、引っかからないわよ！"
+   "残念、引っかからないわよ！"
   ],
   "mg.acchimuite.point_her.default": [
    "やった！ {call}、{dir}を向いたわね！"
   ],
   "mg.acchimuite.dodge_her.default": [
-   "むぅ、よけられた！"
+   "もう、よけられた！"
   ],
   "mg.acchimuite.win.default": [
    "負けたわ……{call}、強いのね。次は負けないから！"
@@ -562,7 +562,7 @@
    "えっ、リーチ！？ ……この牌、通るかしら……"
   ],
   "mg.mahjong.hand_win.default": [
-   "くっ……{yaku}、{han}……。「{stage}」ね……"
+   "そんな……{yaku}、{han}……。「{stage}」ね……"
   ],
   "mg.mahjong.hand_win.game_stage_le_1": [
    "ま、まだまだよ……次は和了ってみせるんだから！"
@@ -571,7 +571,7 @@
    "こ、これ以上は……本当に次で最後よ……！"
   ],
   "mg.mahjong.hand_lose.tsumo_false": [
-   "ロン！ {yaku}で{han}よ♪"
+   "ロン！ {yaku}で{han}よ。"
   ],
   "mg.mahjong.hand_lose.tsumo_true": [
    "ツモ！ {yaku}、{han}！ ふふ、いただきね。"
@@ -652,10 +652,10 @@
    "うーん、どこに置こうかしら……"
   ],
   "mg.reversi.mid.advantage_lt_-8": [
-   "白がいっぱい♪"
+   "白がいっぱい。"
   ],
   "mg.reversi.mid.advantage_gt_8": [
-   "くっ、真っ黒……"
+   "ああ、真っ黒……"
   ],
   "mg.reversi.pass.default": [
    "あら、{call}は置けるところがないのね。{fp}の番よ！"
@@ -721,10 +721,10 @@
    "えっ、こいこいするの！？ 強気ね……"
   ],
   "mg.koikoi.round_win.default": [
-   "くっ、{yaku}……{points}文も取られちゃった。"
+   "もう、{yaku}……{points}文も取られちゃった。"
   ],
   "mg.koikoi.round_lose.default": [
-   "あがり！ {yaku}で{points}文♪"
+   "あがり！ {yaku}で{points}文。"
   ],
   "mg.koikoi.round_draw.default": [
    "流れちゃったわね。次いきましょ！"
@@ -751,7 +751,7 @@
    "ポーカーフェイスなら得意なのよ？ ……たぶん、だけど。"
   ],
   "mg.poker.her_strong.default": [
-   "ふふっ……（扇で口元を隠して微笑んでいる）"
+   "ふふっ……（にこにこしたまま、伏せたカードに手を添えている）"
   ],
   "mg.poker.her_strong.default_2": [
    "今回は自信があるのよ？"
@@ -766,13 +766,13 @@
    "く……降りるわ。今回は見送り……"
   ],
   "mg.poker.round_win.default": [
-   "{her_hand}に{my_hand}……くっ、「{stage}」ね……"
+   "{her_hand}に{my_hand}……悔しいけど、「{stage}」ね……"
   ],
   "mg.poker.round_win.game_stage_ge_3": [
    "こ、これ以上は……次で最後よ……！"
   ],
   "mg.poker.round_lose.default": [
-   "{her_hand}！ {fp}の勝ちね♪"
+   "{her_hand}！ {fp}の勝ちね。"
   ],
   "mg.poker.round_lose.lives_le_1": [
    "あと1回で、{fp}の勝ちよ？"
@@ -793,13 +793,13 @@
    "あら、そろそろ行かなくちゃ……続きはまた今度ね。"
   ],
   "mg.blackjack.start.default": [
-   "今日は{fp}がディーラーよ。いらっしゃいませ♪"
+   "今日は{fp}がディーラーよ。いらっしゃいませ。"
   ],
   "mg.blackjack.round_win.default": [
    "{why}……{call}の勝ちね。"
   ],
   "mg.blackjack.round_lose.default": [
-   "{why}！ ディーラーの勝ちね♪"
+   "{why}！ ディーラーの勝ちね。"
   ],
   "mg.blackjack.round_draw.default": [
    "{why}ね。"
@@ -811,7 +811,7 @@
    "{her}勝で{fp}の勝ち！ 胴元は強いものなのよ。"
   ],
   "mg.blackjack.quit.default": [
-   "またのお越しをお待ちしてるわ♪"
+   "またのお越しをお待ちしてるわ。"
   ],
   "mg.blackjack.interrupted.default": [
    "あら、もう行かなくちゃ……続きはまた今度ね。"
@@ -823,7 +823,7 @@
    "あっ、覚えてたのね……"
   ],
   "mg.concentration.her_combo.default": [
-   "ふふ、ちゃんと覚えてたわ♪"
+   "ふふ、ちゃんと覚えてたわ。"
   ],
   "mg.concentration.win.default": [
    "{me}組対{her}組……{call}の勝ちね。記憶力、すごいわね。"
@@ -862,10 +862,10 @@
    "……（つんと澄まして平静を装っている）"
   ],
   "mg.oldmaid.win.default": [
-   "くっ……最後にジョーカーが残っちゃった。"
+   "ああ……最後にジョーカーが残っちゃった。"
   ],
   "mg.oldmaid.lose.default": [
-   "あがり！ ジョーカーは{call}のものね♪"
+   "あがり！ ジョーカーは{call}のものね。"
   ],
   "mg.oldmaid.quit.default": [
    "また遊びましょうね。"
@@ -1320,7 +1320,7 @@
    "（話が弾んで、気づけば一時間も話し込んでいた。{name}は「まあ、もうこんな時間！」と目を丸くした）"
   ],
   "talk.sk_talk_lt_20__roll_lt_35": [
-   "……（会話が続かず、{name}はそわそわと扇子をいじっている）"
+   "……（会話が続かず、{name}はそわそわと髪の先をいじっている）"
   ],
   "headpat.sk_touch_ge_60__roll_lt_50": [
    "ん……{call}の撫で方、すごく落ち着く……"
@@ -1509,7 +1509,7 @@
    "まあ、うれしい！ じゃあ、何して遊ぶ？"
   ],
   "ap.bored.later": [
-   "むぅ。……少しだけ、よ？"
+   "……仕方ないわね。少しだけ、よ？"
   ],
   "ap.bored.ignore": [
    "（{name}はソファでごろごろしながら、恨めしそうにこちらを見ている）"
@@ -1835,7 +1835,7 @@
    "📱『わ、{fp}も……会いたい』"
   ],
   "chat.flirt_cold": [
-   "📱『ま、まぁ……急にどうしたの？』"
+   "📱『まぁ……急にどうしたの？』"
   ],
   "chat.invite_yes": [
    "📱『ぜひ会いましょう！』"
@@ -2153,7 +2153,7 @@
    "📱『？ もう返したわよ。見てないの？』"
   ],
   "chat.selfie_yes": [
-   "📱『う、うまく撮れてるかしら……？ どうぞ、見て』"
+   "📱『うまく撮れてるかしら……？ どうぞ、見て』"
   ],
   "chat.selfie_no": [
    "📱『じ、自撮りなんて、恥ずかしいわ……！』"
@@ -2354,7 +2354,7 @@
    "📱『……そこまで心配されるほど、か弱くないわ』"
   ],
   "msgr.tease.good": [
-   "📱『ま、まぁ……！ ……ふふ、意地悪な方』"
+   "📱『まぁ……！ ……ふふ、意地悪な方』"
   ],
   "msgr.tease.neutral": [
    "📱『……はぁ』"
