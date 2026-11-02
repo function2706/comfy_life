@@ -29,6 +29,7 @@
   "carer": 0.2,
   "punctual": 0.9,
   "repay": 1.1,
+  "greed": 0.25,
   "modesty": 0,
   "grudge": 1.05,
   "poker": 1.2,

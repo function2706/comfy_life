@@ -231,6 +231,8 @@ class Appoint:
         out = []
         for pid, p in app.places.table().items():
             dos = self.dos_at(cid, pid)
+            if pid == places_mod.HOME_ME:
+                dos = list(dos) + app.askhelp.dos(cid)            # 手伝いを頼む (core/askhelp.py)
             if dos:
                 out.append({"place": pid, "label": p["label"], "icon": p["icon"], "group": p["group"],
                             "hours": places_mod.hours_label(pid),
@@ -241,6 +243,9 @@ class Appoint:
     def propose(self, cid, t, place, do, now=None):
         app = self.app
         now = now or time.time()
+        if str(do).startswith("_help:"):                         # 手伝いを頼む (core/askhelp.py)
+            x = app.askhelp.propose(cid, t, do.split(":", 1)[1], now)
+            return dict(x, label=STATUS_LABEL[x["status"]])
         char = app.char(cid)
         cid = char["id"]
         stage = app.bonds.stage(cid)
@@ -285,6 +290,8 @@ class Appoint:
         if x["status"] != "asked":
             return "appoint_no", {}, extra
         p = st["params"]
+        if x.get("help"):                     # あなたが頼んだ手伝い (core/askhelp.py)
+            return app.askhelp.reply(char, st, x, now, extra)
         if x.get("favor"):                    # 頼まれごとの日時: 頼んだ側なので, 予定が空いていればまず受ける
             extra["what"] = x.get("label", "")
             busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
@@ -649,7 +656,7 @@ class Appoint:
             raise ValueError("その日しか無理だそうです（受けるか断るかで答えましょう）")
         if int(x.get("rounds", 0)) >= COUNTER_MAX:
             raise ValueError("もう何度もやりとりしているので、受けるか断るかにしましょう")
-        if x.get("favor"):
+        if x.get("favor") or x.get("help"):
             t = float(t)
             if t < now + 30 * 60 or t > now + 14 * 86400:
                 raise ValueError("約束は 30 分後から 2 週間先までです")
@@ -704,7 +711,7 @@ class Appoint:
         """相手が返す別の案: あなたの案の近く (前後の日・時間) で, 相手の予定が空いていて, 行き先が開いている時間. 無ければ None."""
         app = self.app
         base = datetime.fromtimestamp(x["t"])
-        a = app.action(x["do"]) if x["do"] != FAVOR_DO else {}
+        a = app.action(x["do"]) if x["do"] != FAVOR_DO and not x.get("help") else {}
         for _ in range(12):
             d = (base + timedelta(days=random.choice((0, 0, 1, -1, 2)))).replace(
                 hour=random.choice((10, 11, 13, 14, 15, 16, 17, 18, 19)), minute=0, second=0, microsecond=0)
@@ -847,6 +854,10 @@ class Appoint:
         self.save()
         if x.get("favor"):
             return self._favor_meet(x, now, me_late, extra_opts or {})
+        if x.get("help"):                         # あなたが頼んだ手伝いに来てくれた (core/askhelp.py)
+            if (extra_opts or {}).get("auto_weak"):
+                return {"status": "met", "entry": {"text": app.askhelp.auto(x, now)}}
+            return {"status": "met", "entry": app.askhelp.arrive(x, now)}
         if x.get("care"):                         # 看病に呼ばれて来た (core/care.py)
             if (extra_opts or {}).get("auto_weak"):
                 return {"status": "met", "entry": {"text": "%sの看病に行った" % char.get("name", "")}}
@@ -1042,7 +1053,8 @@ class Appoint:
                 "home_me": x["place"] == places_mod.HOME_ME, "remain": int(x["t"] - now), "id": x["id"], "cid": x["cid"],
                 "name": app.chars[x["cid"]].get("name", "") if x["cid"] in app.chars else "", "t": x["t"],
                 "when": fmt_when(x["t"], now), "place": x["place"], "place_label": app.places.label(x["place"]),
-                "do": x.get("do"), "do_label": x.get("label") if x.get("favor") else app.action(x.get("do")).get("name", x.get("do")),
+                "do": x.get("do"), "do_label": (x.get("label") if x.get("favor") else "%sを手伝ってもらう" % x.get("label", "") if x.get("help")
+                                                else app.action(x.get("do")).get("name", x.get("do"))),
                 "by": x.get("by", "me"), "status": st,
                 "status_label": self.favor_status(x, now) if x.get("favor") else STATUS_LABEL.get(st, st), "due": due,
                 "favor": bool(x.get("favor")), "fixed": bool(x.get("fixed")), "ask": bool(x.get("ask")),

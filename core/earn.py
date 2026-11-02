@@ -454,9 +454,28 @@ class Earn:
         return max(0.0, min(1.0, base + (p.get("affection", 50) - 50) / 80.0 + (p.get("trust", 50) - 50) / 160.0))
 
     @staticmethod
-    def money_chance(close, repay):
-        """お礼がお金になる見込み: 近い仲ほど基本はお金のやりとりなし ((1 − 近さ)^1.5). 律儀な性格 (repay > 1) は近くてもときどき."""
-        return max(0.0, min(0.85, 0.6 * repay * (1 - close) ** 1.5 + 0.35 * max(0.0, repay - 1) * close))
+    def money_chance(close, repay, dv=0.0, dep=0.0):
+        """お礼がお金になる見込み: 近い仲ほど基本はお金のやりとりなし ((1 − 近さ)^1.5). 律儀な性格 (repay > 1) は近くてもときどき.
+        献身度 dv (−1〜+1): 高ければ尽くす形 (ごちそう・手料理) で返したがり, 低ければお礼そのものが軽い. どちらもお金は減る.
+        依存度 dep: 近い仲で高いほど, お金は他人行儀なので払わない (会う約束の形で返したがる)."""
+        p = 0.6 * repay * (1 - close) ** 1.5 + 0.35 * max(0.0, repay - 1) * close
+        p *= (1 - 0.3 * abs(dv)) * (1 - 0.6 * max(0.0, dep) * close)
+        return max(0.0, min(0.85, p))
+
+    THANKS_FORMS = [            # (種類, 文, 重み (献身度 dv・依存度 dep から))
+        ("treat", "お礼に、ご飯をごちそうしてくれた", lambda dv, dep: 1 + 1.5 * max(0.0, dv)),
+        ("cook", "お礼に、手料理をふるまってくれた", lambda dv, dep: 0.4 + 1.5 * max(0.0, dv)),
+        ("sweets", "お礼に、お菓子を持たせてくれた", lambda dv, dep: 1.0),
+        ("words", "何度もお礼を言われた", lambda dv, dep: 1 + 1.5 * max(0.0, -dv)),
+        ("later", "今度何かお返しするね、と言われた", lambda dv, dep: 0.8 + max(0.0, -dv)),
+        ("together", "「今度一緒にどこか行こうね」と言われた", lambda dv, dep: 0.3 + 1.5 * max(0.0, dep)),
+    ]
+
+    def thanks_form(self, dv, dep):
+        """お金でないお礼の形: 尽くす人はごちそう・手料理, 自分優先なら言葉だけ, あなたを求める人は「今度一緒に」."""
+        fs = self.THANKS_FORMS
+        k, how, _ = random.choices(fs, [w(dv, dep) for _, _, w in fs])[0]
+        return k, how
 
     def favor_done(self, f, h, t, stay=False):
         """手伝いを終えた (stay: 相手の家にまだいる. 戻ったのではない): 終わっていれば, お礼 (お金をもらえることも, もらえないことも. 仲しだい). (お礼の額, 文)."""
@@ -478,7 +497,8 @@ class Earn:
         app.bonds.touch(st, t)
         close = self.closeness(cid, st)
         repay = float(app.traits(char).get("repay", 1.0))
-        p_money = self.money_chance(close, repay)
+        dv, dep = app.attach.factor(char, st, "devotion"), app.attach.factor(char, st, "dependence")
+        p_money = self.money_chance(close, repay, dv, dep)
         her = self.L.her_money(st)
         amt = 0
         if f.get("kind") == "plants":          # 留守中の水やり: 会っていないので, お礼は帰ってきてからのメッセージで
@@ -489,15 +509,17 @@ class Earn:
                 self.favors().remove(f)
             return 0, "%sの%sを終えた。鍵をかけて帰った（お礼は、帰ってきてからメッセージで）" % (name, f["label"])
         if random.random() < p_money and her["a"] > 3000:
-            amt = min(int(her["a"] * 0.3), max(500, int(1000 * f["h"] * random.uniform(0.8, 1.5) * (1 - 0.6 * close) / 500) * 500))     # 近い仲なら気持ち程度
+            amt = min(int(her["a"] * 0.3), max(500, int(1000 * f["h"] * random.uniform(0.8, 1.5) * (1 - 0.6 * close)
+                                                       * (1 + 0.3 * max(0.0, dv)) / 500) * 500))     # 近い仲なら気持ち程度. 尽くす人は気前よく
         if amt > 0:
             her["a"] -= amt
             self.ps()["money"] += amt
             self.L.ledger(t, amt, "income", "%sからのお礼" % name)
             how = "お礼にと、%s円を渡された" % format(amt, ",")
         else:
-            how = random.choice(("お礼に、ご飯をごちそうしてくれた", "何度もお礼を言われた", "今度何かお返しするね、と言われた",
-                                 "お礼に、お菓子を持たせてくれた"))
+            kind, how = self.thanks_form(dv, dep)
+            if kind == "together":               # 「今度一緒にどこか行こ」: 誘えば受けてもらいやすい (約束の date_promise)
+                st["date_promise"] = max(float(st.get("date_promise", 0)), t + 7 * 86400)
         app.save_state(cid)
         app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
         if f in self.favors():

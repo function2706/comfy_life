@@ -708,6 +708,7 @@ function renderCommands() {
   if (why) out.push(h('div', { class: 'blocked-note' }, `⏸ ${why}`));
   if (t.visit) out.push(visitCard(t.visit));
   if (t.stay && (t.stay.staying || t.stay.offered || t.stay.can_ask)) out.push(stayCard(t.stay));
+  if (t.askhelp) out.push(askHelpCard(t.askhelp));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
@@ -717,6 +718,34 @@ function renderCommands() {
   out.push(h('button', { class: 'cmds-hidden-toggle', onclick: () => { S.showHidden = !S.showHidden; renderCommands(); } },
     S.showHidden ? '▲ 今できないコマンドを隠す' : `▼ 今できないコマンドも表示 (${hidden})`));
   box.replaceChildren(...out);
+}
+
+// あなたが頼んだ手伝い (あなたの家): 始める / ひと休み / 切り上げる, 終わったら求められたお金 (払う・断る) かお礼を渡す
+function askHelpCard(v) {
+  const go = async (op, body, ask) => {
+    if (S.busy || (ask && !confirm(ask))) return;
+    S.busy = true;
+    try { handleActResult(await api('/api/askhelp/' + op, withT(body || {}))); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  const btn = (ic, label, fn, dis) => h('button', { class: 'cmd', disabled: S.busy || !!dis, onclick: fn }, h('span', { class: 'ic' }, ic), h('span', {}, label));
+  const rn = v.running;
+  const btns = [];
+  if (v.ready) btns.push(btn('🤝', `${v.label}を手伝ってもらう`, () => go('start')));
+  if (rn) {
+    btns.push(btn('☕', 'ひと休みする', () => go('rest'), !rn.rest_left));
+    btns.push(btn('✋', '手伝いを切り上げる', () => go('stop', {}, '手伝ってもらうのを切り上げますか？')));
+  }
+  if (v.ask_money) {
+    btns.push(btn('💴', `${yen(v.ask_money)}払う`, () => go('pay', { yes: true })));
+    btns.push(btn('🙅', '払わない', () => go('pay', { yes: false }, 'お金は払わない、と言いますか？')));
+  }
+  if (v.can_offer) btns.push(btn('💴', `お礼に${yen(v.offer_amount)}渡す`, () => go('offer')));
+  return h('div', { class: 'cat' },
+    h('div', { class: 'cat-title' }, '🏠 あなたの家で'),
+    h('div', { class: 'muted small' }, rn ? `🤝 ${v.label}を手伝ってもらっている（あと${rn.remain >= 5400 ? `${Math.round(rn.remain / 1800) / 2}時間` : `${Math.max(1, Math.round(rn.remain / 60))}分`}ほど）`
+      : v.ready ? `${v.label}を手伝いに来てくれました（${v.h}時間ほど）` : v.ask_money ? 'お礼にお金を求められています' : '手伝いは終わりました'),
+    btns.length ? h('div', { class: 'cmds' }, btns) : '');
 }
 
 // お泊り: 夜に「泊まっていい？」(相手の家) /「泊まっていく？」(あなたの家). 相手から聞かれたら答える
@@ -3668,7 +3697,7 @@ SEC.personas = () => {
         fld('性格・口調の説明（LLM 用）', inp(p, 'persona', { type: 'textarea', rows: 3 }), null, 'spanall'),
         fld('傾向（パラメータの動き方）', inp(p, 'traits', { type: 'textarea', rows: 4, fmt: (v) => JSON.stringify(v || {}, null, 0),
           parse: (x) => (x.trim() ? JSON.parse(x) : {}) }),
-          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）/ neat きれい好き（-10〜10。家の散らかりを気にする・片付いていると好印象を持ちやすい）/ carer 世話焼き（0〜1。散らかっていると片付けを手伝い出す） / punctual 時間を守る（0〜1。低いほど約束に遅れたり来なかったりする）/ repay お礼の律儀さ（0.3〜1.6。手伝ってもらったお礼をお金で返そうとする傾向。近い仲では 1 以下ならまずお金にしない）',
+          'rate 基本変化の倍率 / drift 自然回帰の目標の加算 / drift_speed 戻る速さの倍率 / gain うれしい方向・hurt つらい方向の変化の倍率（パラメータ id ごと）/ approach 話しかけてくる多さ / absence 黙って離れられたときの堪え方 / jealousy ほかの人との仲に気づいたときの嫉妬の強さ / caution 段階の提案への慎重さ（ready に加算）/ gift 贈り物の効き目の倍率 / money お金・高価な物の受け止め方（money_feel に加算）/ neat きれい好き（-10〜10。家の散らかりを気にする・片付いていると好印象を持ちやすい）/ carer 世話焼き（0〜1。散らかっていると片付けを手伝い出す） / punctual 時間を守る（0〜1。低いほど約束に遅れたり来なかったりする）/ repay お礼の律儀さ（0.3〜1.6。手伝ってもらったお礼をお金で返そうとする傾向。近い仲では 1 以下ならまずお金にしない）/ greed 強欲度（0〜1。手伝ってあげたときに見返りを求める傾向。懐が寂しいと強まり、近い仲・献身的なら弱まる）',
           'spanall')),
       h('div', { class: 'sect' }, 'セリフ'),
       h('p', { class: 'hint' }, '各場面のセリフを1行に1通り書くと、その中からランダムに選ばれます。空欄の場面は共通のセリフになります。一人称は {fp}（言いよどみは {fp_st}）、あなたを呼ぶところは {call} と書くと、キャラクターの設定で固定した一人称・呼び方にも対応します。その他の置換文字は共通のセリフと同じものが使えます。'),

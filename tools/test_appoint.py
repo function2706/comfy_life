@@ -290,7 +290,7 @@ def main():
         # ---- 7. 家に行ける仲なら, 相手の家・あなたの家も約束の行き先に
         B.set_stage(cid, "visit")
         ch = {c["place"]: [d["id"] for d in c["dos"]] for c in A.choices(cid)}
-        assert ch["home:" + cid] == ["visit_home"] and ch["home:me"] == ["invite_home"]
+        assert ch["home:" + cid] == ["visit_home"] and ch["home:me"][0] == "invite_home" and "_help:clean" in ch["home:me"]      # (手伝いを頼むのも)
         x = make(time.time() + 300, {}, do="visit_home", place="home:" + cid)
         r = A.go(x["id"])            # 相手の家へ出向く: 約束の前後なら, 約束なしの訪問ではなく玄関先で待つ
         assert app.presence.rec()["mode"] == "out" and app.presence.rec()["place"] == "home:" + cid and B.mode(cid) is None, r

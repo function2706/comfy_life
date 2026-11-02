@@ -88,6 +88,9 @@ def all_keys(actions, minigames, approaches=()):
     from .places import LINES as DROP_LINES, SCENE_LABEL as DROP_SCENES     # 約束なしに家を訪ねたとき
     for k, t in DROP_LINES.items():
         out[k] = {"scene": "訪問 / %s" % DROP_SCENES[k].split(" / ", 1)[1], "when": "", "text": t}
+    from .askhelp import LINES as AH_LINES, SCENE_LABEL as AH_SCENES     # あなたが頼んだ手伝い: 来た・終えて求める・お金・貸し
+    for k, t in AH_LINES.items():
+        out[k] = {"scene": "頼んだ手伝い / %s" % AH_SCENES[k], "when": "", "text": t}
     from .care import CARE_LINES, CARE_SCENE_LABEL     # 相手の風邪: 看病に来てくれた・品を渡された・看病してもらった
     for k, t in CARE_LINES.items():
         out[k] = {"scene": "看病 / %s" % CARE_SCENE_LABEL[k], "when": "", "text": t}

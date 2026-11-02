@@ -160,6 +160,8 @@ class Bonds:
         w = self.rec().get("with") or {}
         if w.get("mode") == "visit" and hasattr(self.app, "athome"):
             self.app.athome.on_leave()              # 相手の家での手伝い: 最中なら切り上げ, 始めていなければ手伝わずに帰った
+        if w.get("mode") == "guest" and hasattr(self.app, "askhelp"):
+            self.app.askhelp.on_leave()             # 頼んだ手伝いの最中なら, そこで切り上げ
         if w.get("mode") == "guest":
             self.app.home.guest_left()          # 来客のあとは少し散らかる
             if w.get("cid") in self.app.chars:  # 帰った: 「あなたの家に遊びに来ている」を終える

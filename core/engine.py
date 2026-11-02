@@ -24,6 +24,7 @@ from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
 from . import stay as stay_mod
+from . import askhelp as askhelp_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -194,6 +195,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
+        self.askhelp = askhelp_mod.AskHelp(self)          # あなたから手伝いを頼む (来てもらう・見返り・貸し)
         self.stay = stay_mod.Stay(self)                  # お泊り (相手の家に泊まる・あなたの家に泊める)
         self.care = care_mod.Care(self)                  # 相手が体調を崩す (風邪) と, 看病に呼ぶか
         self.athome = visit_mod.Visit(self)              # 相手の家にいるとき (お客としてできること・頼まれごとの手伝い)
@@ -937,6 +939,8 @@ class App:
             changed = True
         if self.stay.live(cid, now):            # 夜遅く: 相手から「泊まっていく？」
             changed = True
+        if self.askhelp.live(cid, now) or self.askhelp.tick(char, st, now):     # 頼んだ手伝いの時間が来た / 貸しの催促・うやむや
+            changed = True
         self.bonds.sync(cid, st, now)         # 外で会っていたお出かけが終わった / 遊びに来ていた時間が過ぎた
         if changed:
             self.save_state(cid)
@@ -1140,7 +1144,7 @@ class App:
         s = self.stay.allows(a, cid)
         if s:
             return None if s == "ok" else s
-        return self.athome.allows(a, cid)
+        return self.athome.allows(a, cid) or self.askhelp.allows(a, cid)
 
     def act(self, aid, cid=None, dress=None, opts=None):
         """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す.
@@ -1416,6 +1420,8 @@ class App:
             if aid in CARE_ACTIONS and not r.get("override"):         # 様子を見る・気持ちを聞く: 気配り
                 skill_up["care"] = self.life.train("care", 0.8 * scale)
             nursed = self.care.nursed(char, st, now) if aid == "nurse" else None     # 相手の家で看病した: 治りが早まる (一度)
+            if not r.get("override") and ((plan and plan.get("payer") == "me") or gift_item or aid in ("gift", "expensive_gift")):
+                nursed = self.askhelp.iou_paid(char, st, now) or nursed      # おごった・贈った: 手伝ってもらった貸しが返った
             if aid == "clean" and not r.get("override"):               # 一緒に掃除: 家事
                 skill_up["house"] = self.life.train("house", 0.8 * scale)
             skill_up.update(opts.get("skill") or {})
@@ -2638,7 +2644,8 @@ class App:
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
                 "approach": self.presence.pending_view(char, st),
-                "peek": st.get("peek_until", 0) > now, "visit": self.athome.view(cid, now), "stay": self.stay.view(cid, now)}
+                "peek": st.get("peek_until", 0) > now, "visit": self.athome.view(cid, now), "stay": self.stay.view(cid, now),
+                "askhelp": self.askhelp.view(cid, now)}
 
     def cheat_view(self, cid=None):
         """設定の「詳しい状態を見る (チート)」: ふだん画面に出さない値も, いまの判定に使う形のまま返す.
