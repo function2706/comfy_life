@@ -494,8 +494,7 @@ class Offline:
         from .geo import FARE_NOTE
         app, L = self.app, self.app.life
         if lg["fare"]:
-            L.player_state()["money"] -= lg["fare"]
-            L.ledger(t, -lg["fare"], "transport", "%s（%s）" % (FARE_NOTE[lg["how"]], app.places.label(dest if dest != HOME_ME else frm)))
+            L.pay(lg["fare"], t, "%s（%s）" % (FARE_NOTE[lg["how"]], app.places.label(dest if dest != HOME_ME else frm)), cat="transport")
         ex, tired = app.geo.body_cost(lg, frm, dest)
         app.body.add_exercise(ex)
         app.geo.used(lg, dest)

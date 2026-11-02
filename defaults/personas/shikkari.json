@@ -26,6 +26,7 @@
   "punctual": 0.95,
   "repay": 1.2,
   "greed": 0.15,
+  "savings": 1.4,
   "reply": 1.1,
   "reply_spread": 0.7,
   "modesty": 3,

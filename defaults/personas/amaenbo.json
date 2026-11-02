@@ -28,6 +28,7 @@
   "punctual": 0.65,
   "repay": 0.4,
   "greed": 0.45,
+  "savings": 0.5,
   "reply": 1.5,
   "modesty": -3,
   "grudge": 1.0,

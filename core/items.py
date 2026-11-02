@@ -12,6 +12,7 @@
 - プレゼントは持ち物から. キャラクターの好き・苦手 (定義の likes / dislikes. 無ければ性格プリセットの既定) と品物の印を照らす
 """
 import random
+import time
 
 # id: (名前, 印, 種類, 値段, 売っている行き先, 好みの印, プレゼントにできるか)
 _C = [
@@ -188,7 +189,10 @@ class Items:
         bought, missed = [], []
         strict = self.app.life.in_debt()
         thrift = self.app.life.skill_soft("budget")          # やりくりがうまいほど, 少し安く買え, 衝動買いが減る (確定ではない)
-        for iid, want in list(ps["shop_list"].items()):
+        keep, why = self.app.life.reserve(t or time.time())  # 先の支払い (家賃など) の分は残す. 気づくか・どこまで見越すかはやりくりしだい
+        held = []
+        order = sorted(ps["shop_list"].items(), key=lambda kv: (not (CATALOG.get(kv[0]) or {}).get("essential"), (CATALOG.get(kv[0]) or {}).get("price", 0)))
+        for iid, want in order:
             it = CATALOG.get(iid)
             if not it or place not in it["places"]:
                 continue
@@ -220,6 +224,9 @@ class Items:
                 if ps["money"] < price:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
+                if keep and not it["essential"] and ps["money"] - price < keep:
+                    held.append(it["name"])             # リストには残す (次に余裕があるときに)
+                    break
                 ps["money"] -= price
                 self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine"
                                      else "transport" if it["kind"] == "vehicle" else "shopping", it["name"])
@@ -231,12 +238,15 @@ class Items:
                 ps["shop_list"][iid] = ps["shop_list"].get(iid, 0) - 1
                 if ps["shop_list"][iid] <= 0:
                     ps["shop_list"].pop(iid, None)
+        if held:
+            missed.append("%sが近いので、%sは見送った" % (why, "・".join(held)) if why == "家賃" else
+                          "この先の生活費を考えて、%sは見送った" % "・".join(held))
         # 衝動買い: 安いものをたまに (長くいるほど)
         cheap = [i for i in CATALOG.values() if place in i["places"] and i["price"] <= 1500]
         if cheap and not strict and random.random() < min(0.35, 0.12 * max(0.5, hours)) * (1.0 - 0.5 * thrift):
             it = random.choice(cheap)
             price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
-            if ps["money"] >= price + 3000:
+            if ps["money"] >= price + max(3000, keep):
                 ps["money"] -= price
                 self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine" else "shopping", it["name"])
                 self.add(it["id"], it.get("servings", 1))

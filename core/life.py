@@ -75,6 +75,13 @@ class Life:
         if "market" not in ps:
             self._init_market(ps)
             self.save_player()
+        if int(ps.get("money", 0)) < 0:          # 以前は車の月額・運賃で財布がマイナスになることがあった: その分は借金に (総額は同じ)
+            short = -int(ps["money"])
+            ps["money"] = 0
+            if not int(ps.get("debt", 0)):
+                ps["debt_t"] = time.time()
+            ps["debt"] = int(ps.get("debt", 0)) + short
+            self.save_player()
         return ps
 
     def save_player(self):
@@ -206,8 +213,7 @@ class Life:
                     self.charge_interest(t)
                     self.pay_home(int(e.get("home_cost_per_month", 60000)), t, "%d月の家賃・光熱費・通信費" % d1.month)
                     if self.app.items.count("car") > 0:           # 車: 駐車場・保険 (毎月)
-                        ps["money"] -= CAR_MONTHLY
-                        self.ledger(t, -CAR_MONTHLY, "transport", "%d月の駐車場・保険（車）" % d1.month)
+                        self.pay(CAR_MONTHLY, t, "%d月の駐車場・保険（車）" % d1.month, cat="transport")
         ps["last_tick"] = t
         if changed:
             self.save_player()
@@ -284,6 +290,34 @@ class Life:
         if "a" not in m:
             m["a"] = int(self.econ().get("start_money_her", 20000))
         return m
+
+    HER_SAVINGS_MEDIAN = 100000      # 相手の最初の貯金のまんなか (性格の traits.savings を掛け, 揺らす)
+
+    def her_start_money(self, char, rnd=random):
+        """相手の最初の所持金: 10 万円 × 性格の貯金の傾向 (traits.savings. お嬢様は多め, 楽天家・甘えん坊は少なめ) を
+        まんなかに, 大きく揺らす (対数正規). 5,000〜300 万円, 千円単位."""
+        mult = float(self.app.traits(char).get("savings", 1.0))
+        v = rnd.lognormvariate(math.log(self.HER_SAVINGS_MEDIAN * mult), 0.6)
+        return int(round(max(5000, min(3000000, v)) / 1000.0)) * 1000
+
+    def init_her_money(self, cid, st):
+        """相手の状態を読んだとき: 所持金が無ければ, 性格と揺らぎで決める. 以前の一律の初期額 (2 万円) で始めた相手には,
+        もともと持っていた貯金として差額を一度だけ足す (start_money_v2). 足したら True."""
+        if st.get("start_money_v2"):
+            return False
+        char = self.app.chars.get(cid)
+        if char is None:
+            return False
+        start = self.her_start_money(char, random.Random())     # 専用の乱数 (ほかのくじの並びを動かさない)
+        m = st.setdefault("money", {})
+        st["start_money_v2"] = True
+        if "a" not in m:
+            m["a"] = start
+            return True
+        extra = start - int(self.econ().get("start_money_her", 20000))
+        if extra > 0:
+            m["a"] = int(m["a"]) + extra
+        return True
 
     def money_ctx(self, st):
         ps = self.player_state()
@@ -371,6 +405,29 @@ class Life:
             self.happen(char, st, t1, ctx)
 
     # ---------------------------------------------------------- あなたの家の暮らしのお金
+    def reserve(self, t, rnd=random):
+        """買い物のとき, 手元に残しておこうと考える額 (この先の生活費と, 近ければ家賃・車の月額) と, いちばんの理由.
+        やりくりのスキルしだい: うまいほど先のことに気づき (0.3〜1.0), 先まで見越す (家賃は 3〜14 日前から). 気づかなければ 0."""
+        thrift = self.skill_soft("budget")
+        if rnd.random() >= 0.3 + 0.7 * thrift:
+            return 0, None
+        e = self.econ()
+        d = datetime.fromtimestamp(t)
+        nxt = datetime(d.year + (d.month == 12), d.month % 12 + 1, 1)
+        days = max(0.0, (nxt - d).total_seconds() / 86400.0)
+        horizon = 3 + 11 * thrift
+        live = self.app.bonds.living()
+        amount = int(e.get("living_cost_per_day", 3000)) // (1 if live else 2) * min(days, horizon)
+        why = "生活費"
+        if days <= horizon:
+            rent = int(e.get("home_cost_per_month", 60000))
+            if live:
+                pol = self.app.chars[live].get("living_policy") or "split"
+                rent = {"me": rent, "her": 0}.get(pol, rent // 2)
+            amount += rent + (CAR_MONTHLY if self.app.items.count("car") > 0 else 0)
+            why = "家賃"
+        return int(amount), why
+
     def pay_home(self, cost, t, what):
         """あなたの家の分 (生活費・家賃など) を払う. 一緒に暮らしている相手とは, その人の方針で分ける.
         相手が払えない分はあなたが肩代わりし, あなたも払えなければ借りるか借金. あなたが払った額を返す."""
@@ -389,13 +446,14 @@ class Life:
         self.pay(mine, t, what)
         return mine
 
-    def pay(self, amount, t, what):
-        """あなたが払う. 足りなければ, 連絡先の人に借りる (borrow). それでも足りなければ借金 (debt)."""
+    def pay(self, amount, t, what, cat=None):
+        """あなたが払う. 足りなければ, 連絡先の人に借りる (borrow). それでも足りなければ借金 (debt). 財布はマイナスにしない.
+        cat: 家計簿の分類 (無ければ 生活費 は living, ほかは fixed)."""
         ps = self.player_state()
         amount = int(amount)
         if amount <= 0:
             return
-        cat = "living" if what == "生活費" else "fixed"
+        cat = cat or ("living" if what == "生活費" else "fixed")
         have = max(int(ps["money"]), 0)
         if have >= amount:
             ps["money"] -= amount

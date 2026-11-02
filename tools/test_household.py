@@ -106,7 +106,7 @@ def main():
         assert L.lend_chance(char, st, 30000, m0) >= 0.5
         lent = 0
         for i in range(20):
-            ps["money"] = half - int(e["player_daily_income"])     # その日の生活費までは払える
+            ps["money"], ps["debt"] = 0, 0                     # 手元 0: その日の収入から生活費を払い, 残りを家賃に (財布はマイナスにしない)
             trust0 = st["params"]["trust"]
             ps["last_tick"] = ts("2026-11-30 23:50")
             L.tick_world(ts("2026-12-01 00:10"))
@@ -116,16 +116,16 @@ def main():
                 assert any("貸した" in r["tell"] for r in st["reasons"])
                 break
             st["lent"] = []
-        assert lent == rent and ps["money"] == 0, (lent, ps.get("loans"), ps["money"])
+        assert lent == rent - (int(e["player_daily_income"]) - half) and ps["money"] == 0, (lent, ps.get("loans"), ps["money"])
         print("借りた:", ps["loans"], ps["money_notes"][-1]["text"])
 
         # 誰も貸してくれない (懐に余裕がない) → 借金. 残高が残り, 画面にも出る
         L.her_money(st)["a"] = 1000
         assert L.lend_chance(char, st, 30000, m0) == 0.0
-        ps["money"], ps["debt"] = half - int(e["player_daily_income"]), 0
+        ps["money"], ps["debt"] = 0, 0
         ps["last_tick"] = ts("2026-12-31 23:50")
         L.tick_world(ts("2027-01-01 00:10"))
-        assert ps["debt"] == rent and ps["money"] == 0, (ps["debt"], ps["money"])
+        assert ps["debt"] == rent - (int(e["player_daily_income"]) - half) and ps["money"] == 0, (ps["debt"], ps["money"])
         v = app.state_view(cid)["you"]
         assert v["debt"] == ps["debt"] and v["loans"] and v["money_notes"], v
         print("借金:", v["debt"], v["money_notes"][-1]["text"])

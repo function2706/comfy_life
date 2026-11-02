@@ -733,6 +733,8 @@ class App:
             self.states[cid] = st
         for p in self.params:
             st["params"].setdefault(p["id"], float(p.get("init", 50)))
+        if not st.get("start_money_v2") and hasattr(self, "life") and hasattr(self, "personas") and self.life.init_her_money(cid, st):
+            self.save_state(cid)                   # 相手の最初の所持金 (性格と揺らぎ. 以前の一律 2 万円で始めた相手には差額を一度だけ)
         return st
 
     def save_state(self, cid):
