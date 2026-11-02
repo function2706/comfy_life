@@ -433,6 +433,22 @@ class Appoint:
                 app.save_state(x["cid"])
                 self.save()
                 return {"ok": True, "status": x["status"]}
+            if x.get("care"):                # 看病に呼ばれた: 相手は家で寝ているので, すっぽかしも遅刻もない
+                if yes:
+                    x["status"] = "set"
+                    x["plan"] = {}
+                    eff, _ = app.bonds.realize(char, st, {"mood": 3, "trust": 1}, "_care_yes", now)
+                    app.chat.add(x["cid"], "me", "（看病に行くと返した）", kind="appoint", t=now)
+                else:
+                    x["status"] = "refused"
+                    pm = app.presence.rec().get("mode")
+                    eff = {"mood": -1} if pm in ("work", "out") else {"mood": -3, "trust": -1}       # 仕事・外出中なら仕方ない
+                    app.chat.add(x["cid"], "me", "（看病には行けないと返した）", kind="appoint", t=now)
+                app.apply_effects(st, app.trait_effects(char, eff))
+                app.chat.mark_read_by_her(x["cid"], now)
+                app.save_state(x["cid"])
+                self.save()
+                return {"ok": True, "status": x["status"]}
             if yes:
                 x["status"] = "set"
                 x["plan"] = self._plan(char, st, x)
@@ -518,6 +534,24 @@ class Appoint:
         if places_mod.is_home(pid):
             return self.app.places.label(pid)
         return a.get("name", "")
+
+    def care_call(self, char, st, now, want):
+        """看病に来てほしい (core/care.py): 急な誘いと同じ形の約束. 待ち合わせは 30〜45 分先 (買い物して来られるくらい)."""
+        app = self.app
+        cid = char["id"]
+        t = now + random.choice((30, 40, 45)) * 60
+        x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": "home:" + cid, "do": "visit_home", "by": "her",
+             "status": "offered", "made": now, "now": True, "care": True, "want": list(want)}
+        self.all().append(x)
+        self.save()
+        key = "care_call_want" if want else "care_call"
+        text = app.chat.line(char, key, {"items": app.care.want_text(want)})
+        app.chat.add(cid, "her", text + "（看病・%sの家・%s）" % (char.get("name", ""), fmt_when(t, now)), kind="appoint_invite",
+                     t=now, appoint=x["id"])
+        app.picked_up_phone(char, st, now)
+        app.save_state(cid)
+        app.trace.add("care", "看病に来てほしいと連絡してきた", cid, now, appoint=x["id"], want=want)
+        return x
 
     def _maybe_now(self, cid, now, h):
         """いまから会わない？ (急な誘い): 相手がいま手すきで, 退屈・寂しい・機嫌がいいと. 待ち合わせは少し先 (NOW_LEAD 分).
@@ -813,6 +847,10 @@ class Appoint:
         self.save()
         if x.get("favor"):
             return self._favor_meet(x, now, me_late, extra_opts or {})
+        if x.get("care"):                         # 看病に呼ばれて来た (core/care.py)
+            if (extra_opts or {}).get("auto_weak"):
+                return {"status": "met", "entry": {"text": "%sの看病に行った" % char.get("name", "")}}
+            return {"status": "met", "entry": app.care.arrive(cid, x, now)}
         opts = dict({"appointment": x["id"]}, **(extra_opts or {}))
         if x["place"] in places_mod.PLACES:
             opts["place"] = x["place"]
@@ -906,7 +944,8 @@ class Appoint:
                     app.save_state(cid)
                     self._favor_drop(x)
                 elif x["status"] == "offered":          # 誘ったのに返事がなかった (急な誘いなら, 少しだけ)
-                    app.apply_effects(st, app.trait_effects(char, {"mood": -1, "loneliness": 2} if x.get("now") else {"mood": -3, "loneliness": 4}))
+                    app.apply_effects(st, app.trait_effects(char, {"mood": -2, "loneliness": 3} if x.get("care") else
+                                                            {"mood": -1, "loneliness": 2} if x.get("now") else {"mood": -3, "loneliness": 4}))
                     app.save_state(cid)
                 elif x.get("favor"):
                     self._favor_drop(x)
@@ -975,6 +1014,9 @@ class Appoint:
                     out.append("%sから誘いのメッセージが来た" % app.chars[cid].get("name", ""))
                 elif self._maybe_now(cid, now, h):
                     out.append("%sから「これから会わない？」とメッセージが来た" % app.chars[cid].get("name", ""))
+        for cid in list(app.chars):
+            if app.care.live_call(cid, now):          # 風邪で寝込んで, 看病に呼ぶ
+                out.append("%sから、具合が悪いとメッセージが来た" % app.chars[cid].get("name", ""))
         if changed:
             self.save()
         return out

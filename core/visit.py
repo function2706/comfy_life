@@ -257,6 +257,9 @@ class Visit:
         f = self.favor_pending(cid)
         if f:
             out["favor"] = {"label": f["label"], "h": f.get("h", 1)}
+        care = self.app.care.view(cid, now)
+        if care is not None:
+            out["care"] = care
         hp = w.get("helping")
         if hp:
             f = self.app.earn.favor(hp["fid"]) or {}

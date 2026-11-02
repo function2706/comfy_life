@@ -22,6 +22,7 @@ from datetime import datetime
 from . import bonds as bonds_mod
 from . import rhythm as rhythm_mod
 from . import visit as visit_mod
+from . import care as care_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -192,6 +193,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
+        self.care = care_mod.Care(self)                  # 相手が体調を崩す (風邪) と, 看病に呼ぶか
         self.athome = visit_mod.Visit(self)              # 相手の家にいるとき (お客としてできること・頼まれごとの手伝い)
         self.market = market_mod.Market(self)
         self.earn = earn_mod.Earn(self)
@@ -717,6 +719,7 @@ class App:
         ov = st.get("override")
         if not (ov and ov.get("until", 0) > dt.timestamp()) and hasattr(self, "athome"):
             base = self.athome.host_scene(char, base, dt.timestamp())       # 相手の家に来ているあいだは, 相手も家にいる
+            base = self.care.sick_scene(char, st, base, dt.timestamp())     # 風邪: 予定の外出は休んで家で寝ている
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
             tt = dt.timestamp()
@@ -838,6 +841,7 @@ class App:
         t = st.get("last_tick") or now
         if now - t > MAX_CATCHUP_SEC:
             t = now - MAX_CATCHUP_SEC
+        t_from = t
         changed = False
         self.life.tick_world(now)
         self.home.tick(now)                    # 家は暮らしているうちに少しずつ散らかる
@@ -849,6 +853,8 @@ class App:
             t += STEP_SEC
             changed = True
         st["last_tick"] = t
+        if self.care.tick(char, st, now, (t - t_from) / 3600.0):        # 風邪をひく / 治る
+            changed = True
         if st.get("anniv_msgs"):
             self.anniv.tick(char, st, now)     # 相手から言ってくること (記念日・誕生日の話・あなたの誕生日)
             changed = True
@@ -1336,6 +1342,7 @@ class App:
             skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk else {}
             if aid in CARE_ACTIONS and not r.get("override"):         # 様子を見る・気持ちを聞く: 気配り
                 skill_up["care"] = self.life.train("care", 0.8 * scale)
+            nursed = self.care.nursed(char, st, now) if aid == "nurse" else None     # 相手の家で看病した: 治りが早まる (一度)
             if aid == "clean" and not r.get("override"):               # 一緒に掃除: 家事
                 skill_up["house"] = self.life.train("house", 0.8 * scale)
             skill_up.update(opts.get("skill") or {})
@@ -1371,6 +1378,8 @@ class App:
             for k, v in extra.items():                     # 先に差し込む (中の {call} なども下で置換される)
                 text = text.replace("{%s}" % k, str(v))
             text = self.format_text(text, char, scene, dt)
+            if nursed:
+                text += "\n" + nursed
             gen_ok = a.get("generate", True)
             selfie = False
             if not self.bonds.together(cid):

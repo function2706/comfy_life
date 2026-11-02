@@ -728,6 +728,13 @@ function visitCard(v) {
   };
   const hp = v.helping;
   const btns = [];
+  const cr = v.care;
+  if (cr) for (const it of cr.have) btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: async () => {
+    if (S.busy) return;
+    S.busy = true;
+    try { handleActResult(await api('/api/visit/give', withT({ item: it.id }))); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  } }, h('span', { class: 'ic' }, '🛍'), h('span', {}, `${it.name}を渡す`), it.wanted ? h('small', { class: 'muted' }, '頼まれた品') : null));
   if (v.favor) btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: () => go('start') },
     h('span', { class: 'ic' }, '🤝'), h('span', {}, `${v.favor.label}を始める`), h('small', { class: 'muted' }, `${v.favor.h}時間ほど`)));
   if (hp) {
@@ -738,6 +745,7 @@ function visitCard(v) {
   }
   return h('div', { class: 'cat' },
     h('div', { class: 'cat-title' }, `🏠 ${v.name}の家で`),
+    cr ? h('div', { class: 'muted small' }, `🤒 看病に来ています。${cr.want.length ? `頼まれた品: ${cr.want.join('・')}。` : ''}${cr.nursed ? '' : '「看病する」で、少しでも楽にしてあげられます'}`) : '',
     hp ? h('div', { class: 'muted small' }, `🤝 ${hp.label}の最中（あと${hp.remain >= 5400 ? `${Math.round(hp.remain / 1800) / 2}時間` : `${Math.max(1, Math.round(hp.remain / 60))}分`}ほど）。話しかけるくらいなら、手を動かしながらできます`)
       : h('div', { class: 'muted small' }, 'お客として来ています。台所やお風呂を使うことなどはしません'),
     btns.length ? h('div', { class: 'cmds' }, btns) : '');
