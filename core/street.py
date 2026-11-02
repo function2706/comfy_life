@@ -368,7 +368,7 @@ class Street:
             line = ""
             if not j["offer"]:      # こちらから誘う: 受けるかは仲・機嫌・慎重さしだい (補正なし)
                 pj = 0.3 + (pr.get("affection", 50) - 50) / 80.0 + (pr.get("mood", 50) - 50) / 120.0 \
-                    + (0.15 if app.bonds.stage(cid) == "visit" else 0.0) - float(app.traits(char).get("caution", 0)) / 40.0
+                    + (0.15 if app.bonds.stage(cid) == "visit" else 0.0) + float(app.traits(char).get("caution", 0)) / 40.0      # (caution: + ほど心を開きやすい)
                 ok = random.random() < max(0.05, min(0.9, pj))
                 line = self._line(char, "enc.join.yes" if ok else "enc.join.no", j["where"])
                 if not ok:

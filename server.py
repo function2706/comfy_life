@@ -269,6 +269,10 @@ def route(method, path, q, body):
             return a.earn_api(path.rsplit("/", 1)[1], b)
         if path == "/api/earn/gig":
             return a.earn_api("gig", b)
+        if path == "/api/stay/ask":
+            return a.stay.ask(b.get("character") or cid)
+        if path == "/api/stay/answer":
+            return a.stay.answer(b.get("character") or cid, bool(b.get("yes")))
         if path == "/api/visit/give":
             return a.care.give(b.get("character") or cid, b.get("item"))
         if path in ("/api/visit/start", "/api/visit/rest", "/api/visit/stop"):

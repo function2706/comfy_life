@@ -23,6 +23,7 @@ from . import bonds as bonds_mod
 from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
+from . import stay as stay_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -193,6 +194,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
+        self.stay = stay_mod.Stay(self)                  # お泊り (相手の家に泊まる・あなたの家に泊める)
         self.care = care_mod.Care(self)                  # 相手が体調を崩す (風邪) と, 看病に呼ぶか
         self.athome = visit_mod.Visit(self)              # 相手の家にいるとき (お客としてできること・頼まれごとの手伝い)
         self.market = market_mod.Market(self)
@@ -718,7 +720,8 @@ class App:
                         away=True, busy=True, activity="moving")
         ov = st.get("override")
         if not (ov and ov.get("until", 0) > dt.timestamp()) and hasattr(self, "athome"):
-            base = self.athome.host_scene(char, base, dt.timestamp())       # 相手の家に来ているあいだは, 相手も家にいる
+            base = self.stay.scene(char, base, dt.timestamp()) \
+                or self.athome.host_scene(char, base, dt.timestamp())       # 泊まっている / 相手の家に来ているあいだは, 相手も家にいる
             base = self.care.sick_scene(char, st, base, dt.timestamp())     # 風邪: 予定の外出は休んで家で寝ている
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
@@ -870,6 +873,8 @@ class App:
             st["override"] = None
             changed = True
         if self.athome.live(cid, now):          # 相手の家での手伝いの時間が来た
+            changed = True
+        if self.stay.live(cid, now):            # 夜遅く: 相手から「泊まっていく？」
             changed = True
         self.bonds.sync(cid, st, now)         # 外で会っていたお出かけが終わった / 遊びに来ていた時間が過ぎた
         if changed:
@@ -1064,10 +1069,17 @@ class App:
                                                        for p in (a.get("places") or [ovp.get("place") or places_mod.from_location(ovp.get("location"))]))
             out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"]) and not shut
                             and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"])))
-                            and not self.athome.allows(a, char["id"]),
+                            and not self.guest_ng(a, char["id"]),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
+
+    def guest_ng(self, a, cid):
+        """相手の家・招いているときにできないコマンドの理由 (None = できる). 添い寝はお泊りしだい (core/stay.py)."""
+        s = self.stay.allows(a, cid)
+        if s:
+            return None if s == "ok" else s
+        return self.athome.allows(a, cid)
 
     def act(self, aid, cid=None, dress=None, opts=None):
         """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す.
@@ -1097,7 +1109,7 @@ class App:
                 raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
             # 閉じていた間の約束をあとからまとめて進めるとき (auto_weak) は, いまの時刻ではなく約束の時刻の話なので見ない
             replay = opts.get("auto_weak") and opts.get("appointment")
-            ng = None if opts.get("deliver") or appt else self.athome.allows(a, cid)
+            ng = None if opts.get("deliver") or appt else self.guest_ng(a, cid)
             if ng:                                  # 相手の家にいる (お客の立場 / 手伝いの最中)
                 raise ValueError(ng)
             if not replay and not cond.check(when, ctx):
@@ -1221,7 +1233,7 @@ class App:
                 r = {"text": "📱『ごめんなさい、その日はちょっと……』", "override": True, "key": "_invite_no"}
             mine = (a.get("category") == "あなたの予定" or aid in bonds_mod.APART_TEXT) and not a.get("request_answer")
             # 同居していない相手と外で会っている / 相手の家にいるときに出かける・離れる = 別れて行く
-            parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit", "guest")                 and a.get("presence_set") in ("work", "out", "left", "sleep")
+            parting = mine and not apart and self.bonds.mode(cid) in ("meet", "visit", "guest") and not self.stay.staying(cid)                 and a.get("presence_set") in ("work", "out", "left", "sleep")
             if apart and mine and not parting:
                 # その場にいない相手にかかわらない, あなた一人の行動 (仕事から帰った・出かけた など): あなたの記録にだけ残す
                 # (以前は「選んでいるキャラ」のログに書いていた名残. キャラのログには, その人がその場にいて関わった出来事だけ)
@@ -2102,7 +2114,7 @@ class App:
             else:
                 ph = ctx.get("phase")
                 pw = 0.35 + (p.get("affection", 50) - 50) / 100.0 + (p.get("trust", 50) - 50) / 150.0 \
-                    + (p.get("mood", 50) - 50) / 150.0 - float(self.traits(char).get("caution", 0)) / 40.0 \
+                    + (p.get("mood", 50) - 50) / 150.0 + float(self.traits(char).get("caution", 0)) / 40.0 \
                     - (0.3 if ph in ("night", "midnight", "dawn") else 0.0) - (0.2 if scene["busy"] else 0.0) \
                     + self.athome.drop_bonus(cid, st, now)          # 家に上がる慣れ (一度も上がったことがなければ −)
                 if random.random() < max(0.05, min(0.9, pw)):
@@ -2565,7 +2577,7 @@ class App:
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
                 "approach": self.presence.pending_view(char, st),
-                "peek": st.get("peek_until", 0) > now, "visit": self.athome.view(cid, now)}
+                "peek": st.get("peek_until", 0) > now, "visit": self.athome.view(cid, now), "stay": self.stay.view(cid, now)}
 
     def cheat_view(self, cid=None):
         """設定の「詳しい状態を見る (チート)」: ふだん画面に出さない値も, いまの判定に使う形のまま返す.

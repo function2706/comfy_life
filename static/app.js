@@ -707,6 +707,7 @@ function renderCommands() {
   const why = (S.view.blocked || {}).social;
   if (why) out.push(h('div', { class: 'blocked-note' }, `⏸ ${why}`));
   if (t.visit) out.push(visitCard(t.visit));
+  if (t.stay && (t.stay.staying || t.stay.offered || t.stay.can_ask)) out.push(stayCard(t.stay));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
@@ -716,6 +717,24 @@ function renderCommands() {
   out.push(h('button', { class: 'cmds-hidden-toggle', onclick: () => { S.showHidden = !S.showHidden; renderCommands(); } },
     S.showHidden ? '▲ 今できないコマンドを隠す' : `▼ 今できないコマンドも表示 (${hidden})`));
   box.replaceChildren(...out);
+}
+
+// お泊り: 夜に「泊まっていい？」(相手の家) /「泊まっていく？」(あなたの家). 相手から聞かれたら答える
+function stayCard(s) {
+  const go = async (path, body) => {
+    if (S.busy) return;
+    S.busy = true;
+    try { handleActResult(await api(path, withT(body || {}))); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  const guest = s.mode === 'guest';
+  const btn = (ic, label, fn) => h('button', { class: 'cmd', disabled: S.busy, onclick: fn }, h('span', { class: 'ic' }, ic), h('span', {}, label));
+  return h('div', { class: 'cat' },
+    h('div', { class: 'cat-title' }, '🌙 お泊り'),
+    s.staying ? h('div', { class: 'muted small' }, `${guest ? '泊まっていきます' : '泊めてもらいます'}（朝 ${hhmm(s.until)} まで）。寝ても別れたことにはなりません`) : '',
+    s.offered ? h('div', { class: 'cmds' }, btn('🌙', guest ? '泊まっていっていいよ' : '泊まっていく', () => go('/api/stay/answer', { yes: true })),
+      btn('🚪', guest ? '今日は送っていく' : '今日は帰る', () => go('/api/stay/answer', { yes: false })))
+      : s.can_ask ? h('div', { class: 'cmds' }, btn('🌙', guest ? '泊まっていく？' : '泊まっていってもいい？', () => go('/api/stay/ask'))) : '');
 }
 
 // 相手の家にいるとき: 頼まれごとの手伝い (始める / ひと休み / 切り上げる). お客の立場でできないコマンドは, 下の一覧で選べない
