@@ -329,6 +329,17 @@ def route(method, path, q, body):
             a.trace.add("client", "%s" % (b.get("msg") or "")[:300], src=b.get("src"), line=b.get("line"), col=b.get("col"),
                         stack=(b.get("stack") or "")[:2000], screen=b.get("screen"), count=int(b.get("count") or 1), first=b.get("first"))
             return {"ok": True}
+        if path.startswith("/api/save/"):       # セーブエディタ (設定 → データ): 入れ物の一覧・読む・書く・消す
+            with a.lock:
+                op = path[len("/api/save/"):]
+                if op == "roots":
+                    return {"roots": a.saveedit.roots()}
+                if op == "get":
+                    return a.saveedit.get(b["path"])
+                if op == "set":
+                    return a.saveedit.set(b["path"], b.get("value"))
+                if op == "del":
+                    return a.saveedit.delete(b["path"])
         if path == "/api/debug/dump":           # 不具合を報告するときの書き出し (符号化した 1 つのブロック. 中身は画面に出さない)
             with a.lock:
                 return a.debugdump.dump(hours=b.get("hours") or 24, day=b.get("day") or None, cid=b.get("cid") or None,

@@ -4405,6 +4405,68 @@ SEC.llm = () => {
 };
 
 // 詳しい状態 (チート): ふだん見えない値も, 判定に使う形のまま. 上の「対象」の人について. 離れている人でも見える
+function saveEditor() {
+  // セーブエディタ (core/saveedit.py): 入れ物を選ぶと中身を木で出す. 値はその場で書き換えて保存, × で消す
+  const SV = S.saveEdit || (S.saveEdit = { root: null, open: {} });
+  const box = h('div', { class: 'save-edit' });
+  const sel = h('select', {});
+  const key = (p) => p.join('\u0001');
+  const leaf = (path, v) => {
+    const save = async (val) => {
+      try { await api('/api/save/set', { path, value: val }); toast('保存しました', 'ok'); } catch (e) { toast(String(e.message || e), 'err'); }
+    };
+    if (typeof v === 'boolean') {
+      return h('input', { type: 'checkbox', checked: v, onchange: (ev) => save(ev.target.checked) });
+    }
+    const isNum = typeof v === 'number';
+    const inp = h('input', { type: isNum ? 'number' : 'text', value: v === null ? '' : String(v), step: 'any',
+      placeholder: v === null ? '（空 null）' : '', style: 'width:' + (isNum ? '9em' : '100%') });
+    inp.onchange = () => {
+      const t = inp.value;
+      if (isNum) { if (t.trim() === '' || isNaN(Number(t))) { toast('数を入れてください', 'err'); return; } save(Number(t)); }
+      else save(v === null && t === '' ? null : t);
+    };
+    return inp;
+  };
+  const node = (path, label, v) => {
+    const del = path.length > 1 ? h('button', { class: 'btn small ghost', title: '消す', onclick: async (ev) => {
+      ev.preventDefault();
+      if (!confirm(`「${path.slice(1).join('.')}」を消しますか？`)) return;
+      try { await api('/api/save/del', { path }); toast('消しました', 'ok'); load(); } catch (e) { toast(String(e.message || e), 'err'); }
+    } }, '×') : null;
+    if (v && typeof v === 'object') {
+      const ents = Array.isArray(v) ? v.map((x, i) => [i, x]) : Object.entries(v);
+      const d = h('details', { open: !!SV.open[key(path)] || path.length <= 1 });
+      d.ontoggle = () => { SV.open[key(path)] = d.open; };
+      d.append(h('summary', {}, h('b', {}, String(label)), h('span', { class: 'muted' }, Array.isArray(v) ? ` [${v.length}]` : ` {${ents.length}}`), del));
+      const body = h('div', { style: 'margin-left:14px' });
+      ents.forEach(([k, x]) => body.append(node(path.concat([String(k)]), k, x)));
+      d.append(body);
+      return d;
+    }
+    return h('div', { class: 'row', style: 'gap:6px;align-items:center;margin:2px 0' },
+      h('span', { style: 'min-width:9em' }, String(label)), leaf(path, v), del);
+  };
+  const load = async () => {
+    if (!SV.root) return;
+    try {
+      const r = await api('/api/save/get', { path: SV.root });
+      box.replaceChildren(node(SV.root, sel.options[sel.selectedIndex]?.textContent || SV.root.join('.'), r.value));
+    } catch (e) { box.replaceChildren(h('p', { class: 'muted' }, String(e.message || e))); }
+  };
+  api('/api/save/roots', {}).then((r) => {
+    const roots = r.roots || [];
+    if (!SV.root || !roots.some((x) => key(x.path) === key(SV.root))) SV.root = (roots[0] || {}).path;
+    sel.replaceChildren(...roots.map((x) => h('option', { value: key(x.path), selected: key(x.path) === key(SV.root || []) }, x.label)));
+    sel.onchange = () => { SV.root = sel.value.split('\u0001'); load(); };
+    load();
+  });
+  return h('div', {},
+    h('p', { class: 'lead' }, 'セーブの中身を見て、その場で書き換えられます（数・文字・オン/オフ。入力して欄を離れると保存）。× で消せます。書き換えはすぐ反映され、元に戻せないので注意してください。'),
+    h('div', { class: 'row' }, h('span', {}, '入れ物'), sel, h('button', { class: 'btn', onclick: load }, '読み直す')),
+    box);
+}
+
 function cheatBox(cid) {
   const out = h('div', { class: 'cheat' });
   const kv = (title, obj) => h('div', { class: 'pgroup' }, h('h4', {}, title),
@@ -4468,6 +4530,8 @@ SEC.data = () => {
         if (!confirm('パラメータを初期値に戻しますか？（ログと画像は残ります）')) return;
         await api('/api/state/reset', C); toast('初期化しました', 'ok'); await refresh(); showSection('data');
       } }, 'パラメータ初期化')),
+    h('div', { class: 'sect' }, '✏ セーブエディタ'),
+    saveEditor(),
     h('div', { class: 'sect' }, '🔍 詳しい状態を見る（チート）'),
     cheatBox(SE.dbg),
     h('div', { class: 'sect' }, '出来事を起こす（テスト用）'),
