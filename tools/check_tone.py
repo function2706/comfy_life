@@ -8,7 +8,7 @@
 - 呼び方: その性格の呼び方 (player_call) と違う呼び方を直書きしている (あなた・キミ・あんた・君).
 - 丁寧さ: その性格の大多数 (丁寧語 / タメ口) と逆の行. 決まり (RULES の register) があればそちら.
 - 使わない語尾: 例 男前は「〜わ」「〜わね」「〜かしら」「〜のよ」を使わない. 敬語を使わない性格の「です・ます」.
-- お嬢様言葉: お嬢様で, 丁寧語なのに「〜わ」「〜の」「〜かしら」「〜てよ」「〜ませんこと」などが一つも無い.
+- 型どおりのお嬢様言葉: 現実では聞かない「〜ですわ」「〜ですの」「〜てよ」「〜ませんこと」「ごきげんよう」などを使っている (お嬢様もふつうの話し方).
 - 丁寧語の性格のタメ口は, 「だよ・だね・じゃん・だろ・〜だ」のようにはっきりしたものだけ数える (短い感嘆・独り言は数えない).
 - 「〜でしょう」「〜ましょう」と決まり文句 (いただきます・おじゃまします など) は丁寧語に数えない (タメ口の女性言葉でも使う).
 - 共通のまま: 共通のセリフ (性格が無いときの言い方) とほぼ同じ行で, 共通の口調 (多くは丁寧語) がその性格の口調と違う (浮いている).
@@ -39,8 +39,8 @@ CASUAL = re.compile(r"(だよ|だね|だろ|じゃん|だった|だから|だっ
 FIRST_PERSON = re.compile(r"(わたくし|わたし|あたし|ボク|僕|俺|私)(?!服|物|立|生活|設|鉄|的)")
 CALLS = {"あなた": r"あなた", "キミ": r"キミ|君(?!た|の名|子)", "あんた": r"あんた"}
 FEMININE = re.compile(r"(わ[。！!？?…」]|わね|かしら|のよ|わよ)")
-OJOU = re.compile(r"(わ[。！!？?…」、,♪〜～]|わ$|くて[？?]|わね|わよ|ですの|ますの|ませんの|ましたの|でしたの|ませんこと|ますこと|かしら|てよ|"
-                  r"くださいまし|くださいませ|ですわ|ますわ|あそばせ|ですもの|ますもの|の[！!？?…。]|の$|なさい)")
+OJOU_STEREO = re.compile(r"(ですわ|ますわ|でしたわ|ましたわ|ですの|ますの|ませんの|ましたの|でしたの|ませんこと|ますこと|[^っ]てよ[。！、』…]|くださいまし|"
+                         r"よろしくて|存じ|ごきげんよう|あそばせ|ですもの|ますもの|なくて[？?])")
 # 丁寧語の性格で「浮いている」とみなすタメ口 (ゆるい独り言・感嘆はタメ口に数えない)
 STRONG_CASUAL = re.compile(r"(だよ|だね|だろ|じゃん|だった[。！？…」!?]|だから[。！？…」!?]|だ[。！!？?」]|だ$)")
 # 見知らぬ人・名前を知らない顔なじみに話しかける場面: 呼び方 ({call}) を使えないので, 「あなた」も丁寧語も自然
@@ -57,7 +57,7 @@ ALLOWED = {
 # 説明から決まる性格ごとの決まり (register: polite / casual. 無ければ大多数から決める)
 RULES = {
     "aneki": {"register": "casual"}, "jimuteki": {"register": "casual"}, "kedakai": {"register": "casual"},
-    "otokomae": {"register": "casual", "no_feminine": True}, "ojousama": {"register": "polite", "ojou": True},
+    "otokomae": {"register": "casual", "no_feminine": True}, "ojousama": {"register": "casual", "no_ojou": True},
     "teinei": {"register": "polite"}, "hikutsu": {"register": "polite"}, "uchiki": {"register": "polite"},
     "osananajimi": {"register": "casual"}, "boyish": {"register": "casual"}, "genki": {"register": "casual"},
     "amaenbo": {"register": "casual"}, "hitonatsukko": {"register": "casual"}, "itazura": {"register": "casual"},
@@ -118,8 +118,8 @@ def check(path, keys):
             why.append("丁寧さ（%sの性格に%s）" % ("丁寧語" if reg == "polite" else "タメ口", "タメ口" if r == "casual" else "丁寧語"))
         if rule.get("no_feminine") and FEMININE.search(b):
             why.append("使わない語尾（女性的な「わ・かしら・のよ」）")
-        if rule.get("ojou") and r == "polite" and not OJOU.search(b) and len(b) > 8:
-            why.append("お嬢様言葉が無い")
+        if rule.get("no_ojou") and OJOU_STEREO.search(b):
+            why.append("型どおりのお嬢様言葉")
         if pid != "teinei" and k in keys:
             orig = keys[k]["text"]
             # 共通のセリフとほぼ同じで, しかも共通の口調 (丁寧語など) がこの性格の口調と違う = 浮いている

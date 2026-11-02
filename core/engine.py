@@ -284,6 +284,9 @@ class App:
             if p and c.get("player_call") and c["player_call"] == p.get("player_call"):
                 c["player_call"] = ""
                 store.save_character(c)
+            if p and c.get("persona") in self.OLD_PERSONA_TEXT.get(p["id"], ()):
+                c["persona"] = p.get("persona", "")    # 性格を選んだときにコピーした説明文が, 以前の既定のまま: 今の既定へ
+                store.save_character(c)
             if "age" not in c:                    # 年齢 (既定のキャラだけ既定から. ほかは設定で入れるまで空)
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 if d.get("age"):
@@ -293,6 +296,12 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["clothes"] = d.get("clothes") or [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER]
                 store.save_character(c)
+
+    # 以前の既定の性格の説明文 (キャラにコピーされたものがこのままなら, 今の既定に置き換える. 書き換えていれば触らない)
+    OLD_PERSONA_TEXT = {
+        "ojousama": ("一人称は「わたくし」、プレイヤーを「{player}さん」と呼ぶ。「〜ですわ」「〜ですの」「〜かしら」「よろしくてよ」と上品なお嬢様言葉で話す。"
+                     "少し世間知らずで負けず嫌い、庶民的なことには目を輝かせて興味津々だが、照れると「な、なんですの！？」と取り乱す。",),
+    }
 
     OLD_LONELY_RULE = {"when": "loneliness>=85", "rate": -0.3}
 
