@@ -2094,11 +2094,13 @@ class App:
                 ph = ctx.get("phase")
                 pw = 0.35 + (p.get("affection", 50) - 50) / 100.0 + (p.get("trust", 50) - 50) / 150.0 \
                     + (p.get("mood", 50) - 50) / 150.0 - float(self.traits(char).get("caution", 0)) / 40.0 \
-                    - (0.3 if ph in ("night", "midnight", "dawn") else 0.0) - (0.2 if scene["busy"] else 0.0)
+                    - (0.3 if ph in ("night", "midnight", "dawn") else 0.0) - (0.2 if scene["busy"] else 0.0) \
+                    + self.athome.drop_bonus(cid, st, now)          # 家に上がる慣れ (一度も上がったことがなければ −)
                 if random.random() < max(0.05, min(0.9, pw)):
                     key, eff = "drop.yes", {"loneliness": -8, "mood": 2, "affection": 1}
                 else:
                     key, eff = "drop.no", {"mood": -2, "trust": -1}
+                    self.athome.refused(cid, ph in ("night", "midnight", "dawn"), now)
                 text = self.persona_text(char, key) or places_mod.LINES[key]
             if key:
                 eff, _ = self.bonds.realize(char, st, eff, "_drop_in", now)

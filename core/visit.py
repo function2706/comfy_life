@@ -8,9 +8,21 @@
   コマンドは手を動かしながらできること (HELPING_OK) だけ. 「ひと休みする」(手伝いの終わりが少し延びる) と「切り上げる」.
   決めた時間が過ぎれば終わる (お礼は earn.favor_done). 終わっても相手の家にいて, 「そろそろ帰るね」で帰る.
 - 画面を閉じていた間に終わりの時刻が過ぎた: ひと通り済ませたことにする (終わりの時刻で).
+- 慣れ (状態の home_fam = {v: 0〜1, t, n: 上がった回数}): 家に上げてもらうたびに少しずつ増え (増えるほど増えにくい, 揺らぎあり),
+  間が空くと薄れる (FAM_HALF_DAYS で半分). 約束なしに訪ねて断られると減る (夜は余計に).
+  慣れているほど, 約束なしに訪ねても迎えてもらいやすい. 一度も上がったことがなければ, かなり迎えてもらいにくい.
+  慣れていても, 機嫌や忙しさで断られることは残る (必ず上がれる, にはしない). 条件キー home_fam (0〜100)・home_visits.
+  以前のセーブ: 家に行ける仲・同居なら, 一度上がったことにして少しの慣れから (遡及して減らさない).
 """
+import random
 import re
 import time
+
+FAM_HALF_DAYS = 30.0
+FAM_GAIN = 0.22           # 上がった 1 回の増え方 (残りに対して)
+FAM_REFUSED = 0.12        # 約束なしに訪ねて断られた
+FAM_REFUSED_NIGHT = 0.08  # それが夜 (余計に)
+FAM_SINCE = time.mktime((2026, 11, 2, 15, 0, 0, 0, 0, -1))      # 慣れを入れた時刻 (これより前に家に行ける仲なら, 以前のセーブ)
 
 GUEST_NG = {"cook", "tea", "snack", "water", "bath", "tuck_in", "wake", "clean", "sleep_together"}
 HELPING_OK = {"talk", "talk_topic", "praise", "look", "peek_face", "watch_quietly", "full_body"}
@@ -42,6 +54,45 @@ class Visit:
             return base
         return dict(base, activity="host", label="家で一緒に過ごしている", location="自宅", away=False, busy=False, asleep=False,
                     outing=False, pos="indoors, at home, relaxed", neg="")
+
+    # ------------------------------------------------------------------ 慣れ
+    def _fam_rec(self, cid, st, now):
+        r = st.get("home_fam")
+        if r is None:           # 以前のセーブ (慣れを入れる前から家に行ける仲・同居): 一度上がったことにして少しの慣れから
+            b = self.app.bonds.rec()["bonds"].get(cid) or {}
+            seen = b.get("stage") == "live" or (b.get("stage") == "visit" and (b.get("hist") or {}).get("visit", 0) < FAM_SINCE)
+            r = st["home_fam"] = {"v": 0.2 if seen else 0.0, "t": now, "n": 1 if seen else 0}
+        return r
+
+    def fam(self, cid, st=None, now=None):
+        """家に上がる慣れ (0〜1, 間が空くと薄れる) と, 上がった回数."""
+        now = now or time.time()
+        st = st or self.app.state(cid)
+        r = self._fam_rec(cid, st, now)
+        v = float(r["v"]) * 0.5 ** (max(0.0, now - r["t"]) / 86400.0 / FAM_HALF_DAYS)
+        return v, int(r.get("n", 0))
+
+    def fam_add(self, cid, d, now=None, entered=False, st=None):
+        now = now or time.time()
+        st = st or self.app.state(cid)
+        v, n = self.fam(cid, st, now)
+        st["home_fam"] = {"v": round(max(0.0, min(1.0, v + d)), 4), "t": now, "n": n + (1 if entered else 0)}
+
+    def entered(self, cid, now=None):
+        """家に上げてもらった (bonds.start の visit)."""
+        st = self.app.state(cid)
+        v, _ = self.fam(cid, st, now)
+        self.fam_add(cid, FAM_GAIN * (1 - v) * random.uniform(0.6, 1.3), now, entered=True, st=st)
+        self.app.save_state(cid)
+
+    def refused(self, cid, night, now=None):
+        """約束なしに訪ねて断られた."""
+        self.fam_add(cid, -(FAM_REFUSED + (FAM_REFUSED_NIGHT if night else 0)), now)
+
+    def drop_bonus(self, cid, st, now):
+        """約束なしに訪ねたとき, 迎えてもらえるかへの上乗せ (慣れ +. 一度も上がったことがなければ −)."""
+        v, n = self.fam(cid, st, now)
+        return 0.35 * v - (0.25 if n == 0 else 0.0)
 
     # ------------------------------------------------------------------ できること
     def allows(self, a, cid):

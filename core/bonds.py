@@ -152,6 +152,8 @@ class Bonds:
             w["until"] = now + float(self.cfg()["visit_hours"]) * 3600
         self.rec()["with"] = w
         self.save()
+        if mode == "visit" and hasattr(self.app, "athome"):
+            self.app.athome.entered(cid, now)       # 家に上げてもらった: 慣れ (core/visit.py)
 
     def end(self, go_home=True):
         """別れる. go_home: 外で会っていた / 相手の家にいたなら, そこから家へ移動する (同居を始めたときなどは移動しない)."""
@@ -261,6 +263,9 @@ class Bonds:
                 "contacts_many": self._contacts(st, now) > self.tolerance(char, cid, st, now),
                 "too_often": self._contacts(st, now) > self.TOO_OFTEN_RATIO * self.tolerance(char, cid, st, now),
                 "ready": self.readiness(char, st, now), "gift_feel": self.gift_feel(char, st, now),
+                # 家に上がる慣れ (0〜100) と上がった回数 (core/visit.py)
+                "home_fam": round(self.app.athome.fam(cid, st, now)[0] * 100, 1) if hasattr(self.app, "athome") else 0,
+                "home_visits": self.app.athome.fam(cid, st, now)[1] if hasattr(self.app, "athome") else 0,
                 "money_feel": self.gift_feel(char, st, now, money=True)}
 
     def allowed_apart(self, a, cid=None):
