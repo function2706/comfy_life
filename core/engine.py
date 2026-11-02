@@ -226,6 +226,7 @@ class App:
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
+        self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
         if rt or rc or paid:
@@ -340,15 +341,73 @@ class App:
         return out
 
     FAVOR_REDO_UNTIL = time.mktime((2026, 11, 4, 0, 0, 0, 0, 0, -1))
+    FAVOR_OFFICE_UNTIL = time.mktime((2026, 11, 9, 0, 0, 0, 0, 0, -1))
 
-    def favor_redo_comp(self, now=None):
+    def favor_office_comp(self, now=None):
+        """不具合の直し (一度だけ. ワールドごと. 2026-11-09 まで): 相手の家の画面を入れる前 (a73fa18 より前) は, 頼まれごとの手伝いが
+        着いてすぐ「仕事中」で始まり, 場所が職場になっていた (給料の案内・職場での偶然の出会いも).
+        - いまその形で手伝っている最中: 相手の家での手伝いに切り替える (始めた時刻のまま. 途中で帰った扱いにしない)
+        - 2 日のうちに途中で切り上げていた: 罰 (信頼・機嫌 -1) を戻して頼み直してもらう (前のお詫び favor_redo をもう使っていても)
+        - 手伝いの間に「職場で」知り合った人: 同僚の印と職場の習慣を外す (本当は相手の家にいた. 生まれつき同じ職場の人はそのまま)
+        やり終えていた手伝いは, お礼も済んでいるので何もしない. 何を直したかを返す."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("favor_office"):
+            return None
+        out = {}
+        p = self.presence.rec()
+        task = p.get("task") or {}
+        if now < self.FAVOR_OFFICE_UNTIL and p.get("mode") == "work" and p.get("job") == "favor" and task.get("cid") in self.chars:
+            f = self.earn.favor(task.get("id"))
+            if not f:
+                f = dict(task)
+                self.earn.favors().append(f)
+            cid, t0, h = f["cid"], float(p.get("since", now)), float(f.get("h", 1))
+            self.presence.declare("none", now)
+            self.athome.favor_arrive(cid, f, t0)
+            w = self.bonds.with_rec()
+            w["helping"] = {"fid": f["id"], "t0": t0, "until": t0 + h * 3600, "rest": 0}
+            self.athome.extend(w, max(t0 + (h + visit_mod.STAY_AFTER_H) * 3600, now + 1800))
+            st = self.state(cid)
+            if (st.get("override") or {}).get("activity") != "favor" and t0 + h * 3600 > now:
+                st["override"] = {"activity": "favor", "label": "%sを手伝ってもらっている" % re.sub("の手伝い$", "", f.get("label", "")),
+                                  "location": "自宅", "until": t0 + h * 3600, "pos": self.FAVOR_POS.get(f.get("kind"), "helping each other, indoors"),
+                                  "neg": ""}
+                self.save_state(cid)
+            self.chat.add(cid, "sys", "（不具合の直し: %sの手伝いを、職場ではなく%sの家での手伝いに切り替えた）" % (
+                f.get("label", ""), self.chars[cid].get("name", "")), kind="rejudge", t=now)
+            out["converted"] = cid
+        if now < self.FAVOR_OFFICE_UNTIL:
+            nx = self.favor_redo_comp(now, key="favor_office_redo")
+            if nx:
+                out["redo"] = nx["id"]
+            wins = [(x["t"], x["t"] + 8 * 3600) for x in self.appoint.all()
+                    if x.get("favor") and x["status"] == "met" and not x.get("athome") and not x.get("plants") and 0 <= now - x["t"] <= 2 * 86400]
+            ppl = self.street.people()
+            fixed = 0
+            for pr in ppl.values():
+                if pr.get("coworker") and any(lo <= pr.get("first", 0) <= hi for lo, hi in wins) \
+                        and not any(h_[0] == "office" for h_ in street_mod.haunts_of(pr["char"])):
+                    pr["coworker"] = False
+                    pr["haunts"] = [h_ for h_ in (pr.get("haunts") or []) if h_[0] != "office"]
+                    fixed += 1
+            if fixed:
+                self.street.save_people(ppl)
+                out["coworkers"] = fixed
+        done["favor_office"] = now
+        self.life.save_player()
+        if out:
+            self.logq.put("%s [INFO] 手伝いが職場になっていた件の直し: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), out))
+        return out
+
+    def favor_redo_comp(self, now=None, key="favor_redo"):
         """不具合のお詫び (一度だけ. ワールドごと. 2026-11-04 まで): 頼まれごとの手伝いが, 相手の記録も画像もない「仕事中」に
         なっていたので, あなたがその日の手伝いを途中で切り上げた分. 途中で帰った罰 (信頼・機嫌 -1) を戻し,
         相手から すぐ 明日の同じ時刻で頼み直してくる (約束の欄で受ける / 別の日時を返す). 手伝っている最中なら, 切り上げるまで待つ.
-        頼み直した約束を返す (無ければ None)."""
+        頼み直した約束を返す (無ければ None). key: 一度だけの印 (場所が職場になっていた件の直し favor_office_comp からは別の印で)."""
         now = now or time.time()
         done = self.life.player_state().setdefault("fix_comp", {})
-        if done.get("favor_redo"):
+        if done.get(key):
             return None
         task = (self.presence.rec().get("task") or {}) if self.presence.rec().get("job") == "favor" else {}
         for x in sorted(self.appoint.all(), key=lambda x: -x["t"]):
@@ -356,6 +415,8 @@ class App:
                     or not 0 <= now - x["t"] <= 2 * 86400 or x["favor"] == task.get("id") \
                     or x["favor"] in self.athome.busy_ids() or x.get("athome"):         # 相手の家で手伝いを待っている / 手伝っている
                 continue
+            if any(y is not x and y.get("favor") == x["favor"] and y.get("made", 0) > x["t"] for y in self.appoint.all()):
+                continue                                # もう頼み直してもらっている
             f = self.earn.favor(x["favor"])
             if not f:
                 # 途中で帰ったあと, 頼まれごとの一覧から外れていた (終えていれば, トークに「…を終えた」がある)
@@ -366,7 +427,7 @@ class App:
                 f = {"id": x["favor"], "cid": x["cid"], "kind": k[0], "label": x.get("label") or k[1], "h": k[2], "tire": k[3],
                      "t": now, "until": now + 3 * 86400}
                 self.earn.favors().append(f)
-            done["favor_redo"] = now
+            done[key] = now
             cid, char, st = f["cid"], self.chars[f["cid"]], self.state(f["cid"])
             self.apply_effects(st, {"trust": 1, "mood": 1})
             t = x["t"] + 86400
@@ -386,7 +447,7 @@ class App:
             self.life.save_player()
             self.logq.put("%s [INFO] 手伝いの頼み直し %s: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), cid, datetime.fromtimestamp(t).strftime("%m-%d %H:%M")))
             return nx
-        if now >= self.FAVOR_REDO_UNTIL:
+        if now >= self.FAVOR_REDO_UNTIL and key == "favor_redo":
             done["favor_redo"] = now
             self.life.save_player()
         return None
@@ -3521,6 +3582,8 @@ class App:
             self.lonely_comp()
             self.task_marks_comp()
             self.manners.apology_count_comp()
+            self.favor_redo_comp()
+            self.favor_office_comp()
             return self.worlds_view()
 
     def rename_world(self, wid, name):
