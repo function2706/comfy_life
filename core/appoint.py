@@ -753,7 +753,8 @@ class Appoint:
             self.app.life.save_player()
 
     def _favor_meet(self, x, now, me_late, opts):
-        """頼まれごとの約束で会えた: 手伝いに取りかかる (戻ると earn.favor_done). 閉じていた間 (auto_weak) なら, その場でひと通り済ませる."""
+        """頼まれごとの約束で会えた: 相手の家に来ている状態になる (手伝いは相手の家の画面から始める. core/visit.py).
+        閉じていた間 (auto_weak) なら, その場でひと通り済ませる."""
         app = self.app
         cid = x["cid"]
         char = app.chars[cid]
@@ -771,12 +772,13 @@ class Appoint:
             _, text = app.earn.favor_done(f, f["h"], now + f["h"] * 3600)
             app.life.save_player()
             return {"status": "met", "entry": {"text": text}}
-        r = app._go_task("favor", f, "%sの家で%sに取りかかった（%s時間ほど）%s" % (char.get("name", ""), f["label"], f["h"],
-                                                                         "。約束に遅れてしまった" if me_late else ""))
-        e = app.favor_scene(f, "（%sと一緒に%sに取りかかった）" % (char.get("name", ""), f["label"]), now, start=True)
-        if e:
-            r["entry_her"] = e
-        return dict(r, status="met", entry={"text": r.get("label", "")})
+        # 相手の家に来ている状態になる. 手伝いは, 相手の家の画面の「始める」で (core/visit.py)
+        app.athome.favor_arrive(cid, f, now)
+        st = app.state(cid)
+        e = app.note_entry(char, st, now, "_favor_arrive", "家に着いた", "🏠",
+                           "（%sの家に着いた。%sを頼まれている%s）" % (char.get("name", ""), f["label"],
+                                                          "。約束に遅れてしまった" if me_late else ""))
+        return {"status": "met", "entry": e}
 
     def live(self, now=None):
         """画面を開いている間 (state_view のたび). 期限・キャンセル・遅れて来た相手・相手からの誘い・すっぽかしを進める.

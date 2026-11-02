@@ -706,6 +706,7 @@ function renderCommands() {
   const out = [];
   const why = (S.view.blocked || {}).social;
   if (why) out.push(h('div', { class: 'blocked-note' }, `⏸ ${why}`));
+  if (t.visit) out.push(visitCard(t.visit));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
@@ -715,6 +716,31 @@ function renderCommands() {
   out.push(h('button', { class: 'cmds-hidden-toggle', onclick: () => { S.showHidden = !S.showHidden; renderCommands(); } },
     S.showHidden ? '▲ 今できないコマンドを隠す' : `▼ 今できないコマンドも表示 (${hidden})`));
   box.replaceChildren(...out);
+}
+
+// 相手の家にいるとき: 頼まれごとの手伝い (始める / ひと休み / 切り上げる). お客の立場でできないコマンドは, 下の一覧で選べない
+function visitCard(v) {
+  const go = async (op, ask) => {
+    if (S.busy || (ask && !confirm(ask))) return;
+    S.busy = true;
+    try { handleActResult(await api('/api/visit/' + op, withT({}))); } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  const hp = v.helping;
+  const btns = [];
+  if (v.favor) btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: () => go('start') },
+    h('span', { class: 'ic' }, '🤝'), h('span', {}, `${v.favor.label}を始める`), h('small', { class: 'muted' }, `${v.favor.h}時間ほど`)));
+  if (hp) {
+    btns.push(h('button', { class: 'cmd', disabled: S.busy || !hp.rest_left, title: hp.rest_left ? '' : 'もう十分休んだ', onclick: () => go('rest') },
+      h('span', { class: 'ic' }, '☕'), h('span', {}, 'ひと休みする')));
+    btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: () => go('stop', '手伝いを切り上げますか？（早すぎると、途中でやめたことになります）') },
+      h('span', { class: 'ic' }, '✋'), h('span', {}, '手伝いを切り上げる')));
+  }
+  return h('div', { class: 'cat' },
+    h('div', { class: 'cat-title' }, `🏠 ${v.name}の家で`),
+    hp ? h('div', { class: 'muted small' }, `🤝 ${hp.label}の最中（あと${hp.remain >= 5400 ? `${Math.round(hp.remain / 1800) / 2}時間` : `${Math.max(1, Math.round(hp.remain / 60))}分`}ほど）。話しかけるくらいなら、手を動かしながらできます`)
+      : h('div', { class: 'muted small' }, 'お客として来ています。台所やお風呂を使うことなどはしません'),
+    btns.length ? h('div', { class: 'cmds' }, btns) : '');
 }
 
 // 相手とのお金のやりとり: お小遣い・お金を借りる・高価なプレゼント, お出かけ代と生活費の取り決め, 借りているお金を返す

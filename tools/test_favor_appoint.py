@@ -55,7 +55,7 @@ def main():
         assert "home:" + cid in app.places.table()
         print("引っ越し (決め打ち・受けるだけ・連絡先でも家へ): OK", last["text"])
 
-        # ---- 2. 当日: 相手の家に出向いて会えたら, 手伝いに取りかかる → 戻るとお礼の判定
+        # ---- 2. 当日: 相手の家に出向いて会えたら, 相手の家に来ている状態 → 始める → 時間が来れば終わってお礼の判定
         x["t"] = now - 60
         app.presence.declare("out", now)
         pr = app.presence.rec()
@@ -64,11 +64,14 @@ def main():
         out = []
         A._tick(x, now, out)
         p = app.presence.rec()
-        assert x["status"] == "met" and p.get("job") == "favor" and p["task"]["id"] == f["id"], (x["status"], p)
-        pay, text = E.favor_done(f, f["h"], now + f["h"] * 3600)
-        assert f not in E.favors() and "終えた" in text
-        app.presence.declare("none", now)
-        print("当日 (家で会って手伝い・戻ってお礼):", text)
+        assert x["status"] == "met" and p.get("mode") == "none" and B.mode(cid) == "visit", (x["status"], p, B.mode(cid))
+        assert app.athome.favor_pending(cid) is f, "着いただけでは始まらない"
+        app.athome.start(cid, now)
+        r = app.athome.live(cid, now + f["h"] * 3600 + 1)
+        text = r["text"]
+        assert f not in E.favors() and "終えた" in text and B.mode(cid) == "visit", "終わっても相手の家にいる"
+        B.end(go_home=False)
+        print("当日 (家に着く→始める→時間が来て終わる・お礼):", text)
 
         # ---- 3. 大掃除など: 都合を聞かれたら, 日時を返すまで受けられない. 返した日時に相手の予定があれば, 別の日時か断り
         x = None

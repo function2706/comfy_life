@@ -143,7 +143,7 @@ def main():
         app.act("ask_visit")
         assert B.stage("hina") == "visit"
         app.act("visit_home", opts=APPT)
-        assert B.mode("hina") == "visit" and app.person_view()["available"]["cook"]["ok"], "相手の家では家のこともできる"
+        assert B.mode("hina") == "visit" and not app.person_view()["available"]["cook"]["ok"], "相手の家ではお客 (料理はしない)"
         app.act("leave_visit")
         assert B.mode("hina") is None
         st["cooldowns"] = {}

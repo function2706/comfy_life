@@ -447,8 +447,8 @@ class Earn:
         app.chat.add(f["cid"], "me", "（%sを引き受けた）" % f["label"], kind="favor", t=now)
         return f, None
 
-    def favor_done(self, f, h, t):
-        """手伝いから戻った: 終わっていれば, お礼 (お金をもらえることも, もらえないことも. 仲しだい). (お礼の額, 文)."""
+    def favor_done(self, f, h, t, stay=False):
+        """手伝いを終えた (stay: 相手の家にまだいる. 戻ったのではない): 終わっていれば, お礼 (お金をもらえることも, もらえないことも. 仲しだい). (お礼の額, 文)."""
         app = self.app
         cid = f["cid"]
         char = app.chars.get(cid) or {}
@@ -460,7 +460,7 @@ class Earn:
         if h < f["h"] * 0.6:
             app.apply_effects(st, {"trust": -1, "mood": -1})
             app.save_state(cid)
-            return 0, "%sの%sに行ったが、途中で帰ってきてしまった" % (name, f["label"])
+            return 0, ("%sの%sを、途中で切り上げてしまった" if stay else "%sの%sに行ったが、途中で帰ってきてしまった") % (name, f["label"])
         stage = app.bonds.stage(cid)
         aff = float(st["params"].get("affection", 50))
         eff, _ = app.bonds.realize(char, st, {"affection": 2, "trust": 3, "mood": 3}, "_favor_done", t)    # 必ず深まる, ではない

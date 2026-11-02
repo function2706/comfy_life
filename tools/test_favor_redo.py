@@ -46,12 +46,12 @@ def main():
         # ---- 会えて取りかかる: 相手の記録に場面が残る. 戻ると終えた場面も
         f, x = favor()
         n0 = len(app.log(cid))
-        r = A._meet(x, now)
-        e = r.get("entry_her")
+        A._meet(x, now)
+        e = app.athome.start(cid, now)["entry"]
         assert e and e["action"] == "_favor" and not e.get("apart") and "cleaning" in e["pos"], e
-        assert st["override"]["activity"] == "favor" and app.presence.rec()["mode"] == "work"
-        app.presence.rec()["since"] -= 3.2 * 3600
-        app.come_back()
+        assert st["override"]["activity"] == "favor" and app.presence.rec()["mode"] == "none"
+        app.athome.live(cid, now + 3.2 * 3600)
+        app.bonds.end(go_home=False)
         ends = [x_ for x_ in app.log(cid)[n0:] if x_["action"] == "_favor"]
         print("手伝いの場面:", [x_["text"] for x_ in ends])
         assert len(ends) == 2 and "終えた" in ends[1]["text"] and (st.get("override") or {}).get("activity") != "favor"
@@ -69,16 +69,17 @@ def main():
         E.favors().remove(f)
 
         # ---- 途中で切り上げた: 罰を戻し, 明日の同じ時刻で頼み直してくる
-        f, x = favor(t=now - 1800)
-        A._meet(x, now - 1800)
+        f, x = favor(t=now - 1800)          # 以前の形 (会えたら在席 work で手伝い, 戻ると終える)
+        x["status"] = "met"
+        app._go_task("favor", f, "（以前の形の手伝い）")
         app.presence.rec()["since"] -= 0.5 * 3600
         tr0 = st["params"]["trust"]
         app.come_back()                                    # 途中で帰る → その場でお詫びと頼み直し
         nx = A.find(f["appoint"])
-        last = app.chat.load(cid)["items"][-1]
+        last = [it for it in app.chat.load(cid)["items"] if it["kind"] == "favor_ask"][-1]      # (前の段の手伝いの終わりは先の時刻に載る)
         print("頼み直し:", nx["status"], A.when_of(nx, time.time()), last["text"])
         assert nx["status"] == "offered" and nx["by"] == "her" and abs(nx["t"] - (x["t"] + 86400)) < 1
-        assert last["kind"] == "favor_ask" and "続き" in last["text"] and abs(st["params"]["trust"] - tr0) < 0.01
+        assert last["kind"] == "favor_ask" and "続き" in last["text"] and abs(st["params"]["trust"] - tr0) < 0.01, (last, st["params"]["trust"], tr0)
         assert app.favor_redo_comp() is None, "一度だけ"
 
         # ---- 以前のアプリで切り上げて, 一覧から外れていた: 起動時に拾って頼み直す

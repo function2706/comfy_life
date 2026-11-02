@@ -156,6 +156,8 @@ class Bonds:
     def end(self, go_home=True):
         """別れる. go_home: 外で会っていた / 相手の家にいたなら, そこから家へ移動する (同居を始めたときなどは移動しない)."""
         w = self.rec().get("with") or {}
+        if w.get("mode") == "visit" and hasattr(self.app, "athome"):
+            self.app.athome.on_leave()              # 相手の家での手伝い: 最中なら切り上げ, 始めていなければ手伝わずに帰った
         if w.get("mode") == "guest":
             self.app.home.guest_left()          # 来客のあとは少し散らかる
             if w.get("cid") in self.app.chars:  # 帰った: 「あなたの家に遊びに来ている」を終える

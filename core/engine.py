@@ -21,6 +21,7 @@ from datetime import datetime
 
 from . import bonds as bonds_mod
 from . import rhythm as rhythm_mod
+from . import visit as visit_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -191,6 +192,7 @@ class App:
         self.outdoor = outdoor_mod.Outdoor(self)
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
+        self.athome = visit_mod.Visit(self)              # 相手の家にいるとき (お客としてできること・頼まれごとの手伝い)
         self.market = market_mod.Market(self)
         self.earn = earn_mod.Earn(self)
         self.rumors = rumor_mod.Rumors(self)
@@ -346,7 +348,9 @@ class App:
             return None
         task = (self.presence.rec().get("task") or {}) if self.presence.rec().get("job") == "favor" else {}
         for x in sorted(self.appoint.all(), key=lambda x: -x["t"]):
-            if not x.get("favor") or x["status"] != "met" or x.get("plants") or x["cid"] not in self.chars                     or not 0 <= now - x["t"] <= 2 * 86400 or x["favor"] == task.get("id"):
+            if not x.get("favor") or x["status"] != "met" or x.get("plants") or x["cid"] not in self.chars \
+                    or not 0 <= now - x["t"] <= 2 * 86400 or x["favor"] == task.get("id") \
+                    or x["favor"] in self.athome.busy_ids() or x.get("athome"):         # 相手の家で手伝いを待っている / 手伝っている
                 continue
             f = self.earn.favor(x["favor"])
             if not f:
@@ -711,6 +715,8 @@ class App:
             base = dict(base, label="%sへ向かっている" % self.places.label(hx["place"]),
                         away=True, busy=True, activity="moving")
         ov = st.get("override")
+        if not (ov and ov.get("until", 0) > dt.timestamp()) and hasattr(self, "athome"):
+            base = self.athome.host_scene(char, base, dt.timestamp())       # 相手の家に来ているあいだは, 相手も家にいる
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
             tt = dt.timestamp()
@@ -856,6 +862,8 @@ class App:
         ov = st.get("override")
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
+            changed = True
+        if self.athome.live(cid, now):          # 相手の家での手伝いの時間が来た
             changed = True
         self.bonds.sync(cid, st, now)         # 外で会っていたお出かけが終わった / 遊びに来ていた時間が過ぎた
         if changed:
@@ -1049,7 +1057,8 @@ class App:
             shut = bool(ovp.get("outing")) and not any(places_mod.open_state(p, dt)["open"]      # 行き先がどこも閉まっている
                                                        for p in (a.get("places") or [ovp.get("place") or places_mod.from_location(ovp.get("location"))]))
             out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"]) and not shut
-                            and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"]))),
+                            and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"])))
+                            and not self.athome.allows(a, char["id"]),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
         return out
@@ -1082,6 +1091,9 @@ class App:
                 raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
             # 閉じていた間の約束をあとからまとめて進めるとき (auto_weak) は, いまの時刻ではなく約束の時刻の話なので見ない
             replay = opts.get("auto_weak") and opts.get("appointment")
+            ng = None if opts.get("deliver") or appt else self.athome.allows(a, cid)
+            if ng:                                  # 相手の家にいる (お客の立場 / 手伝いの最中)
+                raise ValueError(ng)
             if not replay and not cond.check(when, ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
             ovp = (a.get("override") or {})
@@ -2542,7 +2554,7 @@ class App:
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
                 "approach": self.presence.pending_view(char, st),
-                "peek": st.get("peek_until", 0) > now}
+                "peek": st.get("peek_until", 0) > now, "visit": self.athome.view(cid, now)}
 
     def cheat_view(self, cid=None):
         """設定の「詳しい状態を見る (チート)」: ふだん画面に出さない値も, いまの判定に使う形のまま返す.
@@ -2748,7 +2760,7 @@ class App:
         char, st = self.chars[cid], self.state(cid)
         pos = self.FAVOR_POS.get(f.get("kind"), "helping each other, indoors")
         if start:
-            st["override"] = {"activity": "favor", "label": "%sを手伝ってもらっている" % f.get("label", ""), "location": "自宅",
+            st["override"] = {"activity": "favor", "label": "%sを手伝ってもらっている" % re.sub("の手伝い$", "", f.get("label", "")), "location": "自宅",
                               "until": now + float(f.get("h", 1)) * 3600, "pos": pos, "neg": ""}
         elif (st.get("override") or {}).get("activity") == "favor":
             st["override"] = None

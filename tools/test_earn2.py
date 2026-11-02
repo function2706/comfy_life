@@ -111,15 +111,15 @@ def main():
             x["ask"] = False
         app.appoint.answer(x["id"], True)
         assert x["status"] == "set"
-        x["t"] = time.time() - 60          # 当日: 相手の家に出向くと, 会えて手伝いに取りかかる
+        x["t"] = time.time() - 60          # 当日: 相手の家に出向くと, 会えて相手の家に上がる → 始める → 時間が来て終わる
         app.presence.declare("out", time.time())
         P.rec()["place"] = x["place"]
         app.appoint._tick(x, time.time(), [])
-        assert P.rec()["job"] == "favor" and x["status"] == "met"
-        P.rec()["since"] -= f["h"] * 3600
-        r = app.come_back()
-        print("頼まれごと:", r["entry"]["text"])
-        assert "終えた" in r["entry"]["text"] and app.state(f["cid"])["params"]["affection"] >= a0 and not E.favors()
+        assert app.bonds.mode(f["cid"]) == "visit" and x["status"] == "met"
+        app.athome.start(f["cid"])
+        r = app.athome.live(f["cid"], time.time() + f["h"] * 3600 + 1)
+        print("頼まれごと:", r["text"])
+        assert "終えた" in r["text"] and app.state(f["cid"])["params"]["affection"] >= a0 and not E.favors()
         # お礼: お金のことも, そうでないことも
         moneys = 0
         for i in range(200):
