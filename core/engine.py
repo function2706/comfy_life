@@ -24,6 +24,7 @@ from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
 from . import stay as stay_mod
+from . import replyspeed as replyspeed_mod
 from . import askhelp as askhelp_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
@@ -1637,20 +1638,9 @@ class App:
                 pend["meta"] = meta
                 pend["kind_t"] = now
         else:
-            delay = random.uniform(3, 40) * 60
-            if p.get("mood", 50) < 35:
-                delay *= 2
-            if p.get("affection", 50) < 40:
-                delay *= 2
-            if ctx.get("contacts_many"):              # 連絡が少し多い: 返事が遅くなる
-                delay *= 1.5
             pr = self._reply_chance(st, ctx, kind, now)
-            lv = nori_mod.level(st, now)                # 会話の途中なら, 乗っているほど早く・冷めていれば遅く
-            if lv is not None:
-                delay *= 1.5 - lv
-            quick = self._still_on_phone(char, st, now, scene, ctx)
-            if quick:
-                delay = random.uniform(10, 90)
+            lv = nori_mod.level(st, now)
+            delay, quick, hand = self.reply_delay(char, st, now, scene, ctx)
             reply = random.random() < pr
             aff = p.get("affection", 50)
             # 嫌われていて返さないときは, 読みもしない (未読スルー) こともある. 既読はずっとあとで付く (付かないまま流れることも)
@@ -1658,7 +1648,7 @@ class App:
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": reply, "count": 1,
                                  "kind": kind, "quick": quick, "meta": meta, "unread": unread}
             self.trace.add("msg", "送った: 返信の予定を決めた", cid, now, kind=kind, due_min=delay / 60.0, pr=pr,
-                           reply=st["msg_pending"]["reply"], quick=quick, unread=unread, nori=lv, too_often=ctx.get("too_often"),
+                           reply=st["msg_pending"]["reply"], quick=quick, hand=hand, unread=unread, nori=lv, too_often=ctx.get("too_often"),
                            contacts=ctx.get("contacts_24h"), mood=p.get("mood"), affection=p.get("affection"), stress=p.get("stress"),
                            scene=scene.get("label"), asleep=scene.get("asleep"), busy=scene.get("busy"), meta=meta)
         if pend:
@@ -1710,6 +1700,18 @@ class App:
         st["phone_until"] = 0                  # スマホを置いた: ここからは時間差
         st["phone_turns"] = 0
         return False
+
+    def reply_delay(self, char, st, now, scene, ctx):
+        """時間差の返信がいつ届くか (秒, まだスマホを見ていてすぐ, たまたま手にしていてすぐ). core/replyspeed.py."""
+        if self._still_on_phone(char, st, now, scene, ctx):
+            return random.uniform(10, 90), True, False
+        p = st["params"]
+        delay, hand = replyspeed_mod.plan(
+            self.traits(char), replyspeed_mod.where(scene), self.attach.factor(char, st, "devotion"),
+            self.attach.factor(char, st, "dependence"), p.get("affection", 50), p.get("mood", 50),
+            self.earn.closeness(char["id"], st), many=bool(ctx.get("contacts_many")),
+            fight=self.quarrel.active(st, now), lv=nori_mod.level(st, now))
+        return delay, False, hand
 
     def _nudge_seen(self, char, st, pend, now):
         """返事を待っている間に届いた「返事まだ？」を読んだ (ほぼ逆効果. 急ぎの話なら多少許される)."""

@@ -593,7 +593,9 @@ class Life:
             if pend:
                 pend["kind"] = "repaid"
             else:
-                st["msg_pending"] = {"aid": "message", "t": t, "due": t + random.uniform(5, 60) * 60, "reply": True,
+                sc = app.scene_at(char, st, datetime.fromtimestamp(t))
+                delay = app.reply_delay(char, st, t, sc, app.context(char, st, datetime.fromtimestamp(t), sc))[0]
+                st["msg_pending"] = {"aid": "message", "t": t, "due": t + delay, "reply": True,
                                      "count": 1, "kind": "repaid"}
         app.save_state(to)
         return {"amount": amount, "left": left, "to": to, "deltas": d}

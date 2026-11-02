@@ -194,11 +194,11 @@ def main():
         assert app.deliver_due(time.time()) == [], "まだ届かない (数十秒後)"
         out = app.deliver_due(pend["due"] + 1)
         assert out and not out[0]["late"] and st["phone_until"] > pend["due"]
-        # 時間がたってから返すと, いつもの時間差
+        # 時間がたってから返すと, いつもの時間差 (たまたまスマホを手にしていればすぐのことも. core/replyspeed.py)
         st["contacts"] = []
         st["phone_until"] = time.time() - 1
         C.send(cid, "smalltalk")
-        assert st["msg_pending"]["due"] - time.time() >= 3 * 60 - 1 and not st["msg_pending"]["quick"]
+        assert st["msg_pending"]["due"] - time.time() >= 20 - 1 and not st["msg_pending"]["quick"]
         # 寝ている・手が離せない相手は, スマホを見ていても (直前に送ってきていても) すぐには返さない
         st.pop("msg_pending", None)
         st["phone_until"] = time.time() + 300

@@ -697,11 +697,7 @@ class Appoint:
             if pend:            # 返信は, いちばん新しいメッセージに対して
                 pend.update(kind="appoint", appoint=x["id"], count=pend.get("count", 1) + 1, reply=True)
             else:
-                p = st["params"]
-                delay = random.uniform(3, 40) * 60 * (2 if p.get("mood", 50) < 35 else 1)
-                quick = app._still_on_phone(char, st, now, scene, ctx)
-                if quick:
-                    delay = random.uniform(10, 90)
+                delay, quick, _ = app.reply_delay(char, st, now, scene, ctx)
                 st["msg_pending"] = {"aid": "message", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "appoint",
                                      "appoint": x["id"], "quick": quick}
             app.presence.drop(st)
