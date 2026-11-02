@@ -2392,6 +2392,60 @@
   ],
   "enc.join.no": [
    "ごめんなさい、このあと用事があって……また今度。"
+  ],
+  "chat.appoint_invite_myhome": [
+   "📱『{call}、{when}、うちに来ませんか？ 出かけるより楽なので』"
+  ],
+  "chat.appoint_invite_yourhome": [
+   "📱『{call}、{when}、そっちに行ってもいいですか？』"
+  ],
+  "chat.appoint_invite_now": [
+   "📱『{call}、いま暇ですか？ これから{place}行きません？』"
+  ],
+  "chat.appoint_invite_now_myhome": [
+   "📱『{call}、いま何してます？ 暇なら、これからうちに来ませんか』"
+  ],
+  "chat.appoint_invite_now_yourhome": [
+   "📱『{call}、近くまで来てるんですけど。ちょっと寄ってもいいですか？』"
+  ],
+  "chat.care_call": [
+   "📱『{call}……風邪ひきました。ほんとです。……来てもらえたら、助かります』"
+  ],
+  "chat.care_call_want": [
+   "📱『{call}、風邪ひいちゃって。来られるなら、{items}頼んでいいですか』"
+  ],
+  "care.arrived": [
+   "……あ、{call}。来てくれたんですね。こんな格好ですみません"
+  ],
+  "care.got_wanted": [
+   "{item}、頼んだやつですね。ありがとうございます、助かります"
+  ],
+  "care.got_other": [
+   "{item}まで。……ありがとうございます"
+  ],
+  "care.nursed": [
+   "……だいぶ楽になりました。ありがとうございます"
+  ],
+  "stay.yes": [
+   "いいですよ。今から帰すほうが気になるので、泊まっていってください"
+  ],
+  "stay.no": [
+   "すみません、今日はちょっと。また今度で"
+  ],
+  "stay.guest_yes": [
+   "いいんですか？ ……じゃあ、泊まっていきます。帰るのも大変なので"
+  ],
+  "stay.guest_no": [
+   "今日は帰ります。明日もあるので"
+  ],
+  "stay.offer": [
+   "もう遅いですし、泊まっていきます？"
+  ],
+  "stay.guest_offer": [
+   "今日、泊まっていってもいいですか？ 帰るのがおっくうで"
+  ],
+  "stay.offer_no": [
+   "そうですか。気をつけて帰ってくださいね"
   ]
  }
 }

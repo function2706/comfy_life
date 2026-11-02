@@ -2474,6 +2474,60 @@
   ],
   "pose.react.stop.bad": [
    "……せっかく見せたのに"
+  ],
+  "chat.appoint_invite_myhome": [
+   "📱『{call}、{when}、うちに来ない？ 外は疲れちゃうから、おうちでゆっくりしたいな』"
+  ],
+  "chat.appoint_invite_yourhome": [
+   "📱『{call}、{when}、そっちに遊びに行ってもいいかな』"
+  ],
+  "chat.appoint_invite_now": [
+   "📱『{call}、今日は調子がいいの。これから{place}に行かない？』"
+  ],
+  "chat.appoint_invite_now_myhome": [
+   "📱『{call}、いま何してる？ よかったら、これからうちに来ない？』"
+  ],
+  "chat.appoint_invite_now_yourhome": [
+   "📱『{call}、近くまで来てるの。少しだけ、寄ってもいいかな』"
+  ],
+  "chat.care_call": [
+   "📱『{call}……また熱が出ちゃって。もし時間があったら、来てもらえると心強いな』"
+  ],
+  "chat.care_call_want": [
+   "📱『{call}……熱が出ちゃった。来られるなら、{items}をお願いしてもいいかな』"
+  ],
+  "care.arrived": [
+   "……{call}、来てくれたんだ。ごめんね、慣れてるはずなのに、やっぱり心細くて"
+  ],
+  "care.got_wanted": [
+   "{item}、買ってきてくれたんだね。ありがとう、助かるよ"
+  ],
+  "care.got_other": [
+   "{item}まで……ありがとう。{call}は優しいね"
+  ],
+  "care.nursed": [
+   "……少し、楽になってきた。{call}の手、安心する"
+  ],
+  "stay.yes": [
+   "うん……泊まっていって。夜にひとりだと、ちょっと不安だったの"
+  ],
+  "stay.no": [
+   "ごめんね、今日は調子があんまりで……また今度、泊まりに来てね"
+  ],
+  "stay.guest_yes": [
+   "いいの？ ……じゃあ、お言葉に甘えるね"
+  ],
+  "stay.guest_no": [
+   "ごめんね、今日は帰るね。お薬、家に置いてきちゃったから"
+  ],
+  "stay.offer": [
+   "もう遅いし……泊まっていく？ そのほうが、{fp}も安心だな"
+  ],
+  "stay.guest_offer": [
+   "あの……今日、泊まっていってもいいかな。帰り道、ちょっと疲れちゃって"
+  ],
+  "stay.offer_no": [
+   "そっか。暗いから気をつけてね。着いたら教えてね"
   ]
  }
 }

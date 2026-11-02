@@ -2387,6 +2387,60 @@
   ],
   "enc.join.no": [
    "すまない、このあと用事があって……また今度。"
+  ],
+  "chat.appoint_invite_myhome": [
+   "📱『{call}、{when}、うちに来ないか？』"
+  ],
+  "chat.appoint_invite_yourhome": [
+   "📱『{call}、{when}、そっちに行ってもいいか？』"
+  ],
+  "chat.appoint_invite_now": [
+   "📱『{call}、いま空いてるか？ これから{place}に行かないか』"
+  ],
+  "chat.appoint_invite_now_myhome": [
+   "📱『{call}、いま何してる？ 時間があるなら、これからうちに来ないか』"
+  ],
+  "chat.appoint_invite_now_yourhome": [
+   "📱『{call}、近くまで来てるんだ。少し寄ってもいいか？』"
+  ],
+  "chat.care_call": [
+   "📱『{call}……風邪をひいた。一人で平気なつもりだったんだけど……来てもらえないか』"
+  ],
+  "chat.care_call_want": [
+   "📱『{call}、風邪をひいた。来られるなら、{items}を頼めるか』"
+  ],
+  "care.arrived": [
+   "……来てくれたのか、{call}。こんな格好で、すまない"
+  ],
+  "care.got_wanted": [
+   "{item}、頼んだとおりだ。ありがとう、助かる"
+  ],
+  "care.got_other": [
+   "{item}まで？ ……ありがとう。気が利くんだね"
+  ],
+  "care.nursed": [
+   "……だいぶ楽になった。ありがとう"
+  ],
+  "stay.yes": [
+   "いいよ。もう遅いし、泊まっていってくれ"
+  ],
+  "stay.no": [
+   "すまない、今日はちょっと。また今度にしよう"
+  ],
+  "stay.guest_yes": [
+   "いいのか？ ……じゃあ、泊まらせてもらう"
+  ],
+  "stay.guest_no": [
+   "今日は帰るよ。明日もあるから"
+  ],
+  "stay.offer": [
+   "もう遅いだろう。泊まっていくか？"
+  ],
+  "stay.guest_offer": [
+   "今日、泊まっていってもいいか？"
+  ],
+  "stay.offer_no": [
+   "そうか。気をつけて帰ってくれ"
   ]
  }
 }

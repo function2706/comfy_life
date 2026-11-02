@@ -60,8 +60,8 @@ def main():
             home(low), home(high), high["home:" + cid], high["home:me"]))
         assert 0 < home(low) < home(high) and high["home:" + cid] and high["home:me"]
         msgs = [it["text"] for it in C.load(cid)["items"] if it["kind"] == "appoint_invite"]
-        mine = next(t for t in msgs if "うちに" in t)
-        yours = next(t for t in msgs if "そっちに" in t)
+        mine = next(t for t in msgs if t.endswith("%sの家）" % char.get("name", "")))        # (文面は性格別. 添える行き先で見分ける)
+        yours = next(t for t in msgs if t.endswith("（あなたの家）"))
         print("  ", mine, "/", yours)
 
         # ---- 3. 急な誘い: 待ち合わせは 40〜60 分先. 手すきでなければ誘わない. 退屈でも寂しくもなく機嫌も普通なら誘わない

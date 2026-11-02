@@ -2406,6 +2406,60 @@
   ],
   "pose.react.stop.bad": [
    "……せっかく見せたのに"
+  ],
+  "chat.appoint_invite_myhome": [
+   "📱『{call}、{when}、うちに来ない？ 窓から見える空を、一緒に見たいの』"
+  ],
+  "chat.appoint_invite_yourhome": [
+   "📱『{call}、{when}、そっちのおうちに行ってみたいな。どんな空気なのか気になって』"
+  ],
+  "chat.appoint_invite_now": [
+   "📱『{call}、いま空いてる？ これから{place}に行かない？ なんとなく、今がいい気がするの』"
+  ],
+  "chat.appoint_invite_now_myhome": [
+   "📱『{call}、いま何してる？ これから、うちに来ない？』"
+  ],
+  "chat.appoint_invite_now_yourhome": [
+   "📱『{call}、いまね、近くを歩いてるの。少しだけ寄ってもいい？』"
+  ],
+  "chat.care_call": [
+   "📱『{call}……風邪ひいちゃったみたい。体がふわふわしてる。来てもらえる？』"
+  ],
+  "chat.care_call_want": [
+   "📱『{call}、風邪ひいちゃった。来られたら、{items}を連れてきてほしいな』"
+  ],
+  "care.arrived": [
+   "……{call}だ。来てくれたんだね。ごめんね、こんな格好で"
+  ],
+  "care.got_wanted": [
+   "{item}……頼んだもの、ちゃんと来た。ありがとう"
+  ],
+  "care.got_other": [
+   "{item}も一緒に来たんだ。……ありがとう、うれしい"
+  ],
+  "care.nursed": [
+   "……さっきより、体が軽くなってきた。ありがとう"
+  ],
+  "stay.yes": [
+   "うん、いいよ。夜のこの部屋、見せてあげる"
+  ],
+  "stay.no": [
+   "ごめんね、今日はひとりで眠りたい日なの。また今度"
+  ],
+  "stay.guest_yes": [
+   "いいの？ ……じゃあ、今夜はこっちで眠ってみる"
+  ],
+  "stay.guest_no": [
+   "今日は帰るね。また今度、泊まりに来る"
+  ],
+  "stay.offer": [
+   "もう遅いね。……泊まっていく？ 夜の帰り道、少し心配"
+  ],
+  "stay.guest_offer": [
+   "ねえ、今日はここで眠ってもいい？ 帰り道がまだ遠く感じるの"
+  ],
+  "stay.offer_no": [
+   "そっか。じゃあ、月が明るいうちに。気をつけてね"
   ]
  }
 }

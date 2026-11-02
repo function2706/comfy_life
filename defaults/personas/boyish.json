@@ -2443,6 +2443,60 @@
   ],
   "pose.react.stop.bad": [
    "……せっかく見せたのに"
+  ],
+  "chat.appoint_invite_myhome": [
+   "📱『{call}、{when}、うち来ない？ ゲームでもしようよ』"
+  ],
+  "chat.appoint_invite_yourhome": [
+   "📱『{call}、{when}、そっち遊びに行っていい？』"
+  ],
+  "chat.appoint_invite_now": [
+   "📱『{call}、いまヒマ？ これから{place}行こうよ』"
+  ],
+  "chat.appoint_invite_now_myhome": [
+   "📱『{call}、いま何してる？ これからうち来なよ。{fp}、暇でさ』"
+  ],
+  "chat.appoint_invite_now_yourhome": [
+   "📱『{call}、近くまで来てるんだけど、ちょっと寄ってもいい？』"
+  ],
+  "chat.care_call": [
+   "📱『{call}、風邪ひいたっぽい……。もしよかったら、来てくれない？』"
+  ],
+  "chat.care_call_want": [
+   "📱『{call}、風邪ひいちゃってさ……来られるなら、{items}頼んでもいい？』"
+  ],
+  "care.arrived": [
+   "……あ、{call}。来てくれたんだ。ごめん、こんなかっこで"
+  ],
+  "care.got_wanted": [
+   "{item}、ちゃんと買ってきてくれたんだ。助かる、ありがと"
+  ],
+  "care.got_other": [
+   "{item}も？ ……気が利くね。ありがと"
+  ],
+  "care.nursed": [
+   "……ちょっと楽になってきた。ありがとね"
+  ],
+  "stay.yes": [
+   "うん、いいよ。泊まってきなよ。布団、出してくる"
+  ],
+  "stay.no": [
+   "ごめん、今日はちょっと無理。また今度ね"
+  ],
+  "stay.guest_yes": [
+   "いいの？ じゃあ泊まってく。なんか、わくわくするね"
+  ],
+  "stay.guest_no": [
+   "今日は帰るよ。また今度、泊まりに来るから"
+  ],
+  "stay.offer": [
+   "もう遅いしさ、泊まってく？ {fp}は全然いいよ"
+  ],
+  "stay.guest_offer": [
+   "ねえ、今日泊まってってもいい？ 帰るの、面倒になっちゃった"
+  ],
+  "stay.offer_no": [
+   "そっか。じゃあ気をつけてね。また遊ぼ"
   ]
  }
 }

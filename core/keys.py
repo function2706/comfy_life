@@ -88,6 +88,13 @@ def all_keys(actions, minigames, approaches=()):
     from .places import LINES as DROP_LINES, SCENE_LABEL as DROP_SCENES     # 約束なしに家を訪ねたとき
     for k, t in DROP_LINES.items():
         out[k] = {"scene": "訪問 / %s" % DROP_SCENES[k].split(" / ", 1)[1], "when": "", "text": t}
+    from .care import CARE_LINES, CARE_SCENE_LABEL     # 相手の風邪: 看病に来てくれた・品を渡された・看病してもらった
+    for k, t in CARE_LINES.items():
+        out[k] = {"scene": "看病 / %s" % CARE_SCENE_LABEL[k], "when": "", "text": t}
+    from .stay import LINES as STAY_LINES, SCENE_LABEL as STAY_SCENES     # お泊り (ナレーションの offer_yes は除く)
+    for k, t in STAY_LINES.items():
+        if k in STAY_SCENES:
+            out[k] = {"scene": "お泊り / %s" % STAY_SCENES[k], "when": "", "text": t}
     from .street import LINES as ENC_LINES     # 出先でのばったり (声をかけられる・立ち話・断られる)
     for k, t in ENC_LINES.items():
         out[k] = {"scene": "出先でのばったり / %s" % {"enc.call.first": "知らない人が声をかけてくる", "enc.call.again": "顔なじみが声をかけてくる",
