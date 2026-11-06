@@ -213,12 +213,20 @@ class Geo:
             tm = acc + ride_min(km) + (hw or 10) / 2
             if tm < walk * 0.9:
                 modes["transit"] = {"min": round(tm), "fare": self.fare(km), "ok": bool(hw), "note": "" if hw else "いまは走っていない（始発は5時）"}
-        if km > 0.3 and self._vehicle_ok("bicycle", a):
+        if km > 0 and self._vehicle_ok("bicycle", a):      # 自転車は近場でも乗れる
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN, "note": "雨の中を走る" if wet else ""}
+        elif km > 0 and self.app.items.count("bicycle") > 0:  # 持っているが, ここには無い: どこに置いてあるかを出す (行けば乗れる)
+            m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
+            modes["bike"] = {"min": round(m), "fare": 0, "ok": False,
+                             "note": "自転車は%sに置いてある" % self.app.places.label(self.veh_at("bicycle"))}
         if km > 0.3 and self._vehicle_ok("car", a):
             m = CAR_ADD + drive_min(km) * (JAM if _rush(h) else 1.0)
             modes["car"] = {"min": round(m), "fare": self.gas(km) + self.parking(b), "ok": True, "note": "渋滞" if _rush(h) else ""}
+        elif km > 0.3 and self.app.items.count("car") > 0 and self.app.quals.has("drive"):   # 持っているが, ここには無い
+            m = CAR_ADD + drive_min(km) * (JAM if _rush(h) else 1.0)
+            modes["car"] = {"min": round(m), "fare": self.gas(km) + self.parking(b), "ok": False,
+                            "note": "車は%sに置いてある" % self.app.places.label(self.veh_at("car"))}
         if km > 0.5:
             night = h >= 22 or h < 5
             m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)

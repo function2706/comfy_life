@@ -17,8 +17,11 @@
 - F1 内職: スパイダーで、空いた列があるのに「もう動かせる手がありません」と出ていた（柄違いで続いている札を空いた列へ動かす手を数えていなかった）（`core/solitaire.py` の `sp_useful`）
 - F1 内職: 置けない手の案内で、決まりを知らないとわからない理由（「色違いで 1 つ小さいカードだけ重ねられます」・組札の上げ方・まとめて動かせる条件・セルは一枚だけ など）まで出さなくなっていたのを、出すように戻した。見れば分かる理由（同じ列・裏のカード・行き先が無い など）は出さないまま（`static/puzzles.js` の `SOL_QUIET`。ほかの内職は理由を全部出す作りのままで、削っていなかった）
 - F3 メッセージ: 「今いい？」に「いいわ。かけてきなさい」と返したすぐあとに、ノリが下がったときの切り上げのひとこと（「用事があるので、またあとで」）が続いて、食い違っていた。「今いい？」への返事のあとには付けない。あわせて、画面の更新とトーク画面の見直しが同時に来ても、同じ返事待ちを二度届けないようにロックした（`engine.deliver_due`）
+- F2 移動: 自転車を持っていても、置いてある場所にいないと行き方に出なかった（置き場所が分からなかった）。持っていれば「自転車は○○に置いてある」と出す（車も同じ）。近場（0.3km 以内）でも自転車に乗れる（`core/geo.py` の `options`）
+- F2 移動: 出先・向かう途中で画面を閉じたら、必ずいったん家に帰っていた（向かう途中なら着いてすぐ引き返し、「0分ほど公園を一人でぶらぶらした」のような文になっていた）。閉じていた間の過ごし方（行動パターン・予定）があれば、その場所から次の場所へ向かう（すぐ始まるなら家に寄らない。次が家でのことなら家へ）。向かう途中なら、着いてふだんどおりの長さ（買い物は店のふだんの長さで、買い物も済ませる。ほかは 45 分ほど）を過ごしてから。過ごし方が無ければ、これまでどおり家へ（`core/outdoor.py` の `check_gap`、`core/offline.py` の `simulate(start=)`）
+- F4 テスト: `test_offline_fallback` が実行した日しだいで落ちていた（土曜の前日が先に使う平日と重なる）のと、くじしだい（体調で早退）で落ちていたのを直した
 
-部分テスト: `test_solitaire` `test_deliver_once`（新規） `test_nori` `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_reply_speed`
+部分テスト: `test_solitaire` `test_deliver_once`（新規） `test_nori` `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_reply_speed` `test_geo` `test_closed_away`（新規） `test_offline` `test_offline_fallback` `test_routine` `test_planner` `test_solo`
 
 ## 1.0.0（2026-11-06）
 

@@ -206,6 +206,29 @@ class Outdoor:
                 msgs.append("%sとのお出かけは、そのまま解散して家に帰った" % app.chars[cid].get("name", ""))
         mode = p.get("mode")
         home_at = beat
+        start = None
+        # 出先・向かう途中で閉じた: 行動パターン・予定で過ごすなら, 家に寄らずにその場所から次の場所へ (なにも無ければ家へ).
+        # 向かう途中なら, 着いて, ふだんどおりの長さ (買い物なら店のふだんの長さ, ほかは 45 分ほど) を過ごしてから
+        place = tr["to"] if tr and tr.get("dir") == "go" else (None if tr else p.get("pos"))
+        if mode in ("out", "work") and place and not places_mod.is_home(place):
+            if tr:
+                t_out = tr["arr"] + 60 * (app.solo.shop_typical(place) if places_mod.solo_kind(place) == "shopping" else 45)
+                t_out = min(now, t_out)
+                if t_out < tr["arr"] + 60:
+                    t_out = min(now, tr["arr"] + 60)
+            else:
+                t_out = beat
+            if app.offline.will_run(t_out, now):
+                if tr:
+                    p["arrived"] = tr["arr"]
+                    p["pos"] = tr["to"]
+                    p.pop("travel", None)
+                sl = p.get("solo") or {}
+                if sl.get("kind") == "out" and places_mod.solo_kind(place) == "shopping" and not sl.get("shop_done"):
+                    sl["shop_done"] = app.solo._shop_now(place, (t_out - p.get("arrived", t_out)) / 3600.0, t_out)   # 店で過ごして買い物を済ませた
+                res = app.come_back(at=t_out, quiet=True)
+                msgs.append(res.get("text") or "")
+                start, home_at, mode = place, t_out, None
         if mode in ("out", "work"):
             # 出先にいた: 最後の心拍で出先を出て, 家まで移動した (着くまでは閉じていた間の過ごし方に入らない)
             t_out = beat
@@ -226,7 +249,7 @@ class Outdoor:
                                                    if home_at - t_out >= 300 or t_out != beat else ""))
         p["pos"] = places_mod.HOME_ME
         # オフラインモード: 閉じていた間は, 予定 (勤務時間) に沿って過ごした
-        rep = app.offline.simulate(home_at, now)
+        rep = app.offline.simulate(home_at, now, start=start)
         if not msgs and not rep:
             return None
         if rep:

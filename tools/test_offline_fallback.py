@@ -29,6 +29,7 @@ def main():
     tmp = tempfile.mkdtemp(prefix="kurashi_test_")
     store.DATA = tmp
     try:
+        random.seed(5)                   # 体調しだいの早退など, くじで流れが変わらないように
         app = engine.App()
         app.save_settings({"auto_generate": False})
         app.create_world("取りこぼし")
@@ -64,7 +65,7 @@ def main():
         # ---- 3. 以前の取りこぼし: 一度だけ, 払うべき日だけ
         past = [today - timedelta(days=i) for i in range(2, 20)]
         w1, w2, w3 = [d for d in past if d.weekday() < 5][:3]
-        sat = next(d for d in past if d.weekday() == 5)
+        sat = next(d for d in past if d.weekday() == 5 and d - timedelta(days=1) not in (w1, w2, w3))   # 前の日が上の平日と重ならない土曜 (重なると日記の確かめが実行した日しだいで落ちた)
 
         def summary(d, parts, t_end):
             txt = "画面を閉じていたあいだ: " + "／".join("%s %s〜%s %s" % (d.strftime("%m/%d"), a, b, x) for a, b, x in parts)

@@ -177,8 +177,15 @@ class Offline:
         return h >= 23 or h < 7
 
     # ------------------------------------------------------------------ 閉じていた間を過ごす
-    def simulate(self, t0, t1):
-        """画面を閉じていた t0 (最後の心拍) 〜 t1 (いま). 行動パターンに沿って過ごした結果のまとめを返す (対象でなければ None)."""
+    def will_run(self, t0, t1):
+        """t0〜t1 を閉じていた間の過ごし方 (行動パターン・予定) で埋めるか."""
+        c = self.cfg()
+        return (c.get("enabled") or self.app.planner.active()) and t1 - t0 >= float(c.get("min_minutes", 30)) * 60
+
+    def simulate(self, t0, t1, start=None):
+        """画面を閉じていた t0 (最後の心拍) 〜 t1 (いま). 行動パターンに沿って過ごした結果のまとめを返す (対象でなければ None).
+        start: 閉じたときにいた場所 (出先・移動の行き先). そこから予定・行動パターンの次の場所へ向かう (すぐ始まるならそのまま.
+        次が家でのこと・なにも無ければ, 家へ帰る)."""
         app, L = self.app, self.app.life
         c = self.cfg()
         use_plan = app.planner.active()          # 予定・未指定時コマンドを組んでいれば, そちらが先 (core/planner.py)
@@ -212,6 +219,11 @@ class Offline:
                       stamina=stamina, money=money0)
         source = self._plan_blocks(t0, t1, lambda: stamina, c.get("enabled")) if use_plan else self.blocks(t0, t1)
         back_leg = None
+        if start and start != HOME_ME and not geo_mod.INSTANT:     # 出先で閉じた: そこから (帰り道はそこから家へ)
+            try:
+                back_leg = (app.geo.leg(start, HOME_ME, None, t0), start)
+            except ValueError:
+                back_leg = (app.geo.leg(start, HOME_ME, "taxi", t0, rand=False), start)
 
         def go_home():
             """出先から家へ (前の行動の帰り道. 終わった時刻 t から)."""
@@ -232,7 +244,12 @@ class Offline:
             # 出先にいるまま続ける: 同じ場所での次の行動 (昼休みのあとも職場) / 出先のすぐあとの食事 (近くで食べる)
             stay = bool(back_leg) and (self._dest(b) == back_leg[1] or (
                 b["do"] == "meal" and b.get("how") in ("out", "buy") and max(s, t) - t < 1800))
-            if not stay:
+            frm, held = HOME_ME, None
+            nd = None if stay or geo_mod.INSTANT else self._dest(b)
+            if not stay and back_leg and nd and nd != back_leg[1] and max(s, t) - t < 1800:
+                frm, held = back_leg[1], back_leg  # 出先から次の出先へ, すぐ始まる: 家に寄らずにそのまま向かう
+                back_leg = None
+            elif not stay:
                 go_home()
             s = max(s, t)                          # 残業などで, 前の行動が延びたぶんは後ろへ
             if e - s < 60:
@@ -241,20 +258,28 @@ class Offline:
             do, h = b["do"], (e - s) / 3600.0
             pre_skip = self._skip(do, b, s, stamina) if do in ("out", "jog") else None
             dest = None if pre_skip or stay or geo_mod.INSTANT else self._dest(b)
+            if held and not dest:                  # 次の外出は取りやめ: いまの出先から家へ帰ってから
+                back_leg = held
+                go_home()
+                s = max(s, t)
+                frm = HOME_ME
             if dest:                               # 出かける行動: 行き帰りの移動 (core/geo.py. 予定の時刻は出る時刻)
                 try:
-                    go = app.geo.leg(HOME_ME, dest, "run" if do == "jog" else None, s)
+                    go = app.geo.leg(frm, dest, "run" if do == "jog" else None, s)
                 except ValueError:
                     go = None
+                if held and not (go and go["min"] >= 1):   # 出先から行けなかった: 帰り道はもとのまま
+                    back_leg = held
                 if go and go["min"] >= 1:
-                    stamina = self._pay_leg(go, dest, s, stamina, HOME_ME)
+                    stamina = self._pay_leg(go, dest, s, stamina, frm)
                     try:                           # 帰り: 乗っていった自転車・車があれば, それで
                         back = app.geo.leg(dest, HOME_ME, "run" if do == "jog" else go["how"] if go["how"] in ("bike", "car") else None,
                                            e)
                     except ValueError:
                         back = app.geo.leg(dest, HOME_ME, "taxi", e, rand=False)
                     timeline.append({"t": s, "end": s + go["min"] * 60, "do": "move", "label": "移動",
-                                     "text": "%sへ（%s・%d分%s）%s" % (app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
+                                     "text": "%s%sへ（%s・%d分%s）%s" % ("" if frm == HOME_ME else app.places.label(frm) + "から",
+                                                                     app.places.label(dest), HOW_LABEL[go["how"]], round(go["min"]),
                                                                    "・%s円" % format(go["fare"], ",") if go["fare"] else "",
                                                                    "。" + go["note"] if go.get("note") else ""), "skipped": False, "plan": None})
                     s = s + go["min"] * 60

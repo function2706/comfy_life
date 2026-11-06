@@ -146,7 +146,8 @@ def main():
             if any(x["id"] == "bicycle" for x in bought):
                 break
         assert any(x["id"] == "bicycle" for x in bought) and geo.veh_at("bicycle") == "mall", (bought, missed)
-        assert "bike" not in geo.options(home, "park", noon)["modes"]              # 自転車はモールに置いたまま
+        bk = geo.options(home, "park", noon)["modes"].get("bike")                 # 自転車はモールに置いたまま: 出るが選べない. 置き場所を出す
+        assert bk and not bk["ok"] and "に置いてある" in bk["note"], bk
         assert "bike" in geo.options("mall", home, noon)["modes"]
         lg = geo.leg("mall", home, "bike", noon)
         geo.used(lg, home)
