@@ -1797,7 +1797,9 @@ class App:
             cold = key in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
                            "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad")
             closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold)
-            if closing and key not in ("too_often", "too_often_mild", "late_night"):     # ノリが下がりきった: 相手から切り上げる
+            # ノリが下がりきった: 相手から切り上げる. ただし「今いい？」への返事 (電話していい / あとで) のすぐあとには付けない
+            # (「かけてきなさい」のあとに「用事があるので, またあとで」と続くと食い違う)
+            if closing and key not in ("too_often", "too_often_mild", "late_night", "may_call_ok", "may_call_later"):
                 ck, ctext = nori_mod.close(self, char, st, now)
                 self.chat.add(cid, "her", ctext, kind=ck, t=now + 0.002)
             elif key not in ("too_often", "too_often_mild", "late_night"):
@@ -1895,7 +1897,11 @@ class App:
 
     def deliver_due(self, now=None):
         """時間差の返信: 期限が来て, 相手が寝ていない・手が離せないなら返信が届く (来ないと決まっていれば読むだけ).
-        届いた返信 [{cid, name, text}] を返す."""
+        届いた返信 [{cid, name, text}] を返す. 画面の更新とトーク画面の見直しが同時に来ても, 同じ返事待ちを二度届けない (ロック)."""
+        with self.lock:
+            return self._deliver_due(now)
+
+    def _deliver_due(self, now=None):
         now = now or time.time()
         out = []
         for cid in list(self.chars):

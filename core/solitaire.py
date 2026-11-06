@@ -433,6 +433,8 @@ def sp_useful(st):
                     continue
                 if not to and k == 0:
                     continue
+                if not to and k == sp_run_start(st, i):
+                    return True     # 空いた列へ, 動かせるひと続きを丸ごと: 下のカードが出る (柄違いで続いていても, 出た札を別の列へ重ねられる)
                 if below is None or down_below or rank(below) != rank(col[k]) + 1 \
                         or (suit(below) != suit(col[k]) and to and suit(to[-1]) == suit(col[k])):
                     return True
