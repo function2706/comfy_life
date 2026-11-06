@@ -2549,6 +2549,33 @@
   ],
   "help.iou_paid": [
    "……これで、おあいこ"
+  ],
+  "chat.apology_near": [
+   "📱『……それも。……でも、それだけじゃない』"
+  ],
+  "chat.apology_unminded": [
+   "📱『……それは、気にしてない』"
+  ],
+  "chat.stamp_heart": [
+   "📱『（ハートのスタンプが返ってきた）』"
+  ],
+  "chat.stamp_heart_cold": [
+   "📱『……ハート？』"
+  ],
+  "chat.stamp_sorry_bad": [
+   "📱『……スタンプだけ？』"
+  ],
+  "chat.stamp_thanks": [
+   "📱『（小さくおじぎするスタンプが返ってきた）』"
+  ],
+  "chat.consult_good": [
+   "📱『……{topic}なら、少しわかる。……一つずつ。……また聞く』"
+  ],
+  "chat.consult_off": [
+   "📱『……{topic}は、よくわからない。……でも、聞けてよかった』"
+  ],
+  "chat.consult_jealous": [
+   "📱『……その人と、仲いいんだ。……そう』"
   ]
  }
 }

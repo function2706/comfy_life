@@ -2537,6 +2537,33 @@
   ],
   "help.iou_paid": [
    "……これで、この前の分はなし"
+  ],
+  "chat.apology_near": [
+   "📱『……それもだけど。それだけじゃない』"
+  ],
+  "chat.apology_unminded": [
+   "📱『……それは気にしてない』"
+  ],
+  "chat.stamp_heart": [
+   "📱『（ハートのスタンプが一つだけ返ってきた）』"
+  ],
+  "chat.stamp_heart_cold": [
+   "📱『……ハート？ 何の』"
+  ],
+  "chat.stamp_sorry_bad": [
+   "📱『……スタンプで済ませるんだ』"
+  ],
+  "chat.stamp_thanks": [
+   "📱『（「了解」のスタンプが返ってきた）』"
+  ],
+  "chat.consult_good": [
+   "📱『{topic}なら、少しわかる。……まず優先順位を決めて。それから一つずつ。……また聞く』"
+  ],
+  "chat.consult_off": [
+   "📱『{topic}は、よくわからない。……でも、話してくれたのはいい』"
+  ],
+  "chat.consult_jealous": [
+   "📱『……その人と、仲いいんだ。……ふうん』"
   ]
  }
 }
