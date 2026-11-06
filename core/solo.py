@@ -320,23 +320,43 @@ class Solo:
         return {"ok": True}
 
     def move(self, place, now=None, how=None):
-        """出かけている先から, ほかの行き先へ (いまの外出の結果を出して, そのまま出かける. 場所どうしの距離の移動)."""
+        """出かけている先・職場から, ほかの行き先へ (いまの外出・仕事の結果を出して, そのまま出かける. 場所どうしの距離の移動).
+        向かう途中・帰る途中なら, いまの地点から (電車・バスに乗っていれば次の駅で降りて. core/geo.py の midway)."""
         app = self.app
         now = now or time.time()
         p = app.presence.rec()
-        if p.get("mode") != "out":
+        mode = p.get("mode")
+        if mode not in ("out", "work") or (mode == "work" and not p.get("travel") and not app.geo.away(now)):
             raise ValueError("いまは出かけていません")
         if app.stay_home():
             raise ValueError(app.stay_home())
         self._place("out", place)
         frm = app.geo.where(now)
-        if p.get("travel"):                    # 向かう途中・帰る途中で行き先を変える: いまの地点から
+        tr = p.get("travel")
+        refund = 0
+        if tr:                                 # 向かう途中・帰る途中で行き先を変える: いまの地点から
             frm = app.geo.cut(now)
-        ll = app.presence.back(now)
-        res = self.finish(ll) if ll else None
+            refund = app.geo.last_refund
+            if tr.get("dir") == "go":          # 着く前にやめた: その場所にはいなかった (帰る途中なら, 着いた・出た時刻は入っている)
+                p["arrived"] = p["left"] = now
+        if mode == "work":                     # 仕事・バイト・頼まれごとを終えて (働いた時間ぶん), そのまま
+            res = app.come_back(arrived=True, onward=True)
+            res = {"text": self._entry_text(res)} if res else None
+        else:
+            ll = app.presence.back(now)
+            res = self.finish(ll) if ll else None
         r = self.start("out", place=place, how=how, frm=frm)
         r["solo"] = res
+        if refund and r.get("done"):
+            r["done"] = r["done"].rstrip("）") + "。途中でやめた分の%s円は払わずに済んだ）" % format(refund, ",")
         return r
+
+    @staticmethod
+    def _entry_text(r):
+        """come_back の結果から, 画面に出す一行."""
+        e = r.get("entry") or {}
+        t = (e.get("text") or r.get("text") or "").replace("\n", " ")
+        return t[1:-1] if t.startswith("（") and t.endswith("）") else t
 
     def start_plain(self, kind, place=None, cid=None, how=None, dest=None):
         """作業する・出かける・仕事に行く・寝る・席を外す. そばに誰かいれば告げて, いなければ一人で.
@@ -383,6 +403,12 @@ class Solo:
             return None
         h = max(0.0, float(ll.get("h_at", ll.get("h", 0))))     # その場所にいた時間 (移動の時間は入れない)
         shop = sl.get("shop_done")
+        if sl["kind"] == "out" and "arr" in ll and ll.get("left", ll["arr"]) - ll["arr"] < 30 and not shop:
+            # 着く前に引き返した・行き先を変えた: その場所でのこと (入場料・食事・買い物など) はしていない
+            place = ll.get("place")
+            text = "%sには行かなかった" % self.app.places.label(place) if place else "出かけるのをやめた"
+            self.note("out", text, ll.get("back", time.time()), hours=0, place=place)
+            return {"kind": "out", "hours": 0, "place": place, "text": "（%s）" % text}
         if not shop and sl.get("shop_need") and h * 60 >= sl["shop_need"]:
             # 品を選び終える時間は店にいた (心拍の間に済んでいた / 画面を閉じた時点で済んでいた): そこで買い物は済んでいる
             shop = self._shop_now(ll.get("place"), h, ll.get("back", time.time()))
@@ -689,8 +715,9 @@ class Solo:
                 go = self.app.action(k["go"])
             except KeyError:
                 continue
-            plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"],
-                          "ok": self._plain_ok(k["go"], near)})
+            ok = self._plain_ok(k["go"], near)
+            plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"], "ok": ok,
+                          "why": None if ok else self.app.cond_why(go.get("when", ""), self.app.you_context())})
         return {"current": dict(cur, **{k: ALL_KINDS.get(cur["kind"], KINDS["out"])[k] for k in ("label", "icon", "doing")}) if cur else None,
                 "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],

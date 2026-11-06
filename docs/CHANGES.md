@@ -10,9 +10,17 @@
   ふだんは実装のすぐあとに部分テストまで済ませるので、beta から書く。
 - 次の版の中身は下の「次の版」にためる。残件は [REMAINING.md](REMAINING.md)。
 
-## 次の版（未確定）
+## 次の版（未確定）: 1.1.0beta
 
-区分: なし（まだ何も載っていない）
+区分: 機能追加（部分テスト済み・全テストはまだ）
+
+- A6 移動: 移動の途中で行き先を変えると、そのときいる地点から向かう。電車・バスなら、乗る前（駅へ歩いている・待っている）はまだ出たところから、乗っていれば次の駅で降りてそこから、降りたあとなら行き先のそばから。運賃は乗った区間の分だけかかり、乗らなかった分は戻る（タクシー・車も走った分だけ）（`core/geo.py` の `phase` `midway` `cut` `unused_fare`）
+- A6 移動: 仕事（職場・バイト先・頼まれごと）からも行き先を選べる。職場にいれば、仕事を終えて（働いた時間ぶんのお給料）家に寄らずにそちらへ。帰る途中でも同じ。職場へ向かう途中なら、仕事には行かずにそちらへ（`core/solo.py` の `move`、`engine.come_back(onward=)`）
+- A6 に伴って: 行き先に着く前に引き返す・行き先を変えたときは、その場所でのこと（入場料・食事・買い物など）はしない（これまでは着いていなくても、水族館の入場料などがかかっていた）
+- A7 画面: 押せないボタンを押すと、押せない理由を出す（時間帯・仲・体力・お金・約束が要る・シフトの時間・行き方が遠すぎる・自転車の置き場所 など）。見れば分かる理由（相手が寝ている・そばにいない・処理中）は出さない（`engine.why_not` `cond_why`、画面の `h(..., {why})`）
+- A7 画面: 新しいワールドを作ったら、キャラメイキングをするか聞く
+
+部分テスト: `test_redirect`（新規） `test_geo` `test_closed_away` `test_offline` `test_offline_fallback` `test_solo` `test_shop` `test_earn` `test_earn2` `test_earn3` `test_presence` `test_routine` `test_planner` `test_appoint` `test_favor_appoint` `test_places` `test_outing_effects` `test_js_names` `test_api_errors` `test_charmake` `test_visit` `test_busy`、画面はブラウザで確認
 
 ## 1.0.1（2026-11-06）
 

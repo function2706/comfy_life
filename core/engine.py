@@ -1174,7 +1174,52 @@ class App:
                             and not self.guest_ng(a, char["id"]),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
+            if not out[a["id"]]["ok"]:
+                why = self.why_not(a, char, ctx, shut)
+                if why:
+                    out[a["id"]]["why"] = why
         return out
+
+    PHASE_JA = {"morning": "朝", "noon": "昼", "evening": "夕方", "night": "夜", "midnight": "深夜", "dawn": "明け方"}
+
+    def why_not(self, a, char, ctx, shut=False):
+        """コマンドを押せない理由 (画面で押したときに出す). 見れば分かるもの (相手が寝ている・そばにいない・手が離せない) は None."""
+        name = char.get("name", "相手")
+        if shut:
+            return "行き先がどこも閉まっています"
+        if a.get("home_only") and ctx["outing"]:
+            return "出かけている先ではできません"
+        if ctx["apart"]:
+            if not self.bonds.allowed_apart(a, char["id"]):
+                return None if self.bonds.stage(char["id"]) != "known" else "まだ連絡先を知りません"
+            if self.appoint.needs(a, char["id"]):
+                return "離れている%sとは、約束してから（トークの「約束する」）" % name
+        g = self.guest_ng(a, char["id"])
+        if g:
+            return g if isinstance(g, str) else None
+        return self.cond_why(self._when(a, ctx), ctx, name)
+
+    def cond_why(self, when, ctx, name="相手"):
+        """条件式のうち満たしていない項を, 押せない理由の文に (見れば分かるもの・説明しにくいものは None)."""
+        for key, op, val in cond.failing(when, ctx):
+            if key == "phase":
+                ph = "・".join(self.PHASE_JA.get(x, x) for x in val.split("|"))
+                return ("%sはできません" if op == "!=" else "%sにできることです") % ph
+            if key == "hour":
+                fmt = {">=": "%s時より前はできません", ">": "%s時台まではできません", "<": "%s時を過ぎたらできません",
+                       "<=": "%s時台を過ぎたらできません"}.get(op)
+                return fmt % val if fmt else "いまの時間にはできません"
+            if key in ("affection", "trust") and op in (">", ">="):
+                return "まだそこまでの仲ではありません"
+            if key == "health":
+                return "%sの具合が悪いときにすることです" % name if op in ("<", "<=") else "%sの具合が悪すぎます" % name
+            if key == "mood":
+                return "いまの%sの様子には合いません" % name
+            if key == "my_money":
+                return "お金が足りません"
+            if key == "my_stamina":
+                return "あなたの体力が足りません"
+        return None
 
     def guest_ng(self, a, cid):
         """相手の家・招いているときにできないコマンドの理由 (None = できる). 添い寝はお泊りしだい (core/stay.py)."""
@@ -2784,11 +2829,12 @@ class App:
                 "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
-    def come_back(self, cid=None, at=None, quiet=False, arrived=False):
+    def come_back(self, cid=None, at=None, quiet=False, arrived=False, onward=False):
         """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る.
         at: 戻った時刻 (心拍が途絶えていたときは最後の心拍). quiet: 誰の反応もなく, 結果だけ (画面を閉じていたとき).
         偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない.
-        出先にいれば, まず家へ移動する (core/geo.py. 着いたら arrived=True でここに戻ってくる)."""
+        出先にいれば, まず家へ移動する (core/geo.py. 着いたら arrived=True でここに戻ってくる).
+        onward: 家には帰らず, そのままほかの行き先へ (仕事を終えて寄り道. solo.move). 出迎えはなく, 文は「終えた」."""
         with self.lock:
             if not quiet and not arrived and self.presence.rec().get("mode") in ("out", "work") and self.geo.away():
                 r = self.geo.head_home()
@@ -2798,7 +2844,7 @@ class App:
             ll = self.presence.back(at)
             if not ll:
                 raise ValueError("いまは離れていません")
-            near = None if quiet else self.solo.near(cid)       # 戻った先にいる人 (家にいる同居相手・来ている人)
+            near = None if quiet or onward else self.solo.near(cid)       # 戻った先にいる人 (家にいる同居相手・来ている人)
             if ll["mode"] != "work":
                 solo = self.solo.finish(ll)          # 一人の時間 (休む・家事・研鑽・散歩・買い物) の結果
                 if quiet:
@@ -2811,7 +2857,7 @@ class App:
                 r["solo"] = solo
                 return r
             if ll.get("job") == "parttime":
-                return self._back_parttime(ll, near, quiet, wc)
+                return self._back_parttime(ll, near, quiet, wc, onward)
             if ll.get("job") in ("gig", "favor"):
                 return self._back_task(ll, near, quiet)
             pay, h, raw = self.life.work_pay(ll.get("arr", ll["t"]), ll.get("left", ll["back"]), record=True)    # 職場にいた間 (通勤は入れない)
@@ -2825,9 +2871,11 @@ class App:
             self.life.tire(float(self.world.get("economy", {}).get("stamina_per_work_hour", 9)) * h)
             if quiet or not near:
                 text = "仕事を終えて帰った（%s円）%s" % (format(pay, ","), "。" + work_note if work_note else "")
+                if onward:
+                    text = "仕事に行くのをやめた" if not pay and float(ll.get("h_at", 0)) < 0.25 else text.replace("終えて帰った", "終えた")
                 if quiet:
                     return {"text": text, "pay": pay}
-                r = self.my_entry("work", "仕事から帰った", "💼", text, money=mv, skill={"work": gain} if gain else None)
+                r = self.my_entry("work", "仕事を終えた" if onward else "仕事から帰った", "💼", text, money=mv, skill={"work": gain} if gain else None)
                 if work_note:
                     r["work_note"] = work_note
                 return r
@@ -2838,7 +2886,7 @@ class App:
             r["work_note"] = work_note
         return r
 
-    def _back_parttime(self, ll, near, quiet, wc):
+    def _back_parttime(self, ll, near, quiet, wc, onward=False):
         """アルバイトから戻った: シフトと重なった分だけ. (誰かいれば「仕事から帰る」の反応)."""
         pt = self.earn.pt() or {}
         pay, h, gain = self.earn.pt_pay(ll.get("arr", ll["t"]), ll.get("left", ll["back"]))
@@ -2849,12 +2897,12 @@ class App:
         mv = self.life.move(None, dp=pay, cat="income", note="バイト代") if pay else {}
         label = self.earn.job(pt["job"])["label"] if pt.get("job") else "アルバイト"
         text = ("%sのバイトを終えた（%s円）%s" % (label, format(pay, ","), note)) if h \
-            else "バイト先に着いてすぐ、引き返してきた" if float(ll.get("h_at", ll.get("h", 0))) < 0.25 \
+            else ("バイトに行くのをやめた" if onward else "バイト先に着いてすぐ、引き返してきた") if float(ll.get("h_at", ll.get("h", 0))) < 0.25 \
             else "%sのバイトに行ったが、シフトの時間ではなかった" % self.places.label(ll.get("place") or "")
         if quiet:
             return {"text": text, "pay": pay}
         if not near:
-            return self.my_entry("work", "バイトから帰った", "🧑‍💼", text, money=mv, skill={k: v for k, v in gain.items() if v} or None)
+            return self.my_entry("work", "バイトを終えた" if onward else "バイトから帰った", "🧑‍💼", text, money=mv, skill={k: v for k, v in gain.items() if v} or None)
         return self.act("work", near, opts={"money": mv, "extra": {"amount": format(pay, ",")},
                                              "ctx": {"work_h": round(ll.get("h", 0), 2), "paid_h": round(h, 2), "pay": pay},
                                              "skill": gain})

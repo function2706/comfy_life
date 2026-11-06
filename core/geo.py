@@ -97,6 +97,7 @@ class Geo:
     def __init__(self, app):
         self.app = app
         self._cache = None
+        self.last_refund = 0         # 直前に移動を途中でやめたとき, 払わずに済んだ分 (画面の文に)
 
     # ------------------------------------------------------------------ 位置
     def rec(self):
@@ -134,9 +135,9 @@ class Geo:
 
     def pt(self, pid):
         pid = pid or places_mod.HOME_ME
-        if pid.startswith("pt:"):               # 移動の途中の地点 ("pt:x,y". 覚えておかない)
-            x, y = (float(v) for v in pid[3:].split(","))
-            return {"xy": [x, y], "acc": 0.3}
+        if pid.startswith("pt:"):               # 移動の途中の地点 ("pt:x,y" / 駅で降りたところなら "pt:x,y,0.05". 覚えておかない)
+            v = [float(x) for x in pid[3:].split(",")]
+            return {"xy": v[:2], "acc": v[2] if len(v) > 2 else 0.3}
         r = self.rec()
         if pid not in r["pts"]:
             r["pts"][pid] = self._make(pid)
@@ -205,7 +206,8 @@ class Geo:
         h = _hour(t)
         wet = self._weather(t) in ("rain", "snow")
         walk = self.walk_min(a, b, t)
-        modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN, "note": ""}}
+        modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN,
+                          "note": "" if walk <= WALK_MAX_MIN else "歩いて行くには遠すぎる（%d時間を超える）" % (WALK_MAX_MIN // 60)}}
         if km > 1.2:
             pa, pb = self.pt(a), self.pt(b)
             acc = (pa["acc"] + pb["acc"]) * ROAD / WALK_KMH * 60
@@ -215,7 +217,8 @@ class Geo:
                 modes["transit"] = {"min": round(tm), "fare": self.fare(km), "ok": bool(hw), "note": "" if hw else "いまは走っていない（始発は5時）"}
         if km > 0 and self._vehicle_ok("bicycle", a):      # 自転車は近場でも乗れる
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
-            modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN, "note": "雨の中を走る" if wet else ""}
+            modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN,
+                             "note": ("自転車で行くには遠すぎる（%d分を超える）" % BIKE_MAX_MIN) if m > BIKE_MAX_MIN else "雨の中を走る" if wet else ""}
         elif km > 0 and self.app.items.count("bicycle") > 0:  # 持っているが, ここには無い: どこに置いてあるかを出す (行けば乗れる)
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": False,
@@ -369,11 +372,35 @@ class Geo:
         tr = self.travel()
         if not tr or now >= tr["arr"]:
             return None
+        ph = self.phase(now)
+        if ph:                                   # 電車・バス: 乗る前ならまだ出たところ, 乗っていれば次の駅で降りる, 降りたあとなら行き先のそば
+            kind, k = ph
+            if kind == "pre":
+                return tr["from"]
+            if kind == "post":
+                return tr["to"]
+            a, b = self.pt(tr["from"])["xy"], self.pt(tr["to"])["xy"]
+            return "pt:%.3f,%.3f,0.05" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
         k = max(0.0, min(1.0, (now - tr["t0"]) / max(1.0, tr["arr"] - tr["t0"])))
         if k <= 0.02:
             return tr["from"]
         a, b = self.pt(tr["from"])["xy"], self.pt(tr["to"])["xy"]
         return "pt:%.3f,%.3f" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
+
+    def phase(self, now=None):
+        """電車・バスで移動中の段階: ("pre", 0) 駅へ歩く・待つ / ("ride", 進み具合) 乗っている / ("post", 1) 降りて歩く. 電車・バスでなければ None."""
+        now = now or time.time()
+        tr = self.travel()
+        if not tr or tr.get("how") != "transit" or not tr.get("ph"):
+            return None
+        pre, ride, post = tr["ph"]
+        tot = pre + ride + post
+        e = (now - tr["t0"]) / 60.0 * tot / max(1e-6, (tr["arr"] - tr["t0"]) / 60.0)    # 遅れなどで延びた分は, 全体にならす
+        if e < pre:
+            return ("pre", 0.0)
+        if e < pre + ride:
+            return ("ride", (e - pre) / ride)
+        return ("post", 1.0)
 
     def cut(self, now=None):
         """移動をそこでやめる (行き先を変える・引き返す). いまの地点を返す. 自転車・車なら, 乗り物もそこに."""
@@ -382,12 +409,33 @@ class Geo:
         if not tr:
             return self.where(now)
         here = self.midway(now) or tr["to"]
+        back = self.last_refund = self.unused_fare(tr, now)
+        if back > 0:                             # 乗らなかった分 (電車・バスは乗った区間だけ, タクシー・車は走った分だけ払う)
+            self.app.life.move(None, dp=back, cat="transport", note="%s（途中でやめた分）" % FARE_NOTE[tr["how"]])
         if tr["how"] in ("bike", "car"):
             self.rec().setdefault("veh", {})["bicycle" if tr["how"] == "bike" else "car"] = here
             self.save()
         self.rec_p().pop("travel", None)
         self.rec_p()["pos"] = here
         return here
+
+    def unused_fare(self, tr, now):
+        """途中でやめたとき, 払わずに済む分 (円)."""
+        fare = int(tr.get("fare") or 0)
+        if fare <= 0 or now >= tr["arr"]:
+            return 0
+        if tr["how"] == "transit":
+            ph = self.phase(now)
+            if not ph or ph[0] == "post":
+                return 0
+            if ph[0] == "pre":
+                return fare                      # まだ乗っていない
+            return max(0, fare - self.fare(self.km(tr["from"], tr["to"]) * ph[1]))
+        if tr["how"] in ("taxi", "car"):
+            k = max(0.0, min(1.0, (now - tr["t0"]) / max(1.0, tr["arr"] - tr["t0"])))
+            park = self.parking(tr["to"]) if tr["how"] == "car" else 0
+            return int((fare - park) * (1 - k) / 10) * 10 + park
+        return 0
 
     def where(self, now=None):
         """いまいる場所 (移動中なら, 途中のいまの地点)."""
@@ -438,6 +486,10 @@ class Geo:
         self.used(lg, to)
         p["travel"] = {"from": frm, "to": to, "how": lg["how"], "t0": now, "arr": now + lg["min"] * 60, "fare": lg["fare"],
                        "dir": direction, "then": then, "note": lg["note"]}
+        if lg["how"] == "transit":               # 駅まで歩いて待つ / 乗っている / 降りて歩く (途中で行き先を変えるときの居場所)
+            pre = self.pt(frm)["acc"] * ROAD / WALK_KMH * 60 + lg.get("wait", 0)
+            post = self.pt(to)["acc"] * ROAD / WALK_KMH * 60
+            p["travel"]["ph"] = [round(pre, 1), round(max(1.0, lg["min"] - pre - post), 1), round(post, 1)]
         app.presence.save()
         return p["travel"]
 

@@ -87,3 +87,12 @@ def check(expr, ctx):
         if op == "<" and not x < y:
             return False
     return True
+
+
+def failing(expr, ctx):
+    """満たしていない項 [(key, op, val)] (画面で押せない理由を出すため)."""
+    try:
+        terms = parse(expr)
+    except ValueError:
+        return []
+    return [t for t in terms if not check("%s%s%s" % t, ctx)]

@@ -4,12 +4,21 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+// why: 押せない理由 (disabled のときだけ使う). 押せない作りにはせず, 押すと理由を出す (見れば分かる理由は渡さない)
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
   let value;
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v == null || v === false) continue;
-    if (k === 'class') el.className = v;
+  const A = attrs || {};
+  const soft = !!(A.disabled && A.why);
+  if (soft) {
+    el.classList.add('dis');
+    el.setAttribute('aria-disabled', 'true');
+    el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toast(A.why, 'err'); });
+  }
+  for (const [k, v] of Object.entries(A)) {
+    if (v == null || v === false || k === 'why') continue;
+    if (soft && (k === 'disabled' || k.startsWith('on'))) continue;
+    if (k === 'class') el.className = v + (soft ? ' dis' : '');
     else if (k === 'style') el.style.cssText = v;
     else if (k === 'value') value = v;
     else if (k === 'html') el.innerHTML = v;
@@ -23,6 +32,22 @@ function h(tag, attrs, ...kids) {
   }
   if (value !== undefined) el.value = value;
   return el;
+}
+
+// 押せない理由つきで押せなくする (作ったあとのボタンに. 押すと理由を出す)
+function softDisable(b, why) {
+  if (!why) { b.disabled = true; return; }
+  b.disabled = false;
+  b.classList.add('dis');
+  b.setAttribute('aria-disabled', 'true');
+  b.title = why;
+  b.addEventListener('click', (e) => { e.preventDefault(); e.stopImmediatePropagation(); toast(why, 'err'); }, true);
+}
+// いまの在席 (作業・外出・仕事など) で始められないときの理由. out: 外出中なら出かけられる
+function presWhy(out) {
+  const p = (S.view || {}).presence || {};
+  if (p.mode === 'none' || (out && p.mode === 'out')) return '';
+  return `いまは${p.label || '手が離せない'}です（終えてから）`;
 }
 
 // 画面側のエラー: 拾ってサーバへ (不具合の書き出しに入る. 中身は画面に出さない). 同じエラーの連発は件数にまとめて, 少し待ってから送る.
@@ -362,7 +387,7 @@ function cmdButton(a) {
   const od = (S.view.outdoor || {}).places || {};
   const pl = a.override && a.override.outing && a.override.place ? od[a.override.place] : null;    // お出かけの行き先 (表から)
   const why = (S.view.blocked || {})[isMoneyAction(a) || a.category !== 'system' ? 'social' : ''];
-  return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
+  return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, why: why || (!st.ok && st.why) || '', title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
       : a.anniv ? sayAnniv(a.anniv, tid())
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
@@ -375,8 +400,9 @@ function cmdButton(a) {
 function renderSoloTab() {
   const v = S.view, so = v.solo || {}, Y = v.you || {};
   const free = (v.presence || {}).mode === 'none';
-  const btn = (icon, label, onclick, tip, dis) => h('button', { class: 'cmd', disabled: !free || S.busy || dis || !!(v.blocked || {}).solo,
-    title: (v.blocked || {}).solo || tip || '', onclick },
+  const notFree = free ? '' : `いまは${(v.presence || {}).label || '手が離せない'}です（終えてから）`;
+  const btn = (icon, label, onclick, tip, dis, dwhy) => h('button', { class: 'cmd', disabled: !free || S.busy || dis || !!(v.blocked || {}).solo,
+    why: (v.blocked || {}).solo || notFree || (dis && dwhy) || '', title: (v.blocked || {}).solo || tip || '', onclick },
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'chores'
     ? btn(k.icon, k.label, () => { S.choresOpen = !S.choresOpen; renderSoloTab(); }, '片付け（戻るまで）か、家計簿をつける（15分ほど）を選ぶ')
@@ -415,8 +441,8 @@ function renderSoloTab() {
           h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
 
         // 作業する・仕事に行く・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
-        ...(so.plain || []).map((p) => btn(p.icon, p.label, () => soloStart(p.id), near ? `${near.name}に告げてから` : '告げる相手はいない（一人で）', !p.ok)),
-        h('button', { class: 'cmd', disabled: S.busy || !!sj, onclick: openTask,
+        ...(so.plain || []).map((p) => btn(p.icon, p.label, () => soloStart(p.id), near ? `${near.name}に告げてから` : '告げる相手はいない（一人で）', !p.ok, p.why)),
+        h('button', { class: 'cmd', disabled: S.busy || !!sj, why: sj ? sj.reason : '', onclick: openTask,
           title: '家でパズル（マインスイーパ・数独・ピクロス・スリザーリンク・15パズル）を解いて稼ぎます' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'), sj ? h('small', { class: 'muted' }, sj.reason.replace(/^.*（(.*)）$/, '$1')) : null))),
     S.placeFor && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
@@ -427,7 +453,7 @@ function renderSoloTab() {
           h('span', { class: 'ic' }, P.icon || '📍'), h('span', {}, P.label || pl), h('small', { class: 'muted' }, P.note));
         const rt = S.placeFor === 'jog' ? null : routeText(pl);
         const b = btn(P.icon || '📍', P.label || pl, () => { const k = S.placeFor; S.placeFor = null; soloStart(k, null, pl, S.how); },
-          [placeTip(pl), routeTip(pl)].filter(Boolean).join('\n'), rt && rt.ng);
+          [placeTip(pl), routeTip(pl)].filter(Boolean).join('\n'), rt && rt.ng, rt && rt.why);
         if (rt) b.append(h('small', { class: 'muted' }, rt.text));
         return b; })) : null,
     S.choresOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
@@ -492,8 +518,9 @@ function routeText(id) {
   if (r.km < 0.05) return { text: 'いまいる所', ng: false };
   const how = S.how === 'auto' ? r.best : S.how;
   const m = (r.modes || {})[how];
-  if (!m) return { text: how === 'transit' ? '電車・バスは使えない距離' : `${HOW_NAME[how]}は使えない`, ng: S.how !== 'auto' && how !== 'transit' };
-  return { text: `${HOW_ICON[how]}${m.min}分${m.fare ? `・${m.fare}円` : ''}${m.ok ? '' : '（行けない）'}`, ng: !m.ok };
+  if (!m) return { text: how === 'transit' ? '電車・バスは使えない距離' : `${HOW_NAME[how]}は使えない`, ng: S.how !== 'auto' && how !== 'transit',
+    why: how === 'bike' ? '自転車を持っていません' : how === 'car' ? '車（と免許）がありません' : `${HOW_NAME[how]}は使えない距離です` };
+  return { text: `${HOW_ICON[how]}${m.min}分${m.fare ? `・${m.fare}円` : ''}${m.ok ? '' : '（行けない）'}`, ng: !m.ok, why: m.ok ? '' : (m.note || '行けません') };
 }
 function routeTip(id) {
   const r = routeOf(id);
@@ -613,7 +640,7 @@ function drawHome() {
         ...[['me', 'あなた'], ['her', v.chores.name], ['either', '気づいた方']].map(([w, l]) => h('button', { class: 'btn small' + (x.who === w ? ' primary' : ' ghost'), disabled: S.busy || x.who === w,
           onclick: async () => { if (S.busy) return; S.busy = true; try { const r = await api('/api/chores/share', { part: x.id, who: w }); if (r.entry) toast(r.entry.text.replace(/\n/g, ' '), r.ok ? 'ok' : 'err'); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); drawHome(); } } }, l))))) : '',
     h('div', { class: 'row' },
-      h('button', { class: 'btn primary', disabled: !free || S.busy, title: free ? '家事をする（一人の時間）' : 'いまは始められません',
+      h('button', { class: 'btn primary', disabled: !free || S.busy, why: free ? '' : presWhy(), title: free ? '家事をする（一人の時間）' : 'いまは始められません',
         onclick: () => { S.homeDlg.close(); soloStart('chores'); } }, '🧹 家事をする'),
       h('span', { class: 'muted small' }, soap ? `洗剤 ${soap.count} 個` : '洗剤なし（買い物で買えます）'))));
 }
@@ -684,7 +711,7 @@ function renderWith() {
   const gw = (S.view.blocked || {}).game;
   if (gw && !(t.games || {}).current) {
     $('#tab-games').prepend(h('div', { class: 'blocked-note' }, `⏸ ${gw}`));
-    $$('#tab-games button').forEach((b) => { b.disabled = true; b.title = gw; });
+    $$('#tab-games button').forEach((b) => softDisable(b, gw));
   }
   renderStatus();
   renderWMoney();
@@ -786,7 +813,7 @@ function visitCard(v) {
   if (v.favor) btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: () => go('start') },
     h('span', { class: 'ic' }, '🤝'), h('span', {}, `${v.favor.label}を始める`), h('small', { class: 'muted' }, `${v.favor.h}時間ほど`)));
   if (hp) {
-    btns.push(h('button', { class: 'cmd', disabled: S.busy || !hp.rest_left, title: hp.rest_left ? '' : 'もう十分休んだ', onclick: () => go('rest') },
+    btns.push(h('button', { class: 'cmd', disabled: S.busy || !hp.rest_left, why: hp.rest_left ? '' : 'もう十分休みました', title: hp.rest_left ? '' : 'もう十分休んだ', onclick: () => go('rest') },
       h('span', { class: 'ic' }, '☕'), h('span', {}, 'ひと休みする')));
     btns.push(h('button', { class: 'cmd', disabled: S.busy, onclick: () => go('stop', '手伝いを切り上げますか？（早すぎると、途中でやめたことになります）') },
       h('span', { class: 'ic' }, '✋'), h('span', {}, '手伝いを切り上げる')));
@@ -863,7 +890,7 @@ function poseSections(t) {
   return [['pose', '_pose', '📸 ポーズを取って'], ['show', '_show', '👀 見せて']].map(([typ, aid, title]) => h('div', {},
     h('div', { class: 'sect' }, title),
     h('div', { class: 'outfits' }, ps.items.filter((o) => o.type === typ).map((o) => h('button', {
-      class: 'outfit', disabled: S.busy || !o.here, title: o.here ? (o.bold ? `大胆さ ${o.bold}（受けてくれるかは仲・気分・性格・場所しだい）` : o.pos) : '外では頼めません',
+      class: 'outfit', disabled: S.busy || !o.here, why: o.here ? '' : '外では頼めません', title: o.here ? (o.bold ? `大胆さ ${o.bold}（受けてくれるかは仲・気分・性格・場所しだい）` : o.pos) : '外では頼めません',
       onclick: () => doPose(aid, o.id) }, h('span', { class: 'ic' }, o.icon || '📸'), h('span', {}, o.name + boldMark(o.bold)))))));
 }
 async function doPose(aid, pid) {
@@ -1864,7 +1891,7 @@ function appointLine(x, withBtn) {
     withBtn && set ? h('div', { class: 'row' },
       x.here ? h('span', { class: 'muted small' }, x.home_me ? '家にいれば、時間に来てくれます' : 'もう着いている。時間まで、ここで待つ')
         : x.home_me ? h('span', { class: 'muted small' }, 'あなたの家に来てもらう約束（その時間に家にいる）')
-          : h('button', { class: 'btn small', disabled: S.busy || ((S.view.presence || {}).mode !== 'none' && (S.view.presence || {}).mode !== 'out'),
+          : h('button', { class: 'btn small', disabled: S.busy || ((S.view.presence || {}).mode !== 'none' && (S.view.presence || {}).mode !== 'out'), why: presWhy(true),
             title: '行き先を約束の場所にして出かけます（移動に時間がかかります）。画面を閉じると家に帰るので、約束の場所にいないことになります',
             onclick: () => goAppoint(x.id) }, x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : '');
 }
@@ -2008,7 +2035,7 @@ function mapProj() {
 function mapXY(id) {
   const M = ((S.view || {}).outdoor || {}).map || {};
   if (M[id]) return M[id];
-  if (typeof id === 'string' && id.startsWith('pt:')) return id.slice(3).split(',').map(Number);
+  if (typeof id === 'string' && id.startsWith('pt:')) return id.slice(3).split(',').slice(0, 2).map(Number);
   return null;
 }
 function mapMe() {
@@ -2153,9 +2180,9 @@ const MAP_GO_NOTE = { walk: '歩いて', transit: '電車・バスで', bike: '�
 async function mapGo(id, how) {
   const pres = (S.view || {}).presence || {};
   if (S.busy) return;
-  if (pres.mode === 'out') {
+  if (pres.mode === 'out' || pres.mode === 'work') {
     S.busy = true;
-    try { const r = await api('/api/solo/move', { place: id, how }); if (r.solo) toast(r.solo.text, 'ok'); toast((r.done || `${mapName(id)}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
+    try { const r = await api('/api/solo/move', { place: id, how }); if (r.solo && r.solo.text) toast(r.solo.text, 'ok'); toast((r.done || `${mapName(id)}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
     catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
   } else await soloStart('out', null, id, how);
   S.mapSel = null;
@@ -2170,8 +2197,10 @@ function renderMap() {
   const tv = od.travel;
   const sel = S.mapSel;
   const pres = (S.view || {}).presence || {};
-  const free = pres.mode === 'none' || pres.mode === 'out';
-  const out = pres.mode === 'out';
+  // 仕事 (職場・バイト先・頼まれごとの家・その行き帰り) からも: 仕事を終えて (働いた時間ぶん), そのまま行き先へ
+  const workAway = pres.mode === 'work' && (!!tv || (od.here && od.here !== 'home:me'));
+  const free = pres.mode === 'none' || pres.mode === 'out' || workAway;
+  const out = pres.mode === 'out' || workAway;
   const goable = (id) => id !== 'office' && id !== 'station' || (OD_CHOICES().out || []).includes(id);
   // いまの様子
   const now = Date.now() / 1000;
@@ -2179,7 +2208,7 @@ function renderMap() {
   const status = h('div', { class: 'pgroup', style: 'margin:6px 0;padding:8px' },
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' },
       h('b', {}, tv ? `${HOW_ICON[tv.how] || '🚶'} ${tv.label}へ移動中（${tv.how_label}・あと${Math.max(1, Math.round(tv.remain / 60))}分）`
-        : out ? `📍 ${mapName(od.here)}にいる` : pres.mode === 'none' ? '🏠 家にいる' : `いま: ${pres.label || ''}`),
+        : out ? `📍 ${mapName(od.here)}にいる${workAway ? '（仕事中）' : ''}` : pres.mode === 'none' ? '🏠 家にいる' : `いま: ${pres.label || ''}`),
       h('div', { class: 'spacer' }),
       out ? h('button', { class: 'btn small primary', disabled: S.busy || (tv && tv.dir === 'home'), onclick: async () => { await comeBack(); renderMap(); } },
         tv && tv.dir === 'home' ? '家へ向かっている' : tv ? '↩ 引き返す' : '🏠 帰る') : ''),
@@ -2187,7 +2216,10 @@ function renderMap() {
       h('i', { style: `display:block;height:100%;width:${Math.round(prog * 100)}%;background:var(--accent,#d77)` })) : '',
     tv && tv.note ? h('div', { class: 'small muted' }, tv.note) : '',
     tv ? h('div', { class: 'small muted' }, tv.dir === 'home' ? '家に着くまでは、まだ外です。行き先を押せば、いまの地点からそちらへ向かえます。'
-      : `着くまでは、${tv.label}でのことはできません。行き先を押せば、いまの地点から向かう先を変えられます。`) : '',
+      : `着くまでは、${tv.label}でのことはできません。行き先を押せば、いまの地点から向かう先を変えられます。`,
+      tv.how === 'transit' ? '（電車・バスに乗っていれば、次の駅で降りてそこから）' : '') : '',
+    workAway ? h('div', { class: 'small muted' }, tv && tv.dir !== 'home' ? '行き先を押すと、仕事には行かずにそちらへ向かいます。'
+      : '行き先を押すと、仕事を終えて（働いた時間ぶんのお給料が入ります）、家に寄らずにそちらへ向かいます。') : '',
     !free ? h('div', { class: 'small muted' }, '出かけられるのは、家にいるか外出中のときです（作業・仕事などを終えてから）。') : '',
     out ? shopCard(pres, true) : '');
   // 選んだ行き先: 行き方ごとの「行く」
@@ -2205,7 +2237,7 @@ function renderMap() {
       pl.open === false ? h('div', { class: 'small down' }, `閉まっています（${pl.note}）`) : '',
       here ? h('div', { class: 'small muted' }, 'いまここにいます') : !goable(sel) ? h('div', { class: 'small muted' }, sel === 'office' ? '職場へは「仕事に行く」から' : '') : '',
       can && modes.length ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
-        ...modes.map(([k, m]) => h('button', { class: 'btn small' + (k === r.best ? ' primary' : ''), disabled: S.busy || !m.ok,
+        ...modes.map(([k, m]) => h('button', { class: 'btn small' + (k === r.best ? ' primary' : ''), disabled: S.busy || !m.ok, why: m.ok ? '' : (m.note || '行けません'),
           title: m.note || '', onclick: () => mapGo(sel, k) },
           `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}行く（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '');
   }
@@ -2354,10 +2386,10 @@ function renderMoney() {
     kakeiboPanel(),
     h('div', { class: 'pgroup' }, h('h4', {}, '稼ぐ'),
       h('div', { class: 'earn' },
-        h('button', { class: 'cmd', disabled: S.busy || !ok('work'), onclick: () => soloStart('work'),
+        h('button', { class: 'cmd', disabled: S.busy || !ok('work'), why: (v.presence || {}).mode !== 'none' ? presWhy() : (((v.solo || {}).plain || []).find((p) => p.id === 'work') || {}).why || '', onclick: () => soloStart('work'),
           title: '仕事に行きます（そばに誰かいれば告げてから）。戻ったときに働いた時間ぶん稼げます（画面を開いているあいだだけ。閉じたらそこまで）' },
           h('span', { class: 'ic' }, '💼'), h('span', {}, '仕事に行く'), h('small', { class: 'muted' }, '離れた時間ぶん')),
-        h('button', { class: 'cmd', disabled: S.busy || !!v.side_job, onclick: openTask,
+        h('button', { class: 'cmd', disabled: S.busy || !!v.side_job, why: v.side_job ? v.side_job.reason : '', onclick: openTask,
           title: '家でパズルを解いて稼ぎます。難しさ・速さ・ミスで稼ぎが決まります' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'),
           h('small', { class: 'muted' }, v.side_job ? v.side_job.reason.replace(/^.*（(.*)）$/, '$1') : 'パズルを解く'))),
@@ -2398,7 +2430,7 @@ function partTimePanel(EA, v) {
         h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => confirm(`${P.label}を辞めますか？`) && earnApi('/api/earn/parttime/quit', {}) }, '辞める')),
       h('div', { class: 'muted small' }, `シフト: ${P.shift_text}${P.absent ? `・この30日で${P.absent}回休んだ（3回で辞めさせられる）` : ''}`),
       h('div', { class: 'row' },
-        h('button', { class: 'cmd', disabled: S.busy || !P.now || !free, title: 'シフトの時間（前後30分から）に行けます。戻ったとき、シフトと重なった時間ぶんのバイト代が出ます',
+        h('button', { class: 'cmd', disabled: S.busy || !P.now || !free, why: !free ? presWhy() : !P.now ? `いまはシフトの時間ではありません（${P.shift_text}。前後30分から行けます）` : '', title: 'シフトの時間（前後30分から）に行けます。戻ったとき、シフトと重なった時間ぶんのバイト代が出ます',
           onclick: () => earnApi('/api/earn/parttime/go', withT({}), 'バイトに出かけた') },
           h('span', { class: 'ic' }, '🧑‍💼'), h('span', {}, 'バイトに行く'), h('small', { class: 'muted' }, P.now ? 'いまシフトの時間' : P.next ? `次は ${hm(P.next)}` : ''))));
   }
@@ -2416,7 +2448,7 @@ function partTimePanel(EA, v) {
         h('div', { class: 'row trade' },
           h('input', { type: 'time', value: f.from, step: 1800, style: 'width:7.5em;flex:none', onchange: (ev) => { f.from = ev.target.value; } }), h('span', { class: 'muted small' }, '〜'),
           h('input', { type: 'time', value: f.to, step: 1800, style: 'width:7.5em;flex:none', onchange: (ev) => { f.to = ev.target.value; } }),
-          h('button', { class: 'btn small', disabled: S.busy || !!ng, title: '面接があります（身だしなみ・会話で受かりやすく）',
+          h('button', { class: 'btn small', disabled: S.busy || !!ng, why: ng ? `面接に落ちたばかりです（${fmtTime(ng)}から、また応募できます）` : '', title: '面接があります（身だしなみ・会話で受かりやすく）',
             onclick: () => earnApi('/api/earn/parttime/apply', { job: j.id, shifts: [{ days: f.days.join(','), from: f.from, to: f.to }] }) }, ng ? '少し待つ' : '応募する')));
     }) : '');
 }
@@ -2447,14 +2479,14 @@ function sideWorkPanel(EA, v) {
     h('div', { class: 'muted small' }, '💡 副業の依頼（スキルと評判しだいで、ときどき来ます）: ' + G.kinds.map((k) => `${k.label}${k.open ? `（評判 ${G.rep[k.id] ?? 30}）` : `（${SKILL_NAME[k.skill]} ${k.min} から）`}`).join('・')),
     ...G.offers.map((o) => h('div', { class: 'money-row small' },
       h('span', {}, `${o.icon} ${o.label}・${o.client}（${o.h}時間ほど・${yen(o.pay)}くらい・${until(o.until)}）`),
-      h('button', { class: 'btn small', disabled: S.busy || !free, title: '取りかかります（終わったら戻る）。時間と出来ばえで報酬と評判が決まります',
+      h('button', { class: 'btn small', disabled: S.busy || !free, why: free ? '' : presWhy(), title: '取りかかります（終わったら戻る）。時間と出来ばえで報酬と評判が決まります',
         onclick: () => earnApi('/api/earn/gig', withT({ id: o.id }), '取りかかった') }, '取りかかる'))),
     (EA.favors || []).length ? h('div', { class: 'muted small', style: 'margin-top:4px' }, '🤝 頼まれごと（日時はトークの約束の欄で決めます。当日は相手の家へ。お礼をもらえるかは仲しだい）') : '',
     ...(EA.favors || []).map((f) => h('div', { class: 'money-row small' },
       h('span', {}, `${f.name}から: ${f.label}（${f.h}時間ほど）・${f.status_label || until(f.until)}`),
       h('div', { class: 'row' },
         f.appoint && (f.status === 'set' || f.status === 'waiting')
-          ? h('button', { class: 'btn small', disabled: S.busy || !free, onclick: () => goAppoint(f.appoint) }, f.kind === 'plants' ? '水やりに行く' : '相手の家へ')
+          ? h('button', { class: 'btn small', disabled: S.busy || !free, why: free ? '' : presWhy(), onclick: () => goAppoint(f.appoint) }, f.kind === 'plants' ? '水やりに行く' : '相手の家へ')
           : '',
         h('button', { class: 'btn small', disabled: S.busy, title: 'トークの約束の欄で、引き受ける・日時を返す・断る', onclick: () => openChat(f.cid) }, '📱 トークで答える'),
         h('button', { class: 'btn small ghost', title: 'カレンダーで見る（予定と見比べて、日時を返せます）', onclick: () => openCal(f.at || null) }, '🗓')))));
@@ -3328,7 +3360,7 @@ function planSection(v) {
     h('div', { class: 'row plan-form', style: 'flex-wrap:wrap;gap:6px' },
       h('select', { onchange: (ev) => { f.date = ev.target.value; redraw(); } }, P.dates.map((d, i) => h('option', { value: d, selected: d === f.date }, `${md(d)}${i === 0 ? '（今日）' : i === 1 ? '（明日）' : ''}`))),
       h('input', { type: 'time', value: f.at, onchange: (ev) => { f.at = ev.target.value; redraw(); } }), ...commandPicker(f, redraw),
-      h('button', { class: 'btn small primary', disabled: S.busy || !!clash, title: clash ? `${clash.at}に${clash.name}との約束があります` : '',
+      h('button', { class: 'btn small primary', disabled: S.busy || !!clash, why: clash ? `${clash.at}に${clash.name}との約束があります` : '', title: clash ? `${clash.at}に${clash.name}との約束があります` : '',
         onclick: async () => { const rep = editing ? S.planEdit : undefined;
           if (await call('/api/plan/add', { date: f.date, at: f.at, replace: rep, item: { do: f.do, place: f.place, how: f.how, skill: f.skill } }) && rep) { S.planEdit = null; redraw(); } } }, editing ? '✔ 書き換える' : '＋予定に足す'),
       editing ? h('button', { class: 'btn small ghost', onclick: () => { S.planEdit = null; redraw(); } }, 'やめる') : ''),
@@ -3581,7 +3613,7 @@ function othersSection() {
       h('button', { class: 'btn small', onclick: () => editDefinition(c.id) }, '編集'),
       c.here ? '' : h('button', { class: 'btn small', title: 'このワールドに知り合い（連絡先は知らない）として出す', onclick: () => placeOther(c, 'known') }, '👤 知り合いとして出す'),
       c.here ? '' : h('button', { class: 'btn small', title: 'このワールドに連絡先を知っている人として出す', onclick: () => placeOther(c, 'contact') }, '📱 連絡先として出す'),
-      h('button', { class: 'btn small danger', disabled: c.worlds.length > 0,
+      h('button', { class: 'btn small danger', disabled: c.worlds.length > 0, why: c.worlds.length ? 'どこかのワールドに現れている（知り合っている）ので削除できません。編集はできます' : '',
         title: c.worlds.length ? 'どこかのワールドに現れている（知り合っている）ので削除できません。編集はできます' : '定義を消す（全ワールドに波及）',
         onclick: async () => {
           if (!confirm(`「${c.name}」の定義を消しますか？（どのワールドの出会いの候補からも外れます）`)) return;
@@ -4655,6 +4687,7 @@ function worldManager() {
     h('div', { class: 'row', style: 'margin-top:8px' }, nameEl, fromEl,
       h('button', { class: 'btn primary', onclick: async () => {
         const r = await api('/api/world/create', { name: nameEl.value, copy_from: fromEl.value });
+        try { sessionStorage.setItem('kurashi_new_world', '1'); } catch (e) { /* 使えなければ促さない */ }
         toast('ワールドを作りました', 'ok');
         location.reload();
         return r;
@@ -4764,5 +4797,8 @@ async function init() {
   tickClock();
   setInterval(tickClock, 1000);
   setInterval(refresh, 30000);
+  let fresh = false;
+  try { fresh = sessionStorage.getItem('kurashi_new_world') === '1'; sessionStorage.removeItem('kurashi_new_world'); } catch (e) { /* なし */ }
+  if (fresh && confirm('新しいワールドです。キャラメイキング（いくつかの質問に答えて、あなたのスキル・所持金などを決める）をしますか？\n（あとからでも、設定 → あなた でできます）')) await openSettings('player');
 }
 init();
