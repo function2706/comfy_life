@@ -154,7 +154,7 @@ def route(method, path, q, body):
     else:
         b = body or {}
         if path == "/api/act":
-            opts = {k: b[k] for k in ("place", "pose") if b.get(k)}
+            opts = {k: b[k] for k in ("place", "pose", "pick") if b.get(k)}
             return a.act(b["action"], cid, opts=opts or None)
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")

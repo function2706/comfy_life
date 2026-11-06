@@ -392,6 +392,7 @@ function cmdButton(a) {
   return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, why: why || (!st.ok && st.why) || '', title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
       : a.anniv ? sayAnniv(a.anniv, tid())
+      : a.pick && a.mood_action ? pickFace(a)
       : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
@@ -603,6 +604,19 @@ function placeTip(id) {
   return [(p.does || []).map((d) => (od.does || {})[d] || d).join('・'), p.hours && p.hours !== '24時間' ? `営業 ${p.hours}` : ''].filter(Boolean).join('\n');
 }
 // 行き先を選べるお出かけ (散歩・買い物・デートなど): 表の行き先から選んで誘う
+// 対面で, 何を謝る・何のお礼・何を相談するかを選ぶ (A5. メッセージと同じ一覧. 謝る理由は分類しない)
+function pickFace(a) {
+  const key = a.pick || (a.mood_action === 'apologize' ? 'apology' : '');
+  const list = ((S.view || {}).picks || {})[key] || [];
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(520px,94vw);height:auto;max-height:80vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  dlg.append(h('div', { style: 'padding:16px' },
+    h('h3', {}, `${a.icon || ''} ${a.name}`), h('p', { class: 'muted small' }, PICK_TITLE[key] || ''),
+    h('div', { class: 'chat-pick-list' }, ...list.map((o) => h('button', { class: 'chat-kind', onclick: () => { close(); doAct(a.id, undefined, undefined, o.id); } }, o.label))),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
 function pickPlace(a) {
   const od = (S.view || {}).outdoor || {};
   const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);height:auto' });
@@ -983,12 +997,12 @@ async function gameAct(path, body) {
   }
 }
 
-async function doAct(aid, outfit, place) {
+async function doAct(aid, outfit, place, pick) {
   if (S.busy) return;
   S.busy = true;
   renderCommands();
   try {
-    const r = outfit === undefined ? await api('/api/act', withT(place ? { action: aid, place } : { action: aid })) : await api('/api/dress', withT({ outfit }));
+    const r = outfit === undefined ? await api('/api/act', withT(Object.assign({ action: aid }, place ? { place } : {}, pick ? { pick } : {}))) : await api('/api/dress', withT({ outfit }));
     handleActResult(r);
   } catch (e) {
     toast(e.message, 'err');

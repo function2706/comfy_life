@@ -1372,9 +1372,23 @@ class App:
             if tr and tr.get("from") == "p" and self.life.player_state()["money"] < int(tr.get("amount", 0)):
                 raise ValueError("お金が足りません（%s円必要）" % format(int(tr["amount"]), ","))
             self._apol = None
-            if a.get("mood_action") == "apologize":       # その場で謝る: 許し方はメッセージと同じ判定 (反応の条件 apology)
-                self._apol = self.manners.apology(char, st, now, face=True)
+            ma0, pick = a.get("mood_action"), opts.get("pick")
+            if ma0 == "apologize":       # その場で謝る: 許し方はメッセージと同じ判定 (反応の条件 apology). 理由を選んでいれば, それで
+                if pick is not None and not msgpick_mod.valid_apology(self, pick):
+                    raise ValueError("謝る理由が違います")
+                self._apol = self.manners.apology(char, st, now, face=True, pick=pick)
                 ctx["apology"] = self._apol["out"]
+                ctx["apology_miss"] = bool(self._apol.get("miss"))
+            elif ma0 == "thank":         # その場でお礼 (A5): 何のお礼かを選ぶ. 判定はメッセージと同じ (反応の条件 thanks)
+                if pick not in dict(msgpick_mod.FAVORS):
+                    raise ValueError("何のお礼かを選んでください")
+                ctx["thanks"], _ = self.manners.thanks_pick(st, now, pick, char)
+            elif ma0 == "consult_me":    # その場で相談する (A5): 中身を選ぶ. 判定はメッセージと同じ (反応の条件 consult)
+                if pick not in msgpick_mod.CONSULT_WORD:
+                    raise ValueError("何を相談するかを選んでください")
+                self.manners.favor(st, "consult", now)
+                ctx["consult"], _, ex = self.chat.consult_reply(char, st, pick, now, {})
+                extra.update(ex)
             r = self.pick_reaction(a, ctx)
             invite = apart and (a.get("override") or {}).get("outing")
             promised = st.get("date_promise", 0) > now          # メッセージで「会おう」に応じてくれていた
@@ -2722,6 +2736,8 @@ class App:
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
+                "picks": {"apology": msgpick_mod.apology_choices(self), "thanks": msgpick_mod.thanks_choices(),
+                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
                 "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),

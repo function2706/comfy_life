@@ -818,6 +818,7 @@
   "when": "free=true",
   "cooldown": 15,
   "mood_action": "apologize",
+  "pick": "apology",
   "effects": {},
   "pos": "",
   "neg": "",
@@ -928,9 +929,160 @@
      "stress": 4,
      "affection": -1
     }
+   },
+   {
+    "key": "apology_near",
+    "when": "apology=near",
+    "priority": 1,
+    "text": "……それもですけど。それだけじゃないです。",
+    "effects": {
+     "mood": 3
+    }
+   },
+   {
+    "key": "apology_unminded",
+    "when": "apology=unminded",
+    "priority": 1,
+    "text": "え、それは気にしてないですよ。大丈夫です。",
+    "effects": {
+     "trust": 1
+    }
+   },
+   {
+    "key": "apology_miss",
+    "when": "apology=none, apology_miss=true",
+    "priority": 1,
+    "text": "……そのことじゃないです。",
+    "effects": {
+     "mood": -4
+    }
    }
   ],
   "skill": "talk"
+ },
+ {
+  "id": "thank",
+  "name": "お礼を言う",
+  "icon": "🙏",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 10,
+  "mood_action": "thank",
+  "pick": "thanks",
+  "effects": {},
+  "pos": "smile, looking at viewer",
+  "neg": "",
+  "skill": "talk",
+  "reactions": [
+   {
+    "key": "default",
+    "when": "",
+    "text": "どういたしまして。",
+    "effects": {
+     "mood": 1
+    }
+   },
+   {
+    "key": "thanks",
+    "when": "thanks=thanks",
+    "priority": 1,
+    "text": "どういたしまして。そう言ってもらえると、うれしいです。",
+    "effects": {
+     "mood": 4,
+     "trust": 1,
+     "affection": 1
+    }
+   },
+   {
+    "key": "thanks_again",
+    "when": "thanks=thanks_again",
+    "priority": 1,
+    "text": "それ、もう聞きましたよ。……でも、どういたしまして。",
+    "effects": {
+     "mood": 0.5
+    }
+   },
+   {
+    "key": "thanks_what",
+    "when": "thanks=thanks_what",
+    "priority": 1,
+    "text": "え、何のお礼ですか？ 心当たりがないです。",
+    "effects": {}
+   },
+   {
+    "key": "thanks_not_yet",
+    "when": "thanks=thanks_not_yet",
+    "priority": 1,
+    "text": "……まだ、許したわけじゃないですけど。",
+    "effects": {
+     "mood": -1
+    }
+   },
+   {
+    "key": "thanks_unforgiven",
+    "when": "thanks=thanks_unforgiven",
+    "priority": 1,
+    "text": "……許してないのに、お礼を言われても困ります。",
+    "effects": {
+     "mood": -2,
+     "affection": -0.5
+    }
+   }
+  ]
+ },
+ {
+  "id": "consult_me",
+  "name": "相談する",
+  "icon": "🤔",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 30,
+  "mood_action": "consult_me",
+  "pick": "consult",
+  "effects": {},
+  "pos": "sitting together, talking, serious",
+  "neg": "",
+  "skill": "talk",
+  "reactions": [
+   {
+    "key": "default",
+    "when": "",
+    "text": "うん、聞きますよ。{topic}のこと、話してください。",
+    "effects": {
+     "trust": 2,
+     "affection": 1
+    }
+   },
+   {
+    "key": "consult_good",
+    "when": "consult=consult_good",
+    "priority": 1,
+    "text": "{topic}のことなら、少しわかります。まず一つずつ片付けましょう。……また聞かせてくださいね。",
+    "effects": {
+     "trust": 3,
+     "affection": 1
+    }
+   },
+   {
+    "key": "consult_off",
+    "when": "consult=consult_off",
+    "priority": 1,
+    "text": "{topic}のことは、私にはよくわからないですけど……話してくれて、うれしいです。",
+    "effects": {
+     "trust": 1
+    }
+   },
+   {
+    "key": "consult_jealous",
+    "when": "consult=consult_jealous",
+    "priority": 1,
+    "text": "……その人と、仲いいんですね。……ふうん。",
+    "effects": {
+     "mood": -2,
+     "heart": 1
+    }
+   }
+  ]
  },
  {
   "id": "comfort",

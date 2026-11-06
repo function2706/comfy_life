@@ -26,12 +26,17 @@
 - A3 移動: 電車・バス・タクシーで移動中に、小説の続き・映画の続き（スマホで）・技能の本を進められる。駅で待っている間と乗っている間だけ進む（歩く・こぐ・運転中は無理）。着いたとき・途中でやめたとき・画面を閉じていても着くまで（`geo.set_doing` `finish_doing`）
 - A4 電話: 話すことを選んでかける（雑談・最近どう？・相談・お礼・謝る・話題・甘える・会おうよ）。謝る・お礼・相談・話題は、メッセージと同じく何についてかも選ぶ。出てくれたら、その話への受け答えはメッセージと同じ判定（`engine.phone_call`）
 - A4 電話: 通話の長さはノリと話の受け止めで決まり、終わったらトークに「📞 電話で話した（33分ほど。楽しそうだった）」と残る（眠そう・疲れていそう・落ち着いて・素っ気ない・気まずそう も）。楽しかったときは、あとで相手から「さっきは電話ありがとう」が届くことがある
+- A5 対面: 「謝る」で何を謝るかを選ぶ（メッセージと同じ一覧・判定）。近いことなら「それもですけど」、気にしていないことなら「気にしてないですよ」、別のことで怒っていれば「そのことじゃないです」
+- A5 対面: 「お礼を言う」（何のお礼かを選ぶ）と「相談する」（中身を選ぶ）のコマンドを足した。判定はメッセージと同じ。「相談にのる」（相手の話を聞く）はそのまま
+- A5 遡及: 既定のまま使っているワールドは、次に開いたときに「謝る」の新しい反応と、2 つのコマンドが入る（`default_history` を更新。手を加えたコマンドはそのまま）
 - テスト: `test_manners` の「お疲れさま」が、0〜2 時台に流すと落ちていた（予定が日をまたぐ）。昼の時刻で確かめる
 
 - 約束: レストランに誘うと、サーバのエラーで誘えなかった（予約を調べた記録に、時刻を二重に渡していた。`core/appoint.py` の `propose`）
 - メッセージ: 夜中でも、相手から 30 分以内に届いていれば、やりとりの最中なので「こんな時間に何？」とは返さない（約束の返事のすぐあとのお礼に、そう返していた。`chat.talking`）。これまでの返事はそのまま（遡及なし: 機嫌が少し下がっただけで、もう戻っている頃）
 
 - 画面を閉じていたあいだのまとめ: 「お金 +3,830円」は使った分（交通費・買い物など）を引いた増減で、給料に見えて紛らわしかった。「（給料 +9,840円・使った分 -6,010円）」と内訳も出す（`offline.simulate` の `wage`。これまでのまとめは仕事の分だけで出す）
+
+部分テスト（A5）: `test_face_talk`（新規） `test_msgpick` `test_manners` `test_manners_oldsave` `test_chat` `test_apology_scope` `test_definitions` `test_personas` `test_persona_text` `test_js_names` `test_api_errors` `test_attach` `test_attach2` `test_bonds` `test_quarrel` `test_favor_thanks` `test_company` `test_stay` `test_visit`、古いコマンド定義のワールドへの反映も確認
 
 部分テスト（A4）: `test_phone_talk`（新規） `test_phone` `test_chat` `test_msgpick` `test_manners` `test_manners_oldsave` `test_nori` `test_deliver_once` `test_msgreply` `test_js_names` `test_api_errors` `test_topics` `test_reading` `test_reply_speed` `test_definitions` `test_personas` `test_favor_thanks`、画面はブラウザで確認
 
