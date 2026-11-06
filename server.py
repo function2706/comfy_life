@@ -197,6 +197,8 @@ def route(method, path, q, body):
                 return {"meal": a.body.eat(b["how"], b["id"])}
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
+        if path == "/api/phone/call":
+            return a.phone_call(b["id"], b.get("talk"), {k: b[k] for k in ("reason", "consult", "topic") if b.get(k)})
         if path == "/api/travel/doing":
             with a.lock:
                 return a.geo.set_doing(b.get("what"))

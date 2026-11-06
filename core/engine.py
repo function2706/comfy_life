@@ -34,6 +34,7 @@ from . import outdoor as outdoor_mod
 from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
+from . import msgpick as msgpick_mod
 from . import nori as nori_mod
 from . import attach as attach_mod
 from . import topics as topics_mod
@@ -1617,7 +1618,65 @@ class App:
                 self.manners.favor(st, "call", now)         # 電話に付き合ってくれた (お礼の心当たり)
             self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
             self.chat.add(cid, "her", text, kind="call", t=now + 0.001)
-        return {"entry": entry, "job": job, "llm_error": llm_error}
+        out = {"entry": entry, "job": job, "llm_error": llm_error}
+        if called:
+            out["call_key"] = (r or {}).get("key")
+            out["call_ok"] = bool(entry) and (r or {}).get("key") not in ("cold", "later") and not (r or {}).get("override") \
+                and not ctx.get("too_often")
+        return out
+
+    # ------------------------------------------------------------------ 電話 (A4): 話すことを選んでかける
+    CALL_TALK = ("smalltalk", "ask_how", "consult", "thanks", "apology", "topic", "flirt", "invite")
+
+    def phone_call(self, cid, talk=None, extra=None):
+        """話すことを選んで電話をかける. 出てくれたら, その話への受け答えはメッセージと同じ判定 (理由・中身を選んだ謝罪・お礼・相談も).
+        通話の長さはノリ (core/nori.py) と話の受け止めで決まり, 終わったら相手の様子と通話時間をトークに残す.
+        楽しかったときは, あとで相手からひとこと届くことも."""
+        talk = talk or "smalltalk"
+        if talk not in self.CALL_TALK:
+            raise ValueError("電話で話すことではありません")
+        extra = dict(extra or {})
+        if talk == "topic":
+            x = self.topics.find(extra.get("topic"))
+            extra["topic_text"] = x["text"]
+        chk = msgpick_mod.check_extra(self, talk, extra)          # 選んだ理由・中身を確かめる (メッセージと同じ)
+        r = self.act("call", cid)
+        if not r.get("call_ok"):
+            return r
+        with self.lock:
+            char, st = self.char(cid), self.state(cid)
+            now = time.time()
+            d = self.chat.load(cid)
+            n0 = len(d["items"])
+            if talk:
+                said_me = "%sをした" % extra["topic_text"] if talk == "topic" else chk["said"].strip("（）")
+                self.chat.add(cid, "me", "（電話で: %s）" % said_me, kind=talk, t=now + 0.01)
+            pend = {"kind": talk, "t": now, "kind_t": now, "meta": dict(extra, call=True), "reply": True}
+            self._chat_reply(char, st, pend, now + 0.02)
+            d = self.chat.load(cid)
+            said = [it for it in d["items"][n0:] if it.get("who") == "her"]
+            for it in said:
+                it["text"] = it["text"].replace("📱", "📞", 1)
+            key = said[0].get("kind") if said else None
+            lv = nori_mod.level(st, now) or 0.3
+            good = key and not any(w in key for w in ("_what", "_confused", "_cold", "_hurt", "_bad", "_off", "_jealous", "bored", "again", "refuse", "irritated", "enough"))
+            p = st["params"]
+            mins = max(2, int(round((4 + 30 * lv) * (1.3 if good else 0.6) * random.uniform(0.7, 1.3))))
+            how = "眠そうだった" if p.get("sleepiness", 0) >= 70 else "疲れていそうだった" if p.get("energy", 60) < 25 \
+                else "楽しそうだった" if good and lv >= 0.55 else "落ち着いて話してくれた" if good \
+                else "素っ気なかった" if lv < 0.35 else "少し気まずそうだった"
+            for it in d["items"]:
+                if it.get("kind") == "call" and it.get("who") == "sys" and abs(it.get("t", 0) - now) < 120 and it["text"] == "📞 電話で話した":
+                    it["text"] = "📞 電話で話した（%d分ほど。%s）" % (mins, how)
+            self.chat.save(cid, d)
+            if good and lv >= 0.55 and not st.get("msg_pending") and random.random() < 0.35:
+                # 楽しかった: あとで相手からひとこと (届くのは時間差の仕組みで)
+                st["msg_pending"] = {"aid": "message", "t": now, "due": now + random.uniform(10, 60) * 60, "reply": True,
+                                     "count": 1, "kind": "after_call", "meta": {}, "quick": False}
+            self.trace.add("msg", "電話で話した", cid, now, talk=talk, key=key, nori=lv, mins=mins, how=how)
+            self.save_state(cid)
+            r["call"] = {"mins": mins, "how": how, "key": key, "text": said[0]["text"] if said else ""}
+            return r
 
     def give_item(self, iid, cid=None):
         """持ち物からプレゼントする. 好き・苦手と値段で反応が変わる (高価なものは「重い」と断られることも)."""

@@ -1808,6 +1808,32 @@ async function phoneAct(cid, action) {
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
+// 電話 (A4): 話すことを選んでかける. 謝る・お礼・相談・話題は, もう一段選ぶ
+const CALL_TALK = [['smalltalk', '💬 雑談'], ['ask_how', '❓ 最近どう？'], ['consult', '🤔 相談する ▸'], ['thanks', '🙏 お礼を言う ▸'],
+  ['apology', '🙇 謝る ▸'], ['topic', '💬 話題を振る ▸'], ['flirt', '💕 甘える'], ['invite', '📅 会おうよ']];
+function callPicker(th) {
+  const P = th.pick || {};
+  const btn = (label, onclick) => h('button', { class: 'chat-kind', disabled: S.busy, onclick }, label);
+  const t = S.callTalk;
+  const list = t === 'topic' ? ((S.view && S.view.topics) || []).map((x) => ({ id: x.id, label: x.text })) : t ? P[t] || [] : null;
+  const key = t === 'topic' ? 'topic' : t === 'consult' ? 'consult' : 'reason';
+  return h('div', { class: 'chat-pick' },
+    h('div', { class: 'muted small' }, t ? (PICK_TITLE[t] || '何を話す？') : '電話で何を話す？（出てくれたら、その話から。長さは相手のノリしだい）'),
+    h('div', { class: 'chat-pick-list' + (t === 'apology' ? ' long' : '') },
+      ...(list ? [btn('← 戻る', () => { S.callTalk = null; drawChat(); }), ...(list.length ? list.map((o) => btn(o.label, () => callWith(th.id, t, { [key]: o.id })))
+        : [h('span', { class: 'muted small' }, '話せる話題がまだない')])]
+        : CALL_TALK.map(([id, label]) => btn(label, () => (label.endsWith('▸') ? (S.callTalk = id, drawChat()) : callWith(th.id, id)))))));
+}
+async function callWith(cid, talk, extra) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/phone/call', Object.assign({ id: cid, talk }, extra || {}));
+    toast(r.call ? `📞 ${r.call.mins}分ほど話した（${r.call.how}）` : (r.entry ? r.entry.text.replace(/\n.*/s, '') : '電話をかけた'), r.missed ? 'err' : 'ok');
+    S.chatJump = true; S.chatPick = null; S.callTalk = null;
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
 async function sendChat(cid, kind, extra) {
   if (S.busy) return;
   S.busy = true;
@@ -1833,7 +1859,12 @@ function chatSendBox(th) {
   };
   const g = G.find((x) => x.id === S.chatTab) || { kinds: [] };
   const extra = g.id === 'invite' && (th.appoint_choices || []).length ? [btn('📅 約束する', () => { S.apForm = S.apForm ? null : {}; drawChat(); }, !!S.apForm)]
-    : g.id === 'call' ? (th.actions || []).map((a) => btn(`${a.icon} ${a.name}`, () => phoneAct(th.id, a.id), false, !a.ok)) : [];
+    : g.id === 'call' ? (th.actions || []).map((a) => a.id === 'call'
+      ? btn(`${a.icon} ${a.name} ▸`, () => { S.chatPick = S.chatPick === 'call' ? null : 'call'; S.callTalk = null; drawChat(); }, S.chatPick === 'call', !a.ok)
+      : btn(`${a.icon} ${a.name}`, () => phoneAct(th.id, a.id), false, !a.ok)) : [];
+  if (S.chatPick === 'call') return h('div', {}, h('div', { class: 'chat-tabs' },
+    ...G.map((x) => h('button', { class: 'chat-tab' + (x.id === g.id ? ' on' : ''), onclick: () => { S.chatTab = x.id; S.chatPick = null; drawChat(); } }, `${x.icon} ${x.label}`))),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...extra), callPicker(th));
   const pk = S.chatPick && P[S.chatPick] ? S.chatPick : null;
   const kind = pk === 'stamp' ? 'stamp' : pk;
   return h('div', {},

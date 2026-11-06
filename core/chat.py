@@ -89,6 +89,7 @@ LINES = {
     "chat.greet_again": "📱『さっきも言いましたよね？』",
     "chat.stamp_only": "📱『……スタンプだけですか？』",
     "chat.stamp_spam": "📱『スタンプ連打はやめてください……』",
+    "chat.after_call": "📱『さっきは電話ありがとうございました。楽しかったです』",
     # 理由・中身を選んだメッセージ (core/msgpick.py)
     "chat.apology_near": "📱『……それもですけど。それだけじゃないです』",
     "chat.apology_unminded": "📱『え、それは気にしてないですよ。大丈夫です』",
@@ -180,7 +181,7 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "stamp_heart": "ハートのスタンプ (うれしい)", "stamp_heart_cold": "ハートのスタンプ (浅い仲で、なれなれしい)",
                "stamp_sorry_bad": "ごめんのスタンプ (本当に怒っているとき)", "stamp_thanks": "ありがとうのスタンプ (心当たりあり)",
                "consult_good": "相談 (頼りになる返事。{topic} に中身)", "consult_off": "相談 (よくわからない。{topic} に中身)",
-               "consult_jealous": "相談 (ほかの人との仲。嫉妬)","may_call_ok": "今いい？ (いいよ)", "may_call_later": "今いい？ (あとで)",
+               "consult_jealous": "相談 (ほかの人との仲。嫉妬)", "after_call": "電話のあとのひとこと (楽しかった)", "may_call_ok": "今いい？ (いいよ)", "may_call_later": "今いい？ (あとで)",
                "otsukare": "お疲れさま (ちょうど終わった頃)", "otsukare_odd": "お疲れさま (的外れな時間)",
                "you_ok": "大丈夫？ (体調・落ち込みを知っていて)", "you_ok_what": "大丈夫？ (心当たりがない)",
                "what_doing": "今何してる？ ({doing} に今していること)", "what_doing_much": "今何してる？ (聞きすぎ. 束縛っぽい)",
@@ -282,27 +283,8 @@ class Chat:
             raise ValueError("話題を選んでください")
         if kind == "tell_bday" and not self.app.anniv.my_birthday():
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
-        extra = dict(extra or {})
-        rs = extra.get("reason")
-        if kind == "apology" and rs:
-            item = next((x for x in msgpick.apology_choices(self.app) if x["id"] == rs), None)
-            if not item:
-                raise ValueError("謝る理由が違います")
-            extra["said"] = "（謝った: %s）" % item["label"]
-        elif kind == "thanks" and rs:
-            if rs not in dict(msgpick.FAVORS):
-                raise ValueError("お礼の理由が違います")
-            extra["said"] = "（お礼を言った: %s）" % dict(msgpick.FAVORS)[rs]
-        elif kind == "consult" and extra.get("consult"):
-            if extra["consult"] not in msgpick.CONSULT_WORD:
-                raise ValueError("相談の中身が違います")
-            extra["said"] = "（%sを相談した）" % dict((k, w) for k, w, _ in msgpick.CONSULT)[extra["consult"]]
-        elif kind == "stamp" and extra.get("stamp"):
-            if extra["stamp"] not in msgpick.STAMP:
-                raise ValueError("スタンプの種類が違います")
-            ic, w = msgpick.STAMP[extra["stamp"]]
-            extra["said"] = "（%s %sのスタンプを送った）" % (ic, w)
-        return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra or None})
+        extra = msgpick.check_extra(self.app, kind, extra)
+        return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": {k: v for k, v in extra.items() if k != "said" or v != KINDS[kind][2]} or None})
 
     TALKING_MIN = 30          # 相手からのメッセージがこれ以内なら, やりとりの最中 (夜中でも「こんな時間に」とは言わない)
 

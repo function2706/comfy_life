@@ -24,12 +24,16 @@
 - A3 読書・映画: その話題を振ると、相手がジャンルの好き・苦手を口にすることがある（「恋愛もの、けっこう好きなんです」）。近い仲・信頼・機嫌・話したがりの性格ほど言う。聞いたことは「知っていること」に残る（`topics.reveal`。会っても、メッセージでも）
 - A3 読書: 「本を読む」で、小説（ジャンル）か、持っている技能の本を選ぶ。技能の本を読むのは、その技能の研鑽（本があると伸びやすい）。「研鑽」のコマンドはそのまま
 - A3 移動: 電車・バス・タクシーで移動中に、小説の続き・映画の続き（スマホで）・技能の本を進められる。駅で待っている間と乗っている間だけ進む（歩く・こぐ・運転中は無理）。着いたとき・途中でやめたとき・画面を閉じていても着くまで（`geo.set_doing` `finish_doing`）
+- A4 電話: 話すことを選んでかける（雑談・最近どう？・相談・お礼・謝る・話題・甘える・会おうよ）。謝る・お礼・相談・話題は、メッセージと同じく何についてかも選ぶ。出てくれたら、その話への受け答えはメッセージと同じ判定（`engine.phone_call`）
+- A4 電話: 通話の長さはノリと話の受け止めで決まり、終わったらトークに「📞 電話で話した（33分ほど。楽しそうだった）」と残る（眠そう・疲れていそう・落ち着いて・素っ気ない・気まずそう も）。楽しかったときは、あとで相手から「さっきは電話ありがとう」が届くことがある
 - テスト: `test_manners` の「お疲れさま」が、0〜2 時台に流すと落ちていた（予定が日をまたぐ）。昼の時刻で確かめる
 
 - 約束: レストランに誘うと、サーバのエラーで誘えなかった（予約を調べた記録に、時刻を二重に渡していた。`core/appoint.py` の `propose`）
 - メッセージ: 夜中でも、相手から 30 分以内に届いていれば、やりとりの最中なので「こんな時間に何？」とは返さない（約束の返事のすぐあとのお礼に、そう返していた。`chat.talking`）。これまでの返事はそのまま（遡及なし: 機嫌が少し下がっただけで、もう戻っている頃）
 
 - 画面を閉じていたあいだのまとめ: 「お金 +3,830円」は使った分（交通費・買い物など）を引いた増減で、給料に見えて紛らわしかった。「（給料 +9,840円・使った分 -6,010円）」と内訳も出す（`offline.simulate` の `wage`。これまでのまとめは仕事の分だけで出す）
+
+部分テスト（A4）: `test_phone_talk`（新規） `test_phone` `test_chat` `test_msgpick` `test_manners` `test_manners_oldsave` `test_nori` `test_deliver_once` `test_msgreply` `test_js_names` `test_api_errors` `test_topics` `test_reading` `test_reply_speed` `test_definitions` `test_personas` `test_favor_thanks`、画面はブラウザで確認
 
 部分テスト（A3）: `test_reading`（新規） `test_topics` `test_geo` `test_redirect` `test_solo` `test_offline` `test_offline_fallback` `test_closed_away` `test_js_names` `test_api_errors` `test_definitions` `test_personas` `test_items` `test_skills4` `test_chat`、画面はブラウザで確認
 

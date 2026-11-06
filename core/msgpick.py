@@ -146,3 +146,30 @@ def near(a, b, app=None):
 
 def valid_apology(app, pid):
     return any(x["id"] == pid for x in apology_choices(app))
+
+
+def check_extra(app, kind, extra):
+    """選んだ理由・中身を確かめて, トークに残す要約 (said) を付ける (メッセージ・電話で共通). 違えば ValueError."""
+    from .chat import KINDS
+    extra = dict(extra or {})
+    rs = extra.get("reason")
+    if kind == "apology" and rs:
+        item = next((x for x in apology_choices(app) if x["id"] == rs), None)
+        if not item:
+            raise ValueError("謝る理由が違います")
+        extra["said"] = "（謝った: %s）" % item["label"]
+    elif kind == "thanks" and rs:
+        if rs not in dict(FAVORS):
+            raise ValueError("お礼の理由が違います")
+        extra["said"] = "（お礼を言った: %s）" % dict(FAVORS)[rs]
+    elif kind == "consult" and extra.get("consult"):
+        if extra["consult"] not in CONSULT_WORD:
+            raise ValueError("相談の中身が違います")
+        extra["said"] = "（%sを相談した）" % dict((k, w) for k, w, _ in CONSULT)[extra["consult"]]
+    elif kind == "stamp" and extra.get("stamp"):
+        if extra["stamp"] not in STAMP:
+            raise ValueError("スタンプの種類が違います")
+        ic, w = STAMP[extra["stamp"]]
+        extra["said"] = "（%s %sのスタンプを送った）" % (ic, w)
+    extra.setdefault("said", KINDS[kind][2] if kind in KINDS else "")
+    return extra
