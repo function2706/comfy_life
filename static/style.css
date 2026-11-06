@@ -902,3 +902,8 @@ a.btn { color: inherit; }
 
 /* 買うものリスト: リストに入っている品 */
 .item-row.on { background: color-mix(in srgb, var(--accent, #e88) 10%, transparent); border-radius: 6px; }
+.travel-steps { margin: 4px 0; }
+.tsteps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; margin-top: 3px; }
+.tstep { padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line, #8884); white-space: nowrap; }
+.tstep.now { background: var(--accent, #d77); color: #fff; border-color: transparent; font-weight: 700; }
+.tstep.done { opacity: .45; }

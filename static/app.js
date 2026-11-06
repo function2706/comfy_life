@@ -281,6 +281,8 @@ function tickClock() {
   $('#clock-hm').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   $('#clock-s').textContent = ':' + pad(d.getSeconds());
   $('#clock-date').textContent = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`;
+  const tv = S.view && (((S.view.presence || {}).travel) || ((S.view.outdoor || {}).travel));      // 移動の区間を進める
+  if (tv) for (const el of document.querySelectorAll('.travel-steps')) el.replaceWith(travelSteps(tv));
   const t = T();
   if (t && t.override_until) {
     const rest = Math.max(0, Math.round(t.override_until - Date.now() / 1000));
@@ -500,6 +502,33 @@ const OD_CHOICES = () => (S.view && S.view.outdoor && S.view.outdoor.choices) ||
 S.how = 'auto';
 const HOW_NAME = { auto: 'おまかせ', walk: '🚶 歩く', transit: '🚃 電車・バス', bike: '🚲 自転車', car: '🚗 車', taxi: '🚕 タクシー' };
 const HOW_ICON = { walk: '🚶', run: '🏃', transit: '🚃', bike: '🚲', car: '🚗', taxi: '🚕' };
+// 移動の区間 (core/geo.py の segs): 駅まで歩く → 待つ → 乗る → 降りて歩く など. いまの区間を目立たせ, 済んだ区間は薄く
+const SEG_ICON = { walk: '🚶', wait: '⏳', ride: '🚃', bike: '🚲', run: '🏃', car: '🚗', taxi: '🚕' };
+function segAt(tv) {          // いまの区間と, その残り (秒). 画面の時計で (サーバの値は開いたときのもの)
+  const segs = tv.segs || [];
+  const tot = segs.reduce((x, g) => x + g.min, 0) || 1, span = Math.max(1, tv.arr - tv.t0);
+  const e = (Date.now() / 1000 - tv.t0) / span * tot;
+  let acc = 0;
+  for (let i = 0; i < segs.length; i++) {
+    if (e < acc + segs[i].min || i === segs.length - 1) return [i, Math.max(0, (acc + segs[i].min - e) * span / tot)];
+    acc += segs[i].min;
+  }
+  return [0, 0];
+}
+function travelNow(tv) {
+  const [i, rem] = segAt(tv);
+  const g = (tv.segs || [])[i];
+  return g ? `いま: ${SEG_ICON[g.kind] || ''} ${g.label}${(tv.segs || []).length > 1 ? `（この区間あと${Math.max(1, Math.ceil(rem / 60))}分）` : ''}` : '';
+}
+function travelSteps(tv) {
+  const segs = tv.segs || [];
+  if (!segs.length) return '';
+  tv = Object.assign({}, tv, { seg: segAt(tv)[0] });
+  return h('div', { class: 'travel-steps' },
+    h('span', { class: 'small' }, travelNow(tv)),
+    segs.length > 1 ? h('div', { class: 'tsteps' }, ...segs.map((g, i) => [i ? h('span', { class: 'muted' }, '→') : '',
+      h('span', { class: 'tstep' + (i === tv.seg ? ' now' : i < tv.seg ? ' done' : '') }, `${SEG_ICON[g.kind] || '•'} ${g.label} ${g.min}分`)])) : '');
+}
 function howPicker(onchange) {
   const V = (((S.view || {}).outdoor || {}).vehicles || {}).own || {};
   const ids = ['auto', 'walk', 'transit', ...(V.bicycle ? ['bike'] : []), ...(V.car ? ['car'] : []), 'taxi'];
@@ -1952,6 +1981,7 @@ function renderAway() {
     h('div', { class: 'away-title' }, p.travel ? `${HOW_ICON[p.travel.how] || '🚶'} ${p.label}` : p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
     p.travel ? h('div', { class: 'muted small' }, p.travel.dir === 'home' ? '家に着くまでは、まだ外です（スマホは使えます）'
       : `着くまでは、${p.travel.label}でのことはできません（スマホは使えます）${p.travel.note ? '。' + p.travel.note : ''}`) : '',
+    p.travel ? travelSteps(p.travel) : '',
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     shopCard(p),
@@ -2214,6 +2244,7 @@ function renderMap() {
         tv && tv.dir === 'home' ? '家へ向かっている' : tv ? '↩ 引き返す' : '🏠 帰る') : ''),
     tv ? h('div', { style: 'height:6px;background:var(--line,#8884);border-radius:3px;margin-top:6px;overflow:hidden' },
       h('i', { style: `display:block;height:100%;width:${Math.round(prog * 100)}%;background:var(--accent,#d77)` })) : '',
+    tv ? travelSteps(tv) : '',
     tv && tv.note ? h('div', { class: 'small muted' }, tv.note) : '',
     tv ? h('div', { class: 'small muted' }, tv.dir === 'home' ? '家に着くまでは、まだ外です。行き先を押せば、いまの地点からそちらへ向かえます。'
       : `着くまでは、${tv.label}でのことはできません。行き先を押せば、いまの地点から向かう先を変えられます。`,

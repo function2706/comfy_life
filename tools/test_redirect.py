@@ -61,6 +61,13 @@ def main():
         mid = geo.midway(t_ride)
         assert mid.startswith("pt:") and mid.count(",") == 2 and app.places.label(mid) == "途中の駅", mid
         assert geo.phase(t_post)[0] == "post" and geo.midway(t_post) == "aquarium"
+        kinds = [k for k, _, _ in tr["segs"]]
+        assert kinds[0] == "walk" and "ride" in kinds and abs(sum(m for _, m, _ in tr["segs"]) - tot) < 1.5, tr["segs"]
+        assert tr["segs"][geo.seg_now(tr, t_ride)[0]][0] == "ride" and geo.seg_now(tr, t_pre)[0] <= 1
+        assert tr["segs"][geo.seg_now(tr, t_post)[0]][2] == "降りて歩く"
+        v = geo.view(t_ride)
+        assert v["segs"][v["seg"]]["label"] == "電車・バスに乗っている", v
+        print("区間:", " → ".join("%s %d分" % (t, m) for _, m, t in tr["segs"]))
         assert geo.unused_fare(tr, t_pre) == tr["fare"]
         part = geo.unused_fare(tr, t_ride)
         assert 0 < part < tr["fare"], (part, tr["fare"])

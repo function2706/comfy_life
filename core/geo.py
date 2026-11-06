@@ -277,7 +277,8 @@ class Geo:
             notes.append("事故で道が混んでいた（%d分）" % round(d))
         elif how == "bike" and random.random() < EV_FLAT:
             part = random.uniform(0.2, 0.8)          # 途中でパンク: 残りは押して歩く
-            r["min"] = r["min"] * part + self.walk_min(a, b, t) * (1 - part)
+            r["flat"] = [r["min"] * part, self.walk_min(a, b, t) * (1 - part)]     # こいだ分 / 押して歩いた分 (区間の表示に)
+            r["min"] = sum(r["flat"])
             r["fare"] += FLAT_FIX
             notes.append("自転車がパンクして、押して歩いた（修理代%d円）" % FLAT_FIX)
         r["note"] = "。".join(notes)
@@ -387,6 +388,40 @@ class Geo:
         a, b = self.pt(tr["from"])["xy"], self.pt(tr["to"])["xy"]
         return "pt:%.3f,%.3f" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
 
+    def segs(self, lg, frm, to):
+        """移動 1 回の区間 [[種類, 分, ことば]] (画面で, いまどの区間かを出す). 種類: walk / wait / ride / bike / run / car / taxi.
+        電車・バス: 駅・停留所まで歩く → 待つ → 乗る → 降りて歩く. タクシー: 来るまで待つ → 乗る. ほかは 1 区間."""
+        how, tot = lg["how"], float(lg["min"])
+        if how == "transit":
+            a = self.pt(frm)["acc"] * ROAD / WALK_KMH * 60
+            b = self.pt(to)["acc"] * ROAD / WALK_KMH * 60
+            w = float(lg.get("wait", 0))
+            out = [["walk", a, "駅・停留所まで歩く"], ["wait", w, "始発を待つ" if "始発" in (lg.get("note") or "") else "駅で待つ"],
+                   ["ride", max(1.0, tot - a - w - b), "電車・バスに乗っている"], ["walk", b, "降りて歩く"]]
+        elif how == "bike" and lg.get("flat"):
+            out = [["bike", lg["flat"][0], "自転車に乗っている"], ["walk", lg["flat"][1], "パンクした自転車を押して歩く"]]
+        elif how == "taxi":
+            w = float(lg.get("wait", 0))
+            out = [["wait", w, "タクシーを待つ"], ["taxi", tot - w, "タクシーに乗っている"]]
+        else:
+            out = [[how, tot, {"walk": "歩いている", "run": "走っている", "bike": "自転車に乗っている", "car": "車を運転している"}.get(how, "移動している")]]
+        return [[k, round(m, 1), t] for k, m, t in out if m >= 0.5] or [[how, round(tot, 1), "移動している"]]
+
+    def seg_now(self, tr, now):
+        """いまの区間の番号と, その区間の残り (秒). 遅れなどで全体が延びた分は, 全体にならす."""
+        segs = tr.get("segs") or []
+        if not segs:
+            return None, 0
+        tot = sum(m for _, m, _ in segs)
+        span = max(1.0, tr["arr"] - tr["t0"])
+        e = (now - tr["t0"]) / span * tot
+        acc = 0.0
+        for i, (_, m, _) in enumerate(segs):
+            if e < acc + m or i == len(segs) - 1:
+                return i, max(0, int((acc + m - e) * span / tot))
+            acc += m
+        return len(segs) - 1, 0
+
     def phase(self, now=None):
         """電車・バスで移動中の段階: ("pre", 0) 駅へ歩く・待つ / ("ride", 進み具合) 乗っている / ("post", 1) 降りて歩く. 電車・バスでなければ None."""
         now = now or time.time()
@@ -490,6 +525,7 @@ class Geo:
             pre = self.pt(frm)["acc"] * ROAD / WALK_KMH * 60 + lg.get("wait", 0)
             post = self.pt(to)["acc"] * ROAD / WALK_KMH * 60
             p["travel"]["ph"] = [round(pre, 1), round(max(1.0, lg["min"] - pre - post), 1), round(post, 1)]
+        p["travel"]["segs"] = self.segs(lg, frm, to)
         app.presence.save()
         return p["travel"]
 
@@ -559,9 +595,13 @@ class Geo:
         tr = self.travel()
         if not tr:
             return None
+        seg, seg_remain = self.seg_now(tr, now)
         return {"to": tr["to"], "from": tr["from"], "t0": tr["t0"], "label": self.app.places.label(tr["to"]) if tr["dir"] == "go" else "家",
+                "from_label": self.app.places.label(tr["from"]) if tr["from"] != places_mod.HOME_ME else "家",
                 "how": tr["how"], "how_label": HOW_LABEL.get(tr["how"], ""), "dir": tr["dir"],
-                "remain": max(0, int(tr["arr"] - now)), "arr": tr["arr"], "fare": tr["fare"], "note": tr.get("note", "")}
+                "remain": max(0, int(tr["arr"] - now)), "arr": tr["arr"], "fare": tr["fare"], "note": tr.get("note", ""),
+                "segs": [{"kind": k, "min": max(1, round(m)), "label": t} for k, m, t in tr.get("segs") or []],
+                "seg": seg, "seg_remain": seg_remain}
 
     def map_view(self, ids, now=None):
         """地図に出す点: 駅前・あなたの家・行き先・職場 (と, 表にある相手の家). {id: [x, y]} (km)."""
