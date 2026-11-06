@@ -19,7 +19,8 @@ from . import nori as nori_mod
 
 TAGS = {"books": "本", "movies": "映画", "food": "食べ物", "sweets": "甘いもの", "animals": "動物", "nature": "自然", "sea": "海",
         "amusement": "遊園地", "shopping": "買い物", "fashion": "服", "games": "ゲーム", "work": "仕事", "money": "お金",
-        "gossip": "噂話", "sports": "運動", "cooking": "料理", "stars": "星"}
+        "gossip": "噂話", "sports": "運動", "cooking": "料理", "stars": "星",
+        "mystery": "推理もの", "romance": "恋愛もの", "action": "アクションもの", "horror": "ホラー", "anime": "アニメ"}
 # 行き先 → 系統
 PLACE_TAGS = {"park": ["nature"], "riverside": ["nature"], "shopping_street": ["shopping", "food"], "station": ["shopping"],
               "town": ["shopping"], "cafe": ["sweets"], "supermarket": ["cooking"], "convenience": ["food"], "drugstore": ["shopping"],
@@ -35,6 +36,30 @@ BOOKS = [("ある推理小説", ["books"]), ("恋愛小説", ["books"]), ("犬�
 MOVIES = [("アクション映画", ["movies"]), ("恋愛映画", ["movies"]), ("動物のドキュメンタリー", ["movies", "animals"]),
           ("アニメ映画", ["movies", "games"]), ("ホラー映画", ["movies"]), ("グルメ映画", ["movies", "food"]),
           ("海の生き物の記録映画", ["movies", "sea", "animals"]), ("宇宙の映画", ["movies", "stars"]), ("スポーツ映画", ["movies", "sports"])]
+# ジャンルを選んで読む・観る (A3): (id, 画面の名前, 題名の候補, 系統). 系統の 2 つめがジャンル (相手の好みはここで見る)
+BOOK_GENRES = [
+    ("mystery", "推理小説", ["ある推理小説", "古い洋館が舞台の推理小説"], ["books", "mystery"]),
+    ("romance", "恋愛小説", ["恋愛小説", "すれ違い続ける二人の恋愛小説"], ["books", "romance"]),
+    ("horror", "ホラー小説", ["怖い話の短編集", "山奥の村のホラー小説"], ["books", "horror"]),
+    ("animals", "動物の小説", ["犬が主人公の小説", "猫と暮らす人の小説"], ["books", "animals"]),
+    ("cooking", "料理のエッセイ", ["料理のエッセイ", "台所のエッセイ"], ["books", "cooking"]),
+    ("sea", "海の小説", ["海辺の町の小説"], ["books", "sea"]),
+    ("nature", "紀行文", ["山登りの紀行文", "歩く旅の紀行文"], ["books", "nature"]),
+    ("stars", "星の短編集", ["星にまつわる短編集"], ["books", "stars"]),
+    ("work", "お仕事小説", ["お仕事小説"], ["books", "work"]),
+    ("fashion", "服の本", ["服飾の歴史の本"], ["books", "fashion"]),
+]
+MOVIE_GENRES = [
+    ("action", "アクション", ["アクション映画"], ["movies", "action"]),
+    ("romance", "恋愛", ["恋愛映画"], ["movies", "romance"]),
+    ("mystery", "サスペンス", ["サスペンス映画"], ["movies", "mystery"]),
+    ("horror", "ホラー", ["ホラー映画"], ["movies", "horror"]),
+    ("anime", "アニメ", ["アニメ映画"], ["movies", "anime"]),
+    ("animals", "動物のドキュメンタリー", ["動物のドキュメンタリー", "海の生き物の記録映画"], ["movies", "animals"]),
+    ("food", "グルメ", ["グルメ映画"], ["movies", "food"]),
+    ("stars", "宇宙", ["宇宙の映画"], ["movies", "stars"]),
+    ("sports", "スポーツ", ["スポーツ映画"], ["movies", "sports"]),
+]
 WORK = ["仕事で忙しかった話", "職場であったちょっとした話", "仕事でうまくいった話", "仕事で失敗した話"]
 KEEP_DAYS = 21          # これより古い話題は消える
 FRESH_DAYS = 14         # 鮮度が落ちきるまで
@@ -144,7 +169,17 @@ class Topics:
         ps = self.app.life.player_state()
         return ps.get("reading"), ps.get("watching")
 
-    def read(self, h, now, need=1.5):
+    @staticmethod
+    def pick_genre(genres, gid):
+        """ジャンルから題名を 1 つ (選んでいなければ, どれかから). (題名, 系統)."""
+        g = next((x for x in genres if x[0] == gid), None) or random.choice(genres)
+        return random.choice(g[2]), list(g[3])
+
+    def genres_view(self):
+        return {"books": [{"id": g[0], "label": g[1]} for g in BOOK_GENRES],
+                "movies": [{"id": g[0], "label": g[1]} for g in MOVIE_GENRES]}
+
+    def read(self, h, now, need=1.5, genre=None):
         """本を読む: 読みかけがあれば続きから (日を空けたぶん少し読み返す), 無ければ持ち物の小説を 1 冊開く.
         読んだ時間の合計が need に届けば読み終えて話題に. 文を返す. 読む本が無ければ ValueError."""
         ps = self.app.life.player_state()
@@ -154,7 +189,7 @@ class Topics:
             if self.app.items.count("novel") <= 0:
                 raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
             self.app.items.add("novel", -1)
-            title, tags = random.choice(BOOKS)
+            title, tags = self.pick_genre(BOOK_GENRES, genre)
             b = ps["reading"] = {"title": title, "tags": tags, "h": 0.0, "t": now}
             head = "%sを読み始めた" % title
         else:
@@ -169,14 +204,14 @@ class Topics:
         self.app.life.save_player()
         return "%s（あと%d分ほど）" % (head, max(5, int(round((need - b["h"]) * 60 / 5.0)) * 5))
 
-    def watch(self, h, now, need=2.0, forget_days=3):
+    def watch(self, h, now, need=2.0, forget_days=3, genre=None):
         """家で映画を観る (配信): 観かけがあれば続きから. 何日も空けたら忘れて, 別の映画を最初から. 文を返す."""
         ps = self.app.life.player_state()
         m = ps.get("watching")
         if m and now - m["t"] > forget_days * 86400:
             m = None                                    # 観かけは忘れた
         if not m:
-            title, tags = random.choice(MOVIES)
+            title, tags = self.pick_genre(MOVIE_GENRES, genre)
             m = ps["watching"] = {"title": title, "tags": tags, "h": 0.0, "t": now}
             head = "家で%sを観始めた" % title
         else:
@@ -255,6 +290,28 @@ class Topics:
             nori_mod.bump(self.app, st, now, NORI[res], "話題: " + res)
         self.app.life.save_player()
 
+    REVEAL = {"like": "{genre}、けっこう好きなんです。", "dislike": "{genre}は、あんまり得意じゃないかも。"}
+
+    def reveal(self, char, st, x, res, now):
+        """読んだ本・観た映画の話から, そのジャンルが好き・苦手かを相手が口にすることがある (仲・機嫌・性格しだい).
+        聞いたことは「知っていること」に残る. 口にした一言 (文) を返す. 言わなければ None."""
+        if x.get("src") not in ("book", "movie") or res in ("again", "known"):
+            return None
+        g = next((k for k in x.get("tags") or [] if k not in ("books", "movies")), None)
+        tv = self.tastes(char, st).get(g, 0.0) if g else 0.0
+        if not g or abs(tv) < 0.3:
+            return None
+        p = st["params"]
+        close = self.app.bonds.stage(char["id"]) in ("visit", "live")
+        open_ = float(self.app.traits(char).get("approach", 1.0))          # 話したがりほど, 自分のことを言う
+        pr = 0.2 + (0.2 if close else 0) + (p.get("trust", 50) - 50) / 200.0 + (p.get("mood", 50) - 50) / 250.0 + 0.15 * (open_ - 1)
+        if random.random() >= max(0.05, min(0.8, pr)):
+            return None
+        kind = "like" if tv > 0 else "dislike"
+        self.app.bonds.learn(st, kind, TAGS[g], now)
+        t = self.app.persona_text(char, "topic.genre_" + kind) or self.REVEAL[kind]
+        return t.replace("{genre}", TAGS[g])
+
     def find(self, tid):
         x = next((x for x in self.all() if x["id"] == tid), None)
         if not x:
@@ -275,7 +332,8 @@ class Topics:
             with self.app.lock:
                 st = self.app.state(char["id"])
                 self.told(char, st, x, res, now)
-                e["text"] = "（%sをした）\n%s" % (x["text"], e.get("text", ""))      # 何の話をしたか
+                rv = self.reveal(char, st, x, res, now)
+                e["text"] = "（%sをした）\n%s" % (x["text"], e.get("text", "")) + ("\n「%s」" % rv if rv else "")     # 何の話をしたか
                 self.app.save_state(char["id"])
                 self.app.save_log(char["id"])
         trace = getattr(self.app, "trace", None)
@@ -297,14 +355,17 @@ class Topics:
             return "topic_ok", {}, {"topic": meta.get("topic_text", "")}
         res, vals = self.judge(char, st, x, now)
         self.told(char, st, x, res, now)
+        rv = self.reveal(char, st, x, res, now)
         trace = getattr(self.app, "trace", None)
         if trace:
-            trace.add("topic", "話題を振った (メッセージ)", char["id"], now, topic=x["text"], res=res, **vals)
-        return "topic_" + res, dict(EFFECT[res]), {"topic": x["text"]}
+            trace.add("topic", "話題を振った (メッセージ)", char["id"], now, topic=x["text"], res=res, reveal=rv, **vals)
+        return "topic_" + res, dict(EFFECT[res]), {"topic": x["text"], "reveal": rv or ""}
 
     def phone_line(self, char, res, extra):
         t = self.app.persona_text(char, "talk_topic." + res)
         t = "📱『%s』" % t if t else PHONE_LINES[res]
+        if extra.get("reveal"):                      # ジャンルの好き・苦手を口にした
+            t = t[:-1] + " " + extra["reveal"] + "』" if t.endswith("』") else t + " " + extra["reveal"]
         fp, _, call = self.app.pronouns(char)
         for k, v in dict(extra, fp=fp, call=call, name=char.get("name", "")).items():
             t = t.replace("{%s}" % k, str(v))

@@ -136,6 +136,12 @@ class Solo:
             return self.start_plain(kind, place, cid, how=how)
         if kind == "kakeibo":
             return self.kakeibo()
+        if kind == "read" and str(skill or "").startswith("book:"):     # 技能の本を読む: その技能の研鑽 (本があると伸びやすい)
+            from .items import PRACTICE_BOOK
+            sk = skill[5:]
+            if sk not in PRACTICE_BOOK or app.items.count(PRACTICE_BOOK[sk]) <= 0:
+                raise ValueError("その本を持っていません")
+            kind, skill = "practice", sk
         if kind == "read" and app.items.count("novel") <= 0 and not app.life.player_state().get("reading"):
             raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
         if kind in LEGACY:              # 以前の「散歩・買い物・カフェ」: 外出 + 行き先
@@ -433,11 +439,11 @@ class Solo:
             text = "%s休んだ。少し体が軽くなった" % _dur(h)       # 回復は時間経過 (life.tick_world) で済んでいる
         elif kind == "read":                    # 小説を読む (読みかけは続きから. 読み終えると話題に. 開いた本は使う)
             try:
-                text = "%s%s" % (_dur(h), app.topics.read(h, now, READ_H))
+                text = "%s%s" % (_dur(h), app.topics.read(h, now, READ_H, genre=skill))
             except ValueError as e:
                 text = str(e)
         elif kind == "movie":                   # 家で映画を観る (配信. 観かけは続きから. 観終えると話題に)
-            text = "%s%s" % (_dur(h), app.topics.watch(h, now, MOVIE_H))
+            text = "%s%s" % (_dur(h), app.topics.watch(h, now, MOVIE_H, genre=skill))
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
@@ -721,7 +727,16 @@ class Solo:
         return {"current": dict(cur, **{k: ALL_KINDS.get(cur["kind"], KINDS["out"])[k] for k in ("label", "icon", "doing")}) if cur else None,
                 "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],
-                "skills": SKILL_LABEL, "diary_today": any(d["day"] == date.today().isoformat() for d in self.diary_list())}
+                "skills": SKILL_LABEL, "diary_today": any(d["day"] == date.today().isoformat() for d in self.diary_list()),
+                "genres": self.app.topics.genres_view(), "novels": self.app.items.count("novel"),
+                "reading": [(x or {}).get("title") for x in self.app.topics.reading()],
+                "skill_books": self._skill_books()}
+
+    def _skill_books(self):
+        """持っている技能の本 [{skill, label}] (「本を読む」で選べる. 読むのはその技能の研鑽)."""
+        from .items import PRACTICE_BOOK, CATALOG
+        return [{"skill": sk, "label": (CATALOG.get(iid) or {}).get("name", SKILL_LABEL.get(sk, sk))}
+                for sk, iid in PRACTICE_BOOK.items() if self.app.items.count(iid) > 0]
 
 
 def _dur(h):

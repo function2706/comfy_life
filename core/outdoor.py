@@ -194,6 +194,8 @@ class Outdoor:
         tr = p.get("travel")
         if tr and p.get("mode") in ("out", "work") and now < tr["arr"] + ARRIVE_GRACE:
             return None                                # まだ移動中 / 着いたばかり: 着いたことは geo.tick で
+        if tr and tr.get("doing"):                     # 移動中に読んでいた・観ていた: 着くまで (閉じていても) 続けていた
+            app.geo.finish_doing(tr, tr["arr"])
         msgs = []
         # 誰かとのお出かけ: そのまま解散して, それぞれ家へ
         for cid in list(app.chars):

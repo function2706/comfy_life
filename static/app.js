@@ -410,6 +410,8 @@ function renderSoloTab() {
     ? btn(k.icon, k.label, () => { S.choresOpen = !S.choresOpen; renderSoloTab(); }, '片付け（戻るまで）か、家計簿をつける（15分ほど）を選ぶ')
     : k.id === 'practice'
     ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderSoloTab(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
+    : k.id === 'read' || k.id === 'movie' ? btn(k.icon, k.label, () => { S.readOpen = S.readOpen === k.id ? null : k.id; renderSoloTab(); },
+      k.id === 'read' ? '小説（ジャンルを選ぶ）か、持っている技能の本（その技能の研鑽）を読む' : 'ジャンルを選んで、家で映画を観る（配信）')
     : k.id === 'out' ? btn(k.icon, k.label, openMap, '外出のウィンドウ（地図）で、行き先と行き方を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
     : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderSoloTab(); },
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
@@ -464,6 +466,17 @@ function renderSoloTab() {
         ['trash', '🗑', 'ゴミ出し', (v.home || {}).trash_ok ? '（今ならゴミの日に出せる）' : `（ゴミの日は ${((v.home || {}).trash_days || []).join('・')}曜の朝8時半まで。ほかはまとめるだけ）`]]
         .map(([id, ic, label, note]) => btn(ic, label, () => { S.choresOpen = false; soloStart('chores', id); }, `${label}だけ片付ける（一つなら早く済む）${note}`)),
       btn('📒', '家計簿をつける', () => { S.choresOpen = false; soloStart('kakeibo'); }, '前につけたときから今までのお金の出入りを書き込む（15分ほど）。日を空けるほど、うろ覚えになる')) : null,
+    S.readOpen && free ? (() => {          // 本を読む / 映画を観る: 続きか, ジャンル (本は技能の本も) を選ぶ
+      const rd = (so.reading || [])[S.readOpen === 'read' ? 0 : 1];
+      const go = (skill) => { const k = S.readOpen; S.readOpen = null; soloStart(k, skill); };
+      const G = ((so.genres || {})[S.readOpen === 'read' ? 'books' : 'movies']) || [];
+      return h('div', { class: 'cmds', style: 'margin-bottom:10px' },
+        rd ? btn('▶', `${rd}の続き`, () => go(null), S.readOpen === 'read' ? '読みかけの本の続きを読む' : '観かけの映画の続きを観る（何日も空けると忘れる）') : '',
+        ...(rd ? [] : G.map((g) => btn(S.readOpen === 'read' ? '📖' : '🎬', g.label, () => go(g.id),
+          S.readOpen === 'read' ? '小説を 1 冊開いて読む（読み終えると話題に）' : '家で観る（観終えると話題に）', S.readOpen === 'read' && !so.novels,
+          S.readOpen === 'read' && !so.novels ? '読む小説がない（本屋や駅前などで買えます）' : ''))),
+        ...(S.readOpen === 'read' ? (so.skill_books || []).map((b) => btn('📘', b.label, () => go('book:' + b.skill), `${SKILL_NAME[b.skill] || ''}の研鑽（本があると伸びやすい）`)) : []));
+    })() : null,
     S.practiceOpen && free ? h('div', { class: 'cmds', style: 'margin-bottom:10px' },
       Object.entries(so.skills || {}).map(([id, label]) => btn('📚', `${label}の練習`, () => { S.practiceOpen = false; soloStart('practice', id); })),
       ...(((v.earn || {}).quals) || []).filter((q) => !q.have && !q.place).map((q) => btn('🎓', `${q.label}の勉強`, () => { S.practiceOpen = false; soloStart('practice', 'qual:' + q.id); },
@@ -519,6 +532,26 @@ function travelNow(tv) {
   const [i, rem] = segAt(tv);
   const g = (tv.segs || [])[i];
   return g ? `いま: ${SEG_ICON[g.kind] || ''} ${g.label}${(tv.segs || []).length > 1 ? `（この区間あと${Math.max(1, Math.ceil(rem / 60))}分）` : ''}` : '';
+}
+// 移動中にすること (電車・バス・タクシーだけ): 小説の続き・映画の続き (スマホで)・技能の本. 着いたとき, 座っていられた時間ぶん進む
+function travelDoing(tv) {
+  if (!tv || !tv.can_read) return '';
+  const so = (S.view || {}).solo || {};
+  const [rd, wt] = so.reading || [];
+  const set = async (what) => {
+    try { const r = await api('/api/travel/doing', { what }); if (r.done) toast(r.done, 'ok'); } catch (e) { toast(e.message, 'err'); }
+    await refresh(); if (S.mapDlg && S.mapDlg.open) renderMap();
+  };
+  const sel = (label, list, pre) => h('select', { class: 'small', onchange: (ev) => { if (ev.target.value) set(pre + ':' + ev.target.value); } },
+    h('option', { value: '' }, label), ...list.map((g) => h('option', { value: g.id }, g.label)));
+  const G = so.genres || {};
+  const now = { read: '📖 読んでいる', movie: '🎬 観ている' }[(tv.doing || '').split(':')[0]] || (tv.doing ? '📘 本で研鑽している' : '');
+  return h('div', { class: 'row small', style: 'gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0' },
+    h('span', { class: 'muted' }, '移動中に:'),
+    tv.doing ? [h('b', {}, now), h('button', { class: 'btn small ghost', onclick: () => set(null) }, 'やめる')]
+      : [rd ? h('button', { class: 'btn small', onclick: () => set('read') }, `📖 ${rd}の続き`) : so.novels ? sel('📖 小説を読む…', G.books || [], 'read') : '',
+        wt ? h('button', { class: 'btn small', onclick: () => set('movie') }, `🎬 ${wt}の続き`) : sel('🎬 映画を観る…', G.movies || [], 'movie'),
+        (so.skill_books || []).length ? sel('📘 技能の本…', so.skill_books.map((b) => ({ id: b.skill, label: b.label })), 'book') : '']);
 }
 function travelSteps(tv) {
   const segs = tv.segs || [];
@@ -2016,6 +2049,7 @@ function renderAway() {
     p.travel ? h('div', { class: 'muted small' }, p.travel.dir === 'home' ? '家に着くまでは、まだ外です（スマホは使えます）'
       : `着くまでは、${p.travel.label}でのことはできません（スマホは使えます）${p.travel.note ? '。' + p.travel.note : ''}`) : '',
     p.travel ? travelSteps(p.travel) : '',
+    p.travel ? travelDoing(p.travel) : '',
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     shopCard(p),
@@ -2279,6 +2313,7 @@ function renderMap() {
     tv ? h('div', { style: 'height:6px;background:var(--line,#8884);border-radius:3px;margin-top:6px;overflow:hidden' },
       h('i', { style: `display:block;height:100%;width:${Math.round(prog * 100)}%;background:var(--accent,#d77)` })) : '',
     tv ? travelSteps(tv) : '',
+    tv ? travelDoing(tv) : '',
     tv && tv.note ? h('div', { class: 'small muted' }, tv.note) : '',
     tv ? h('div', { class: 'small muted' }, tv.dir === 'home' ? '家に着くまでは、まだ外です。行き先を押せば、いまの地点からそちらへ向かえます。'
       : `着くまでは、${tv.label}でのことはできません。行き先を押せば、いまの地点から向かう先を変えられます。`,

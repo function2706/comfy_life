@@ -407,6 +407,76 @@ class Geo:
             out = [[how, tot, {"walk": "歩いている", "run": "走っている", "bike": "自転車に乗っている", "car": "車を運転している"}.get(how, "移動している")]]
         return [[k, round(m, 1), t] for k, m, t in out if m >= 0.5] or [[how, round(tot, 1), "移動している"]]
 
+    SEATED = ("wait", "ride", "taxi")      # 移動中に読める・観られる区間 (駅で待つ・乗っている. 歩く・こぐ・運転中は無理)
+
+    def can_read(self, tr=None):
+        """いまの移動で, 読む・観ることができるか (電車・バス・タクシー)."""
+        tr = tr or self.travel()
+        return bool(tr) and tr.get("how") in ("transit", "taxi")
+
+    def seated_h(self, tr, t0, t1):
+        """t0〜t1 のうち, 座って (待って) いられた時間 (時間)."""
+        segs = tr.get("segs") or []
+        if not segs:
+            return 0.0
+        tot = sum(m for _, m, _ in segs)
+        span = max(1.0, tr["arr"] - tr["t0"])
+        acc, out = 0.0, 0.0
+        for k, m, _ in segs:
+            a = tr["t0"] + acc / tot * span
+            b = tr["t0"] + (acc + m) / tot * span
+            acc += m
+            if k in self.SEATED:
+                out += max(0.0, min(b, t1) - max(a, t0))
+        return out / 3600.0
+
+    def set_doing(self, what, now=None):
+        """移動中にすること: read (小説の続き・ジャンル) / movie (映画の続き. スマホで) / book:<技能> (技能の本で研鑽) / None (やめる).
+        着いたとき (やめたとき) に, 座っていられた時間ぶん進む."""
+        now = now or time.time()
+        tr = self.travel()
+        if not tr or now >= tr["arr"]:
+            raise ValueError("移動中ではありません")
+        if not self.can_read(tr):
+            raise ValueError("%sで移動しているので、読んだり観たりはできません" % HOW_LABEL.get(tr["how"], ""))
+        note = self.finish_doing(tr, now)          # 前にしていたことは, ここまでの分
+        if what:
+            w = str(what)
+            app = self.app
+            if w.startswith("book:"):
+                from .items import PRACTICE_BOOK
+                if app.items.count(PRACTICE_BOOK.get(w[5:], "")) <= 0:
+                    raise ValueError("その本を持っていません")
+            elif w.startswith("read") and app.items.count("novel") <= 0 and not app.life.player_state().get("reading"):
+                raise ValueError("読む本がない（小説は本屋や駅前などで買えます）")
+            elif not (w.startswith("read") or w.startswith("movie")):
+                raise ValueError("移動中にできることではありません")
+            tr["doing"] = {"what": w, "t": now}
+        self.app.presence.save()
+        return {"doing": tr.get("doing"), "done": note}
+
+    def finish_doing(self, tr, t_end):
+        """移動中にしていたことを, 座っていられた時間ぶん進める. 文を返す (何もしていなければ None)."""
+        d = tr.pop("doing", None)
+        if not d:
+            return None
+        h = self.seated_h(tr, d["t"], min(t_end, tr["arr"]))
+        if h < 1 / 60.0:
+            return None
+        app = self.app
+        w = d["what"]
+        g = w.split(":", 1)[1] if ":" in w else None
+        if w.startswith("book:"):
+            from .solo import SKILL_LABEL
+            gain = app.life.train(g, min(3.0, 1.2 * h) * 1.2) if h >= 0.25 else 0
+            text = "移動中に%sの本を読んだ（%d分）%s" % (SKILL_LABEL.get(g, g), round(h * 60), "" if gain >= 0.1 else "。あまり頭に入らなかった")
+        elif w.startswith("read"):
+            text = "移動中に" + app.topics.read(h, t_end, 1.5, genre=g)
+        else:
+            text = "移動中にスマホで" + app.topics.watch(h, t_end, 2.0, genre=g).replace("家で", "")
+        app.solo.note("read" if not w.startswith("movie") else "movie", text, t_end)
+        return text
+
     def seg_now(self, tr, now):
         """いまの区間の番号と, その区間の残り (秒). 遅れなどで全体が延びた分は, 全体にならす."""
         segs = tr.get("segs") or []
@@ -444,6 +514,7 @@ class Geo:
         if not tr:
             return self.where(now)
         here = self.midway(now) or tr["to"]
+        self.finish_doing(tr, now)                    # 移動中に読んでいた・観ていた分は, ここまで
         back = self.last_refund = self.unused_fare(tr, now)
         if back > 0:                             # 乗らなかった分 (電車・バスは乗った区間だけ, タクシー・車は走った分だけ払う)
             self.app.life.move(None, dp=back, cat="transport", note="%s（途中でやめた分）" % FARE_NOTE[tr["how"]])
@@ -572,6 +643,9 @@ class Geo:
         if not tr or now < tr["arr"]:
             return None
         p.pop("travel", None)
+        did = self.finish_doing(tr, tr["arr"])        # 移動中に読んでいた・観ていた
+        if did:
+            tr["note"] = "。".join(x for x in (tr.get("note"), did) if x)
         if tr["dir"] == "home":
             p["pos"] = places_mod.HOME_ME
             app.presence.save()
@@ -601,6 +675,7 @@ class Geo:
                 "how": tr["how"], "how_label": HOW_LABEL.get(tr["how"], ""), "dir": tr["dir"],
                 "remain": max(0, int(tr["arr"] - now)), "arr": tr["arr"], "fare": tr["fare"], "note": tr.get("note", ""),
                 "segs": [{"kind": k, "min": max(1, round(m)), "label": t} for k, m, t in tr.get("segs") or []],
+                "can_read": self.can_read(tr), "doing": (tr.get("doing") or {}).get("what"),
                 "seg": seg, "seg_remain": seg_remain}
 
     def map_view(self, ids, now=None):
