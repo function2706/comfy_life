@@ -1801,7 +1801,11 @@ function renderOffline() {
       (rep.timeline || []).length ? rep.timeline.map((x) => h('div', { class: 'small' + (x.skipped ? ' muted' : '') },
         `${t(x.t)}〜${hm(x.end)}　${x.label}：${x.text}`, planNote(x), (x.meets || []).length ? h('div', { class: 'muted' }, '　' + x.meets.join(' / ')) : ''))
         : h('div', { class: 'muted small' }, '家で静かに過ごした')),
-    h('div', { class: 'small' }, `お金 ${rep.pay >= 0 ? '+' : ''}${yen(rep.pay)}・体力 ${Math.round(rep.stamina[0])} → ${Math.round(rep.stamina[1])}`),
+    (() => { const wage = rep.wage != null ? rep.wage : (rep.works || []).reduce((x, w) => x + (w.pay || 0), 0);          // 給料と, 使った分 (交通費・買い物・食事など) を分けて
+      const spent = wage - rep.pay;
+      return h('div', { class: 'small' }, `お金 ${rep.pay >= 0 ? '+' : ''}${yen(rep.pay)}`,
+        wage ? h('span', { class: 'muted' }, `（給料 +${yen(wage)}${spent > 0 ? `・使った分 -${yen(spent)}` : spent < 0 ? `・ほかに +${yen(-spent)}` : ''}）`) : '',
+        `・体力 ${Math.round(rep.stamina[0])} → ${Math.round(rep.stamina[1])}`); })(),
     rep.meets.length ? h('div', { class: 'pgroup' }, h('h4', {}, '出会い'), rep.meets.map((m) => h('div', { class: 'small' }, m))) : '',
     h('div', { class: 'pgroup' }, h('h4', {}, '届いたメッセージ'),
       rep.messages.length ? rep.messages.map((m) => h('div', { class: 'row', style: 'align-items:flex-start' },

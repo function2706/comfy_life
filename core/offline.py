@@ -203,6 +203,7 @@ class Offline:
         money0 = int(ps["money"])
         # 市場・定期収入・お腹と栄養などは, 行動の順に時間を進めながら (食事の前に空腹になる. 体力はこのあと, 過ごし方に合わせて決め直す)
         works, meets, timeline = [], [], []
+        pt_pay = 0                                # バイト代 (仕事の給料は works に)
         t = t0
 
         def recover(a, b, rate):
@@ -339,6 +340,7 @@ class Offline:
                     stamina = float(ps.get("stamina", stamina))
                     if pay:
                         ps["money"] += pay
+                        pt_pay += pay
                         L.ledger(e, pay, "income", "バイト代")
                     app.body.add_exercise(2.0 * ph)
                     ent["text"] = "%s（%s円）" % (app.earn.job(app.earn.pt()["job"])["label"], format(pay, ",")) if ph \
@@ -394,6 +396,7 @@ class Offline:
         L.save_player()
         msgs = self._messages(t0, t1)
         rep = {"from": t0, "to": t1, "works": works, "timeline": timeline, "pay": int(ps["money"]) - money0,
+               "wage": sum(int(w.get("pay") or 0) for w in works) + pt_pay,      # 給料・バイト代 (pay は使った分も引いた増減)
                "bought": [x for ent in timeline for x in ent.get("bought") or []],
                "stamina": [round(s0, 1), round(stamina, 1)], "meets": meets, "messages": msgs, "seen": False}
         ps["offline_report"] = rep

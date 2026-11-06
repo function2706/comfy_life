@@ -17,7 +17,9 @@
 - 約束: レストランに誘うと、サーバのエラーで誘えなかった（予約を調べた記録に、時刻を二重に渡していた。`core/appoint.py` の `propose`）
 - メッセージ: 夜中でも、相手から 30 分以内に届いていれば、やりとりの最中なので「こんな時間に何？」とは返さない（約束の返事のすぐあとのお礼に、そう返していた。`chat.talking`）。これまでの返事はそのまま（遡及なし: 機嫌が少し下がっただけで、もう戻っている頃）
 
-部分テスト: `test_late_talking`（新規） `test_appoint`（レストランの場合を追加） `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_deliver_once` `test_nori` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_calendar`
+- 画面を閉じていたあいだのまとめ: 「お金 +3,830円」は使った分（交通費・買い物など）を引いた増減で、給料に見えて紛らわしかった。「（給料 +9,840円・使った分 -6,010円）」と内訳も出す（`offline.simulate` の `wage`。これまでのまとめは仕事の分だけで出す）
+
+部分テスト: `test_offline` `test_offline_fallback` `test_closed_away` `test_routine` `test_planner` `test_js_names` `test_earn`（まとめの内訳）、`test_late_talking`（新規） `test_appoint`（レストランの場合を追加） `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_deliver_once` `test_nori` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_calendar`
 
 ## 1.1.0（2026-11-06）
 
