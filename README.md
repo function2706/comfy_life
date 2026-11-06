@@ -3,6 +3,8 @@
 リアル時刻に合わせて、キャラクターと一緒に暮らすアプリです。
 コマンドを実行するたびに、ComfyUI でその場面の画像を生成して表示します。
 
+版は [VERSION](VERSION)、変更履歴と版の決まりは [docs/CHANGES.md](docs/CHANGES.md)、残件（機能追加 / 修正）は [docs/REMAINING.md](docs/REMAINING.md)。
+
 ## 起動
 
 ```

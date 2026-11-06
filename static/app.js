@@ -3169,7 +3169,7 @@ function updateBox() {
   const v = (R && R.version) || null;
   return h('div', { class: 'pgroup' },
     h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;align-items:center' },
-      h('span', { class: 'small' }, v ? `いまの版: ${v.commit}（${v.date}${v.branch ? '・' + v.branch : ''}）` : 'いまの版: （確認すると出ます）'),
+      h('span', { class: 'small' }, v ? `いまの版: ${v.number ? v.number + ' ' : ''}${v.commit}（${v.date}${v.branch ? '・' + v.branch : ''}）` : 'いまの版: （確認すると出ます）'),
       h('div', { class: 'spacer' }),
       h('button', { class: 'btn small', disabled: U.busy, onclick: check }, U.busy ? '確かめています…' : '🔄 更新を確認'),
       h('button', { class: 'btn small ghost', disabled: U.busy, title: 'サーバを起動し直す（画面は自動で開き直します）', onclick: () => go('/api/update/restart', {}, 'サーバを起動し直します。') }, '再起動')),

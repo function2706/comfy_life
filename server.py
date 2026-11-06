@@ -566,7 +566,7 @@ def main():
     APP = engine.App()
     v = update.version()
     print("Comfy LIFE: %s で%sしました%s (Ctrl+C で終了)" % (url, "起動し直" if restarted else "起動",
-                                                    "（%s %s）" % (v["commit"], v["date"]) if v else ""))
+                                                    "（%s %s %s）" % (v.get("number") or "", v["commit"], v["date"]) if v else ""))
     if not args.no_browser and not restarted:       # 起動し直したときは, 開いている画面が自分で開き直す
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:

@@ -24,14 +24,23 @@ def _git(*args, timeout=60):
     return r.returncode == 0, (r.stdout or "").strip()
 
 
+def number():
+    """版の番号 (kurashi 直下の VERSION. 例 1.0.0 / 1.1.0beta). 無ければ空."""
+    try:
+        with open(os.path.join(store.BASE, "VERSION"), encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
 def version():
-    """いまの版: {commit, date, branch} (git でなければ None)."""
+    """いまの版: {number, commit, date, branch} (git でなければ None)."""
     ok, out = _git("log", "-1", "--format=%h\t%cd", "--date=format:%Y-%m-%d %H:%M")
     if not ok or "\t" not in out:
         return None
     h, d = out.split("\t", 1)
     okb, br = _git("rev-parse", "--abbrev-ref", "HEAD")
-    return {"commit": h, "date": d, "branch": br if okb else ""}
+    return {"number": number(), "commit": h, "date": d, "branch": br if okb else ""}
 
 
 def dirty():
