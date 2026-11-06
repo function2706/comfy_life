@@ -229,7 +229,7 @@ def route(method, path, q, body):
         if path == "/api/gift":
             return a.give_item(b["item"], cid)
         if path == "/api/chat/send":
-            return a.chat.send(b["id"], b["kind"])
+            return a.chat.send(b["id"], b["kind"], {k: b[k] for k in ("reason", "consult", "stamp") if b.get(k)} or None)
         if path == "/api/chat/seen":
             return a.chat.mark_seen(b["id"])
         if path == "/api/offline/ack":

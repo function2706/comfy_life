@@ -1575,10 +1575,7 @@ async function drawChat(auto) {
             h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later)));
       })(),
       h('div', { class: 'chat-send' },
-        can ? [...th.kinds.map((k) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => (k.id === 'topic' ? topicPicker(th.id, true) : sendChat(th.id, k.id)) }, `${k.icon} ${k.label}`)),
-          (th.appoint_choices || []).length ? h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => { S.apForm = S.apForm ? null : {}; drawChat(); } }, '📅 約束する') : '',
-          ...(th.actions || []).map((a) => h('button', { class: 'chat-kind', disabled: S.busy || !a.ok, onclick: () => phoneAct(th.id, a.id) }, `${a.icon} ${a.name}`)),
-          S.apForm ? appointForm(th) : '']
+        can ? [chatSendBox(th), S.apForm ? appointForm(th) : '']
           : [h('p', { class: 'muted small' }, 'いまはそばにいるので、直接話しましょう。'),
             S.apForm && S.apForm.favor ? appointForm(th) : '']));          // 頼まれごとの日時は, そばにいても返せる (対面で頼まれたとき)
     void lastMine;
@@ -1778,11 +1775,44 @@ async function phoneAct(cid, action) {
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
-async function sendChat(cid, kind) {
+async function sendChat(cid, kind, extra) {
   if (S.busy) return;
   S.busy = true;
-  try { await api('/api/chat/send', { id: cid, kind }); S.chatJump = true; } catch (e) { toast(e.message, 'err'); }
+  try { await api('/api/chat/send', Object.assign({ id: cid, kind }, extra || {})); S.chatJump = true; S.chatPick = null; } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
+}
+// 送る欄 (A2): 分類のタブ → その分類の種類. 謝る・お礼・相談・スタンプは「何を」を選ぶ欄を開いてから送る (A1).
+// 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
+const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？' };
+const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp' };
+function chatSendBox(th) {
+  const G = th.groups || [];
+  const KD = Object.fromEntries((th.kinds || []).map((k) => [k.id, k]));
+  const P = th.pick || {};
+  if (!G.some((g) => g.id === S.chatTab)) S.chatTab = (G[0] || {}).id;
+  const btn = (label, onclick, on, dis) => h('button', { class: 'chat-kind' + (on ? ' on' : ''), disabled: S.busy || !!dis, onclick }, label);
+  const kindBtn = (id) => {
+    const k = KD[id];
+    if (!k) return '';
+    if (id === 'topic') return btn(`${k.icon} ${k.label}`, () => topicPicker(th.id, true));
+    if (P[id]) return btn(`${k.icon} ${k.label} ▸`, () => { S.chatPick = S.chatPick === id ? null : id; drawChat(); }, S.chatPick === id);
+    return btn(`${k.icon} ${k.label}`, () => sendChat(th.id, id));
+  };
+  const g = G.find((x) => x.id === S.chatTab) || { kinds: [] };
+  const extra = g.id === 'invite' && (th.appoint_choices || []).length ? [btn('📅 約束する', () => { S.apForm = S.apForm ? null : {}; drawChat(); }, !!S.apForm)]
+    : g.id === 'call' ? (th.actions || []).map((a) => btn(`${a.icon} ${a.name}`, () => phoneAct(th.id, a.id), false, !a.ok)) : [];
+  const pk = S.chatPick && P[S.chatPick] ? S.chatPick : null;
+  const kind = pk === 'stamp' ? 'stamp' : pk;
+  return h('div', {},
+    h('div', { class: 'chat-tabs' },
+      ...G.map((x) => h('button', { class: 'chat-tab' + (x.id === g.id ? ' on' : ''), onclick: () => { S.chatTab = x.id; S.chatPick = null; drawChat(); } }, `${x.icon} ${x.label}`)),
+      KD.stamp ? h('button', { class: 'chat-tab' + (pk === 'stamp' ? ' on' : ''), onclick: () => { S.chatPick = pk === 'stamp' ? null : 'stamp'; drawChat(); } }, '🐾 スタンプ') : '',
+      th.waiting && KD.nudge ? btn(`${KD.nudge.icon} ${KD.nudge.label}`, () => sendChat(th.id, 'nudge')) : ''),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...g.kinds.map(kindBtn), ...extra),
+    pk ? h('div', { class: 'chat-pick' },
+      h('div', { class: 'muted small' }, PICK_TITLE[pk] || ''),
+      h('div', { class: 'chat-pick-list' + (pk === 'apology' ? ' long' : '') },
+        ...P[pk].map((o) => btn(o.icon ? `${o.icon} ${o.label}` : o.label, () => sendChat(th.id, kind, { [PICK_KEY[pk]]: o.id }))))) : '');
 }
 
 /* ---- オフラインの間のまとめ: 開いたときに一度だけ. 読んだら普段に戻る. 届いたメッセージにはここから返事できる */

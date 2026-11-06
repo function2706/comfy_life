@@ -14,6 +14,7 @@ import random
 import time
 from datetime import datetime
 
+from . import msgpick
 from . import store
 from .anniv import SCENE_LABEL as ANNIV_SCENES
 
@@ -42,6 +43,14 @@ KINDS = {
     "tell_bday": ("誕生日を伝える", "🎁", "（自分の誕生日を伝えた）"),
     "congrats": ("おめでとう", "🎉", "（おめでとうと送った）"),
 }
+# 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
+GROUPS = [
+    ("chat", "💬", "雑談", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
+    ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
+    ("invite", "📅", "誘う", ["invite", "ask_bday", "tell_bday"]),
+    ("photo", "📷", "写真", ["photo", "ask_selfie"]),
+    ("call", "☎", "電話", ["may_call"]),
+]
 # 共通の返信 (性格プリセットに無ければ). 鍵は chat.<場面>
 LINES = {
     "chat.greet_morning": "📱『おはようございます、{call}。今日もがんばりましょうね』",
@@ -80,6 +89,16 @@ LINES = {
     "chat.greet_again": "📱『さっきも言いましたよね？』",
     "chat.stamp_only": "📱『……スタンプだけですか？』",
     "chat.stamp_spam": "📱『スタンプ連打はやめてください……』",
+    # 理由・中身を選んだメッセージ (core/msgpick.py)
+    "chat.apology_near": "📱『……それもですけど。それだけじゃないです』",
+    "chat.apology_unminded": "📱『え、それは気にしてないですよ。大丈夫です』",
+    "chat.stamp_heart": "📱『（ハートのスタンプが返ってきた）』",
+    "chat.stamp_heart_cold": "📱『……え、ハートですか？』",
+    "chat.stamp_sorry_bad": "📱『……スタンプで済ませるんですか』",
+    "chat.stamp_thanks": "📱『（「どういたしまして」のスタンプが返ってきた）』",
+    "chat.consult_good": "📱『{topic}のことなら、少しわかります。{fp}だったら、まず一つずつ片付けるかな……。また聞かせてください』",
+    "chat.consult_off": "📱『{topic}のことは、{fp}にはよくわからないですけど……。話してくれて、うれしいです』",
+    "chat.consult_jealous": "📱『……その人と、仲いいんですね。……ふうん』",
     "chat.may_call_ok": "📱『はい、大丈夫ですよ』",
     "chat.may_call_later": "📱『ごめんなさい、今はちょっと……あとでいいですか？』",
     "chat.otsukare": "📱『ありがとうございます。ちょうど終わったところです』",
@@ -258,7 +277,27 @@ class Chat:
             raise ValueError("話題を選んでください")
         if kind == "tell_bday" and not self.app.anniv.my_birthday():
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
-        return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra})
+        extra = dict(extra or {})
+        rs = extra.get("reason")
+        if kind == "apology" and rs:
+            item = next((x for x in msgpick.apology_choices(self.app) if x["id"] == rs), None)
+            if not item:
+                raise ValueError("謝る理由が違います")
+            extra["said"] = "（謝った: %s）" % item["label"]
+        elif kind == "thanks" and rs:
+            if rs not in dict(msgpick.FAVORS):
+                raise ValueError("お礼の理由が違います")
+            extra["said"] = "（お礼を言った: %s）" % dict(msgpick.FAVORS)[rs]
+        elif kind == "consult" and extra.get("consult"):
+            if extra["consult"] not in msgpick.CONSULT_WORD:
+                raise ValueError("相談の中身が違います")
+            extra["said"] = "（%sを相談した）" % dict((k, w) for k, w, _ in msgpick.CONSULT)[extra["consult"]]
+        elif kind == "stamp" and extra.get("stamp"):
+            if extra["stamp"] not in msgpick.STAMP:
+                raise ValueError("スタンプの種類が違います")
+            ic, w = msgpick.STAMP[extra["stamp"]]
+            extra["said"] = "（%s %sのスタンプを送った）" % (ic, w)
+        return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra or None})
 
     TALKING_MIN = 30          # 相手からのメッセージがこれ以内なら, やりとりの最中 (夜中でも「こんな時間に」とは言わない)
 
@@ -327,6 +366,8 @@ class Chat:
             return "selfie_no", {"shyness": 3}, extra
         if kind == "consult":
             app.manners.favor(st, "consult", now)          # 相談にのってくれた (お礼の心当たり)
+            if meta.get("consult") in msgpick.CONSULT_WORD:
+                return self.consult_reply(char, st, meta["consult"], now, extra)
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:
@@ -359,6 +400,24 @@ class Chat:
                "consult": {"trust": 2, "affection": 1}, "photo": {"mood": 2, "loneliness": -3},
                "stamp": {"loneliness": -2}}.get(kind, {})
         return kind, eff, extra
+
+    def consult_reply(self, char, st, tp, now, extra):
+        """相談の中身しだいの返事: 性格に合う中身ほど頼りになる返事 (世話焼きなら体調・暮らし, 貯める人ならお金 など).
+        ほかの人との仲の相談は, 嫉妬しやすい相手だと面白くない."""
+        tr, p = self.app.traits(char), st["params"]
+        extra["topic"] = msgpick.CONSULT_WORD[tp]
+        carer, neat = float(tr.get("carer", 0.3)), (float(tr.get("neat", 0)) + 10) / 20.0
+        fit = {"health": carer, "house": max(carer, neat), "money": min(1.0, float(tr.get("savings", 1.0)) / 1.6),
+               "people": 0.5, "future": 0.45 + (p.get("trust", 50) - 50) / 200.0}.get(tp, 0.45)
+        if tp == "people" and float(tr.get("jealousy", 1.0)) >= 1.2 and p.get("affection", 0) >= 50 and random.random() < 0.5:
+            return "consult_jealous", {"mood": -2, "heart": 1}, extra
+        sc = fit + (p.get("trust", 50) - 50) / 200.0 + random.gauss(0, 0.15)
+        self.app.trace.add("msg", "相談の中身: %s" % tp, char["id"], now, fit=round(fit, 2), score=round(sc, 2))
+        if sc >= 0.65:
+            return "consult_good", {"trust": 3, "affection": 1}, extra
+        if sc < 0.3:
+            return "consult_off", {"trust": 1}, extra
+        return "consult", {"trust": 2, "affection": 1}, extra
 
     def _space(self, char, st, kind, now, ctx):
         """連絡が続いたとき (多すぎるほどではない), 依存度が低い相手は距離を置き, 献身的で依存度が低い相手は気づかう.
@@ -429,6 +488,10 @@ class Chat:
                 "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
                 "appoint_choices": app.appoint.choices(cid) if app.bonds.stage(cid) in ("contact", "visit") else [],
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
+                "groups": [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
+                "pick": {"apology": msgpick.apology_choices(app), "thanks": msgpick.thanks_choices(),
+                         "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT],
+                         "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS]},
                 "actions": self.phone_actions(cid)}
 
     def phone_actions(self, cid):

@@ -245,16 +245,14 @@ def main():
 
         # ---- 9. お疲れさま: 予定を知っていて, ちょうど終わった頃なら効く / 的外れなら「？」
         from core import knowsched as ks_mod
-        dt = datetime.now()
-        e = {"days": "all", "from": "%02d:00" % ((dt.hour - 3) % 24), "to": "%02d:%02d" % ((dt.hour - 1) % 24, dt.minute),
-             "label": "バイト中", "busy": True, "workplace": "cafe", "activity": "work"}
-        if dt.hour < 3:
-            e.update({"from": "00:00", "to": "%02d:%02d" % (dt.hour, dt.minute)})
+        dt = datetime.now().replace(hour=13, minute=30, second=0, microsecond=0)     # 昼に送ったことにする (夜中に流すと予定が日をまたぐ)
+        T = dt.timestamp()
+        e = {"days": "all", "from": "09:00", "to": "12:30", "label": "バイト中", "busy": True, "workplace": "cafe", "activity": "work"}
         char.setdefault("schedule", []).append(e)
         st["known"] = []
-        assert reply("otsukare")[0] == "otsukare_odd", "予定を知らなければ"
+        assert reply("otsukare", t=T)[0] == "otsukare_odd", "予定を知らなければ"
         app.knowsched.learn(cid, e, "talk", now)
-        assert reply("otsukare")[0] == "otsukare"
+        assert reply("otsukare", t=T)[0] == "otsukare"
         char["schedule"].remove(e)
         print("お疲れさま: OK")
 

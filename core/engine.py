@@ -1703,7 +1703,7 @@ class App:
         self.bonds.met(st, now, contact=True)
         if st.get("approach"):
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
-        said = "（%sをした）" % extra["topic_text"] if (extra or {}).get("topic_text") else \
+        said = (extra or {}).get("said") or "（%sをした）" % extra["topic_text"] if (extra or {}).get("said") or (extra or {}).get("topic_text") else \
             chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）"
         self.chat.add(cid, "me", said, kind=kind, t=now)
         meta = self.manners.on_send(char, st, kind, now) if kind else {}     # 送った時刻・続け方 (あいさつ・スタンプ など)

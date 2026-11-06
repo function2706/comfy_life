@@ -10,16 +10,26 @@
   ふだんは実装のすぐあとに部分テストまで済ませるので、beta から書く。
 - 次の版の中身は下の「次の版」にためる。残件は [REMAINING.md](REMAINING.md)。
 
-## 次の版（未確定）: 1.1.1beta
+## 次の版（未確定）: 1.2.0beta
 
-区分: 修正（部分テスト済み・全テストはまだ）
+区分: 機能追加・修正（部分テスト済み・全テストはまだ。急ぎの修正を、機能追加の版にまとめた）
+
+- A1 メッセージ: 謝るときは理由を選ぶ（あなたが相手にした・しなかったこと 105 件: 状況・メッセージの種類・コマンド。分類せず決まった順に 1 列）。相手が気にしていることなら、これまでどおりの許し方。近いことなら「それもだけど……」で少しだけ和らぐ。実際にあったが相手は気にしていないことなら「気にしてない」。心当たりがなければ「何のこと？」（別のことで怒っていれば、ずれていて少し下がる）。「近い」かは画面に出さない内部のまとまりで見る（`core/msgpick.py`、`manners.apology(pick=)`）
+- A1 メッセージ: お礼も理由を選ぶ（相手がしてくれたこと 13 種類と「許してくれた」）。最近してくれて、まだお礼していないことなら効く。前のこと・もう言ったことなら軽く。していないことなら「何のお礼？」（`manners.thanks_pick`）
+- A1 メッセージ: 相談は中身を選ぶ（仕事・勉強や資格・家事や暮らし・お金・体調・ほかの人との仲・将来や進路・趣味）。相手の性格に合う中身ほど頼りになる返事（世話焼きなら体調・暮らし、貯める人ならお金）。ほかの人との仲の相談は、嫉妬しやすい相手だと面白くない（`chat.consult_reply`）
+- A2 メッセージ: 送る欄を分類のタブに（雑談・気持ち・誘う・写真・電話、スタンプ）。「返事まだ？」は返事待ちのときだけ。電話・「家に行ってもいい？」などは電話のタブに
+- A2 メッセージ: スタンプの種類を選べる（いいね・ありがとう・びっくり・考え中・笑・OK・ごめん・ハート・がんばれ・おやすみ）。ハートは浅い仲だとなれなれしい。ごめんのスタンプは、相手が本当に怒っているときは「スタンプで済ませるの？」。ありがとうのスタンプは、最近してくれたことへの軽いお礼になる
+- 遡及: これまでの機嫌の理由・お礼の心当たりは、そのまま選んだ理由と照らす（以前の、理由の印が無いものは「近い」扱い）。新しい場面のセリフは、ひとまず共通の言い方（性格ごとの言い方は別のコミットで）
+- テスト: `test_manners` の「お疲れさま」が、0〜2 時台に流すと落ちていた（予定が日をまたぐ）。昼の時刻で確かめる
 
 - 約束: レストランに誘うと、サーバのエラーで誘えなかった（予約を調べた記録に、時刻を二重に渡していた。`core/appoint.py` の `propose`）
 - メッセージ: 夜中でも、相手から 30 分以内に届いていれば、やりとりの最中なので「こんな時間に何？」とは返さない（約束の返事のすぐあとのお礼に、そう返していた。`chat.talking`）。これまでの返事はそのまま（遡及なし: 機嫌が少し下がっただけで、もう戻っている頃）
 
 - 画面を閉じていたあいだのまとめ: 「お金 +3,830円」は使った分（交通費・買い物など）を引いた増減で、給料に見えて紛らわしかった。「（給料 +9,840円・使った分 -6,010円）」と内訳も出す（`offline.simulate` の `wage`。これまでのまとめは仕事の分だけで出す）
 
-部分テスト: `test_offline` `test_offline_fallback` `test_closed_away` `test_routine` `test_planner` `test_js_names` `test_earn`（まとめの内訳）、`test_late_talking`（新規） `test_appoint`（レストランの場合を追加） `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_deliver_once` `test_nori` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_calendar`
+部分テスト（A1/A2）: `test_msgpick`（新規） `test_chat` `test_manners` `test_manners_oldsave` `test_msgreply` `test_deliver_once` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_late_talking` `test_js_names` `test_api_errors` `test_nori` `test_phone` `test_topics` `test_quarrel` `test_encounters` `test_definitions` `test_personas`、画面はブラウザで確認
+
+部分テスト（修正）: `test_offline` `test_offline_fallback` `test_closed_away` `test_routine` `test_planner` `test_js_names` `test_earn`（まとめの内訳）、`test_late_talking`（新規） `test_appoint`（レストランの場合を追加） `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_deliver_once` `test_nori` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_calendar`
 
 ## 1.1.0（2026-11-06）
 

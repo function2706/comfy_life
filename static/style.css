@@ -907,3 +907,10 @@ a.btn { color: inherit; }
 .tstep { padding: 1px 7px; border-radius: 10px; border: 1px solid var(--line, #8884); white-space: nowrap; }
 .tstep.now { background: var(--accent, #d77); color: #fff; border-color: transparent; font-weight: 700; }
 .tstep.done { opacity: .45; }
+.chat-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; align-items: center; }
+.chat-tab { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--line, #8884); background: transparent; color: inherit; cursor: pointer; font-size: 13px; }
+.chat-tab.on { background: var(--accent, #d77); color: #fff; border-color: transparent; }
+.chat-kind.on { outline: 2px solid var(--accent, #d77); }
+.chat-pick { margin-top: 6px; padding: 6px; border: 1px dashed var(--line, #8884); border-radius: 8px; }
+.chat-pick-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.chat-pick-list.long { max-height: 220px; overflow: auto; }
