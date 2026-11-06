@@ -77,7 +77,7 @@ class Planner:
             raise ValueError("予定にできないコマンドです: %s" % b.get("do"))
         if b.get("do") == "out" and b.get("place") not in OUT_PLACES:
             raise ValueError("行き先を選んでください")
-        out = normalize({k: v for k, v in b.items() if k in ("do", "place", "how", "skill", "at")})
+        out = normalize({k: v for k, v in b.items() if k in ("do", "place", "how", "skill", "at", "go")})
         if out["do"] == "practice" and b.get("skill"):
             sk = str(b["skill"])
             if sk.startswith("qual:"):                 # 資格の勉強
@@ -138,7 +138,15 @@ class Planner:
         self.save()
         return self.view(now)
 
+    GO_LABEL = {"walk": "歩いて", "bike": "自転車で", "car": "車で", "transit": "電車・バスで", "route:1": "電車・バス（乗り換え少なめ）で",
+                "taxi": "タクシーで"}
+
     def label(self, b):
+        """予定の 1 行の名前 (行き方を決めていれば, 後ろに)."""
+        t = self._label(b)
+        return "%s・%s" % (t, self.GO_LABEL[b["go"]]) if b.get("go") in self.GO_LABEL else t
+
+    def _label(self, b):
         from .offline import DO_LABEL, MEAL_HOW
         app = self.app
         if b["do"] == "out":

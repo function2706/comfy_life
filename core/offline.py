@@ -58,9 +58,15 @@ def _peek(it):
         cur = nxt
 
 
+GO_HOW = ("walk", "bike", "car", "transit", "route:1", "taxi")     # 予定の行き方 (無ければおまかせ). route:1 = 電車・バスの乗り換え少なめ
+
+
 def normalize(b):
-    """行動パターンの 1 行を今の語彙に (以前の 散歩・買い物・カフェ → 外出 + 行き先. 行き先は公共の表から)."""
+    """行動パターンの 1 行を今の語彙に (以前の 散歩・買い物・カフェ → 外出 + 行き先. 行き先は公共の表から).
+    go: 行き方 (GO_HOW. 無ければおまかせ)."""
     b = dict(b)
+    if b.get("go") not in GO_HOW:
+        b.pop("go", None)
     if b.get("do") in LEGACY_DO:
         b["place"] = b.get("place") or LEGACY_DO[b["do"]]
         b["do"] = "out"
@@ -266,9 +272,12 @@ class Offline:
                 frm = HOME_ME
             if dest:                               # 出かける行動: 行き帰りの移動 (core/geo.py. 予定の時刻は出る時刻)
                 try:
-                    go = app.geo.leg(frm, dest, "run" if do == "jog" else None, s)
-                except ValueError:
-                    go = None
+                    go = app.geo.leg(frm, dest, "run" if do == "jog" else b.get("go"), s)
+                except ValueError:                # 決めた行き方ができない (自転車が無い・電車が無い など): おまかせで
+                    try:
+                        go = app.geo.leg(frm, dest, None, s) if b.get("go") else None
+                    except ValueError:
+                        go = None
                 if held and not (go and go["min"] >= 1):   # 出先から行けなかった: 帰り道はもとのまま
                     back_leg = held
                 if go and go["min"] >= 1:
@@ -427,7 +436,7 @@ class Offline:
             why = None
             meta = {"orig": P.label(x), "at": x["at"]} if x else {"orig": None, "at": None}
             if kind == "plan":
-                b = {k: v for k, v in x.items() if k in ("do", "place", "how", "skill")}
+                b = {k: v for k, v in x.items() if k in ("do", "place", "how", "skill", "go")}
                 why = P.cannot(b, s, stamina_now())
                 if not why:
                     yield s, e, dict(b, _plan=dict(meta, src="plan", cut=self._cut(b, s, e, t1)))

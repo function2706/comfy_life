@@ -516,11 +516,11 @@ class Geo:
                 break
         return best
 
-    def route_search(self, to, at=None, by="depart"):
+    def route_search(self, to, at=None, by="depart", frm=None):
         """画面の経路検索: いまいる場所から to へ. by = now (いま出る) / depart (at に出る) / arrive (at までに着く) /
         first (始発で: 次の朝 4 時から) / last (終電で: いまから, その日のうちに行けるいちばん遅い出発)."""
         now = time.time()
-        frm = self.where(now)
+        frm = frm or self.where(now)
         at = float(at or now)
         if by == "now":
             at, by = now, "depart"
@@ -545,7 +545,12 @@ class Geo:
             t, r = hit
             return {"by": by, "at": at, "depart": t, "routes": [self.route_view(r, t)],
                     "note": "%sに出れば間に合う" % datetime.fromtimestamp(t).strftime("%H:%M")}
-        return {"by": by, "at": at, "routes": [self.route_view(r, at) for r in self.routes(frm, to, at)], "note": ""}
+        try:
+            o = self.options(frm, to, at)
+            modes = {k: {"min": m["min"], "fare": m["fare"], "ok": m["ok"], "note": m["note"]} for k, m in o["modes"].items() if k != "transit"}
+        except Exception:  # noqa: BLE001 - 目安なので
+            modes = {}
+        return {"by": by, "at": at, "routes": [self.route_view(r, at) for r in self.routes(frm, to, at)], "note": "", "modes": modes}
 
     def route_leg(self, r, t):
         """経路を, 移動 1 回 (leg) の形に."""

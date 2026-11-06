@@ -233,6 +233,11 @@ async function refresh() {
   if (editingForm()) { S.renderPending = true; return; }
   renderState(v);
 }
+// 裏で (取り寄せが終わったときなど) 描き直す: 入力の途中なら, 欄を離れるまで待つ (tools/test_focus_keep.py)
+function softRender(fn) {
+  if (editingForm()) { S.renderPending = true; return; }
+  fn();
+}
 // 入力の途中か (描き直しを待つ)
 function editingForm() {
   const a = document.activeElement;
@@ -1547,7 +1552,7 @@ function avatar(face, name, cls) {
 async function drawChat(auto) {
   const dlg = S.chatDlg;
   // 裏での描き直し (届いた返信の確認など) は, プルダウンを選んでいる間は待つ (描き直すと開いたプルダウンが閉じる)
-  if (auto && dlg && dlg.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') {
+  if (auto && dlg && dlg.contains(document.activeElement) && editingForm()) {      // プルダウン・時刻・文字の欄 (tools/test_focus_keep.py)
     clearTimeout(S.chatPoll);
     S.chatPoll = setTimeout(() => { if (dlg.open) drawChat(true); }, 3000);
     return;
@@ -2414,7 +2419,7 @@ function routeSearchBox(to) {
 // 駅・停留所: その日の時刻表 (路線・方面ごと. 時: 分 分 分). 始発と終電がわかる
 function stationBox(sid) {
   const T = S.ttCache && S.ttCache.id === sid ? S.ttCache : null;
-  if (!T) { api('/api/timetable', { id: sid }).then((r) => { S.ttCache = r; renderMap(); }).catch((e) => toast(e.message, 'err')); }
+  if (!T) { api('/api/timetable', { id: sid }).then((r) => { S.ttCache = r; softRender(renderMap); }).catch((e) => toast(e.message, 'err')); }
   return h('div', { class: 'pgroup', style: 'margin-top:6px' },
     h('div', { class: 'row', style: 'gap:6px;align-items:center' }, h('h4', { style: 'margin:0' }, `🚉 ${mapName(sid)}`),
       T ? h('span', { class: 'muted small' }, `${T.holiday ? '土休日' : '平日'}ダイヤ`) : '', h('div', { class: 'spacer' }),
@@ -3570,8 +3575,47 @@ function commandPicker(b, redraw) {
     ch[b.do] ? sel('place', ch[b.do].map(placeOpt)) : '',
     b.do === 'practice' ? sel('skill', [...Object.entries(skills),
       ...((((S.view || {}).earn || {}).quals) || []).filter((q) => !q.have && !q.place).map((q) => ['qual:' + q.id, `🎓 ${q.label}の勉強`])]) : '',
-    b.do === 'chores' ? sel('skill', CHORE_PARTS) : ''];
+    b.do === 'chores' ? sel('skill', CHORE_PARTS) : '',
+    planDest(b) ? sel('go', PLAN_GO) : ''];
 }
+// 予定の行き方 (出かける予定だけ. 無ければおまかせ). 決めた行き方ができないとき (自転車が無い・電車が無い) は, おまかせで
+const PLAN_GO = [['', '🧭 行き方おまかせ'], ['walk', '🚶 歩く'], ['bike', '🚲 自転車'], ['car', '🚗 車'], ['transit', '🚃 電車・バス'],
+  ['route:1', '🚃 電車・バス（乗り換え少なめ）'], ['taxi', '🚕 タクシー']];
+function planDest(b) {
+  if (b.do === 'out' || b.do === 'jog') return b.place || null;
+  if (b.do === 'work') return 'office';
+  if (b.do === 'meal' && b.how && b.how !== 'cook') return b.place || null;
+  return null;
+}
+// 予定の経路の下見: その日時に家から出たら (時刻表どおり). 決めた行き方の目安と, 電車・バスの経路
+function planRouteBox(f) {
+  const to = planDest(f);
+  if (!to || f.do === 'jog') return '';
+  const [y, m, d] = f.date.split('-').map(Number), [hh, mm] = f.at.split(':').map(Number);
+  const at = new Date(y, m - 1, d, hh, mm).getTime() / 1000;
+  const key = [to, at].join('|');
+  const R = S.planRoute && S.planRoute.key === key ? S.planRoute : null;
+  if (!R) {
+    S.planRoute = { key, res: null };
+    api('/api/route', { to, at, by: 'depart', from: 'home:me' }).then((res) => { if (S.planRoute.key === key) { S.planRoute.res = res; softRender(renderSoloTab); } })
+      .catch(() => { /* 下見なので */ });
+    return h('div', { class: 'muted small' }, '経路を調べています…');
+  }
+  if (!R.res) return h('div', { class: 'muted small' }, '経路を調べています…');
+  const M = R.res.modes || {}, NAME = { walk: '歩いて', bike: '自転車で', car: '車で', taxi: 'タクシーで' };
+  const want = f.go || '';
+  const all = R.res.routes || [];
+  const rail = want === 'transit' || want === 'route:1';
+  // 電車・バス: おまかせ (route:0) / 乗り換え少なめ (route:1. おまかせと同じ乗り方なら, おまかせだけが出ている). おまかせなら候補を全部
+  const rs = !want ? all : want === 'transit' ? all.filter((r) => r.key === 'route:0')
+    : want === 'route:1' ? (all.filter((r) => r.key === 'route:1').length ? all.filter((r) => r.key === 'route:1') : all.filter((r) => r.key === 'route:0')) : [];
+  return h('div', { class: 'plan-route' },
+    h('div', { class: 'muted small' }, `家から${md2(f.date)} ${f.at}に出たら（${mapName(to)}へ）:`,
+      ...Object.entries(M).filter(([k]) => NAME[k] && !rail && (!want || want === k)).map(([k, x]) =>
+        h('span', { style: 'margin-left:6px' }, `${NAME[k]} ${x.min}分${x.fare ? `・${x.fare}円` : ''}${x.ok ? '' : '（行けない）'}`))),
+    rs.length ? routeList(rs, null) : rail ? h('div', { class: 'muted small' }, 'その時刻に使える電車・バスの経路がありません（閉じている間は、おまかせで行きます）') : '');
+}
+const md2 = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
 const CHORE_PARTS = [['', '全部'], ['mess', '部屋の片付け'], ['dishes', '洗い物'], ['laundry', '洗濯'], ['trash', 'ゴミ出し']];
 const STREET_POLICY = [['', '無難に（会釈・通り過ぎる）'], ['chat', '応じて立ち話する'], ['nod', '軽く会釈する'], ['decline', '急いでいると断る']];
 const REPLY_POLICY = [['', '返さない（あとで手で返す）'], ['cheerful', '明るく乗る'], ['expand', '話を広げる'], ['worry', '心配する'], ['tease', 'からかう'], ['curt', '素っ気なく']];
@@ -3588,7 +3632,7 @@ function planSection(v) {
   const call = async (path, body) => { if (S.busy) return false; S.busy = true; let ok = false; try { await api(path, body); ok = true; } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } return ok; };
   const clash = P.appoints.find((a) => a.date === f.date && Math.abs((+a.at.slice(0, 2) * 60 + +a.at.slice(3)) - (+f.at.slice(0, 2) * 60 + +f.at.slice(3))) < 150);
   const byDate = P.dates.map((d) => [d, P.items.filter((x) => x.date === d), P.appoints.filter((a) => a.date === d)]);
-  const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
+  const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill, go: x.go })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
   return h('details', { class: 'cat plan', open: !!S.planOpen, ontoggle: (ev) => { S.planOpen = ev.target.open; } },
     h('summary', { class: 'cat-title' }, `🗓 予定（画面を閉じている間）${P.items.length ? `　${P.items.length}件` : ''}`),
     h('p', { class: 'hint' }, `${P.horizon}日先まで組めます（段取りのスキル ${P.skill}。上がると先まで）。予定のコマンドができなければ、未指定時コマンドを上から順に、それもできなければ設定の行動パターン。予定を組んでいない日は設定の行動パターンどおり、予定を組んだ日も仕事・アルバイトの時間は働きます。約束の時刻は約束が先です。画面を開いているときは、時刻になっても知らせるだけです。`),
@@ -3596,22 +3640,23 @@ function planSection(v) {
       ...as.map((a) => h('div', { class: 'plan-row muted' }, `📅 ${a.at} ${a.name}との約束（${a.place}）`)),
       ...xs.map((x) => h('div', { class: 'plan-row' + (S.planEdit === x.id ? ' editing' : '') }, h('span', {}, `${x.at} ${x.label}`),
         h('span', {}, h('button', { class: 'btn small ghost', disabled: S.busy, title: '下の欄に読み込んで書き換える',
-          onclick: () => { S.planEdit = x.id; S.planForm = { date: x.date, at: x.at, do: x.do, place: x.place, how: x.how, skill: x.skill }; redraw(); } }, '✎'),
+          onclick: () => { S.planEdit = x.id; S.planForm = { date: x.date, at: x.at, do: x.do, place: x.place, how: x.how, skill: x.skill, go: x.go }; redraw(); } }, '✎'),
         h('button', { class: 'btn small ghost danger', disabled: S.busy, onclick: () => { if (S.planEdit === x.id) S.planEdit = null; call('/api/plan/remove', { id: x.id }); } }, '×'))))) : ''),
     h('div', { class: 'row plan-form', style: 'flex-wrap:wrap;gap:6px' },
       h('select', { onchange: (ev) => { f.date = ev.target.value; redraw(); } }, P.dates.map((d, i) => h('option', { value: d, selected: d === f.date }, `${md(d)}${i === 0 ? '（今日）' : i === 1 ? '（明日）' : ''}`))),
       h('input', { type: 'time', value: f.at, onchange: (ev) => { f.at = ev.target.value; redraw(); } }), ...commandPicker(f, redraw),
       h('button', { class: 'btn small primary', disabled: S.busy || !!clash, why: clash ? `${clash.at}に${clash.name}との約束があります` : '', title: clash ? `${clash.at}に${clash.name}との約束があります` : '',
         onclick: async () => { const rep = editing ? S.planEdit : undefined;
-          if (await call('/api/plan/add', { date: f.date, at: f.at, replace: rep, item: { do: f.do, place: f.place, how: f.how, skill: f.skill } }) && rep) { S.planEdit = null; redraw(); } } }, editing ? '✔ 書き換える' : '＋予定に足す'),
+          if (await call('/api/plan/add', { date: f.date, at: f.at, replace: rep, item: { do: f.do, place: f.place, how: f.how, skill: f.skill, go: f.go } }) && rep) { S.planEdit = null; redraw(); } } }, editing ? '✔ 書き換える' : '＋予定に足す'),
       editing ? h('button', { class: 'btn small ghost', onclick: () => { S.planEdit = null; redraw(); } }, 'やめる') : ''),
     clash ? h('div', { class: 'muted small' }, `⚠ ${clash.at}に${clash.name}との約束（${clash.place}）があります。約束が先です`) : '',
+    planRouteBox(f),
     h('div', { class: 'sect' }, '未指定時コマンド（上から順に）'),
     ...P.fallback.map((x, i) => h('div', { class: 'plan-row' }, h('span', {}, `${i + 1}. ${x.label}`),
       h('span', {}, h('button', { class: 'btn small ghost', onclick: () => order(i, -1) }, '↑'), h('button', { class: 'btn small ghost', onclick: () => order(i, 1) }, '↓'),
-        h('button', { class: 'btn small ghost danger', onclick: () => call('/api/plan/fallback', { items: P.fallback.filter((_, j) => j !== i).map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill })) }) }, '×')))),
+        h('button', { class: 'btn small ghost danger', onclick: () => call('/api/plan/fallback', { items: P.fallback.filter((_, j) => j !== i).map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill, go: y.go })) }) }, '×')))),
     h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...commandPicker(fb, redraw),
-      h('button', { class: 'btn small', disabled: S.busy, onclick: () => call('/api/plan/fallback', { items: P.fallback.map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill })).concat([{ do: fb.do, place: fb.place, how: fb.how, skill: fb.skill }]) }) }, '＋足す')),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => call('/api/plan/fallback', { items: P.fallback.map((y) => ({ do: y.do, place: y.place, how: y.how, skill: y.skill, go: y.go })).concat([{ do: fb.do, place: fb.place, how: fb.how, skill: fb.skill, go: fb.go }]) }) }, '＋足す')),
     h('div', { class: 'sect' }, '自動の応答（閉じている間）'),
     h('p', { class: 'hint' }, 'その場にいないので、手で選ぶより効き目は弱く、相手の様子を読み違えることもあります。'),
     h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },

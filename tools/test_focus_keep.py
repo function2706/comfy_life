@@ -4,7 +4,8 @@
 (地図の「時刻を決めて調べる」のプルダウン. 前にも別の欄で起きた). 入力の途中は描き直しを待ち, 欄を離れたら描き直す.
 一時データでサーバを立て, ヘッドレスのブラウザ (Edge か Chrome) で画面を開いて確かめる.
 - 地図の時刻を決めて調べる: プルダウン・時刻の欄にフォーカスを置いたまま描き直しても, フォーカスが残る
-- 「本を読む」の欄など, ほかの画面のプルダウンでも (出ている欄はすべて)
+- 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)・一人でタブのほかの欄・お金・ログ・関係性・
+  持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -28,25 +29,55 @@ const f = document.getElementById('f');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 f.onload = () => setTimeout(async () => {
   const w = f.contentWindow, d = f.contentDocument, out = [], S = w.eval('S');      // const の S は window に載らない
+  const closeModal = (keep) => d.querySelectorAll('dialog[open]').forEach((x) => { if (x !== keep) x.close(); });
+  // 欄にフォーカスを置いたまま, 周期の描き直し (refresh と, トークを開いていればトークの描き直し) を起こし, フォーカスが残るか
   const keep = async (el, name) => {
     el.focus();
     if (d.activeElement !== el) return;              // 隠れている・押せない欄は数えない
     await w.refresh(); await w.refresh();
+    if (S.chatDlg && S.chatDlg.open) await w.drawChat(true);
     out.push(name + (d.activeElement === el && d.contains(el) ? ':OK' : ':NG'));
   };
+  // 場所 (root) にある欄をすべて (プルダウン・時刻・日付・数字・文字). 描き直しで作り直されるので, 毎回探し直す
+  const FIELDS = 'select, input[type=time], input[type=date], input[type=number], input[type=text], input:not([type]), textarea';
+  const keepAll = async (setup, rootSel, name) => {
+    await setup();
+    const n = d.querySelectorAll(rootSel + ' :is(' + FIELDS + ')').length;
+    if (!n) out.push(name + ':NONE');
+    for (let i = 0; i < n; i++) {
+      await setup();
+      const el = [...d.querySelectorAll(rootSel + ' :is(' + FIELDS + ')')][i];
+      if (el && !el.disabled && el.offsetParent) await keep(el, name + i);
+    }
+  };
   try {
-    d.querySelectorAll('dialog[open]').forEach((x) => x.close());
+    await w.refresh(); closeModal();                 // 閉じていた間のまとめ (開いたときだけ) を先に閉じる
+    // 1. 地図: 経路を調べる (時刻の欄も使える指定で)
     w.openMap();
-    S.mapSel = 'park'; S.routeQ = { to: 'park', by: 'depart', at: '', res: null }; w.renderMap();     // 時刻の欄も使える指定で
+    S.mapSel = 'park'; S.routeQ = { to: 'park', by: 'depart', at: '', res: null }; w.renderMap();
     await keep(d.querySelector('dialog[open] select'), 'map-select');
     await keep(d.querySelector('dialog[open] input[type=time]'), 'map-time');
     d.activeElement.blur(); await sleep(800);
     out.push(S.renderPending ? 'resume:NG' : 'resume:OK');
     S.mapDlg.close();
-    w.showTab('solo'); S.readOpen = 'movie'; w.renderSoloTab();
-    const sels = [...d.querySelectorAll('select')].filter((x) => x.offsetParent);
-    let i = 0;
-    for (const s of sels.slice(0, 5)) await keep(s, 'select' + (i++));
+    // 2. 一人で: 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)
+    await keepAll(() => { closeModal(); w.showTab('solo'); S.planOpen = true; S.planForm = { date: (S.view.plan || {}).dates?.[1], at: '09:00', do: 'out', place: 'mall' }; w.renderSoloTab(); },
+      '#tab-solo .plan', 'plan');
+    // 3. 一人で: 本を読む・映画のジャンルなど, 一人でタブのほかの欄
+    await keepAll(() => { closeModal(); w.showTab('solo'); S.readOpen = 'movie'; w.renderSoloTab(); }, '#tab-solo', 'solo');
+    // 4. お金・ログ・関係性・持ち物のタブ
+    for (const tb of ['money', 'log', 'people', 'items']) await keepAll(() => { closeModal(); w.showTab(tb); }, '#tab-' + tb, tb);
+    // 5. トーク: 約束の欄 (日時・行き先)
+    const cid = ((S.view.people || [])[0] || {}).id;
+    if (cid) {
+      // 約束の欄は, 離れている連絡先の相手だけ: 一時データの町では同居しているので, セーブエディタで連絡先の間柄にする
+      try { await w.api('/api/save/set', { path: ['player', 'bonds', cid, 'stage'], value: 'contact' }); } catch (e) { out.push('setup:' + e.message); }
+      try { await w.api('/api/save/del', { path: ['player', 'with'] }); } catch (e) { /* 一緒にいなければ無い */ }
+      await w.refresh(); closeModal();
+      w.openChat(cid); await sleep(1500);
+      await keepAll(async () => { closeModal(S.chatDlg); S.apForm = S.apForm || {}; S.chatTab = 'invite'; await w.drawChat(); }, 'dialog[open]', 'chat');
+      if (out[out.length - 1] === 'chat:NONE') out.push('chatdbg:' + (S.chatDlg.innerText || '').replace(/\s+/g, '_').slice(-120));
+    }
   } catch (e) { out.push('ERR:' + e.message); }
   document.getElementById('out').textContent = 'RESULT:' + out.join(' ');
 }, 5000);
@@ -86,7 +117,7 @@ def main():
         for k, br in enumerate(brs):
             try:                                  # Edge の版によっては画面なしの起動が返らない: 次のブラウザへ
                 out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
-                                      "--virtual-time-budget=20000", "--dump-dom", url],
+                                      "--virtual-time-budget=60000", "--dump-dom", url],
                                      stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=90).stdout.decode("utf-8", "replace")
             except subprocess.TimeoutExpired:
                 out = ""
@@ -105,7 +136,8 @@ def main():
     res = out[i + 7:out.find("</pre>", i)].strip() if i >= 0 else "(結果なし) " + out[:300]
     print("focus keep:", res)
     items = res.split()
-    assert items and all(x.endswith(":OK") for x in items) and {"map-select:OK", "map-time:OK", "resume:OK"} <= set(items), res
+    bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items), res
     print("ALL OK")
 
 
