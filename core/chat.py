@@ -260,6 +260,15 @@ class Chat:
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
         return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": extra})
 
+    TALKING_MIN = 30          # 相手からのメッセージがこれ以内なら, やりとりの最中 (夜中でも「こんな時間に」とは言わない)
+
+    def talking(self, cid, sent):
+        """sent の時点で, やりとりの最中か (相手から少し前に届いていた. 夜中でも相手が起きて話している)."""
+        for it in reversed(self.load(cid)["items"]):
+            if it.get("who") == "her" and it.get("t", 0) <= sent + 1:
+                return sent - it["t"] <= self.TALKING_MIN * 60
+        return False
+
     # ------------------------------------------------------------------ 返信の中身
     def reply(self, char, st, kind, now, ctx):
         """届いたメッセージを読んで, 返す内容と効果を決める. (場面の鍵, 効果, 置き換え) を返す."""
@@ -291,7 +300,7 @@ class Chat:
             if p.get("affection", 50) < 35:           # 好かれていないと, 好感度まで下がる
                 return "too_often", {"mood": -2, "affection": -1}, extra
             return "too_often_mild", {"mood": -2}, extra
-        if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night":
+        if ctx.get("phase") in ("midnight", "dawn") and kind != "greet_night" and not self.talking(char["id"], sent):
             return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
             return app.topics.phone_reply(char, st, meta, now)

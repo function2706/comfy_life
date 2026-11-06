@@ -60,6 +60,18 @@ def main():
         assert "aquarium" in ch["aquarium"] and "walk" in ch["riverside"] and "home:" + cid not in ch
         print("rules: OK")
 
+        # ---- 1b. レストランに誘う: 予約 (いっぱいのこともある) を調べてから誘う (以前は記録の引数がぶつかって落ちていた)
+        rd = ch.get("restaurant") or []
+        assert rd, sorted(ch)
+        d2 = datetime.fromtimestamp(now + 2 * 86400).replace(hour=19, minute=0, second=0, microsecond=0)
+        try:
+            x = A.propose(cid, d2.timestamp(), "restaurant", rd[0])
+            x["status"] = "refused"               # 以降の確かめに響かないように
+        except ValueError as e:                   # 予約がいっぱい: ふつうの断り
+            assert "予約" in str(e) or "いっぱい" in str(e), e
+        st.pop("msg_pending", None)
+        print("restaurant: OK")
+
         # ---- 2. こちらから誘う: 返事は時間差. 仲・機嫌しだい. 予定があれば断られる
         def ask(t, **params):
             st.pop("msg_pending", None)

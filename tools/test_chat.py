@@ -115,6 +115,10 @@ def main():
         st["contacts"], st["reasons"] = [], []
         night = app.phase_at
         app.phase_at = lambda dt: {"id": "midnight", "label": "深夜", "pos": "", "neg": ""}
+        d = C.load(cid)
+        for it in d["items"]:                    # やりとりが途切れてから (相手から 30 分以内に届いていれば, やりとりの最中: tools/test_late_talking.py)
+            it["t"] -= 2 * 3600
+        C.save(cid, d)
         assert "こんな時間" in send("smalltalk", mood=60), "夜中は迷惑"
         app.phase_at = night
         print("kinds x situations: OK")
