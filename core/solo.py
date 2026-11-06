@@ -717,7 +717,7 @@ class Solo:
                 continue
             ok = self._plain_ok(k["go"], near)
             plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"], "ok": ok,
-                          "why": None if ok else self.app.cond_why(go.get("when", ""), self.app.you_context())})
+                          "why": None if ok else self.app.cond_why(go.get("when", ""), self.app.you_context(roll=False))})
         return {"current": dict(cur, **{k: ALL_KINDS.get(cur["kind"], KINDS["out"])[k] for k in ("label", "icon", "doing")}) if cur else None,
                 "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],

@@ -679,7 +679,7 @@ class App:
             return "内職を一時停止したままです（家を出るのは、内職を終えてから）"
         return None
 
-    def you_context(self, dt=None):
+    def you_context(self, dt=None, roll=True):
         """あなた一人の条件式の値 (誰とも関係しない予定・一人の行動の条件用): 時刻・在席・お金・体力・あなたの情報."""
         dt = dt or datetime.now()
         ctx = {"phase": self.phase_at(dt).get("id", ""), "hour": dt.hour, "time": dt.hour * 60 + dt.minute,
@@ -689,7 +689,8 @@ class App:
         ctx.update(self.life.money_ctx(None))
         ctx.update(self.presence.ctx(dt.timestamp()))
         ctx.update(self.player_ctx())
-        ctx["roll"] = random.randint(0, 99)
+        if roll:                    # くじ (画面の理由づけなど, 引かずに見るだけのときは引かない: 乱数の並びを変えない)
+            ctx["roll"] = random.randint(0, 99)
         return ctx
 
     def my_entry(self, kind, name, icon, text, now=None, money=None, skill=None):

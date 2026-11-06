@@ -26,8 +26,8 @@ def fix_noon(engine):
     App.context = context
     you = App.you_context
 
-    def you_context(self, dt=None):          # いまのあなた一人の条件 (一人で出かける・仕事に行く・研鑽など) も昼.
-        c = you(self, dt)                      # 時刻を指定したとき (約束の時刻のあなたの都合など) は, その時刻のまま
+    def you_context(self, dt=None, roll=True):      # いまのあなた一人の条件 (一人で出かける・仕事に行く・研鑽など) も昼.
+        c = you(self, dt, roll)                      # 時刻を指定したとき (約束の時刻のあなたの都合など) は, その時刻のまま
         if dt is None:
             c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
         return c
