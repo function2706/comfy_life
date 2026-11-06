@@ -10,9 +10,14 @@
   ふだんは実装のすぐあとに部分テストまで済ませるので、beta から書く。
 - 次の版の中身は下の「次の版」にためる。残件は [REMAINING.md](REMAINING.md)。
 
-## 次の版（未確定）
+## 次の版（未確定）: 1.1.1beta
 
-区分: なし（まだ何も載っていない）
+区分: 修正（部分テスト済み・全テストはまだ）
+
+- 約束: レストランに誘うと、サーバのエラーで誘えなかった（予約を調べた記録に、時刻を二重に渡していた。`core/appoint.py` の `propose`）
+- メッセージ: 夜中でも、相手から 30 分以内に届いていれば、やりとりの最中なので「こんな時間に何？」とは返さない（約束の返事のすぐあとのお礼に、そう返していた。`chat.talking`）。これまでの返事はそのまま（遡及なし: 機嫌が少し下がっただけで、もう戻っている頃）
+
+部分テスト: `test_late_talking`（新規） `test_appoint`（レストランの場合を追加） `test_chat` `test_msgreply` `test_manners` `test_manners_oldsave` `test_deliver_once` `test_nori` `test_favor_thanks` `test_apology_scope` `test_reply_context` `test_calendar`
 
 ## 1.1.0（2026-11-06）
 
