@@ -197,6 +197,10 @@ def route(method, path, q, body):
                 return {"meal": a.body.eat(b["how"], b["id"])}
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
+        if path == "/api/timetable":
+            return a.geo.transit.timetable(b["id"], b.get("t") or time.time())
+        if path == "/api/route":
+            return a.geo.route_search(b["to"], b.get("at"), b.get("by", "depart"))
         if path == "/api/phone/call":
             return a.phone_call(b["id"], b.get("talk"), {k: b[k] for k in ("reason", "consult", "topic") if b.get(k)})
         if path == "/api/travel/doing":

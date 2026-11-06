@@ -2155,7 +2155,9 @@ function shopCard(p, inMap) {
 const MAP_W = 640, MAP_H = 440;
 const MAP_NS = 'http://www.w3.org/2000/svg';
 const mapEl = (tag, at, txt) => { const e = document.createElementNS(MAP_NS, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); if (txt != null) e.textContent = txt; return e; };
-const mapName = (id) => id === 'home:me' ? 'あなたの家' : id === 'office' ? '職場' : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).label || id;
+const mapName = (id) => id === 'home:me' ? 'あなたの家' : id === 'office' ? '職場'
+  : String(id).startsWith('st:') ? ((((S.view || {}).outdoor || {}).net || {}).stations || {})[id]?.name || id
+    : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).label || id;
 const mapIcon = (id) => id === 'home:me' ? '🏠' : id === 'office' ? '💼' : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).icon || '📍';
 function mapPreset(k) {
   const M = ((S.view || {}).outdoor || {}).map || {};
@@ -2178,6 +2180,8 @@ function mapProj() {
 function mapXY(id) {
   const M = ((S.view || {}).outdoor || {}).map || {};
   if (M[id]) return M[id];
+  const NS = (((S.view || {}).outdoor || {}).net || {}).stations || {};
+  if (NS[id]) return NS[id].xy;
   if (typeof id === 'string' && id.startsWith('pt:')) return id.slice(3).split(',').slice(0, 2).map(Number);
   return null;
 }
@@ -2278,6 +2282,25 @@ function drawMap() {
     const a = xy(mapXY(tv.from)), b = xy(mapXY(tv.to));
     kids.push(mapEl('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#d55', 'stroke-dasharray': '6 4', 'stroke-width': 3 }));
   }
+  // 路線 (鉄道は太い線, バスは点線) と駅・停留所 (押すと時刻表)
+  const NET = od.net || { stations: {}, lines: [] };
+  for (const ln of NET.lines || []) {
+    const ps = ln.seq.map((sid) => (NET.stations[sid] || {}).xy).filter(Boolean).map(xy);
+    if (ps.length < 2) continue;
+    kids.push(mapEl('polyline', { points: ps.map((q) => q.join(',')).join(' '), fill: 'none', stroke: ln.kind === 'rail' ? '#6b8fd6' : '#5aa874',
+      'stroke-width': ln.kind === 'rail' ? 4 : 2, 'stroke-dasharray': ln.kind === 'rail' ? '' : '5 4', 'stroke-opacity': 0.75 }, mapEl('title', {}, ln.name)));
+  }
+  for (const [sid, st] of Object.entries(NET.stations || {})) {
+    if (sid === 'station') continue;
+    const q = xy(st.xy);
+    if (q[0] < -20 || q[0] > MAP_W + 20 || q[1] < -20 || q[1] > MAP_H + 20) continue;
+    const rail = st.name.endsWith('駅');
+    const g = mapEl('g', { 'data-id': sid, style: 'cursor:pointer' },
+      mapEl('circle', { cx: q[0], cy: q[1], r: S.mapSel === sid ? 7 : rail ? 5 : 3.5, fill: '#fff', stroke: rail ? '#6b8fd6' : '#5aa874', 'stroke-width': 2 }),
+      mapEl('title', {}, st.name));
+    if (!v.all && v.r <= 2.5 || S.mapSel === sid) g.append(mapEl('text', { x: q[0] + 7, y: q[1] - 6, 'font-size': 10, fill: 'currentColor', 'fill-opacity': 0.7 }, st.name));
+    kids.push(g);
+  }
   const close = !v.all && v.r <= 4.5;      // 寄っているときは名前を全部出す
   const pts = Object.entries(M).map(([id, p]) => [id, xy(p)])
     .filter(([, q]) => q[0] > -30 && q[0] < MAP_W + 30 && q[1] > -30 && q[1] < MAP_H + 30);
@@ -2331,6 +2354,51 @@ async function mapGo(id, how) {
   S.mapSel = null;
   if (S.mapDlg && S.mapDlg.open) renderMap();
 }
+// 電車・バスの経路 (A8): 候補ごとに, 乗り継ぎの並びと「この経路で行く」
+const SEG_ICON2 = { walk: '🚶', wait: '⏳', bike: '🚲', car: '🚗', taxi: '🚕' };
+function routeList(routes, go) {
+  const hm = (t) => new Date(t * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  return h('div', { style: 'margin-top:6px' }, h('div', { class: 'muted small' }, '電車・バスの経路（時刻表どおり）'),
+    ...routes.map((r) => h('div', { class: 'route-card' },
+      h('div', { class: 'row', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
+        h('b', { class: 'small' }, r.label), h('span', { class: 'small' }, `${hm(r.dep)}→${hm(r.arr)}着（${r.min}分・${r.fare}円${r.transfers ? `・乗り換え${r.transfers}回` : ''}）`),
+        r.note ? h('span', { class: 'muted small' }, r.note) : '', h('div', { class: 'spacer' }),
+        go ? h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => go(r.key) }, 'この経路で行く') : ''),
+      h('div', { class: 'tsteps' }, ...r.steps.map((x, i) => [i ? h('span', { class: 'muted' }, '→') : '',
+        h('span', { class: 'tstep' }, `${x.kind === 'ride' ? (x.line_kind === 'bus' ? '🚌' : '🚃') : SEG_ICON2[x.kind] || ''} ${x.kind === 'ride' ? hm(x.t0) + ' ' : ''}${x.label} ${x.min}分`)])))));
+}
+// 時刻を決めて調べる (出発 / 到着. 約束に間に合うかなど). 調べるだけ (出かけるのは上のボタンで, いまから)
+function routeSearchBox(to) {
+  const f = S.routeQ = S.routeQ && S.routeQ.to === to ? S.routeQ : { to, by: 'depart', at: '', res: null };
+  const tm = h('input', { type: 'time', value: f.at, style: 'width:7em', onchange: (ev) => { f.at = ev.target.value; } });
+  const by = h('select', { class: 'small', onchange: (ev) => { f.by = ev.target.value; } },
+    h('option', { value: 'depart', selected: f.by === 'depart' }, 'に出発'), h('option', { value: 'arrive', selected: f.by === 'arrive' }, 'までに到着'));
+  const run = async () => {
+    if (!f.at) { toast('時刻を入れてください', 'err'); return; }
+    const [hh, mm] = f.at.split(':').map(Number);
+    const d = new Date(); d.setHours(hh, mm, 0, 0);
+    if (d.getTime() < Date.now() - 3600e3) d.setDate(d.getDate() + 1);       // 過ぎた時刻なら明日
+    try { f.res = await api('/api/route', { to, at: d.getTime() / 1000, by: f.by }); } catch (e) { toast(e.message, 'err'); }
+    renderMap();
+  };
+  return h('div', { style: 'margin-top:6px' },
+    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted' }, '時刻を決めて調べる:'), tm, by,
+      h('button', { class: 'btn small', onclick: run }, '🔍 調べる')),
+    f.res ? [f.res.note ? h('div', { class: 'small' }, f.res.note) : '', f.res.routes.length ? routeList(f.res.routes, null) : h('div', { class: 'muted small' }, '経路が見つかりません')] : '');
+}
+// 駅・停留所: その日の時刻表 (路線・方面ごと. 時: 分 分 分). 始発と終電がわかる
+function stationBox(sid) {
+  const T = S.ttCache && S.ttCache.id === sid ? S.ttCache : null;
+  if (!T) { api('/api/timetable', { id: sid }).then((r) => { S.ttCache = r; renderMap(); }).catch((e) => toast(e.message, 'err')); }
+  return h('div', { class: 'pgroup', style: 'margin-top:6px' },
+    h('div', { class: 'row', style: 'gap:6px;align-items:center' }, h('h4', { style: 'margin:0' }, `🚉 ${mapName(sid)}`),
+      T ? h('span', { class: 'muted small' }, `${T.holiday ? '土休日' : '平日'}ダイヤ`) : '', h('div', { class: 'spacer' }),
+      h('button', { class: 'btn ghost small', onclick: () => { S.mapSel = null; renderMap(); } }, '✕')),
+    !T ? h('div', { class: 'muted small' }, '時刻表を読み込んでいます…')
+      : T.lines.map((ln) => h('details', { class: 'tt' }, h('summary', { class: 'small' }, `${ln.kind === 'bus' ? '🚌' : '🚃'} ${ln.name}・${ln.dir_label}（始発 ${ln.first}・終${ln.kind === 'bus' ? 'バス' : '電'} ${ln.last}）`),
+        h('div', { class: 'tt-body' }, ...Object.keys(ln.hours).sort((a, b) => a - b).map((hh) => h('div', { class: 'small' },
+          h('b', { style: 'display:inline-block;width:2.2em' }, String(hh % 24)), ln.hours[hh].map((m) => String(m).padStart(2, '0')).join(' ')))))));
+}
 function renderMap() {
   const od = (S.view || {}).outdoor || {};
   const M = od.map || {}, P = od.places || {}, G = od.groups || {};
@@ -2369,7 +2437,8 @@ function renderMap() {
     out ? shopCard(pres, true) : '');
   // 選んだ行き先: 行き方ごとの「行く」
   let detail = '';
-  if (sel) {
+  if (sel && String(sel).startsWith('st:')) detail = stationBox(sel);
+  else if (sel) {
     const pl = P[sel] || {};
     const r = routeOf(sel);
     const here = sel === od.here && !tv;
@@ -2384,7 +2453,9 @@ function renderMap() {
       can && modes.length ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
         ...modes.map(([k, m]) => h('button', { class: 'btn small' + (k === r.best ? ' primary' : ''), disabled: S.busy || !m.ok, why: m.ok ? '' : (m.note || '行けません'),
           title: m.note || '', onclick: () => mapGo(sel, k) },
-          `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}行く（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '');
+          `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}行く（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '',
+      can && r && (r.routes || []).length ? routeList(r.routes, (key) => mapGo(sel, key)) : '',
+      !here ? routeSearchBox(sel) : '');
   }
   // 一覧: 分類ごと, いまいる場所から近い順
   const me = mapMe() || [0, 0];

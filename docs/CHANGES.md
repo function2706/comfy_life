@@ -10,9 +10,18 @@
   ふだんは実装のすぐあとに部分テストまで済ませるので、beta から書く。
 - 次の版の中身は下の「次の版」にためる。残件は [REMAINING.md](REMAINING.md)。
 
-## 次の版（未確定）
+## 次の版（未確定）: 1.3.0beta
 
-区分: なし（まだ何も載っていない）
+区分: 機能追加（部分テスト済み・全テストはまだ）
+
+- A8 路線と時刻表: ワールドごとに、鉄道（8 km より遠い行き先の方へ、最大 4 本）とバス（0.8〜8 km の行き先と住宅地、最大 4 系統）の路線網を作る。駅・停留所は行き先の最寄り（いまの「最寄りまでの距離」の位置）と、間に数 km ごと。時刻表は路線・方向・平日 / 土休日ごとに、始発・終電（終バス）・時間帯ごとの間隔をワールドごとに決める（毎日同じ）。地図に路線と駅を描き、駅を押すとその日の時刻表（`core/transit.py`）
+- A8 経路: 歩く・自転車・車・タクシーと鉄道・バスの組み合わせを、時刻表どおりに探す（connection scan）。候補はおまかせ（タクシーなしで早い）・乗り換え少なめ・タクシーも使う（おまかせより 5 分以上早く、タクシーだけより安いときだけ）。自転車・車で駅まで行けば駅に置き（駐輪 150 円・駐車 600 円）、置いた駅から次に乗れる。鉄道は続けて乗った距離の運賃、バスは 1 回 220 円。出発・到着の時刻を決めて調べられる（`geo.routes` `route_search` `latest_departure`）
+- A8 移動の記録: 経路の区間（歩く・待つ・何線に乗る・降りて歩く）で記録し、途中でやめると、乗っていれば次の駅で降りる・乗らなかった区間は払わない・乗り物は乗る前なら出たところ / 乗っている途中ならそこ。移動中の区間の表示・移動中の読書もこの区間で
+- A8 ほかの所: 閉じていた間の移動・相手との外出の行き帰り・帰る時刻は、この経路で（行き方の目安と同じ仕組み）。約束の「何時に出れば間に合う」は、時刻表で間に合ういちばん遅い出発
+- 遡及: いまのワールドは、次に開いたときに路線網を作る（場所の位置は変えない）。移動中の以前の形の記録は、そのまま着く
+- テスト: 時刻表に関わるテスト（`test_redirect` `test_reading`）は、時計を平日の昼前に合わせて流す（`testclock.run_at`）。夜中に流すと始発待ちになるため
+
+部分テスト: `test_transit`（新規） `test_geo` `test_redirect` `test_reading` `test_offline` `test_offline_fallback` `test_closed_away` `test_appoint` `test_routine` `test_planner` `test_solo` `test_api_errors` `test_outing_effects` `test_outing_migrate` `test_favor_appoint` `test_visit` `test_js_names` `test_phone_talk` `test_care` `test_invite_home` `test_earn` `test_earn2` `test_earn3` `test_places` `test_hours` `test_shop` `test_street` `test_encounters` `test_exercise` `test_quals`、画面はブラウザで確認
 
 ## 1.2.0（2026-11-07）
 

@@ -121,6 +121,7 @@ class Outdoor:
         out["vehicles"] = self.app.geo.vehicles_view(now)
         out["here"] = self.app.geo.where(now)
         out["map"] = self.app.geo.map_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
+        out["net"] = self.app.geo.transit.map_view()          # 路線と駅・停留所 (地図に描く. 押すと時刻表)
         return out
 
     # ------------------------------------------------------------------ 心拍のたびに

@@ -44,3 +44,17 @@ def fix_noon(engine):
     places.open_state_real = real
     places.open_state = offline.open_state = lambda pid, dt: real(pid, NOON)
     App._noon_fixed = True
+
+
+def run_at(hour=11, minute=0, weekday=True):
+    """時計 (time.time) を, 今日 (平日なら次の平日) の hour:minute から進むようにする (時刻表の電車・バスが走っている時間に.
+    core/transit.py の経路は本物の時刻で探すので, 夜中に流すと始発待ちになる). datetime.now は変えない (fix_noon と使う)."""
+    import time as _t
+    from datetime import timedelta
+    real = _t.time
+    d = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+    while weekday and d.weekday() >= 5:
+        d += timedelta(days=1)
+    off = d.timestamp() - real()
+    _t.time = lambda: real() + off
+    return d.timestamp()

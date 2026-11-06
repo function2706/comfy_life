@@ -259,6 +259,10 @@ class Places:
         return self.table().get(pid)
 
     def label(self, pid):
+        if isinstance(pid, str) and pid.startswith("st:"):             # 駅・停留所 (core/transit.py)
+            st = self.app.geo.transit.net()["stations"].get(pid)
+            if st:
+                return st["name"]
         if isinstance(pid, str) and pid.startswith("pt:"):
             return "途中の駅" if pid.count(",") >= 2 else "移動の途中"
         p = self.get(pid)

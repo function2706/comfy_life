@@ -1067,6 +1067,11 @@ class Appoint:
         except Exception:  # noqa: BLE001 - 目安なので
             return None
         how = o["best"]
+        if how == "transit":                      # 電車・バス: 時刻表で, 間に合ういちばん遅い出発 (5 分の余裕)
+            hit = app.geo.latest_departure(app.geo.where(now), x["place"], x["t"] - 300)
+            if hit:
+                t = hit[0]
+                return {"t": t, "label": datetime.fromtimestamp(t).strftime("%H:%M"), "min": int(round((x["t"] - t) / 60)), "how": how}
         m = (o["transit"] or {}).get("min", 0) + 5 if how == "transit" else o["walk"]["min"]
         if not m:
             return None

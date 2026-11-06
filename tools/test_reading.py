@@ -12,9 +12,10 @@ import time
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 from core import engine, geo as G, store, topics as T  # noqa: E402
-from testclock import fix_noon  # noqa: E402
+from testclock import fix_noon, run_at  # noqa: E402
 
 fix_noon(engine)
+run_at(11)                # 時刻表の電車・バスが走っている平日の昼前 (core/transit.py)
 G.INSTANT = False
 
 

@@ -18,6 +18,7 @@ from datetime import datetime
 
 from . import places as places_mod
 from . import store
+from . import transit as transit_mod
 
 ROAD = 1.3                 # 道のり / 直線
 WALK_KMH = 4.5
@@ -98,6 +99,7 @@ class Geo:
         self.app = app
         self._cache = None
         self.last_refund = 0         # 直前に移動を途中でやめたとき, 払わずに済んだ分 (画面の文に)
+        self.transit = transit_mod.Transit(self)
 
     # ------------------------------------------------------------------ 位置
     def rec(self):
@@ -138,6 +140,10 @@ class Geo:
         if pid.startswith("pt:"):               # 移動の途中の地点 ("pt:x,y" / 駅で降りたところなら "pt:x,y,0.05". 覚えておかない)
             v = [float(x) for x in pid[3:].split(",")]
             return {"xy": v[:2], "acc": v[2] if len(v) > 2 else 0.3}
+        if pid.startswith("st:") or pid == "st":
+            st = self.transit.net()["stations"].get(pid)
+            if st:
+                return {"xy": st["xy"], "acc": 0.0}
         r = self.rec()
         if pid not in r["pts"]:
             r["pts"][pid] = self._make(pid)
@@ -208,13 +214,12 @@ class Geo:
         walk = self.walk_min(a, b, t)
         modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN,
                           "note": "" if walk <= WALK_MAX_MIN else "歩いて行くには遠すぎる（%d時間を超える）" % (WALK_MAX_MIN // 60)}}
-        if km > 1.2:
-            pa, pb = self.pt(a), self.pt(b)
-            acc = (pa["acc"] + pb["acc"]) * ROAD / WALK_KMH * 60
-            hw = headway(h)
-            tm = acc + ride_min(km) + (hw or 10) / 2
-            if tm < walk * 0.9:
-                modes["transit"] = {"min": round(tm), "fare": self.fare(km), "ok": bool(hw), "note": "" if hw else "いまは走っていない（始発は5時）"}
+        routes = self.routes(a, b, t) if km > 1.2 else []
+        if routes and routes[0]["min"] < walk * 0.9:
+            r0 = routes[0]
+            modes["transit"] = {"min": r0["min"], "fare": r0["fare"], "ok": True, "note": r0["note"]}
+        elif km > 1.2 and not routes and walk > 30:
+            modes["transit"] = {"min": 0, "fare": 0, "ok": False, "note": "いまは電車・バスで行けない（走っていない時間）"}
         if km > 0 and self._vehicle_ok("bicycle", a):      # 自転車は近場でも乗れる
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN,
@@ -235,7 +240,8 @@ class Geo:
             m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)
             fare = int((TAXI_BASE + TAXI_KM * max(0.0, km - 1.0)) * (1.2 if night else 1.0) / 10) * 10
             modes["taxi"] = {"min": round(m), "fare": fare, "ok": True, "note": "深夜料金" if night else ""}
-        out = {"km": round(km, 2), "modes": modes, "walk": modes["walk"], "transit": modes.get("transit")}
+        out = {"km": round(km, 2), "modes": modes, "walk": modes["walk"], "transit": modes.get("transit"),
+               "routes": [self.route_view(r, t) for r in routes]}
         out["best"] = self._best(modes)
         return out
 
@@ -264,11 +270,11 @@ class Geo:
         if how == "transit":
             if random.random() < (EV_DELAY * 2 if _rush(h) else EV_DELAY):
                 d = random.uniform(5, 30)
-                r["min"] += d
+                self._delay(r, d)
                 notes.append("電車が遅れた（%d分）" % round(d))
             if self.app.life.stamina() < 25 and random.random() < EV_DOZE:
                 d = random.uniform(10, 25)
-                r["min"] += d
+                self._delay(r, d)
                 notes.append("うとうとして乗り過ごした（%d分）" % round(d))
         elif how in ("car", "taxi") and random.random() < EV_JAM:
             d = random.uniform(10, 30)
@@ -293,7 +299,7 @@ class Geo:
         modes = o["modes"]
         if how == "transit" and not modes.get("transit"):
             how = "walk"                          # 近すぎる: 歩く
-        if how not in modes:
+        if how not in modes and not str(how).startswith("route:"):       # route:<n> は経路の候補 (下の電車・バスで)
             raise ValueError({"bike": "自転車がここにありません", "car": "車がここにありません（免許も要ります）",
                               "taxi": "タクシーを使うほどの距離ではありません"}.get(how, "その行き方はできません"))
         if how == "walk":
@@ -310,21 +316,246 @@ class Geo:
             if how == "taxi" and rand:            # 来るまでの待ち (呼んでから)
                 wait = random.uniform(-3, 6)
             return {"how": how, "min": max(3.0, m["min"] + wait), "fare": m["fare"], "wait": max(0.0, wait), "note": m["note"]}
-        pa, pb = self.pt(a), self.pt(b)
-        km = o["km"]
-        acc = (pa["acc"] + pb["acc"]) * ROAD / WALK_KMH * 60
-        t_st = t + pa["acc"] * ROAD / WALK_KMH * 3600            # 駅・停留所に着く
-        start = first_train(t_st)
-        wait = (start - t_st) / 60.0
-        hw = headway(_hour(start)) or 10
-        wait += random.uniform(0, hw) if rand else hw / 2
-        note = "始発を待った" if start > t_st else ""
-        return {"how": "transit", "min": acc + wait + ride_min(km), "fare": self.fare(km), "wait": round(wait, 1), "note": note}
+        rs = self.routes(a, b, t)
+        if not rs:
+            raise ValueError("電車・バスで行ける経路がありません（走っていない時間か、駅から遠すぎます）")
+        r = rs[0]
+        if str(how).startswith("route:"):
+            r = next((x for x in rs if x["key"] == how), r)
+        return self.route_leg(r, t)
+
+    # ------------------------------------------------------------------ 経路 (A8. core/transit.py)
+    def _taxi(self, km, t):
+        h = _hour(t)
+        night = h >= 22 or h < 5
+        m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)
+        return m, int((TAXI_BASE + TAXI_KM * max(0.0, km - 1.0)) * (1.2 if night else 1.0) / 10) * 10
+
+    def _ends(self, pid, t, side, taxi):
+        """駅・停留所との行き来の候補: {駅: (分, 円, 区間の種類, 乗り物)} (side: access = 出るところから / egress = 行き先まで)."""
+        T = self.transit
+        net = T.net()
+        xy = self.pt(pid)["xy"]
+        out = {}
+        bike_here = side == "access" and self._vehicle_ok("bicycle", pid)
+        car_here = side == "access" and self._vehicle_ok("car", pid)
+        wet = self._weather(t) in ("rain", "snow")
+        for sid, stn in net["stations"].items():
+            if sid == pid:
+                out[sid] = (0.0, 0, "walk", None)
+                continue
+            km = math.hypot(stn["xy"][0] - xy[0], stn["xy"][1] - xy[1]) * ROAD
+            c = []
+            wm = km / WALK_KMH * 60 * (1.15 if wet else 1.0)
+            if wm <= transit_mod.ACCESS_WALK_MAX:
+                c.append((wm, 0, "walk", None))
+            if side == "access":
+                if bike_here and km > 0.3:
+                    c.append((km / BIKE_KMH * 60 * (1.2 if wet else 1.0), transit_mod.BIKE_PARK, "bike", "bicycle"))
+                if car_here and km > 0.5:
+                    c.append((CAR_ADD + drive_min(km), transit_mod.CAR_PARK, "car", "car"))
+            else:                        # 駅に置いてある自転車・車で, 行き先まで
+                if self.veh_at("bicycle") == sid and self.app.items.count("bicycle") > 0 and km > 0.3:
+                    c.append((km / BIKE_KMH * 60, 0, "bike", "bicycle"))
+                if self.veh_at("car") == sid and self.app.items.count("car") > 0 and self.app.quals.has("drive") and km > 0.5:
+                    c.append((CAR_ADD + drive_min(km), self.parking(pid), "car", "car"))
+            if taxi and km > 0.8:
+                m, f = self._taxi(km, t)
+                c.append((m, f, "taxi", None))
+            if c:
+                out[sid] = min(c, key=lambda x: (x[0], x[1]))
+        return out
+
+    VARIANTS = (("auto", "おまかせ", False, transit_mod.TRANSFER_BUF), ("few", "乗り換え少なめ", False, 15.0),
+                ("taxi", "タクシーも使う", True, transit_mod.TRANSFER_BUF))
+
+    def routes(self, a, b, t):
+        """a → b の電車・バスを使う経路の候補 (速い順. 同じ乗り方は 1 つ). 各 {key, label, legs, t_arr, min, fare, transfers, note}."""
+        T = self.transit
+        out = []
+        seen = set()
+        egress_cache = {}
+        for vi, (vk, label, taxi, tbuf) in enumerate(self.VARIANTS):
+            ck = (store.WORLD, a, int(t // 60), vk, self.veh_at("bicycle"), self.veh_at("car"))
+            sc = T._csa.get(ck)
+            if sc is None:
+                acc = {}
+                for sid, (m, f, kind, veh) in self._ends(a, t, "access", taxi).items():
+                    acc[sid] = (t + m * 60, [{"kind": kind, "from": a, "to": sid, "t0": t, "t1": t + m * 60, "fare": f, "veh": veh}])
+                sc = T.scan(self.pt(a)["xy"], t, acc, transfer=tbuf)
+                if len(T._csa) > 300:
+                    T._csa.clear()
+                T._csa[ck] = sc
+            arr, how = sc
+            if taxi not in egress_cache:
+                egress_cache[taxi] = self._ends(b, t, "egress", taxi)
+            eg = egress_cache[taxi]
+            best = None
+            for sid, at in arr.items():
+                if sid not in eg or how[sid][0] == "access":
+                    continue
+                m, f, kind, veh = eg[sid]
+                if best is None or at + m * 60 < best[0]:
+                    best = (at + m * 60, sid, (m, f, kind, veh))
+            if not best:
+                continue
+            t_arr, sid, (m, f, kind, veh) = best
+            legs = T.journey(how, sid)
+            legs.append({"kind": kind, "from": sid, "to": b, "t0": arr[sid], "t1": t_arr, "fare": f, "veh": veh})
+            sig = tuple((lg["kind"], lg.get("line"), lg["to"]) for lg in legs if lg["kind"] != "wait")
+            if sig in seen:
+                continue
+            seen.add(sig)
+            fare = self._route_fare(legs)
+            rides = [lg for lg in legs if lg["kind"] == "ride"]
+            out.append({"key": "route:%d" % vi, "label": label, "legs": legs, "t_arr": t_arr, "min": max(1, round((t_arr - t) / 60)),
+                        "fare": fare, "transfers": max(0, len(rides) - 1), "note": self._route_note(legs, t)})
+        auto = next((r for r in out if r["key"] == "route:0"), None)
+        km = self.km(a, b)
+        tx_m, tx_f = self._taxi(km, t)
+
+        def keep(r):
+            if r["key"] != "route:2":
+                return True        # タクシーも使う: おまかせより 5 分以上早く, タクシーだけより安く・早くないと出さない
+            return (auto is None or r["t_arr"] <= auto["t_arr"] - 300) and r["fare"] < tx_f and r["t_arr"] < t + tx_m * 60
+        return [r for r in out if keep(r)]
+
+    def _route_fare(self, legs):
+        """経路の代金: 鉄道は続けて乗った距離で (乗り換えても一つの運賃), バスは 1 回ごと, ほかは区間の代金 (駐輪・駐車・タクシー)."""
+        T = self.transit
+        net = T.net()
+        tot, rail_km = 0, 0.0
+        for lg in legs:
+            if lg["kind"] == "ride":
+                ln = T.line(lg["line"])
+                if ln["kind"] == "rail":
+                    pa, pb = net["stations"][lg["from"]]["xy"], net["stations"][lg["to"]]["xy"]
+                    rail_km += math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 1.1
+                    continue
+                tot += transit_mod.BUS_FARE
+            elif lg["kind"] != "wait":
+                tot += int(lg.get("fare") or 0)
+            if rail_km and lg["kind"] != "wait":
+                tot += T.fare_rail(rail_km)
+                rail_km = 0.0
+        if rail_km:
+            tot += T.fare_rail(rail_km)
+        return tot
+
+    def _route_note(self, legs, t):
+        first = next((lg for lg in legs if lg["kind"] == "ride"), None)
+        if not first:
+            return ""
+        w = (first["t0"] - t) / 60.0
+        dep = datetime.fromtimestamp(first["t0"]).strftime("%H:%M")
+        return "%s発%s" % (dep, "（始発を待つ）" if w > 90 else "")
+
+    def leg_label(self, lg):
+        T = self.transit
+        net = T.net()
+        nm = lambda pid: net["stations"][pid]["name"] if pid in net["stations"] else self.app.places.label(pid)   # noqa: E731
+        k = lg["kind"]
+        if k == "ride":
+            ln = T.line(lg["line"])
+            return "%s（%s→%s）" % (ln["name"], nm(lg["from"]), nm(lg["to"]))
+        if k == "wait":
+            return "%sで待つ" % nm(lg["from"])
+        to = nm(lg["to"]) if lg["to"] in net["stations"] else None
+        frm = nm(lg["from"]) if lg["from"] in net["stations"] else None
+        word = {"walk": "歩く", "bike": "自転車", "car": "車", "taxi": "タクシー"}.get(k, k)
+        if to and not frm:
+            return "%sまで%s" % (to, word if k != "walk" else "歩く")
+        if frm and not to:
+            return "降りて%s" % ("歩く" if k == "walk" else word + "で")
+        return "乗り換え（歩く）" if k == "walk" else word
+
+    def route_view(self, r, t):
+        """画面に出す経路: {key, label, min, fare, transfers, note, dep, arr, steps: [{kind, label, min, t0}]}."""
+        steps = [{"kind": lg["kind"], "label": self.leg_label(lg), "min": max(1, round((lg["t1"] - lg["t0"]) / 60)),
+                  "t0": lg["t0"], "line_kind": self.transit.line(lg["line"])["kind"] if lg["kind"] == "ride" else None}
+                 for lg in r["legs"] if lg["t1"] - lg["t0"] >= 30 or lg["kind"] == "ride"]
+        return {"key": r["key"], "label": r["label"], "min": r["min"], "fare": r["fare"], "transfers": r["transfers"],
+                "note": r["note"], "dep": t, "arr": r["t_arr"], "steps": steps}
+
+    def latest_departure(self, a, b, arrive):
+        """arrive までに着く, いちばん遅い出発 (電車・バス. おまかせの経路で). (出発時刻, 経路) か None."""
+        lo, hi = arrive - 8 * 3600, arrive
+        best = None
+        for _ in range(12):
+            mid = (lo + hi) / 2.0
+            rs = [r for r in self.routes(a, b, mid) if r["key"] == "route:0"]
+            if rs and rs[0]["t_arr"] <= arrive:
+                best, lo = (mid, rs[0]), mid
+            else:
+                hi = mid
+            if hi - lo < 60:
+                break
+        return best
+
+    def route_search(self, to, at=None, by="depart"):
+        """画面の経路検索: いまいる場所から to へ. by = depart (at に出る) / arrive (at までに着く)."""
+        now = time.time()
+        frm = self.where(now)
+        at = float(at or now)
+        if by == "arrive":
+            hit = self.latest_departure(frm, to, at)
+            if not hit:
+                return {"by": by, "at": at, "routes": [], "note": "その時刻までに着く電車・バスの経路がありません"}
+            t, r = hit
+            return {"by": by, "at": at, "depart": t, "routes": [self.route_view(r, t)],
+                    "note": "%sに出れば間に合う" % datetime.fromtimestamp(t).strftime("%H:%M")}
+        return {"by": by, "at": at, "routes": [self.route_view(r, at) for r in self.routes(frm, to, at)], "note": ""}
+
+    def route_leg(self, r, t):
+        """経路を, 移動 1 回 (leg) の形に."""
+        wait = sum((lg["t1"] - lg["t0"]) / 60.0 for lg in r["legs"] if lg["kind"] == "wait")
+        legs = [dict(lg) for lg in r["legs"]]
+        return {"how": "transit", "min": (r["t_arr"] - t) / 60.0, "fare": r["fare"], "wait": round(wait, 1),
+                "note": "始発を待った" if wait > 90 else "", "legs": legs, "route": r["key"]}
+
+    @staticmethod
+    def _delay(r, d):
+        """遅れ d 分: 最初に乗る区間から先を後ろへずらす."""
+        r["min"] += d
+        legs = r.get("legs")
+        if not legs:
+            return
+        hit = False
+        for lg in legs:
+            if lg["kind"] == "ride" and not hit:
+                hit = True
+                lg["t1"] += d * 60
+                continue
+            if hit:
+                lg["t0"] += d * 60
+                lg["t1"] += d * 60
+
+    def leg_at(self, tr, now):
+        """経路の移動で, いまいる区間 (無ければ None)."""
+        legs = tr.get("legs")
+        if not legs:
+            return None
+        for lg in legs:
+            if now < lg["t1"]:
+                return lg
+        return legs[-1]
 
     def body_cost(self, lg, a, b):
         """移動 1 回の運動の量と疲れ (歩く・走る・自転車をこぐ分. 電車・バスは駅まで歩く分だけ, 車・タクシーは無し)."""
         from .body import MOVE_PER_H
         how = lg["how"]
+        if lg.get("legs"):                       # 経路: 歩いた・こいだ区間の分
+            from .body import MOVE_PER_H
+            ex = tired = 0.0
+            for x in lg["legs"]:
+                h = (x["t1"] - x["t0"]) / 3600.0
+                if x["kind"] == "walk":
+                    ex, tired = ex + MOVE_PER_H["walk"] * h, tired + 2.5 * h
+                elif x["kind"] == "bike":
+                    ex, tired = ex + MOVE_PER_H["walk"] * 1.1 * h, tired + 3.0 * h
+                elif x["kind"] in ("car", "taxi", "ride"):
+                    tired += 0.3 * h
+            return ex, tired
         if how in ("car", "taxi"):
             return 0.0, 0.3 * lg["min"] / 60.0
         if how == "transit":
@@ -336,6 +567,12 @@ class Geo:
 
     def used(self, lg, to):
         """自転車・車で行った: 乗り物は行った先に置いてある."""
+        if lg.get("legs"):                       # 経路: 自転車・車で駅まで行けば駅に, 駅から乗れば行き先に
+            for x in lg["legs"]:
+                if x.get("veh"):
+                    self.rec().setdefault("veh", {})[x["veh"]] = x["to"]
+            self.save()
+            return
         if lg["how"] in ("bike", "car"):
             self.rec().setdefault("veh", {})["bicycle" if lg["how"] == "bike" else "car"] = to
             self.save()
@@ -373,6 +610,22 @@ class Geo:
         tr = self.travel()
         if not tr or now >= tr["arr"]:
             return None
+        lg = self.leg_at(tr, now)
+        if lg:                                   # 経路: いまいる区間の中で (待っていれば駅, 乗っていれば次の駅で降りる)
+            if lg["kind"] == "wait" or now <= lg["t0"]:
+                return lg["from"]
+            k = max(0.0, min(1.0, (now - lg["t0"]) / max(1.0, lg["t1"] - lg["t0"])))
+            if lg["kind"] == "ride":
+                seq = self.transit.line(lg["line"])["seq"]
+                i0, i1 = seq.index(lg["from"]), seq.index(lg["to"])
+                path = seq[i0:i1 + 1] if i0 <= i1 else seq[i1:i0 + 1][::-1]
+                return path[min(len(path) - 1, max(1, int(math.ceil(k * (len(path) - 1)))))]     # 次の駅で降りる
+            if k <= 0.02:
+                return lg["from"]
+            if k >= 0.98:
+                return lg["to"]
+            a, b = self.pt(lg["from"])["xy"], self.pt(lg["to"])["xy"]
+            return "pt:%.3f,%.3f" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
         ph = self.phase(now)
         if ph:                                   # 電車・バス: 乗る前ならまだ出たところ, 乗っていれば次の駅で降りる, 降りたあとなら行き先のそば
             kind, k = ph
@@ -392,6 +645,9 @@ class Geo:
         """移動 1 回の区間 [[種類, 分, ことば]] (画面で, いまどの区間かを出す). 種類: walk / wait / ride / bike / run / car / taxi.
         電車・バス: 駅・停留所まで歩く → 待つ → 乗る → 降りて歩く. タクシー: 来るまで待つ → 乗る. ほかは 1 区間."""
         how, tot = lg["how"], float(lg["min"])
+        if lg.get("legs"):
+            return [[x["kind"], round((x["t1"] - x["t0"]) / 60.0, 1), self.leg_label(x)] for x in lg["legs"]
+                    if x["t1"] - x["t0"] >= 30 or x["kind"] == "ride"] or [["walk", round(tot, 1), "移動している"]]
         if how == "transit":
             a = self.pt(frm)["acc"] * ROAD / WALK_KMH * 60
             b = self.pt(to)["acc"] * ROAD / WALK_KMH * 60
@@ -419,7 +675,7 @@ class Geo:
         segs = tr.get("segs") or []
         if not segs:
             return 0.0
-        tot = sum(m for _, m, _ in segs)
+        tot = sum(m for _, m, _ in segs) or 1e-6
         span = max(1.0, tr["arr"] - tr["t0"])
         acc, out = 0.0, 0.0
         for k, m, _ in segs:
@@ -482,7 +738,7 @@ class Geo:
         segs = tr.get("segs") or []
         if not segs:
             return None, 0
-        tot = sum(m for _, m, _ in segs)
+        tot = sum(m for _, m, _ in segs) or 1e-6
         span = max(1.0, tr["arr"] - tr["t0"])
         e = (now - tr["t0"]) / span * tot
         acc = 0.0
@@ -518,7 +774,12 @@ class Geo:
         back = self.last_refund = self.unused_fare(tr, now)
         if back > 0:                             # 乗らなかった分 (電車・バスは乗った区間だけ, タクシー・車は走った分だけ払う)
             self.app.life.move(None, dp=back, cat="transport", note="%s（途中でやめた分）" % FARE_NOTE[tr["how"]])
-        if tr["how"] in ("bike", "car"):
+        if tr.get("legs"):                       # 経路: まだ乗っていない乗り物は出たところ, 乗っている途中ならここ
+            for x in tr["legs"]:
+                if x.get("veh"):
+                    self.rec().setdefault("veh", {})[x["veh"]] = x["from"] if now <= x["t0"] else here if now < x["t1"] else x["to"]
+            self.save()
+        elif tr["how"] in ("bike", "car"):
             self.rec().setdefault("veh", {})["bicycle" if tr["how"] == "bike" else "car"] = here
             self.save()
         self.rec_p().pop("travel", None)
@@ -530,6 +791,23 @@ class Geo:
         fare = int(tr.get("fare") or 0)
         if fare <= 0 or now >= tr["arr"]:
             return 0
+        if tr.get("legs"):                       # 経路: まだ乗っていない区間は払わない. 乗っている区間は乗った分だけ
+            T = self.transit
+            net = T.net()
+            back = 0
+            for x in tr["legs"]:
+                if x["kind"] == "ride":
+                    ln = T.line(x["line"])
+                    pa, pb = net["stations"][x["from"]]["xy"], net["stations"][x["to"]]["xy"]
+                    full = T.fare_rail(math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 1.1) if ln["kind"] == "rail" else transit_mod.BUS_FARE
+                    if now <= x["t0"]:
+                        back += full
+                    elif now < x["t1"] and ln["kind"] == "rail":
+                        k = (now - x["t0"]) / max(1.0, x["t1"] - x["t0"])
+                        back += max(0, full - T.fare_rail(math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 1.1 * k))
+                elif x["kind"] != "wait" and now <= x["t0"]:
+                    back += int(x.get("fare") or 0)
+            return min(fare, back)
         if tr["how"] == "transit":
             ph = self.phase(now)
             if not ph or ph[0] == "post":
@@ -592,7 +870,10 @@ class Geo:
         self.used(lg, to)
         p["travel"] = {"from": frm, "to": to, "how": lg["how"], "t0": now, "arr": now + lg["min"] * 60, "fare": lg["fare"],
                        "dir": direction, "then": then, "note": lg["note"]}
-        if lg["how"] == "transit":               # 駅まで歩いて待つ / 乗っている / 降りて歩く (途中で行き先を変えるときの居場所)
+        if lg.get("legs"):                       # 経路の区間 (途中で降りる・置いた乗り物・区間の表示に)
+            p["travel"]["legs"] = lg["legs"]
+            p["travel"]["arr"] = max(p["travel"]["arr"], lg["legs"][-1]["t1"])
+        elif lg["how"] == "transit":               # 駅まで歩いて待つ / 乗っている / 降りて歩く (途中で行き先を変えるときの居場所)
             pre = self.pt(frm)["acc"] * ROAD / WALK_KMH * 60 + lg.get("wait", 0)
             post = self.pt(to)["acc"] * ROAD / WALK_KMH * 60
             p["travel"]["ph"] = [round(pre, 1), round(max(1.0, lg["min"] - pre - post), 1), round(post, 1)]
@@ -698,5 +979,5 @@ class Geo:
                 o = self.options(frm, pid, now)
             except Exception:  # noqa: BLE001 - 目安なので, 出せなければ出さない
                 continue
-            out[pid] = {"walk": o["walk"], "transit": o["transit"], "modes": o["modes"], "best": o["best"], "km": o["km"]}
+            out[pid] = {"walk": o["walk"], "transit": o["transit"], "modes": o["modes"], "best": o["best"], "km": o["km"], "routes": o["routes"]}
         return out

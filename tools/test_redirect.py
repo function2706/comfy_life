@@ -17,9 +17,10 @@ import time
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 from core import engine, geo as G, places as PL, store  # noqa: E402
-from testclock import fix_noon  # noqa: E402
+from testclock import fix_noon, run_at  # noqa: E402
 
 fix_noon(engine)
+run_at(11)                # 時刻表の電車・バスが走っている平日の昼前 (core/transit.py)
 G.INSTANT = False
 
 
@@ -28,6 +29,9 @@ def shift(app, sec):
     tr = app.geo.travel()
     tr["t0"] -= sec
     tr["arr"] -= sec
+    for lg in tr.get("legs") or []:        # 経路の区間も
+        lg["t0"] -= sec
+        lg["t1"] -= sec
 
 
 def main():
@@ -44,45 +48,42 @@ def main():
         geo.ensure()
         home = PL.HOME_ME
 
-        # ---- 1. 電車の段階: 乗る前 → 乗っている (途中の駅) → 降りたあと
-        now = time.time()
+        # ---- 1. 電車の経路 (core/transit.py の時刻表): 歩いている → 駅で待つ → 乗っている (次の駅で降りる) → 降りて歩く
         with app.lock:
             app.solo.start("out", place="aquarium", how="transit")
         tr = dict(geo.travel())
-        assert tr["how"] == "transit" and tr.get("ph"), tr
-        pre, ride, post = tr["ph"]
-        tot = (tr["arr"] - tr["t0"]) / 60.0
-        k = tot / (pre + ride + post)
-        t_pre = tr["t0"] + pre * k * 60 * 0.5
-        t_ride = tr["t0"] + (pre + ride * 0.5) * k * 60
-        t_post = tr["arr"] - post * k * 60 * 0.3
-        assert geo.phase(t_pre)[0] == "pre" and geo.midway(t_pre) == home
-        assert geo.phase(t_ride)[0] == "ride"
+        legs = tr.get("legs") or []
+        assert tr["how"] == "transit" and legs and any(lg["kind"] == "ride" for lg in legs), tr
+        mid_of = lambda lg: (lg["t0"] + lg["t1"]) / 2.0                     # noqa: E731
+        walk0 = legs[0]
+        ride = next(lg for lg in legs if lg["kind"] == "ride")
+        last = legs[-1]
+        t_pre, t_ride, t_post = mid_of(walk0), ride["t0"] + (ride["t1"] - ride["t0"]) * 0.4, mid_of(last)
+        assert geo.midway(t_pre).startswith("pt:")                            # 駅へ歩いている途中
         mid = geo.midway(t_ride)
-        assert mid.startswith("pt:") and mid.count(",") == 2 and app.places.label(mid) == "途中の駅", mid
-        assert geo.phase(t_post)[0] == "post" and geo.midway(t_post) == "aquarium"
+        line_seq = geo.transit.line(ride["line"])["seq"]
+        assert mid in line_seq and mid != ride["from"], (mid, ride)            # 乗っていれば, 次の駅で降りる
+        assert mid == "station" or app.places.label(mid) == geo.transit.net()["stations"][mid]["name"], (mid, app.places.label(mid))
+        assert geo.midway(t_post).startswith("pt:")
         kinds = [k for k, _, _ in tr["segs"]]
-        assert kinds[0] == "walk" and "ride" in kinds and abs(sum(m for _, m, _ in tr["segs"]) - tot) < 1.5, tr["segs"]
-        assert tr["segs"][geo.seg_now(tr, t_ride)[0]][0] == "ride" and geo.seg_now(tr, t_pre)[0] <= 1
-        assert tr["segs"][geo.seg_now(tr, t_post)[0]][2] == "降りて歩く"
+        assert kinds[0] == "walk" and "ride" in kinds, tr["segs"]
         v = geo.view(t_ride)
-        assert v["segs"][v["seg"]]["label"] == "電車・バスに乗っている", v
+        assert "→" in v["segs"][v["seg"]]["label"] and v["segs"][v["seg"]]["kind"] == "ride", v["segs"]
         print("区間:", " → ".join("%s %d分" % (t, m) for _, m, t in tr["segs"]))
         assert geo.unused_fare(tr, t_pre) == tr["fare"]
         part = geo.unused_fare(tr, t_ride)
         assert 0 < part < tr["fare"], (part, tr["fare"])
         assert geo.unused_fare(tr, t_post) == 0
-        # 途中の駅からの行き方: 駅にいるので, 電車ならすぐ乗れる (歩く分が小さい)
-        assert geo.pt(mid)["acc"] == 0.05 and geo.pt(mid.rsplit(",", 1)[0])["acc"] == 0.3
-        print("電車の段階: OK | 片道%d円, 乗っている途中でやめれば %d円戻る" % (tr["fare"], part))
+        print("電車の経路: OK | 片道%d円, 乗っている途中でやめれば %d円戻る" % (tr["fare"], part))
 
         # ---- 2. 乗っている途中で行き先を変える: 次の駅で降りて, そこから. 乗らなかった分は戻る
-        shift(app, t_ride - tr["t0"])
+        shift(app, t_ride - time.time())
+        part = geo.unused_fare(geo.travel(), time.time())
         m0 = L.player_state()["money"]
         with app.lock:
             r = app.solo.move("mall")
         tr2 = geo.travel()
-        assert tr2 and tr2["to"] == "mall" and tr2["from"].count(",") == 2, tr2
+        assert tr2 and tr2["to"] == "mall" and tr2["from"] in line_seq, tr2
         assert "払わずに済んだ" in (r.get("done") or ""), r
         assert L.player_state()["money"] - m0 == part - tr2["fare"], (L.player_state()["money"] - m0, part, tr2["fare"])
         assert P.rec()["mode"] == "out" and P.rec()["place"] == "mall"

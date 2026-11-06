@@ -44,7 +44,8 @@ def main():
         o = geo.options(home, "beach", noon)
         assert not o["walk"]["ok"] and o["transit"] and o["transit"]["ok"] and o["best"] == "transit", o
         assert geo.options(home, "park", noon)["transit"] is None
-        assert geo.options(home, "beach", at("2026-05-01", "02:00"))["transit"]["ok"] is False     # 夜中は走っていない
+        night = geo.options(home, "beach", at("2026-05-01", "02:00"))["transit"]          # 夜中は走っていない: 始発を待つ経路
+        assert night and "始発" in night["note"] and night["min"] > 180, night
         lg = geo.leg(home, "beach", "transit", at("2026-05-01", "02:00"), rand=False)
         assert lg["note"] == "始発を待った" and lg["min"] > 180, lg
         print("位置と行き方: OK | 駅まで%d分, 海まで電車%d分・%d円" % (m, o["transit"]["min"], o["transit"]["fare"]))
