@@ -87,6 +87,22 @@ def main():
         assert not later or later[0]["t_arr"] > goal - 60 or later[0]["t_arr"] >= r["t_arr"], (later and later[0]["t_arr"], goal)
         print("到着時刻から: OK | %sまでに着くには %s に出る" % (datetime.fromtimestamp(goal).strftime("%H:%M"), datetime.fromtimestamp(dep).strftime("%H:%M")))
 
+        # ---- 4b. いま出発 / 始発で / 終電で (画面の経路検索)
+        now_r = geo.route_search(dst, None, "now")
+        assert now_r["by"] == "depart" and abs(now_r["at"] - time.time()) < 5
+        fr = geo.route_search(dst, None, "first")
+        fride = next(lg for lg in fr["routes"][0]["steps"] if lg["kind"] == "ride")
+        assert datetime.fromtimestamp(fr["at"]).hour == TR.DAY_START and 4 <= datetime.fromtimestamp(fride["t0"]).hour <= 7, fr
+        hit = geo.last_departure(home, dst, weekday_at(19))
+        assert hit, "終電の経路がない"
+        t_last, r_last = hit
+        lride = [lg for lg in r_last["legs"] if lg["kind"] == "ride"][-1]
+        assert datetime.fromtimestamp(t_last).hour in (21, 22, 23, 0) and lride["t1"] <= weekday_at(4) + 86400, datetime.fromtimestamp(t_last)
+        after = [x for x in geo.routes(home, dst, t_last + 600) if x["key"] == "route:0"]
+        assert not after or any(lg["t1"] > weekday_at(4) + 86400 for lg in after[0]["legs"] if lg["kind"] == "ride"), "終電のあとも同じ日に行けてしまう"
+        print("始発・終電: OK | 始発 %s発 / 終電で行くなら %s までに出る" % (datetime.fromtimestamp(fride["t0"]).strftime("%H:%M"),
+                                                             datetime.fromtimestamp(t_last).strftime("%H:%M")))
+
         # ---- 5. 自転車で駅まで (駐輪代) / 駅に置いた自転車で行き先まで
         app.items.add("bicycle", 1)
         acc = geo._ends(home, wd, "access", False)

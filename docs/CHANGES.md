@@ -18,10 +18,12 @@
 - A8 経路: 歩く・自転車・車・タクシーと鉄道・バスの組み合わせを、時刻表どおりに探す（connection scan）。候補はおまかせ（タクシーなしで早い）・乗り換え少なめ・タクシーも使う（おまかせより 5 分以上早く、タクシーだけより安いときだけ）。自転車・車で駅まで行けば駅に置き（駐輪 150 円・駐車 600 円）、置いた駅から次に乗れる。鉄道は続けて乗った距離の運賃、バスは 1 回 220 円。出発・到着の時刻を決めて調べられる（`geo.routes` `route_search` `latest_departure`）
 - A8 移動の記録: 経路の区間（歩く・待つ・何線に乗る・降りて歩く）で記録し、途中でやめると、乗っていれば次の駅で降りる・乗らなかった区間は払わない・乗り物は乗る前なら出たところ / 乗っている途中ならそこ。移動中の区間の表示・移動中の読書もこの区間で
 - A8 ほかの所: 閉じていた間の移動・相手との外出の行き帰り・帰る時刻は、この経路で（行き方の目安と同じ仕組み）。約束の「何時に出れば間に合う」は、時刻表で間に合ういちばん遅い出発
+- A8 経路を調べる: 「いま出発」「○時に出発」「○時までに到着」「始発で」（次の朝 4 時からいちばん早い）「終電で」（いまから、その日のうちに電車・バスで行けるいちばん遅い出発）。家のそばのバス停は「○○住宅前」
 - 遡及: いまのワールドは、次に開いたときに路線網を作る（場所の位置は変えない）。移動中の以前の形の記録は、そのまま着く
+- 修正（画面）: 30 秒ごとの描き直しで、入力の途中のプルダウン・時刻・文字の欄のフォーカスが外れていた（地図の経路を調べるプルダウンが勝手に閉じる。前にも別の欄で起きた）。入力の途中は描き直しを待ち、欄を離れたら描き直す（`editingForm`）。ブラウザで確かめるテスト `test_focus_keep` を足した（直す前の画面では落ちることも確かめた）
 - テスト: 時刻表に関わるテスト（`test_redirect` `test_reading`）は、時計を平日の昼前に合わせて流す（`testclock.run_at`）。夜中に流すと始発待ちになるため
 
-部分テスト: `test_transit`（新規） `test_geo` `test_redirect` `test_reading` `test_offline` `test_offline_fallback` `test_closed_away` `test_appoint` `test_routine` `test_planner` `test_solo` `test_api_errors` `test_outing_effects` `test_outing_migrate` `test_favor_appoint` `test_visit` `test_js_names` `test_phone_talk` `test_care` `test_invite_home` `test_earn` `test_earn2` `test_earn3` `test_places` `test_hours` `test_shop` `test_street` `test_encounters` `test_exercise` `test_quals`、画面はブラウザで確認
+部分テスト: `test_focus_keep`（新規・ブラウザ） `test_transit`（新規） `test_geo` `test_redirect` `test_reading` `test_offline` `test_offline_fallback` `test_closed_away` `test_appoint` `test_routine` `test_planner` `test_solo` `test_api_errors` `test_outing_effects` `test_outing_migrate` `test_favor_appoint` `test_visit` `test_js_names` `test_phone_talk` `test_care` `test_invite_home` `test_earn` `test_earn2` `test_earn3` `test_places` `test_hours` `test_shop` `test_street` `test_encounters` `test_exercise` `test_quals`、画面はブラウザで確認
 
 ## 1.2.0（2026-11-07）
 

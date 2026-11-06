@@ -15,7 +15,7 @@ import math
 import random
 from datetime import datetime, timedelta
 
-NET_V = 2                            # 路線網の作り方の版 (変えたら, 作り直す)
+NET_V = 3                            # 路線網の作り方の版 (変えたら, 作り直す)
 WALK_KMH = 4.5
 ROAD = 1.3
 RAIL_KMH, BUS_KMH = 55.0, 18.0
@@ -97,8 +97,13 @@ class Transit:
             d0 = math.hypot(x, y) or 1.0
             k = max(0.0, (d0 - acc) / d0)
             sid = "st:%s" % pid
-            lab = (geo.app.places.label(pid) if pid != places_mod.HOME_ME else "あなたの家の近く")
-            stations[sid] = {"name": ("%s前" % lab) if kind == "bus" else "%s駅" % lab.replace("あなたの家の近く", "住宅地"),
+            if pid == places_mod.HOME_ME:          # あなたの家のそばの停留所: 町の名前で
+                lab = next(names, None) or rnd.choice(STATION_NAMES)
+                nm = "%s住宅前" % lab if kind == "bus" else "%s駅" % lab
+            else:
+                lab = geo.app.places.label(pid)
+                nm = "%s前" % lab if kind == "bus" else "%s駅" % lab
+            stations[sid] = {"name": nm,
                              "xy": [round(x * k, 3), round(y * k, 3)], "for": pid}
             return sid
 

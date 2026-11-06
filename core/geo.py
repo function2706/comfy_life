@@ -14,7 +14,7 @@
 import math
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from . import places as places_mod
 from . import store
@@ -492,11 +492,52 @@ class Geo:
                 break
         return best
 
+    def last_departure(self, a, b, t):
+        """t から, その運行日 (翌 4 時まで) のうちに電車・バスで行ける, いちばん遅い出発 (終電・終バスに乗る). (出発時刻, 経路) か None."""
+        day = transit_mod.service_day(t)
+        end = datetime(day.year, day.month, day.day, transit_mod.DAY_START).timestamp() + 86400
+
+        def ok(x):
+            rs = [r for r in self.routes(a, b, x) if r["key"] == "route:0"]
+            return rs[0] if rs and all(lg["t1"] <= end for lg in rs[0]["legs"] if lg["kind"] == "ride") else None
+        best = None
+        r0 = ok(t)
+        if not r0:
+            return None
+        best, lo, hi = (t, r0), t, end
+        for _ in range(14):
+            mid = (lo + hi) / 2.0
+            r = ok(mid)
+            if r:
+                best, lo = (mid, r), mid
+            else:
+                hi = mid
+            if hi - lo < 60:
+                break
+        return best
+
     def route_search(self, to, at=None, by="depart"):
-        """画面の経路検索: いまいる場所から to へ. by = depart (at に出る) / arrive (at までに着く)."""
+        """画面の経路検索: いまいる場所から to へ. by = now (いま出る) / depart (at に出る) / arrive (at までに着く) /
+        first (始発で: 次の朝 4 時から) / last (終電で: いまから, その日のうちに行けるいちばん遅い出発)."""
         now = time.time()
         frm = self.where(now)
         at = float(at or now)
+        if by == "now":
+            at, by = now, "depart"
+        if by == "first":
+            d = datetime.fromtimestamp(now)
+            d4 = d.replace(hour=transit_mod.DAY_START, minute=0, second=0, microsecond=0)
+            at = (d4 if d.hour < transit_mod.DAY_START else d4 + timedelta(days=1)).timestamp()
+            rs = self.routes(frm, to, at)
+            return {"by": by, "at": at, "routes": [self.route_view(r, at) for r in rs if r["key"] == "route:0"],
+                    "note": "始発で: %s" % datetime.fromtimestamp(at).strftime("%m/%d")}
+        if by == "last":
+            hit = self.last_departure(frm, to, now)
+            if not hit:
+                return {"by": by, "at": now, "routes": [], "note": "今日はもう電車・バスで行けません（始発を待つか、タクシー）"}
+            t, r = hit
+            return {"by": by, "at": t, "depart": t, "routes": [self.route_view(r, t)],
+                    "note": "終電で行くなら、%sまでに出る" % datetime.fromtimestamp(t).strftime("%H:%M")}
         if by == "arrive":
             hit = self.latest_departure(frm, to, at)
             if not hit:

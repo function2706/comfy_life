@@ -228,6 +228,24 @@ async function refresh() {
   noteMemos();
   if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
+  // 入力の途中 (プルダウン・時刻・文字の欄にフォーカスがある) なら, 描き直さない. 描き直すと欄が作り直されて, フォーカスが外れる
+  // (プルダウンが勝手に閉じる). 欄を離れたら描き直す (tools/test_focus_keep.py)
+  if (editingForm()) { S.renderPending = true; return; }
+  renderState(v);
+}
+// 入力の途中か (描き直しを待つ)
+function editingForm() {
+  const a = document.activeElement;
+  if (!a || a === document.body) return false;
+  const tag = a.tagName;
+  return tag === 'SELECT' || tag === 'TEXTAREA' || a.isContentEditable
+    || (tag === 'INPUT' && !['button', 'submit', 'checkbox', 'radio', 'range', 'file', 'color'].includes(a.type));
+}
+document.addEventListener('focusout', () => {
+  // 欄を離れた: 少し待って (ボタンを押す途中なら, 押し終えてから) 描き直す
+  setTimeout(() => { if (S.renderPending && !editingForm()) { S.renderPending = false; renderState(S.view); } }, 400);
+});
+function renderState(v) {
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
   const who = (v.company || []).map((c) => c.id).join(',');
   if (S.lastCompany !== undefined && S.lastCompany !== who) { S.current = null; clearStage(); }
@@ -2369,20 +2387,27 @@ function routeList(routes, go) {
 }
 // 時刻を決めて調べる (出発 / 到着. 約束に間に合うかなど). 調べるだけ (出かけるのは上のボタンで, いまから)
 function routeSearchBox(to) {
-  const f = S.routeQ = S.routeQ && S.routeQ.to === to ? S.routeQ : { to, by: 'depart', at: '', res: null };
+  const f = S.routeQ = S.routeQ && S.routeQ.to === to ? S.routeQ : { to, by: 'now', at: '', res: null };
   const tm = h('input', { type: 'time', value: f.at, style: 'width:7em', onchange: (ev) => { f.at = ev.target.value; } });
-  const by = h('select', { class: 'small', onchange: (ev) => { f.by = ev.target.value; } },
-    h('option', { value: 'depart', selected: f.by === 'depart' }, 'に出発'), h('option', { value: 'arrive', selected: f.by === 'arrive' }, 'までに到着'));
+  const BY = [['now', 'いま出発'], ['depart', 'に出発'], ['arrive', 'までに到着'], ['first', '始発で'], ['last', '終電で']];
+  const timed = (b) => b === 'depart' || b === 'arrive';
+  const by = h('select', { class: 'small', onchange: (ev) => { f.by = ev.target.value; tm.disabled = !timed(f.by); } },
+    ...BY.map(([k, l]) => h('option', { value: k, selected: f.by === k }, l)));
+  tm.disabled = !timed(f.by);
   const run = async () => {
-    if (!f.at) { toast('時刻を入れてください', 'err'); return; }
-    const [hh, mm] = f.at.split(':').map(Number);
-    const d = new Date(); d.setHours(hh, mm, 0, 0);
-    if (d.getTime() < Date.now() - 3600e3) d.setDate(d.getDate() + 1);       // 過ぎた時刻なら明日
-    try { f.res = await api('/api/route', { to, at: d.getTime() / 1000, by: f.by }); } catch (e) { toast(e.message, 'err'); }
+    let at = null;
+    if (timed(f.by)) {
+      if (!f.at) { toast('時刻を入れてください', 'err'); return; }
+      const [hh, mm] = f.at.split(':').map(Number);
+      const d = new Date(); d.setHours(hh, mm, 0, 0);
+      if (d.getTime() < Date.now() - 3600e3) d.setDate(d.getDate() + 1);       // 過ぎた時刻なら明日
+      at = d.getTime() / 1000;
+    }
+    try { f.res = await api('/api/route', { to, at, by: f.by }); } catch (e) { toast(e.message, 'err'); }
     renderMap();
   };
   return h('div', { style: 'margin-top:6px' },
-    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted' }, '時刻を決めて調べる:'), tm, by,
+    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted' }, '経路を調べる:'), tm, by,
       h('button', { class: 'btn small', onclick: run }, '🔍 調べる')),
     f.res ? [f.res.note ? h('div', { class: 'small' }, f.res.note) : '', f.res.routes.length ? routeList(f.res.routes, null) : h('div', { class: 'muted small' }, '経路が見つかりません')] : '');
 }
