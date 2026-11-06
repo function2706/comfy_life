@@ -18,6 +18,9 @@ from core import engine, store  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)
+# 期間限定のお詫び (頼み直し・職場になっていた件の直し) は期限を過ぎると止まる: テストでは期限を先に延ばして確かめる
+engine.App.FAVOR_REDO_UNTIL = time.time() + 30 * 86400
+engine.App.FAVOR_OFFICE_UNTIL = time.time() + 30 * 86400
 
 
 def main():

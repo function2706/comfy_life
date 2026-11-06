@@ -148,17 +148,19 @@ function colors() {
 """
 
 
-def find_browser():
+def find_browsers():
+    """入っているブラウザ (順に試す. Edge の版によっては画面なしの起動が何も返さないので, 返したものを使う)."""
+    out = []
     for b in BROWSERS:
         p = b if os.path.isabs(b) else shutil.which(b)
-        if p and os.path.exists(p):
-            return p
-    return None
+        if p and os.path.exists(p) and p not in out:
+            out.append(p)
+    return out
 
 
 def main():
-    br = find_browser()
-    if not br:
+    brs = find_browsers()
+    if not brs:
         print("slither history: SKIP (Edge / Chrome が見つからない)")
         return
     tmp = tempfile.mkdtemp(prefix="kurashi_slh_")
@@ -169,9 +171,13 @@ def main():
                 "\ntry { document.getElementById('out').textContent = 'RESULT:' + run(); }"
                 " catch (e) { document.getElementById('out').textContent = 'RESULT:FAIL ' + e.message; }\n</script>")
     url = "file:///" + page.replace("\\", "/")
-    out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof"),
-                          "--virtual-time-budget=3000", "--dump-dom", url],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120).stdout.decode("utf-8", "replace")
+    out = ""
+    for k, br in enumerate(brs):
+        out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
+                              "--virtual-time-budget=3000", "--dump-dom", url],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120).stdout.decode("utf-8", "replace")
+        if "RESULT:" in out:
+            break
     shutil.rmtree(tmp, ignore_errors=True)
     i = out.find("RESULT:")
     res = out[i + 7:out.find("</pre>", i)] if i >= 0 else "(結果なし) " + out[:300]
