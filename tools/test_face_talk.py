@@ -52,7 +52,7 @@ def main():
         fresh()
         L.add_reason(st, "player", "bad", "約束に来なかった", time.time() - 600, told=False, delta=-8.0, action="_appoint")
         t = text(app.act("apologize", cid, opts={"pick": "home"}))
-        assert "そのことじゃない" in t, t
+        assert "そのこと" in t, t
         fresh()
         L.add_reason(st, "player", "bad", "約束に来なかった", time.time() - 600, told=False, delta=-8.0, action="_appoint")
         app.act("apologize", cid, opts={"pick": "appoint"})

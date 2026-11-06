@@ -2532,6 +2532,54 @@
   ],
   "chat.consult_jealous": [
    "📱『その人と、ずいぶん仲がいいのね。……ふうん。覚えておくわ』"
+  ],
+  "apologize.apology_near": [
+   "それもあるけど、それだけだと思ってるの？ もう少し考えなさい"
+  ],
+  "apologize.apology_unminded": [
+   "そんなこと、気にしてないわよ。謝るところが違うんじゃない？"
+  ],
+  "thank.default": [
+   "当然でしょう。でも、言えたのはえらいわね"
+  ],
+  "thank.thanks": [
+   "当然でしょう。でも、言えたのはえらいわね"
+  ],
+  "thank.thanks_again": [
+   "それはもう聞いたわ。何回言わせたいの？"
+  ],
+  "thank.thanks_what": [
+   "何のお礼？ 心当たりのないお礼なんて、気持ち悪いわよ"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ許したなんて言ってないわよ"
+  ],
+  "thank.thanks_unforgiven": [
+   "許してないのにお礼？ 図々しいわね"
+  ],
+  "consult_me.default": [
+   "話してごらんなさい。聞いてあげる"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のことなら、教えてあげてもいいわ。まず一つに絞って、片付けなさい。できたら報告して"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは、{fp}の知ったことじゃないわね。……でも、話を聞くくらいはしてあげる"
+  ],
+  "consult_me.consult_jealous": [
+   "その人と、ずいぶん仲がいいのね。……ふうん。覚えておくわ"
+  ],
+  "apologize.apology_miss": [
+   "そのことじゃないわよ。本気でわからないの？"
+  ],
+  "chat.after_call": [
+   "📱『さっきの電話、まあまあ楽しめたわ』"
+  ],
+  "topic.genre_like": [
+   "{genre}は好きよ。意外？"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は嫌い。退屈だもの"
   ]
  }
 }

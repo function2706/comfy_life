@@ -2529,6 +2529,54 @@
   ],
   "chat.consult_jealous": [
    "📱『……その人と、仲がいいんですね……。……そうですよね。{fp}より、ずっと……』"
+  ],
+  "apologize.apology_near": [
+   "……それも、ですけど……。それだけじゃ、ないです……"
+  ],
+  "apologize.apology_unminded": [
+   "え……それは、気にしてないです……。{fp}なんかに謝らなくても……"
+  ],
+  "thank.default": [
+   "いえ……{fp}なんかが役に立ったなら……"
+  ],
+  "thank.thanks": [
+   "いえ……{fp}なんかが役に立ったなら……"
+  ],
+  "thank.thanks_again": [
+   "それ……もう聞きました……何回言うんですか……"
+  ],
+  "thank.thanks_what": [
+   "え……{fp}、何かしましたか……？ お礼を言われるようなこと……"
+  ],
+  "thank.thanks_not_yet": [
+   "……あの……まだ、許したわけじゃ……ないです……"
+  ],
+  "thank.thanks_unforgiven": [
+   "……許してないです……お礼を言われても、困ります……"
+  ],
+  "consult_me.default": [
+   "{fp}なんかでよければ……聞かせてください……"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のこと、ですか……。{fp}でも、少しはわかります……。一つずつ、片付けていけば……。また、聞かせてください"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは……{fp}には、よくわからなくて……すみません……。でも、話してくれて……うれしかったです"
+  ],
+  "consult_me.consult_jealous": [
+   "……その人と、仲がいいんですね……。……そうですよね。{fp}より、ずっと……"
+  ],
+  "apologize.apology_miss": [
+   "……そのことじゃ、ないです……"
+  ],
+  "chat.after_call": [
+   "📱『……さっきは、電話ありがとうございました……。楽しかったです。……{fp}なんかと話して、退屈じゃなかったですか……』"
+  ],
+  "topic.genre_like": [
+   "{genre}は……好き、です……"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は……ちょっと、苦手で……"
   ]
  }
 }

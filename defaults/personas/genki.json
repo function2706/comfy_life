@@ -2580,6 +2580,54 @@
   ],
   "chat.consult_jealous": [
    "📱『え、その人と仲いいんだ……。ふーん……なんかちょっと、やだな』"
+  ],
+  "apologize.apology_near": [
+   "それもだけど、それだけじゃないんだよー！"
+  ],
+  "apologize.apology_unminded": [
+   "え、それ？ ぜんぜん気にしてないよ！ 大丈夫！"
+  ],
+  "thank.default": [
+   "どういたしまして！"
+  ],
+  "thank.thanks": [
+   "どういたしまして！"
+  ],
+  "thank.thanks_again": [
+   "それもう聞いたよー！ 何回言うの！"
+  ],
+  "thank.thanks_what": [
+   "え、なになに？ {fp}何かしたっけ？"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ許したわけじゃないからね！ 半分だけ！"
+  ],
+  "thank.thanks_unforgiven": [
+   "許してないよ！ お礼より、ちゃんと態度で見せて！"
+  ],
+  "consult_me.default": [
+   "うんうん、話してくれてありがと！ 一緒に考えよ！"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のことなら、{fp}もちょっとわかる！ まずは一個ずつやってみよ！ どうなったか教えてね！"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは{fp}もよくわかんないや……でも話してくれてうれしい！"
+  ],
+  "consult_me.consult_jealous": [
+   "え、その人と仲いいんだ……。ふーん……なんかちょっと、やだな"
+  ],
+  "apologize.apology_miss": [
+   "そこじゃないんだってばー！"
+  ],
+  "chat.after_call": [
+   "📱『さっきは電話ありがと！ すっごく楽しかった！』"
+  ],
+  "topic.genre_like": [
+   "{genre}、大好き！"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は、ちょっと苦手なんだよね……"
   ]
  }
 }

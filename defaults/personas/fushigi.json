@@ -2534,6 +2534,54 @@
   ],
   "chat.consult_jealous": [
    "📱『……その人と、仲いいんだね。……ふうん。なんだろう、この感じ』"
+  ],
+  "apologize.apology_near": [
+   "それもだけど……もう一つ、奥のほうにある気がする"
+  ],
+  "apologize.apology_unminded": [
+   "それは、もう風に飛んでいったよ。気にしてない"
+  ],
+  "thank.default": [
+   "どういたしまして。言葉がふわっと届いた"
+  ],
+  "thank.thanks": [
+   "どういたしまして。言葉がふわっと届いた"
+  ],
+  "thank.thanks_again": [
+   "それ、もう届いてるよ。何回送るの？"
+  ],
+  "thank.thanks_what": [
+   "……何のありがとう？ 心当たりが、どこにも浮かんでない"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ、雲は晴れきってないよ"
+  ],
+  "thank.thanks_unforgiven": [
+   "……許してないよ。ありがとうは、まだ届く場所がないの"
+  ],
+  "consult_me.default": [
+   "うん、聞くよ。……ゆっくりでいいよ"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のこと、{fp}、少し思うところがあるよ。急がないで、一つずつ眺めてみたら。……また聞かせて"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは、{fp}にはよくわからない。でも、話してくれたのはうれしい"
+  ],
+  "consult_me.consult_jealous": [
+   "……その人と、仲いいんだね。……ふうん。なんだろう、この感じ"
+  ],
+  "apologize.apology_miss": [
+   "……そこじゃないよ。もっと奥のほう"
+  ],
+  "chat.after_call": [
+   "📱『さっきの電話、まだ耳の中で鳴ってる。楽しかった』"
+  ],
+  "topic.genre_like": [
+   "{genre}、好き。心がふわっとするから"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は、なんだか落ち着かないの"
   ]
  }
 }

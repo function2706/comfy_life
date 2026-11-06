@@ -2576,6 +2576,54 @@
   ],
   "chat.consult_jealous": [
    "📱『……その人と、仲いいんだ。……そう』"
+  ],
+  "apologize.apology_near": [
+   "……それも。……でも、それだけじゃない"
+  ],
+  "apologize.apology_unminded": [
+   "……それは、気にしてない"
+  ],
+  "thank.default": [
+   "……うん"
+  ],
+  "thank.thanks": [
+   "……うん"
+  ],
+  "thank.thanks_again": [
+   "……聞いた。何回も、いい"
+  ],
+  "thank.thanks_what": [
+   "……？ 何の？"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ、許してない"
+  ],
+  "thank.thanks_unforgiven": [
+   "……許してない。お礼、いらない"
+  ],
+  "consult_me.default": [
+   "……聞く"
+  ],
+  "consult_me.consult_good": [
+   "……{topic}なら、少しわかる。……一つずつ。……また聞く"
+  ],
+  "consult_me.consult_off": [
+   "……{topic}は、よくわからない。……でも、聞けてよかった"
+  ],
+  "consult_me.consult_jealous": [
+   "……その人と、仲いいんだ。……そう"
+  ],
+  "apologize.apology_miss": [
+   "……それじゃない"
+  ],
+  "chat.after_call": [
+   "📱『……電話、ありがとう。……楽しかった』"
+  ],
+  "topic.genre_like": [
+   "……{genre}、好き"
+  ],
+  "topic.genre_dislike": [
+   "……{genre}は、あまり"
   ]
  }
 }

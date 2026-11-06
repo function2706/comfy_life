@@ -2846,6 +2846,54 @@
   ],
   "chat.consult_jealous": [
    "📱『その人と、仲がいいんですね。……ちょっとだけ、うらやましいです』"
+  ],
+  "apologize.apology_near": [
+   "それもですけど……それだけじゃないです"
+  ],
+  "apologize.apology_unminded": [
+   "え、それは気にしてないですよ。大丈夫です"
+  ],
+  "thank.default": [
+   "どういたしまして。そう言ってもらえるとうれしいです"
+  ],
+  "thank.thanks": [
+   "どういたしまして。そう言ってもらえるとうれしいです"
+  ],
+  "thank.thanks_again": [
+   "それ、もう聞きましたよ。何回言うんですか"
+  ],
+  "thank.thanks_what": [
+   "え、何のお礼ですか？ 心当たりがないです"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ、許したわけじゃないですけど"
+  ],
+  "thank.thanks_unforgiven": [
+   "……許してないです。お礼を言われても困ります"
+  ],
+  "consult_me.default": [
+   "そうだったんですね……。{fp}でよければ、いつでも聞きますよ"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のことなら、{fp}も少しわかります。一つずつ片付けていきましょうね。また聞かせてください"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは、{fp}にはよくわからなくて……。でも、話してくれてうれしいです"
+  ],
+  "consult_me.consult_jealous": [
+   "その人と、仲がいいんですね。……ちょっとだけ、うらやましいです"
+  ],
+  "apologize.apology_miss": [
+   "……そのことじゃ、ないです"
+  ],
+  "chat.after_call": [
+   "📱『さっきはお電話ありがとうございました。楽しかったです』"
+  ],
+  "topic.genre_like": [
+   "{genre}、好きなんです"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は、ちょっと苦手です"
   ]
  }
 }

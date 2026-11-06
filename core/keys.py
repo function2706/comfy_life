@@ -61,6 +61,10 @@ def all_keys(actions, minigames, approaches=()):
     from .chat import LINES as CHAT_LINES, SCENE_LABEL as CHAT_SCENES     # メッセージアプリの返信 (種類 x 状況)
     for k, t in CHAT_LINES.items():
         out[k] = {"scene": "メッセージの返信 / %s" % CHAT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
+    from .topics import Topics                                              # 読んだ本・観た映画の話で, ジャンルの好き・苦手を口にする
+    for kind, label in (("like", "好き"), ("dislike", "苦手")):
+        out["topic.genre_" + kind] = {"scene": "話題 / 本・映画のジャンルが%s ({genre} にジャンル)" % label, "when": "",
+                                      "text": Topics.REVEAL[kind]}
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}

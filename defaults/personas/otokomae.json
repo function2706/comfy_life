@@ -2577,6 +2577,54 @@
   ],
   "chat.consult_jealous": [
    "📱『……その人と、仲がいいんだな。……そうか』"
+  ],
+  "apologize.apology_near": [
+   "それもある。だが、それだけじゃない"
+  ],
+  "apologize.apology_unminded": [
+   "それは気にしていない。謝ることじゃないさ"
+  ],
+  "thank.default": [
+   "礼には及ばない"
+  ],
+  "thank.thanks": [
+   "礼には及ばない"
+  ],
+  "thank.thanks_again": [
+   "それはもう聞いた。何度言うつもりだ"
+  ],
+  "thank.thanks_what": [
+   "何の礼だ？ 覚えがないぞ"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ許したわけじゃない"
+  ],
+  "thank.thanks_unforgiven": [
+   "許していない。礼を言われる覚えはない"
+  ],
+  "consult_me.default": [
+   "話してくれて助かる。一緒に考えよう"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のことなら、少しは力になれる。まず手をつけるものを一つに絞れ。結果はまた聞かせてくれ"
+  ],
+  "consult_me.consult_off": [
+   "{topic}のことは、{fp}にはよくわからない。だが、話してくれたのはうれしい"
+  ],
+  "consult_me.consult_jealous": [
+   "……その人と、仲がいいんだな。……そうか"
+  ],
+  "apologize.apology_miss": [
+   "……そのことじゃない"
+  ],
+  "chat.after_call": [
+   "📱『さっきは電話をありがとう。楽しかった』"
+  ],
+  "topic.genre_like": [
+   "{genre}は好きだ"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は、あまり得意じゃない"
   ]
  }
 }

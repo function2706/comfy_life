@@ -2526,6 +2526,54 @@
   ],
   "chat.consult_jealous": [
    "📱『その人と、仲がいいんだ。……ふうん。なんだか、落ち着かない』"
+  ],
+  "apologize.apology_near": [
+   "それも原因の一つ。でも、主な原因は別にある"
+  ],
+  "apologize.apology_unminded": [
+   "それは気にしてない。謝る必要はないよ"
+  ],
+  "thank.default": [
+   "どういたしまして。合理的な判断だっただけ"
+  ],
+  "thank.thanks": [
+   "どういたしまして。合理的な判断だっただけ"
+  ],
+  "thank.thanks_again": [
+   "それ、もう受信済み。何回言うの"
+  ],
+  "thank.thanks_what": [
+   "何に対するお礼？ 該当する事象が見つからない"
+  ],
+  "thank.thanks_not_yet": [
+   "……まだ許したわけじゃない。検証中"
+  ],
+  "thank.thanks_unforgiven": [
+   "許してない。お礼の前提が成立してない"
+  ],
+  "consult_me.default": [
+   "状況を整理しよう。一緒に考える"
+  ],
+  "consult_me.consult_good": [
+   "{topic}のことなら、少し考えがある。まず問題を分けて、一つずつ試してみて。結果はまた聞かせて"
+  ],
+  "consult_me.consult_off": [
+   "{topic}は、{fp}の得意分野じゃない。役に立てなくてごめん。でも、話してくれたのはうれしい"
+  ],
+  "consult_me.consult_jealous": [
+   "その人と、仲がいいんだ。……ふうん。なんだか、落ち着かない"
+  ],
+  "apologize.apology_miss": [
+   "……その件じゃない。原因の見立てがずれてる"
+  ],
+  "chat.after_call": [
+   "📱『さっきの通話、楽しかった。ありがとう』"
+  ],
+  "topic.genre_like": [
+   "{genre}は好き。何度でも見返せる"
+  ],
+  "topic.genre_dislike": [
+   "{genre}は、あまり好みじゃない"
   ]
  }
 }
