@@ -95,6 +95,7 @@ def main():
         e1 = app.log(cid)[-1]
         assert e1.get("arrived") and e1["action"] == "cafe" and e1["text"] == said, e1
         assert "向かった" not in e1["text"] and not st["override"].get("arrive") and abs(e1["t"] - trip["arr"]) < 1, e1
+        assert not e0.get("money") and (e1.get("money") or {}) and any(v < 0 for v in e1["money"].values()), (e0.get("money"), e1.get("money"))   # カフェの費用は着いてから
         cur = app.outdoor.current(trip["arr"] + 1)
         assert not cur.get("moving") and cur["place"] == "cafe", cur
         print("出たとき・着いたとき: OK |", e0["text"].split("\n")[0], "→", e1["text"].split("\n")[0][:40])

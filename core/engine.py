@@ -1574,6 +1574,9 @@ class App:
                         char, st, worn, now, outside=True, others=1, record=False) in ("refuse", "angry"):
                     st["dress"] = None            # 外では, 大胆な服は性格と場所しだいで嫌がる
                     dress_note = "（{name}は「%s」のまま出かけるのは嫌だと、着替えてから出かけた）" % worn["name"]
+            # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応・絵・費用は, 着いたときに (tick → _outing_arrived)
+            trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
+            departing = bool(trip and trip["dir"] == "go")
             if a.get("end_override") and not r.get("override"):
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
@@ -1603,7 +1606,7 @@ class App:
                     self.bonds.start(cid, "meet", now)      # 誘いに乗ってくれた: 外で会う
                     st.pop("date_promise", None)
             self.bonds.sync(cid, st, now)                   # 「家に帰る」で別れる など
-            money = self._act_money(char, st, a, r, plan, req, extra)
+            money = self._act_money(char, st, a, r, None if departing else plan, req, extra)
             for k, v in (opts.get("money") or {}).items():
                 money[k] = money.get(k, 0) + v
             self._act_reasons(char, st, a, r, deltas, now)
@@ -1656,12 +1659,10 @@ class App:
             text = self.format_text(text, char, scene, dt)
             if nursed:
                 text += "\n" + nursed
-            # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応と絵は, 着いたときに (tick → _outing_arrived).
-            # 出たときは「向かった」と移動の様子だけ
-            trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
-            departing = bool(trip and trip["dir"] == "go")
+            # 出たときは「向かった」と移動の様子だけ. 行き先での反応・絵・費用は着いたときに
             if departing:
-                st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text}
+                st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text,
+                                            "plan": {k: plan[k] for k in ("p", "a") if k in plan} if plan else None}
                 text = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
             gen_ok = a.get("generate", True) and not departing
             selfie = False
@@ -1673,7 +1674,7 @@ class App:
             if pose and not r.get("override"):        # 受けてくれたら, そのポーズ・部位で
                 pa = dict(pa, pos=pose["pos"], neg=pose["neg"])
             if departing:                             # 絵は移動の様子 (場面の区間: 歩いている・電車の中 など)
-                pos, neg, parts = self.build_prompt(char, st, dt, dict(a, pos="", neg=""), None)
+                pos, neg, parts = self.build_prompt(char, st, datetime.fromtimestamp(now), dict(a, pos="", neg=""), None)
             else:
                 pos, neg, parts = self.build_prompt(char, st, dt, pa, r)
             self.save_state(cid)
@@ -3001,6 +3002,10 @@ class App:
         pos, neg, parts = self.build_prompt(char, st, dt, a, r)
         e = self._new_entry(cid, t, a, x["text"], {}, scene, dt, pos, neg, parts)
         e["arrived"] = True
+        pl = x.get("plan")
+        if pl and (pl.get("p") or pl.get("a")):              # その場所の費用 (出たときに決めた分担で, 着いてから払う)
+            cat = a.get("ledger") or "social"
+            e["money"] = self.life.move(st, pl.get("p", 0), pl.get("a", 0), cat=cat, note="%s（%s）" % (a.get("name", ""), char.get("name", "")))
         if self.settings.get("auto_generate") and a.get("generate", True) and self.bonds.together(cid):
             self._present_image(cid, e)
         self.save_log(cid)
@@ -3013,7 +3018,7 @@ class App:
         if not ov.get("outing") or ov.get("until", 0) <= now:
             return None
         for tr in ov.get("trips") or []:
-            if tr["t0"] <= now < tr["arr"]:
+            if tr["t0"] - 1 <= now < tr["arr"]:      # datetime に直した時刻は端数がずれる (出た瞬間も移動中)
                 return tr
         return None
 
