@@ -1031,6 +1031,13 @@ async function doAct(aid, outfit, place, pick) {
   S.busy = true;
   renderCommands();
   try {
+    const mv = outfit === undefined && ((T() || {}).available || {})[aid];
+    if (mv && mv.move_on) {             // 一緒にお出かけ中: 移動のコマンドで, 一緒に次の場所へ (応じるかは相手しだい)
+      const r = await api('/api/outing/move', { aid, to: place || undefined });
+      handleActResult(r);
+      if (r.refused) toast(`${(T() || {}).name || ''}は乗り気でないようだ`, 'err');
+      return;
+    }
     const r = outfit === undefined ? await api('/api/act', withT(Object.assign({ action: aid }, place ? { place } : {}, pick ? { pick } : {}))) : await api('/api/dress', withT({ outfit }));
     handleActResult(r);
   } catch (e) {

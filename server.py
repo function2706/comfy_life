@@ -198,7 +198,7 @@ def route(method, path, q, body):
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
         if path == "/api/outing/move":            # 一緒に次の場所へ
-            return a.outing_move(b["to"], b.get("how"))
+            return a.outing_move(b.get("to"), b.get("how"), b.get("aid"))
         if path == "/api/timetable":
             return a.geo.transit.timetable(b["id"], b.get("t") or time.time())
         if path == "/api/route":

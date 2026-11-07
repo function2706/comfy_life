@@ -1174,6 +1174,8 @@ class App:
         now = dt.timestamp()
         out = {}
         moving = self.outing_moving(st, now)
+        ocid, oov = self.outing_now(now)
+        move_on = ocid == char["id"] and not moving               # 一緒にお出かけ中 (着いている): 移動のコマンドで次の場所へ
         for a in self.actions:
             if a.get("category") == "system":
                 continue
@@ -1187,6 +1189,15 @@ class App:
                             and not self.guest_ng(a, char["id"]),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
+            ovp = a.get("override") or {}
+            if move_on and ovp.get("outing") and not shut:           # 一緒に次の場所へ (家でのことではない. いまいる場所へは行かない)
+                spots = [p for p in (a.get("places") or [ovp.get("place")]) if p and p != oov.get("place")]
+                ok = bool(spots) and cond.check(self._when(a, ctx), ctx)
+                out[a["id"]].update(ok=ok, move_on=True)
+                if not ok:
+                    out[a["id"]]["why"] = "いまここにいます" if not spots else (self.cond_why(self._when(a, ctx), ctx, char.get("name", "相手")) or "")
+                    if not out[a["id"]]["why"]:
+                        out[a["id"]].pop("why")
             if out[a["id"]]["ok"] and moving and not self.moving_ok(a):     # お出かけの移動中: 着いてから
                 out[a["id"]].update(ok=False, why="移動中です（着いてから）")
             if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
@@ -2856,7 +2867,7 @@ class App:
                     return aid
         return None
 
-    def outing_move(self, to, how=None):
+    def outing_move(self, to=None, how=None, aid=None):
         """一緒にお出かけしている先から, そのまま一緒に次の場所へ (帯同したまま場所を変える). 相手が応じるかは, 疲れ・時間・
         機嫌・仲しだい. 応じれば, いまいる場所から一緒に移動して, 着いたらそこで過ごす (その場所のコマンドの反応と費用)."""
         now = time.time()
@@ -2866,9 +2877,15 @@ class App:
         char, st = self.char(cid), self.state(cid)
         if self.outing_trip(st, now):
             raise ValueError("移動の途中です（着いてから）")
+        if aid:                                  # コマンドから (移動の分類): 行き先はそのコマンドの場所か, 選んだ場所
+            a = self.action(aid)
+            ovp = a.get("override") or {}
+            to = to if to in (a.get("places") or []) else ovp.get("place")
+            if not ovp.get("outing") or not to:
+                raise ValueError("一緒に行けるところではありません")
         if to == ov.get("place"):
             raise ValueError("いまここにいます")
-        aid = self._move_action(to, char, st)
+        aid = aid or self._move_action(to, char, st)
         if not aid:
             raise ValueError("%sへは、いまは一緒に行けません" % self.places.label(to))
         p = st["params"]

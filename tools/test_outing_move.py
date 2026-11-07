@@ -80,6 +80,20 @@ def main():
             assert "移動の途中" in str(e)
         print("応じる: OK |", (ok.get("entry") or {}).get("text", "").split("\n")[0], "|", app.person_view(cid)["scene"]["label"])
 
+        # ---- 1b. 「誰かと」の移動のコマンドから (分類は「移動」): お出かけ中も押せて, 一緒に次の場所へ
+        start()
+        av = app.person_view(cid)["available"]
+        assert app.action("cafe")["category"] == "移動" and av["cafe"]["ok"] and av["cafe"]["move_on"], av["cafe"]
+        assert not av["aquarium"]["ok"] and av["aquarium"]["why"] == "いまここにいます", av["aquarium"]
+        r = None
+        for _ in range(10):
+            r = app.outing_move("park", None, "walk")
+            if not r.get("refused"):
+                break
+            st["cooldowns"] = {}
+        assert not r.get("refused") and st["override"]["place"] == "park" and st["override"]["from_action"] == "walk", st["override"]
+        print("移動のコマンドから: OK | 散歩で公園へ")
+
         # ---- 2. 疲れていれば断る
         start()
         app.set_params({"energy": 10}, cid)

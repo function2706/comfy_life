@@ -88,7 +88,7 @@ class Stats:
         setattr(obj, name, g)
 
 
-SOCIAL_W = {"会話": 5, "ふれあい": 3, "お世話": 3, "あそび": 2, "見る": 1, "おでかけ": 1.5, "お金": 0.3, "会う": 1, "連絡": 1}
+SOCIAL_W = {"会話": 5, "ふれあい": 3, "お世話": 3, "あそび": 2, "見る": 1, "移動": 1.5, "お金": 0.3, "会う": 1, "連絡": 1}
 SKIP = {"move_out", "side_job", "gift", "expensive_gift", "end_activity", "go_home", "leave_visit"}
 SHOP_LIST = {"rice": 1, "veggies": 4, "meat_fish": 2, "eggs_tofu": 2, "cup_noodle": 2, "tea_leaves": 1, "detergent": 1, "cookies": 1}
 

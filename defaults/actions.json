@@ -2029,7 +2029,7 @@
   "id": "walk",
   "name": "散歩に行く",
   "icon": "🚶",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase!=midnight",
   "cooldown": 90,
   "effects": {
@@ -2092,7 +2092,7 @@
   "id": "shopping",
   "name": "買い物に行く",
   "icon": "🛍",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon|evening",
   "cooldown": 180,
   "effects": {
@@ -2152,7 +2152,7 @@
   "id": "date",
   "name": "デートに誘う",
   "icon": "💐",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, affection>=50, phase!=midnight",
   "cooldown": 720,
   "effects": {
@@ -2224,7 +2224,7 @@
   "id": "picnic",
   "name": "ピクニック",
   "icon": "🧺",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon",
   "cooldown": 360,
   "effects": {
@@ -2294,7 +2294,7 @@
   "id": "hiking",
   "name": "ハイキング",
   "icon": "⛰️",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning",
   "cooldown": 720,
   "effects": {
@@ -2361,7 +2361,7 @@
   "id": "beach",
   "name": "海に行く",
   "icon": "🏖️",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon|evening",
   "cooldown": 720,
   "effects": {
@@ -2426,7 +2426,7 @@
   "id": "amusement",
   "name": "遊園地",
   "icon": "🎡",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, affection>=40, phase=morning|noon",
   "cooldown": 720,
   "effects": {
@@ -2485,7 +2485,7 @@
   "id": "aquarium",
   "name": "水族館",
   "icon": "🐠",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon|evening",
   "cooldown": 480,
   "effects": {
@@ -2540,7 +2540,7 @@
   "id": "cafe",
   "name": "カフェに行く",
   "icon": "🍰",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon|evening",
   "cooldown": 240,
   "effects": {
@@ -2601,7 +2601,7 @@
   "id": "eat_out",
   "name": "ご飯を食べに行く",
   "icon": "🍽",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=morning|noon|evening|night",
   "cooldown": 240,
   "effects": {
@@ -2671,7 +2671,7 @@
   "id": "stargazing",
   "name": "星を見に行く",
   "icon": "🌌",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "free=true, phase=night",
   "cooldown": 480,
   "effects": {
@@ -2724,7 +2724,7 @@
   "id": "go_home",
   "name": "家に帰る",
   "icon": "🏠",
-  "category": "おでかけ",
+  "category": "移動",
   "when": "outing=true",
   "cooldown": 0,
   "end_override": true,
