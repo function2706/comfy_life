@@ -2369,7 +2369,9 @@ const MAP_GO_NOTE = { walk: '歩いて', transit: '電車・バスで', bike: '�
 async function mapGo(id, how) {
   const pres = (S.view || {}).presence || {};
   if (S.busy) return;
-  if (pres.mode === 'out' || pres.mode === 'work') {
+  if (id === 'home:me' && (pres.mode === 'out' || pres.mode === 'work')) {      // 家へ: 帰る (行き方を選んで)
+    await comeBack(how);
+  } else if (pres.mode === 'out' || pres.mode === 'work') {
     S.busy = true;
     try { const r = await api('/api/solo/move', { place: id, how }); if (r.solo && r.solo.text) toast(r.solo.text, 'ok'); toast((r.done || `${mapName(id)}へ向かった`).replace(/^（|）$/g, ''), 'ok'); }
     catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
@@ -2483,7 +2485,7 @@ function renderMap() {
       can && modes.length ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
         ...modes.map(([k, m]) => h('button', { class: 'btn small' + (k === r.best ? ' primary' : ''), disabled: S.busy || !m.ok, why: m.ok ? '' : (m.note || '行けません'),
           title: m.note || '', onclick: () => mapGo(sel, k) },
-          `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}行く（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '',
+          `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}${sel === 'home:me' ? '帰る' : '行く'}（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '',
       can && r && (r.routes || []).length ? routeList(r.routes, (key) => mapGo(sel, key)) : '',
       !here ? routeSearchBox(sel) : '');
   }
@@ -2517,12 +2519,12 @@ function renderMap() {
           ...by[g].sort((a, b) => dist(a) - dist(b)).map(listItem)))))));
 }
 
-async function comeBack() {
+async function comeBack(how) {
   const p = (S.view || {}).presence || {};
   if (p.mode === 'out' && p.shop_wait != null && !p.shop && !confirm('まだ買い物の途中です（品を選んでいる）。何も買わずに帰りますか？')) return;
   if (S.busy) return;
   S.busy = true;
-  try { const r = await api('/api/presence/back', withT({})); if (r.traveling) toast(r.text.replace(/^（|）$/g, ''), 'ok'); else handleActResult(r); }
+  try { const r = await api('/api/presence/back', withT(typeof how === 'string' ? { how } : {})); if (r.traveling) toast(r.text.replace(/^（|）$/g, ''), 'ok'); else handleActResult(r); }
   catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
@@ -3616,6 +3618,39 @@ function planRouteBox(f) {
     rs.length ? routeList(rs, null) : rail ? h('div', { class: 'muted small' }, 'その時刻に使える電車・バスの経路がありません（閉じている間は、おまかせで行きます）') : '');
 }
 const md2 = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
+// 到着時刻から決める: その日の直前の予定の行き先 (無ければ家) から, 到着時刻までに着く出発を調べ, 決めたらその時刻・行き方で予定に入れる
+function planArriveBox(f, P, add) {
+  const to = planDest(f);
+  if (!to || f.do === 'jog') return '';
+  const q = S.planArrive = S.planArrive && S.planArrive.to === to && S.planArrive.date === f.date ? S.planArrive : { to, date: f.date, at: '', res: null };
+  const [y, m, d] = f.date.split('-').map(Number);
+  const prev = (P.items || []).filter((x) => x.date === f.date && planDest(x) && (!q.at || x.at < q.at)).sort((a, b) => (a.at < b.at ? -1 : 1)).pop();
+  const from = prev ? planDest(prev) : 'home:me';
+  const tm = h('input', { type: 'time', value: q.at, onchange: (ev) => { q.at = ev.target.value; } });
+  const run = async () => {
+    if (!q.at) { toast('着きたい時刻を入れてください', 'err'); return; }
+    const [hh, mm] = q.at.split(':').map(Number);
+    try { q.res = await api('/api/route', { to, at: new Date(y, m - 1, d, hh, mm).getTime() / 1000, by: 'arrive', from }); q.from = from; } catch (e) { toast(e.message, 'err'); }
+    renderSoloTab();
+  };
+  const hm = (t) => new Date(t * 1000).toTimeString().slice(0, 5);
+  const pick = (dep, go) => {
+    if (new Date(dep * 1000).toDateString() !== new Date(y, m - 1, d).toDateString()) { toast('前の日に出ることになるので、その日の予定には入れられません', 'err'); return; }
+    add(hm(dep), go);
+  };
+  const R = q.res;
+  const NAME = { walk: '🚶 歩いて', bike: '🚲 自転車で', car: '🚗 車で', taxi: '🚕 タクシーで' };
+  return h('div', { class: 'plan-route' },
+    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
+      h('span', { class: 'muted' }, `到着時刻から決める（${mapName(from)}から${mapName(to)}へ）:`), tm, h('span', { class: 'muted' }, 'までに着く'),
+      h('button', { class: 'btn small', onclick: run }, '🔍 調べる')),
+    R ? [R.note ? h('div', { class: 'small' }, R.note) : '',
+      ...(R.routes || []).map((r) => h('div', {}, routeList([r], null),
+        h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => pick(r.dep, r.key === 'route:1' ? 'route:1' : 'transit') }, `この電車・バスで ${hm(r.dep)} に出る予定にする`))),
+      ...Object.entries(R.modes || {}).filter(([k]) => NAME[k]).map(([k, x]) => h('div', { class: 'row small', style: 'gap:6px;align-items:center' },
+        h('span', {}, `${NAME[k]} ${x.min}分${x.fare ? `・${x.fare}円` : ''}（${hm(x.dep)}に出る）`),
+        h('button', { class: 'btn small', disabled: S.busy, onclick: () => pick(x.dep, k) }, 'この行き方で予定にする')))] : '');
+}
 const CHORE_PARTS = [['', '全部'], ['mess', '部屋の片付け'], ['dishes', '洗い物'], ['laundry', '洗濯'], ['trash', 'ゴミ出し']];
 const STREET_POLICY = [['', '無難に（会釈・通り過ぎる）'], ['chat', '応じて立ち話する'], ['nod', '軽く会釈する'], ['decline', '急いでいると断る']];
 const REPLY_POLICY = [['', '返さない（あとで手で返す）'], ['cheerful', '明るく乗る'], ['expand', '話を広げる'], ['worry', '心配する'], ['tease', 'からかう'], ['curt', '素っ気なく']];
@@ -3651,6 +3686,12 @@ function planSection(v) {
       editing ? h('button', { class: 'btn small ghost', onclick: () => { S.planEdit = null; redraw(); } }, 'やめる') : ''),
     clash ? h('div', { class: 'muted small' }, `⚠ ${clash.at}に${clash.name}との約束（${clash.place}）があります。約束が先です`) : '',
     planRouteBox(f),
+    planArriveBox(f, P, async (at, go) => {
+      const rep = editing ? S.planEdit : undefined;
+      if (await call('/api/plan/add', { date: f.date, at, replace: rep, item: { do: f.do, place: f.place, how: f.how, skill: f.skill, go } })) {
+        toast(`${at} に出る予定を入れました`, 'ok'); S.planEdit = null; f.at = at; f.go = go; S.planArrive = null; redraw();
+      }
+    }),
     h('div', { class: 'sect' }, '未指定時コマンド（上から順に）'),
     ...P.fallback.map((x, i) => h('div', { class: 'plan-row' }, h('span', {}, `${i + 1}. ${x.label}`),
       h('span', {}, h('button', { class: 'btn small ghost', onclick: () => order(i, -1) }, '↑'), h('button', { class: 'btn small ghost', onclick: () => order(i, 1) }, '↓'),

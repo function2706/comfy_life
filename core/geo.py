@@ -242,12 +242,17 @@ class Geo:
             modes["taxi"] = {"min": round(m), "fare": fare, "ok": True, "note": "深夜料金" if night else ""}
         out = {"km": round(km, 2), "modes": modes, "walk": modes["walk"], "transit": modes.get("transit"),
                "routes": [self.route_view(r, t) for r in routes]}
-        out["best"] = self._best(modes)
+        out["best"] = self._best(modes, carry=a != places_mod.HOME_ME)
         return out
 
     @staticmethod
-    def _best(modes):
-        """おまかせ: 近ければ歩く (15 分まで). ほかは, 行ける中でいちばん早いもの (タクシーは, ほかに無いときだけ)."""
+    def _best(modes, carry=False):
+        """おまかせ: 近ければ歩く (15 分まで). ほかは, 行ける中でいちばん早いもの (タクシーは, ほかに無いときだけ).
+        carry: 出先 (家の外) に自分の車・自転車があれば, それに乗って行く (置いたままにしない)."""
+        if carry:
+            for k in ("car", "bike"):
+                if k in modes and modes[k]["ok"]:
+                    return k
         if modes["walk"]["ok"] and modes["walk"]["min"] <= 15:
             return "walk"
         ok = [(m["min"], k) for k, m in modes.items() if m["ok"] and k != "taxi"]
@@ -538,12 +543,23 @@ class Geo:
             t, r = hit
             return {"by": by, "at": t, "depart": t, "routes": [self.route_view(r, t)],
                     "note": "終電で行くなら、%sまでに出る" % datetime.fromtimestamp(t).strftime("%H:%M")}
-        if by == "arrive":
+        if by == "arrive":                       # at までに着く: 電車・バスは時刻表で, ほかの行き方は所要時間から, 出る時刻を逆算
+            modes = {}
+            try:
+                o = self.options(frm, to, at - 3600)
+                for k, m in o["modes"].items():
+                    if k != "transit" and m["ok"]:
+                        dep = int((at - m["min"] * 60) // 60 * 60)            # 分に切り捨て (予定は分で入れる)
+                        modes[k] = {"min": m["min"], "fare": m["fare"], "ok": True, "note": m["note"], "dep": dep}
+            except Exception:  # noqa: BLE001 - 目安なので
+                pass
             hit = self.latest_departure(frm, to, at)
             if not hit:
-                return {"by": by, "at": at, "routes": [], "note": "その時刻までに着く電車・バスの経路がありません"}
+                return {"by": by, "at": at, "routes": [], "note": "その時刻までに着く電車・バスの経路がありません", "modes": modes}
             t, r = hit
-            return {"by": by, "at": at, "depart": t, "routes": [self.route_view(r, t)],
+            t = t // 60 * 60
+            r = next((x for x in self.routes(frm, to, t) if x["key"] == "route:0"), r)          # 切り捨てた分の出発で探し直す
+            return {"by": by, "at": at, "depart": t, "routes": [self.route_view(r, t)], "modes": modes,
                     "note": "%sに出れば間に合う" % datetime.fromtimestamp(t).strftime("%H:%M")}
         try:
             o = self.options(frm, to, at)

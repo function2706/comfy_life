@@ -2905,7 +2905,7 @@ class App:
                 "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
-    def come_back(self, cid=None, at=None, quiet=False, arrived=False, onward=False):
+    def come_back(self, cid=None, at=None, quiet=False, arrived=False, onward=False, how=None):
         """告げて離れていたところから戻る. 仕事なら, 働いた時間ぶんの稼ぎを受け取る.
         at: 戻った時刻 (心拍が途絶えていたときは最後の心拍). quiet: 誰の反応もなく, 結果だけ (画面を閉じていたとき).
         偶然の出会いは外出中に起きるので (outdoor.live), 戻ったときには判定しない.
@@ -2913,7 +2913,7 @@ class App:
         onward: 家には帰らず, そのままほかの行き先へ (仕事を終えて寄り道. solo.move). 出迎えはなく, 文は「終えた」."""
         with self.lock:
             if not quiet and not arrived and self.presence.rec().get("mode") in ("out", "work") and self.geo.away():
-                r = self.geo.head_home()
+                r = self.geo.head_home(how=how)        # how: 帰る行き方 (無ければおまかせ)
                 if r:
                     return r
             wc = self.presence.rec().pop("work_contacts", 0)

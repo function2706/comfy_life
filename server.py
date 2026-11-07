@@ -175,7 +175,7 @@ def route(method, path, q, body):
         if path == "/api/minigames":
             return {"minigames": a.save_minigames(b["minigames"])}
         if path == "/api/presence/back":
-            return a.come_back(cid)
+            return a.come_back(cid, how=body.get("how") or None)
         if path == "/api/update/apply":          # 取り込んで, 変わったら起動し直す
             r = update.pull()
             if r["ok"] and (r["changed"] or body.get("restart")):
