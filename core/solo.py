@@ -57,6 +57,8 @@ PLAIN = {
     "sleep": {"label": "寝る", "icon": "🌙", "mode": "sleep", "go": "go_sleep", "text": "寝ることにした"},
     "leave": {"label": "席を外す", "icon": "👋", "mode": "left", "go": "go_leave", "text": "席を外した"},
 }
+# 誰かと出かけている・相手の家にいる途中でもできる (寝る: 泊まっているとき. 席を外す: 少し離れるだけ)
+OUT_WITH_OK = ("sleep", "leave")
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
               "out": "{place}へ出かけた", "jog": "{place}へ走りに出た", "read": "本を読み始めた", "movie": "家で映画を観始めた"}
@@ -127,7 +129,7 @@ class Solo:
         app = self.app
         frm = frm or app.geo.where()
         why = app.blocked("solo")
-        if why:
+        if why and not (kind in OUT_WITH_OK and why == app.out_with()):
             raise ValueError(why)
         if kind in ("out", "jog", "work") or kind in LEGACY:      # 家を出る (内職を一時停止したままなら, 先に終える)
             if app.stay_home():
@@ -723,9 +725,11 @@ class Solo:
                 continue
             ok = self._plain_ok(k["go"], near)
             plain.append({"id": kid, "icon": k["icon"], "label": go.get("name", k["label"]) if near else k["label"], "ok": ok,
+                          "out_ok": kid in OUT_WITH_OK,
                           "why": None if ok else self.app.cond_why(go.get("when", ""), self.app.you_context(roll=False))})
         return {"current": dict(cur, **{k: ALL_KINDS.get(cur["kind"], KINDS["out"])[k] for k in ("label", "icon", "doing")}) if cur else None,
                 "near": {"cid": near, "name": self.app.chars[near].get("name", "")} if near else None, "plain": plain,
+                "out_with": self.app.out_with(),
                 "kinds": [{"id": k, "label": v["label"], "icon": v["icon"], "mode": v["mode"]} for k, v in KINDS.items()],
                 "skills": SKILL_LABEL, "diary_today": any(d["day"] == date.today().isoformat() for d in self.diary_list()),
                 "genres": self.app.topics.genres_view(), "novels": self.app.items.count("novel"),

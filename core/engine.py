@@ -713,6 +713,10 @@ class App:
     def blocked(self, what):
         """what (solo = 一人の行動 / side_job = 内職 / social = 誰かとすること / game = ミニゲーム / cook = 自炊) を
         いま始められない理由 (押す前に画面に出す). 始められるなら None."""
+        if what in ("solo", "side_job", "cook"):
+            ow = self.out_with()                # 誰かと出かけている / 相手の家にいる途中: 一人ですること (家事・ジョギング・出かける…) はできない
+            if ow:
+                return ow
         d = self.doing_now()
         if not d:
             return None
@@ -727,6 +731,19 @@ class App:
         if d["kind"] == "game":
             return "%sの途中です（先に終えてから）" % d["label"]
         return "%sの途中です（先に「%sを終える」で終えてから）" % (d["label"], d["label"])
+
+    def out_with(self, now=None):
+        """誰かと外で会っている・一緒にお出かけしている・相手の家に来ている途中なら, 一人ですることを始められない理由. 無ければ None.
+        (家に来てもらっている・同居相手と家にいるときは, 声をかけてから一人のことができる)"""
+        now = now or time.time()
+        w = self.bonds.with_rec()
+        cid = w.get("cid") if w and w.get("mode") in ("meet", "visit") else self.outing_now(now)[0]
+        if not cid or cid not in self.chars:
+            return None
+        name = self.chars[cid].get("name", "")
+        if w and w.get("mode") == "visit" and w.get("cid") == cid:
+            return "%sの家に来ている途中です（一人ですることは、帰ってから）" % name
+        return "%sと出かけている途中です（一人ですることは、解散してから）" % name
 
     def blocked_view(self):
         return {w: self.blocked(w) for w in self.BLOCK_KINDS}
@@ -3361,6 +3378,8 @@ class App:
             if not self.earn.shift_now():
                 raise ValueError("いまはシフトの時間ではありません（%s）" % self.earn.shift_text(pt["shifts"]))
             dest = self.earn.job(pt["job"])["place"]
+            if self.out_with():
+                raise ValueError(self.out_with())
             if self.stay_home():
                 raise ValueError(self.stay_home())
             if self.solo.near(cid):          # そばに誰かいれば「仕事に行ってくる」と告げて

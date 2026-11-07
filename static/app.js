@@ -427,8 +427,10 @@ function renderSoloTab() {
   const v = S.view, so = v.solo || {}, Y = v.you || {};
   const free = (v.presence || {}).mode === 'none';
   const notFree = free ? '' : `いまは${(v.presence || {}).label || '手が離せない'}です（終えてから）`;
-  const btn = (icon, label, onclick, tip, dis, dwhy) => h('button', { class: 'cmd', disabled: !free || S.busy || dis || !!(v.blocked || {}).solo,
-    why: (v.blocked || {}).solo || notFree || (dis && dwhy) || '', title: (v.blocked || {}).solo || tip || '', onclick },
+  // 誰かと出かけている・相手の家にいる途中は, 一人ですることはできない (寝る・席を外すは別: outOk)
+  const blk = (outOk) => { const b = (v.blocked || {}).solo; return outOk && b && b === so.out_with ? '' : b; };
+  const btn = (icon, label, onclick, tip, dis, dwhy, outOk) => h('button', { class: 'cmd', disabled: !free || S.busy || dis || !!blk(outOk),
+    why: blk(outOk) || notFree || (dis && dwhy) || '', title: blk(outOk) || tip || '', onclick },
     h('span', { class: 'ic' }, icon), h('span', {}, label));
   const kinds = (so.kinds || []).map((k) => k.id === 'chores'
     ? btn(k.icon, k.label, () => { S.choresOpen = !S.choresOpen; renderSoloTab(); }, '片付け（戻るまで）か、家計簿をつける（15分ほど）を選ぶ')
@@ -469,7 +471,7 @@ function renderSoloTab() {
           h('span', { class: 'ic' }, '📓'), h('span', {}, so.diary_today ? '日記（今日の分あり）' : '日記をつける')),
 
         // 作業する・仕事に行く・寝る・席を外す: そばに誰かいれば「〜してくるね」と告げる形、いなければ一人で
-        ...(so.plain || []).map((p) => btn(p.icon, p.label, () => soloStart(p.id), near ? `${near.name}に告げてから` : '告げる相手はいない（一人で）', !p.ok, p.why)),
+        ...(so.plain || []).map((p) => btn(p.icon, p.label, () => soloStart(p.id), near ? `${near.name}に告げてから` : '告げる相手はいない（一人で）', !p.ok, p.why, p.out_ok)),
         h('button', { class: 'cmd', disabled: S.busy || !!sj, why: sj ? sj.reason : '', onclick: openTask,
           title: '家でパズル（マインスイーパ・数独・ピクロス・スリザーリンク・15パズル）を解いて稼ぎます' },
           h('span', { class: 'ic' }, '🧵'), h('span', {}, '内職する'), sj ? h('small', { class: 'muted' }, sj.reason.replace(/^.*（(.*)）$/, '$1')) : null))),
