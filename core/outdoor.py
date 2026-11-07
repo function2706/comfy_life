@@ -127,9 +127,15 @@ class Outdoor:
         out["here"] = self.app.geo.where(now)
         cid, ov = self.app.outing_now(now)                    # 相手と一緒に出かけている: 地図で行き先を押すと「一緒に行く」
         if cid:
-            trip = self.app.outing_trip(self.app.state(cid), now)
-            out["with_outing"] = {"cid": cid, "name": self.app.chars[cid].get("name", ""), "place": ov.get("place"),
+            st = self.app.state(cid)
+            trip = self.app.outing_trip(st, now)
+            char = self.app.chars[cid]
+            # 一緒に行けるところ (その場所の移動のコマンドがあり, いまの条件を満たす. 中古車屋・教習所などは一緒には行かない)
+            spots = [p for p in sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)) if self.app._move_action(p, char, st)]
+            out["with_outing"] = {"cid": cid, "name": char.get("name", ""), "place": ov.get("place"), "spots": spots,
                                   "moving": bool(trip), "to": trip["to"] if trip and trip["dir"] == "go" else None}
+        else:
+            out["out_with"] = self.app.out_with(now)          # 相手の家にいる途中など: 一人では出かけられない
         out["map"] = self.app.geo.map_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
         out["net"] = self.app.geo.transit.map_view()          # 路線と駅・停留所 (地図に描く. 押すと時刻表)
         return out

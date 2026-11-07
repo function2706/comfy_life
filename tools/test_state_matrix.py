@@ -24,9 +24,29 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 from core import engine, geo as G, msgpick, places as P, solo as S, store  # noqa: E402
-from testclock import fix_noon  # noqa: E402
+from testclock import NOON, fix_noon  # noqa: E402
 
+REAL_PHASE = engine.App.phase_at
 fix_noon(engine)
+# 時刻を変えた状態 (夜・朝) も: CLK があればその時刻 (時間帯・時刻の条件・行き先の営業). 無ければ昼 (fix_noon)
+CLK = {"dt": None}
+_noon_phase, _noon_ctx, _noon_you = engine.App.phase_at, engine.App.context, engine.App.you_context
+_open_real = P.open_state_real
+
+
+def _clk_fix(self, c):
+    d = CLK["dt"]
+    if d:
+        c.update(hour=d.hour, time=d.hour * 60 + d.minute, phase=REAL_PHASE(self, d).get("id", ""))
+    return c
+
+
+engine.App.phase_at = lambda self, dt: REAL_PHASE(self, CLK["dt"]) if CLK["dt"] else _noon_phase(self, dt)
+engine.App.context = lambda self, char, st, dt, scene=None, **kw: _clk_fix(self, _noon_ctx(self, char, st, dt, scene, **kw))
+engine.App.you_context = lambda self, dt=None, roll=True: _clk_fix(self, _noon_you(self, dt, roll)) if dt is None else _noon_you(self, dt, roll)
+P.open_state = lambda pid, dt: _open_real(pid, CLK["dt"] or NOON)
+from core import offline as _off  # noqa: E402
+_off.open_state = P.open_state
 
 SKIP_CAT = ("system", "あなたの予定")      # あなたの予定 (作業する・出かける…) は「一人で」から (solo_probes で見る)
 INPUT_ONLY = ("読む本がない",)
@@ -178,10 +198,65 @@ def s_live_away(app, cid):        # 同居だが, 相手は自分の予定で出
     FORCE["away"] = True
 
 
+def s_helping(app, cid):          # 相手の家で, 頼まれごとの手伝いの最中
+    s_visit(app, cid)
+    now = time.time()
+    app.bonds.with_rec()["helping"] = {"fid": "x", "t0": now, "until": now + 3600, "rest": 0}
+    app.bonds.save()
+
+
+def s_sick(app, cid):             # 同居相手が風邪で寝込んでいる (家で)
+    st = _base(app, cid, "live")
+    st["ill"] = {"t": time.time() - 3600, "until": time.time() + 86400, "level": 2}
+    app.set_params({"health": 40}, cid)
+    app.save_state(cid)
+
+
+def s_fight(app, cid):            # 同居相手と言い争いの最中 (家で)
+    st = _base(app, cid, "live")
+    app.quarrel.start(app.char(cid), st, time.time(), "chores", False)
+    app.save_state(cid)
+
+
+def s_appt_wait(app, cid):        # 約束の場所 (水族館) に先に着いて, 約束の時刻を待っている
+    _base(app, cid, "contact")
+    A = app.appoint
+    t = time.time() + 1800
+    x = {"id": "xw", "cid": cid, "t": t, "place": "aquarium", "do": "aquarium", "by": "me", "status": "set", "made": t - 86400,
+         "plan": {"noshow": False, "late": 0, "cancel_checked": True}}
+    A.all().append(x)
+    A.save()
+    G.INSTANT = False
+    try:
+        A.go("xw")
+        tr = app.geo.travel()
+        if tr:
+            app.geo.tick(tr["arr"] + 1)
+    finally:
+        G.INSTANT = True
+    A.live(time.time())
+
+
+def _at(h):
+    def deco(fn):
+        def run(app, cid):
+            fn(app, cid)
+        run.clock = datetime(NOON.year, NOON.month, NOON.day, h, 0)
+        return run
+    return deco
+
+
+s_night_home = _at(22)(s_live_home)       # 夜 22 時, 同居相手と家に
+s_morning_home = _at(7)(s_live_home)      # 朝 7 時, 同居相手と家に
+s_night_alone = _at(22)(s_alone)          # 夜 22 時, 一人で家に
+s_night_guest = _at(22)(s_guest)          # 夜 22 時, 家に来てもらっている
+
 STATES = [("alone", s_alone), ("live_home", s_live_home), ("guest", s_guest), ("visit", s_visit), ("stay", s_stay), ("meet", s_meet),
           ("outing_moving", s_outing_moving), ("outing_there", s_outing_there), ("outing_home", s_outing_home),
-          ("solo_out", s_solo_out), ("live_busy", s_live_busy), ("asleep", s_asleep), ("live_away", s_live_away)]
-APART = ("alone", "solo_out", "live_away")
+          ("solo_out", s_solo_out), ("live_busy", s_live_busy), ("asleep", s_asleep), ("live_away", s_live_away),
+          ("helping", s_helping), ("sick", s_sick), ("fight", s_fight), ("appt_wait", s_appt_wait),
+          ("night_home", s_night_home), ("morning_home", s_morning_home), ("night_alone", s_night_alone), ("night_guest", s_night_guest)]
+APART = ("alone", "solo_out", "live_away", "appt_wait", "night_alone")
 OUTING = ("meet", "outing_moving", "outing_there", "outing_home")
 MOVING = ("outing_moving", "outing_home")
 
@@ -234,6 +309,50 @@ def game_probes(app, cid):
              lambda app2, gid=g["id"]: app2.games.start(gid, cid), {}, {}) for g in gv["list"]]
 
 
+def map_probes(app, cid):
+    """外出の地図: 行き先ごとの「行く」ボタン (static/app.js の renderMap の can と mapGo と同じ)."""
+    od = app.outdoor.view(time.time())
+    pres = app.presence.rec()
+    tv = od.get("travel")
+    work_away = pres.get("mode") == "work" and (bool(tv) or (od.get("here") and od["here"] != "home:me"))
+    free = pres.get("mode") in ("none", "out") or work_away
+    wo = od.get("with_outing")
+    out_choices = od["choices"].get("out") or []
+    routes = od.get("routes") or {}
+    out = []
+    for pid in sorted(set(out_choices) | {"home:me"}):
+        pl = od["places"].get(pid) or {}
+        r = routes.get(pid) or {}
+        here = pid == od.get("here") and not tv and not (wo and wo.get("moving"))
+        heading = bool(wo) and wo.get("to") == pid
+        no_with = bool(wo) and pid != "home:me" and pid not in (wo.get("spots") or [])
+        goable = (pid not in ("office", "station")) or pid in out_choices
+        modes_ok = any(m.get("ok") for m in (r.get("modes") or {}).values())
+        ok = bool(free and goable and not here and not heading and not no_with and not od.get("out_with") and pl.get("open") is not False
+                  and not (wo and pid == "home:me") and modes_ok)
+        why = "free=%s here=%s heading=%s open=%s modes=%s" % (free, here, heading, pl.get("open"), modes_ok)
+
+        def run(app2, pid=pid):
+            pres2 = app2.presence.rec()
+            od2 = app2.outdoor.view(time.time())
+            if od2.get("with_outing") and pid != "home:me":
+                return app2.outing_move(pid, None)
+            if pid == "home:me" and pres2.get("mode") in ("out", "work"):
+                return app2.come_back()
+            if pres2.get("mode") in ("out", "work"):
+                return app2.solo.move(pid)
+            return app2.solo.start("out", None, pid)
+        out.append(("地図", pid, pl.get("label") or pid, ok, why, run, {}, {}))
+    return out
+
+
+def phone_probes(app, cid):
+    """スマホ: 連絡先 (そばにいない人) にメッセージ・電話. そばにいる相手は連絡先に出ない."""
+    listed = any(c["id"] == cid for c in app._contacts_view())
+    return [("スマホ", "message", "メッセージ", listed, "連絡先にいない", lambda app2: app2.chat.send(cid, "smalltalk"), {}, {}),
+            ("スマホ", "call", "電話", listed, "連絡先にいない", lambda app2: app2.phone_call(cid, "smalltalk"), {}, {})]
+
+
 def rules(sname, probes):
     """状態ごとの決まり (画面で押せるものについて)."""
     bad = []
@@ -272,6 +391,7 @@ def main():
             if only and only not in sname:
                 continue
             FORCE.clear()
+            CLK["dt"] = getattr(fn, "clock", None)
             shutil.rmtree(store.DATA)
             shutil.copytree(snap0, store.DATA)
             random.seed(1)
@@ -281,7 +401,7 @@ def main():
             app.life.save_player()
             snap = os.path.join(base, "snap_" + sname)
             shutil.copytree(store.DATA, snap)
-            probes = person_probes(app, cid) + solo_probes(app, cid) + game_probes(app, cid)
+            probes = person_probes(app, cid) + solo_probes(app, cid) + game_probes(app, cid) + map_probes(app, cid) + phone_probes(app, cid)
             bad += rules(sname, probes)
             counts = {}
             for kind, pid, name, ok, why, run, a, ui in probes:
@@ -309,6 +429,7 @@ def main():
                     bad.append((sname, pid, name, "%s: 押せないのにできた" % kind, why))
             print("%s: %s" % (sname, " / ".join("%s %d" % kv for kv in counts.items())), flush=True)
     finally:
+        CLK["dt"] = None
         engine.App.scheduled_scene = sched
         shutil.rmtree(base, ignore_errors=True)
     for b in bad:

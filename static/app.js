@@ -2493,17 +2493,20 @@ function renderMap() {
   else if (sel) {
     const pl = P[sel] || {};
     const r = routeOf(sel);
-    const here = sel === od.here && !tv;
+    const here = sel === od.here && !tv && !(od.with_outing && od.with_outing.moving);     // 一緒に移動中なら, 出たところへ戻るのもあり
     const heading = od.with_outing && od.with_outing.to === sel;        // 一緒に向かっているところ
-    const can = free && goable(sel) && !here && !heading && pl.open !== false && !(od.with_outing && sel === 'home:me');
+    const noWith = od.with_outing && sel !== 'home:me' && !(od.with_outing.spots || []).includes(sel);     // 一緒には行けないところ
+    const can = free && goable(sel) && !here && !heading && !noWith && !od.out_with && pl.open !== false && !(od.with_outing && sel === 'home:me');
     const modes = r ? Object.entries(r.modes || {}).sort(([a], [b]) => (b === r.best) - (a === r.best)) : [];
     detail = h('div', { class: 'pgroup', style: 'margin-top:6px' },
       h('div', { class: 'row', style: 'gap:6px;align-items:center' }, h('h4', { style: 'margin:0' }, `${mapIcon(sel)} ${mapName(sel)}`),
         h('span', { class: 'muted small' }, [placeTip(sel).replace(/\n/g, '・'), r ? `道のり ${r.km}km` : ''].filter(Boolean).join('・')),
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: () => { S.mapSel = null; renderMap(); } }, '✕')),
       pl.open === false ? h('div', { class: 'small down' }, `閉まっています（${pl.note}）`) : '',
+      od.out_with && !here ? h('div', { class: 'small muted' }, od.out_with) : '',
       od.with_outing && !here ? h('div', { class: 'small' }, sel === 'home:me' ? `${od.with_outing.name}と一緒に帰るときは、「誰かと」の「家に帰る」から`
         : heading ? `いま${od.with_outing.name}と一緒に向かっています`
+        : noWith ? `${od.with_outing.name}と一緒に行くところではありません（いまの時間帯にできることがない）`
         : od.with_outing.moving ? `行き先を変えて、${od.with_outing.name}と一緒に行く（応じてくれるかは、その時の気分しだい。何度も変えると嫌がられる）`
         : `${od.with_outing.name}と一緒に行く（応じてくれるかは、その時の気分しだい）`) : '',
       here ? h('div', { class: 'small muted' }, 'いまここにいます') : !goable(sel) ? h('div', { class: 'small muted' }, sel === 'office' ? '職場へは「仕事に行く」から' : '') : '',

@@ -341,6 +341,10 @@ class Solo:
         self._place("out", place)
         frm = app.geo.where(now)
         tr = p.get("travel")
+        if tr and tr.get("to") == place:
+            raise ValueError("いま%sへ向かっています" % app.places.label(place))
+        if not tr and frm == place:
+            raise ValueError("いまここにいます")
         refund = 0
         if tr:                                 # 向かう途中・帰る途中で行き先を変える: いまの地点から
             frm = app.geo.cut(now)
