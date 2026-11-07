@@ -156,6 +156,7 @@ def join_tags(chunks):
 
 
 MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
+MOVING_OK_IDS = ("hold_hands", "headpat", "photo", "water", "gift")     # 移動中でもできるふれあい・お世話 (歩きながら・乗りながら)
 
 
 SIDE_JOB_STAMINA_H = 12         # 内職の体力 (1 時間あたり. 続けていなければ. 仕事は 9)
@@ -1163,6 +1164,7 @@ class App:
         ctx = self.context(char, st, dt)
         now = dt.timestamp()
         out = {}
+        moving = self.outing_moving(st, now)
         for a in self.actions:
             if a.get("category") == "system":
                 continue
@@ -1176,11 +1178,23 @@ class App:
                             and not self.guest_ng(a, char["id"]),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
-            if not out[a["id"]]["ok"]:
+            if out[a["id"]]["ok"] and moving and not self.moving_ok(a):     # お出かけの移動中: 着いてから
+                out[a["id"]].update(ok=False, why="移動中です（着いてから）")
+            if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
                 why = self.why_not(a, char, ctx, shut)
                 if why:
                     out[a["id"]]["why"] = why
         return out
+
+    @staticmethod
+    def moving_ok(a):
+        """お出かけの行き帰りの移動中にできるか (話す・見る・連絡・手をつなぐ など)."""
+        return a.get("category") in MOVING_OK or a.get("id") in MOVING_OK_IDS or bool(a.get("end_override"))
+
+    def outing_moving(self, st, now):
+        """相手とのお出かけで, いま行き帰りの移動中か."""
+        ov = st.get("override") or {}
+        return bool(ov.get("outing")) and ov.get("until", 0) > now and (ov.get("arr", 0) > now or now >= ov.get("leave", ov["until"]))
 
     PHASE_JA = {"morning": "朝", "noon": "昼", "evening": "夕方", "night": "夜", "midnight": "深夜", "dawn": "明け方"}
 
@@ -1277,8 +1291,8 @@ class App:
                 raise ValueError(self.stay_home())
             ovm = st.get("override") or {}
             if ovm.get("outing") and ovm.get("until", 0) > now and (ovm.get("arr", 0) > now or now >= ovm.get("leave", ovm["until"])) \
-                    and a.get("category") not in MOVING_OK and not a.get("end_override"):
-                raise ValueError("移動中は、話すくらいしかできません（着いてから）")
+                    and not self.moving_ok(a):
+                raise ValueError("移動中は、話す・手をつなぐくらいしかできません（着いてから）")
             apart = ctx["apart"]
             if apart and a.get("category") == "連絡" and not opts.get("deliver") and opts.get("msg_kind") != "apology":
                 self._phoned(st, now, char, opts.get("msg_kind"), phone=bool(a.get("phone")))      # スマホで連絡した (謝るメッセージは数えない)
