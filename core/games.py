@@ -166,13 +166,14 @@ class Games:
     # ================================================================== API
     def view(self, char, st, ctx):
         games = []
+        near = self.app.bonds.together(char["id"])      # そばにいない相手とは遊べない
         for g in self.app.minigames:
             if g.get("hidden"):          # 一覧に出さない (ダウトは既定で. 定義の "hidden" を消すと戻る)
                 continue
             desc = (g.get("desc") or "").replace("{name}", char.get("name", "")).replace(
                 "{target}", str(g.get("target", 3)))
             games.append({"id": g["id"], "name": g.get("name", g["id"]), "icon": g.get("icon", "🎲"), "desc": desc,
-                          "kind": g.get("kind"), "ok": cond.check(g.get("require", ""), ctx),
+                          "kind": g.get("kind"), "ok": near and cond.check(g.get("require", ""), ctx),
                           "require": g.get("require", "")})
         cur = st.get("game")
         out = None
@@ -223,6 +224,8 @@ class Games:
             why = app.blocked("game")
             if why and not st.get("game"):
                 raise ValueError(why)
+            if not app.bonds.together(cid):
+                raise ValueError("%sはそばにいません（会っているときに遊べます）" % char.get("name", ""))
             dt = datetime.now()
             ctx = app.context(char, st, dt)
             if not cond.check(g.get("require", ""), ctx):

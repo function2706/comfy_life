@@ -1256,6 +1256,7 @@ class App:
         out = {}
         moving = self.outing_moving(st, now)
         ocid, oov = self.outing_now(now)
+        social_block = self.blocked("social")     # 一人でしていることの途中 (家事・内職など): 誰かとすることは, 終えてから (act と同じ)
         move_on = ocid == char["id"]               # 一緒にお出かけ中: 移動のコマンドで次の場所へ (移動の途中なら, 行き先を変える)
         otrip = self.outing_trip(st, now) if move_on else None
         cur_pl = (otrip["to"] if otrip["dir"] == "go" else None) if otrip else (oov or {}).get("place")
@@ -1283,6 +1284,8 @@ class App:
                         out[a["id"]].pop("why")
             if out[a["id"]]["ok"] and moving and not self.moving_ok(a) and not out[a["id"]].get("move_on"):     # お出かけの移動中: 着いてから
                 out[a["id"]].update(ok=False, why="移動中です（着いてから）")
+            if out[a["id"]]["ok"] and social_block and not (ctx["apart"] and a.get("category") in ("連絡", "会う")):
+                out[a["id"]].update(ok=False, why=social_block)
             if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
                 why = self.why_not(a, char, ctx, shut)
                 if why:
@@ -2986,6 +2989,15 @@ class App:
         aid = aid or self._move_action(to, char, st)
         if not aid:
             raise ValueError("%sへは、いまは一緒に行けません" % self.places.label(to))
+        # 誘う前に, そのコマンドの条件 (時間帯・お金など) と行き先が開いているかを見る (画面で押せないものは, 誘えない)
+        a = self.action(aid)
+        dt = datetime.fromtimestamp(now)
+        ctx = self.context(char, st, dt)
+        if not cond.check(self._when(a, ctx), ctx):
+            raise ValueError(self.cond_why(self._when(a, ctx), ctx, char.get("name", "相手")) or "今は「%s」できません" % a.get("name", aid))
+        o = places_mod.open_state(to, dt) if to in places_mod.PLACES else {"open": True}
+        if not o["open"]:
+            raise ValueError("%sは閉まっています（%s）" % (places_mod.PLACES[to]["label"], o["note"]))
         p = st["params"]
         h = datetime.fromtimestamp(now).hour
         # 何度も行き先を変える・次々に連れ回すと, うんざりされる (4 時間のうち. 移動の途中で変えるのは, 着いてから次へより重い).
