@@ -34,6 +34,7 @@ def main():
         app.create_world("予定の行き方")
         P, O, L = app.planner, app.offline, app.life
         L.player_state()["skills"].update(work=80, budget=70)
+        P.horizon_days = lambda: 14                 # 流す曜日しだいで, 次の土日が予定の範囲の外になって平日 (仕事) に戻っていた
         d = datetime.now() + timedelta(days=1)
         while d.weekday() < 5:                      # 土日 (仕事の時間に重ならない)
             d += timedelta(days=1)

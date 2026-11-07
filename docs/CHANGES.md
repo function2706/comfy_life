@@ -19,10 +19,12 @@
 - 修正（画面）: 解散したり相手の家から帰ったりすると、家へ向かう移動中の画面が会話を覆って、相手の最後のセリフが見えなかった。別れて離れたときは、その画面に「別れぎわ」として最後のやりとりを出す（会っている途中で仕事などへ向かうときも）
 - 修正（体力）: デートのあいだ、あなたの体力が減らず、むしろ回復していた（11/07 の報告: 13〜17 時のデートのあと体力 98）。デート中は「相手のそばにいる」扱いで、家でくつろいでいるのと同じく 1 時間に 5 ずつ戻っていたため。一人で遊園地を回れば疲れるのに、二人だと回復していた。以前からの不具合。一緒に出かけた先で過ごしている間は回復せず、一人で同じところにいるのと同じだけ疲れる（1 時間に、散歩・見て回る 2 × 場所の疲れやすさ、買い物 2、食事 1、カフェ 0.5）。4 時間で、公園 −8・遊園地 −12・カフェ −2（以前は +20）。一緒の移動も、一人の移動と同じだけ疲れる（歩いた・こいだ区間の分。以前は行きだけ、移動の時間に比べて決めた量）。帰りの移動の分も入れ、移動の間は回復しない。相手の家にいる・相手を招いている間は、出歩きはしないが気を張っているので、回復が遅い（1 時間に 2）。家で相手のそばにいるだけなら、いままでどおり回復する（`engine.with_load` `JOINT_TIRE` `JOINT_REST`）。相手の体力（energy）は、以前からデート中に減っている（4 時間で、公園 −36・遊園地 −32・カフェ −12）
 - 遡及: なし（以前の別れは済んだこと。移動中の画面の最後のやりとりは、これから別れたときから。体力も、これまでのデートで戻った分はそのまま）
-- テスト: `test_stamina_with`（新規）
+- 修正（体力）: 画面を開いて一人で外出している間（移動中も）、体力が時間で回復していた（1 時間に 5。画面を閉じていた間の外出では戻らないのに）。外出中は戻らない。一人でカフェに座ったときの回復（1 時間に 3）はそのまま。体力の欄の説明も直した。遡及はしない
+- テスト: `test_stamina_with`（新規。一人の外出も）
+- テスト: `test_plan_go` が、日曜に流すと落ちていた（次の土曜が予定を組める範囲の外になり、仕事のある月曜で試していた。テスト側の不具合）
 - テスト: `test_parting`（新規）。別れのコマンドを使うテスト 14 本と `tools/simulate.py` は、別れぎわを「ふつうに応じる」に固定（`parting.FIXED`。別れが主題でないので）。`test_attach2` の「依存度が高いと引き止める」は、名残惜しいとき・引き止めるときに依存の強さが出る、の確かめに直した
 
-部分テスト: `test_parting`（新規） `test_bonds` `test_visit` `test_presence` `test_appoint` ほか別れのコマンドを使う 14 本、`test_personas` `test_persona_text` `test_definitions` `test_outing_move` `test_outing_moving` `test_stay` `test_invite_home` `test_js_names`（すべて通過）。体力の直しのあと: `test_stamina_with`（新規） `test_geo` `test_outing_*` `test_life` `test_player` `test_solo` `test_earn` `test_earn2` `test_earn3` `test_visit` `test_askhelp` `test_food` `test_health` `test_exercise` `test_transit` `test_offline` `test_state_matrix` ほか 27 本（すべて通過）
+部分テスト: `test_parting`（新規） `test_bonds` `test_visit` `test_presence` `test_appoint` ほか別れのコマンドを使う 14 本、`test_personas` `test_persona_text` `test_definitions` `test_outing_move` `test_outing_moving` `test_stay` `test_invite_home` `test_js_names`（すべて通過）。体力の直しのあと: `test_stamina_with`（新規） `test_geo` `test_outing_*` `test_life` `test_player` `test_solo` `test_earn` `test_earn2` `test_earn3` `test_visit` `test_askhelp` `test_food` `test_health` `test_exercise` `test_transit` `test_offline` `test_state_matrix` ほか 27 本（すべて通過）。外出中の回復の直しのあと: `test_stamina_with` `test_solo` `test_life` `test_player` `test_geo` `test_shop` `test_street` `test_encounters` `test_offline` `test_offline_fallback` `test_closed_away` `test_plan_go` `test_routine` ほか 23 本（すべて通過）
 
 ## 1.5.0（2026-11-07）
 

@@ -68,7 +68,7 @@ class Life:
             self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t}
         ps = self.player
         ps.setdefault("skills", {k: 10.0 for k in SKILLS})
-        ps.setdefault("stamina", 100.0)          # あなたの体力 (仕事・内職で減り, 時間で戻る. 寝ると早い)
+        ps.setdefault("stamina", 100.0)          # あなたの体力 (仕事・内職・外出で減り, 家にいる間に時間で戻る. 寝ると早い)
         ps.setdefault("work_log", {})            # 日付 -> その日に給料が出た時間
         for k in SKILLS:
             ps["skills"].setdefault(k, 10.0)
@@ -196,7 +196,7 @@ class Life:
             wl = self.app.with_load(t) if mode not in ("work", "sleep") else None
             if wl and wl[0] == "tire":       # 一緒に出かけた先で過ごしている: 回復せず, 一人で同じところにいるのと同じだけ疲れる
                 ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - wl[1] * step / 3600.0)
-            elif mode != "work":
+            elif mode not in ("work", "out"):     # 仕事中・外出中 (一人で出かけている・移動中) は戻らない (画面を閉じていた間の外出と同じ)
                 rec = float(e.get("stamina_recover_sleep" if mode == "sleep" else "stamina_recover", 12 if mode == "sleep" else 5))
                 if wl:                         # 相手の家にいる / 相手を招いている: 家で一人のときより戻りにくい
                     rec = min(rec, wl[1])
