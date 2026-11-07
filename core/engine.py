@@ -235,6 +235,7 @@ class App:
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
+        self.appt_travel_comp()                        # 約束の場所で会ったのに, 家からの移動が入っていた分 (運賃を返す・解散したデートを戻す. 一度だけ)
         self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
@@ -438,6 +439,66 @@ class App:
         if out:
             self.logq.put("%s [INFO] 手伝いが職場になっていた件の直し: %s" % (datetime.now().strftime("%m-%d %H:%M:%S"), out))
         return out
+
+    def appt_travel_comp(self, now=None):
+        """不具合の直し (一度だけ. ワールドごと. 1.5.0 で直した): 約束の場所で会ったお出かけに, 家から行き先までの移動が入っていた
+        (会う直前にあなたの外出が終わって居場所が家に戻り, そこから移動を計算していた). そのため会ってからしばらく「移動中」で,
+        手をつなぐなどが断られ, 「移動」のコマンドが隠れて「家に帰る」だけになっていた.
+        - 余計に払った運賃 (あなたと相手) を返す (会った時刻の, その行き先への交通費. 3 日のうち)
+        - その「移動中」のまま「家に帰る」で解散したデートは, 本来の終わり (会った時刻 + そのお出かけの長さ) がまだなら元に戻す
+          (二人でその場所にいる. 家へ向かっている途中なら, そこでやめた分の運賃は戻る)
+        直したことを返す (文の並び)."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("appt_travel"):
+            return []
+        done["appt_travel"] = now
+        notes = []
+        raw = self.kakeibo.rec()["raw"]
+        for x in sorted(self.appoint.all(), key=lambda x: -x["t"]):
+            if x["status"] != "met" or x["cid"] not in self.chars or x.get("favor") or x.get("help") or x.get("care") \
+                    or x["place"] not in places_mod.PLACES or not 0 <= now - x["t"] <= 3 * 86400:
+                continue
+            cid, pl = x["cid"], x["place"]
+            label = places_mod.PLACES[pl]["label"]
+            log = self.log(cid)
+            met = next((e for e in log if e.get("action") == x["do"] and x["t"] - 120 <= e["t"] <= x["t"] + 4 * 3600 and not e.get("apart")), None)
+            if not met:
+                continue
+            fares = [r for r in raw if r["c"] == "transport" and r["a"] < 0 and abs(r["t"] - met["t"]) < 5 and label in r.get("n", "")]
+            back = -sum(r["a"] for r in fares)
+            if back:
+                self.life.move(None, dp=back, cat="transport", note="交通費の払い戻し（%sで会ったときの、余計な移動の分）" % label)
+                hm = self.life.her_money(self.state(cid))
+                hm["a"] += back
+                self.save_state(cid)
+                notes.append("%sとの%sで余計に払っていた交通費 %s円を、二人に返した" % (self.chars[cid].get("name", ""), label, format(back, ",")))
+            a = self.action(x["do"]) if any(y["id"] == x["do"] for y in self.actions) else {}
+            ovp = dict(a.get("override") or {})
+            until = met["t"] + float(ovp.get("minutes", 30)) * 60
+            home = next((e for e in log if e.get("action") == "go_home" and met["t"] < e["t"] < met["t"] + 4 * 3600), None)
+            st = self.state(cid)
+            later = bool(home) and any(e["t"] > home["t"] + 1 and not e.get("apart") for e in log)     # 解散のあと, また会っている
+            if not home or now >= until or self.bonds.with_rec() or (st.get("override") or {}).get("until", 0) > now or later:
+                continue
+            # 解散してしまったデートを元に戻す: 二人でその場所にいる (残りの時間)
+            if self.geo.travel():
+                self.geo.cut(now)
+            if self.presence.rec().get("mode") == "out":
+                self.presence.back(now)
+            self.presence.rec()["pos"] = pl
+            self.presence.save()
+            self.bonds.start(cid, "meet", now)
+            ovp.update(until=until, from_action=x["do"], place=pl, location=label)
+            st["override"] = ovp
+            self.save_state(cid)
+            notes.append("%sとの%sのデートを、解散する前に戻した（%sまで）" % (self.chars[cid].get("name", ""), label,
+                                                                     datetime.fromtimestamp(until).strftime("%H:%M")))
+        self.life.save_player()
+        if notes:
+            self.my_entry("fix", "不具合の直し", "🛠", "（不具合の直し: 約束の場所で会ったのに、家からの移動が入っていた）" + "。".join(notes))
+            self.trace.add("retro", "約束の場所で会ったときの余計な移動", None, now, notes=notes)
+        return notes
 
     def favor_redo_comp(self, now=None, key="favor_redo"):
         """不具合のお詫び (一度だけ. ワールドごと. 2026-11-04 まで): 頼まれごとの手伝いが, 相手の記録も画像もない「仕事中」に
@@ -1502,7 +1563,8 @@ class App:
                     pl = pl if pl in places_mod.PLACES else places_mod.from_location(ov.get("location"))
                     ov["place"] = pl
                     ov["location"] = places_mod.PLACES[pl]["label"]
-                    travel_note = self._outing_travel(cid, ov, pl, now, opts.get("how"))      # 行き (同居なら帰りも) の移動 (core/geo.py)
+                    # 行き (同居なら帰りも) の移動 (core/geo.py). 約束の場所で会ったときは, 二人ともそこにいるので移動しない
+                    travel_note = None if appt else self._outing_travel(cid, ov, pl, now, opts.get("how"))
                 st["override"] = ov
                 worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
