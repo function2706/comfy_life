@@ -2970,7 +2970,12 @@ class App:
             self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % places_mod.PLACES[pl]["label"])
             hm = self.life.her_money(self.state(cid))
             hm["a"] = max(0, hm["a"] - fare)
-        self.life.tire(2.0 * min(go["min"], 60) / 60.0)
+        # あなたの疲れ: 一人の移動と同じ (歩いた・こいだ区間の分. 帰りの移動の分も, ここで)
+        for lg, a, b in ((go, frm, pl), (back, pl, places_mod.HOME_ME)):
+            if lg:
+                ex, tired = self.geo.body_cost(lg, a, b)
+                self.body.add_exercise(ex)
+                self.life.tire(tired)
         return "（%sまで%sで%d分ほど%s）" % (places_mod.PLACES[pl]["label"], geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),
                                      "・%s円" % format(fare, ",") if fare else "")
 
@@ -3000,6 +3005,29 @@ class App:
                "no": "今日はここでもう少しゆっくりしたいな",
                "keep": "せっかくもう向かってるんだし、このまま行こうよ",
                "fickle": "また変えるの？ 今日はさっき決めたところにしようよ"}
+
+    # 一緒に出かけた先で過ごしている間の, あなたの疲れ (1 時間あたり). 一人で同じところにいるときと同じ (core/solo.py の行き先ですること):
+    # 歩き回る (散歩・見て回る) は 2 × 場所の疲れやすさ, 買い物は 2, 食べる・そのほかは 1, カフェで座っているのは 0.5
+    JOINT_TIRE = {"walk": 2.0, "see": 2.0, "shop": 2.0, "eat": 1.0, "tea": 0.5}
+    JOINT_REST = 2.0          # 相手の家にいる / 相手を招いている間の回復 (1 時間あたり. 出歩きはしないが, 気を張っている)
+
+    def with_load(self, t):
+        """時刻 t に, 誰かと一緒にいることで, あなたの体力の動きが変わるか.
+        ("tire", 1 時間に減る量): 一緒に出かけた先で過ごしている (回復しない). 一緒の移動の間は ("tire", 0) (疲れは出るときに済ませた)
+        ("rest", 1 時間に戻る量): 相手の家にいる / 相手を招いている. どちらでもなければ None."""
+        cid, ov = self.outing_now(t)
+        if ov:
+            if ov.get("arr", 0) > t or t >= ov.get("leave", ov["until"]):
+                return ("tire", 0.0)
+            pl = ov.get("place")
+            kind = places_mod.main_do(pl) if pl in places_mod.PLACES else "walk"
+            rate = self.JOINT_TIRE.get(kind, 1.0)
+            if kind in ("walk", "see"):
+                rate *= places_mod.effort(pl)
+            return ("tire", rate)
+        if (self.bonds.with_rec() or {}).get("mode") in ("visit", "guest"):
+            return ("rest", self.JOINT_REST)
+        return None
 
     def outing_now(self, now=None):
         """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None)."""

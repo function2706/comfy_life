@@ -193,8 +193,13 @@ class Life:
             self.app.earn.step(t, step)          # フリマの売れ行き・宝くじの抽せん (core/earn.py)
             mode = self.app.presence.at(t)
             self.app.body.step(t, step / 3600.0, mode)          # お腹と栄養 (あなた)
-            if mode != "work":
+            wl = self.app.with_load(t) if mode not in ("work", "sleep") else None
+            if wl and wl[0] == "tire":       # 一緒に出かけた先で過ごしている: 回復せず, 一人で同じところにいるのと同じだけ疲れる
+                ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - wl[1] * step / 3600.0)
+            elif mode != "work":
                 rec = float(e.get("stamina_recover_sleep" if mode == "sleep" else "stamina_recover", 12 if mode == "sleep" else 5))
+                if wl:                         # 相手の家にいる / 相手を招いている: 家で一人のときより戻りにくい
+                    rec = min(rec, wl[1])
                 sl = self.app.presence.rec().get("solo") or {}
                 if mode == "busy" and sl.get("kind") == "rest":      # 一人で休んでいる: 寝るほどではないが早く戻る
                     rec = float(e.get("stamina_recover_rest", 9))
