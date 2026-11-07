@@ -1042,6 +1042,9 @@ class App:
             self.quarrel.tick(char, st, now)   # 言い争い (始まる・収まる・相手から謝る)
             changed = True
         ov = st.get("override")
+        if ov and ov.get("arrive") and ov.get("arr", now + 1) <= now:
+            self._outing_arrived(char, st, ov, now)       # 一緒に移動して行き先に着いた: そこでの反応と絵
+            changed = True
         if ov and ov.get("until", 0) <= now:
             st["override"] = None
             changed = True
@@ -1653,7 +1656,14 @@ class App:
             text = self.format_text(text, char, scene, dt)
             if nursed:
                 text += "\n" + nursed
-            gen_ok = a.get("generate", True)
+            # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応と絵は, 着いたときに (tick → _outing_arrived).
+            # 出たときは「向かった」と移動の様子だけ
+            trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
+            departing = bool(trip and trip["dir"] == "go")
+            if departing:
+                st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text}
+                text = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
+            gen_ok = a.get("generate", True) and not departing
             selfie = False
             if not self.bonds.together(cid):
                 # 離れている相手の画像は出さない. ただしメッセージには, テンションしだいで自撮りが添えられる
@@ -1662,7 +1672,10 @@ class App:
             pa = dict(a, pos=a.get("selfie_pos") or "selfie, holding smartphone, looking at viewer, upper body") if selfie else a
             if pose and not r.get("override"):        # 受けてくれたら, そのポーズ・部位で
                 pa = dict(pa, pos=pose["pos"], neg=pose["neg"])
-            pos, neg, parts = self.build_prompt(char, st, dt, pa, r)
+            if departing:                             # 絵は移動の様子 (場面の区間: 歩いている・電車の中 など)
+                pos, neg, parts = self.build_prompt(char, st, dt, dict(a, pos="", neg=""), None)
+            else:
+                pos, neg, parts = self.build_prompt(char, st, dt, pa, r)
             self.save_state(cid)
 
         text_src, llm_error = "template", None
@@ -2971,6 +2984,27 @@ class App:
             r["refused"] = True
             return r
         return self.act(aid, cid, opts={"place": to, "move_on": True, "how": how})
+
+    def _outing_arrived(self, char, st, ov, now):
+        """一緒に移動して行き先に着いた: 出たときに決まっていた, そこでの反応 (文) を着いた時刻の記録にし, 絵もそこで出す."""
+        x = ov.pop("arrive")
+        try:
+            a = self.action(x["aid"])
+        except KeyError:
+            return None
+        rs = a.get("reactions") or []
+        r = rs[x["ri"]] if x.get("ri") is not None and x["ri"] < len(rs) else None
+        t = min(now, ov.get("arr", now))
+        dt = datetime.fromtimestamp(t)
+        cid = char["id"]
+        scene = self.scene_at(char, st, dt)
+        pos, neg, parts = self.build_prompt(char, st, dt, a, r)
+        e = self._new_entry(cid, t, a, x["text"], {}, scene, dt, pos, neg, parts)
+        e["arrived"] = True
+        if self.settings.get("auto_generate") and a.get("generate", True) and self.bonds.together(cid):
+            self._present_image(cid, e)
+        self.save_log(cid)
+        return e
 
     def outing_trip(self, st, now=None):
         """相手と一緒のお出かけで, いま移動中ならその移動 (行き / 帰り). 現地で過ごしている (デート) あいだと, お出かけでないときは None."""

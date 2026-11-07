@@ -23,6 +23,9 @@
 
 - お出かけ: 相手と一緒の行き帰りの移動中は「話す・見る・連絡」しかできず、手をつなぐなども「移動中は、話すくらいしかできません」と断られていた（しかも押せるボタンのまま）。移動中でも、手をつなぐ・頭をなでる・写真・飲み物・プレゼントはできる。抱きしめる・料理・ゲームなどは着いてから（押せないボタンに「移動中です（着いてから）」）（`engine.moving_ok` `outing_moving`）
 
+- 修正（お出かけ）: 一緒に次の場所へ・同居相手と家から出かけるとき、押した瞬間に行き先での反応のセリフと行き先の絵が出ていた（中身は移動中なのに、記録と絵だけ先に着いていた）。出たときは「○○と一緒にカフェへ向かった」と移動の時間・運賃だけを記録し（絵を出すなら移動の様子）、行き先での反応と絵は着いた時刻の記録として出す（`engine._outing_arrived`）。遡及はしない（もう出ていた記録と絵はそのまま）
+- 修正（お出かけ）: 一緒に移動している途中も、偶然の出会い・店のメニューなどでは行き先にいる扱いで、「カフェで、○○に声をかけられた」と出ていた。一緒の移動中は、一人の移動と同じく通っていく道（電車・バスなら駅前、歩くなら街。車・タクシーの中では出会わない）にいる扱いにした（`outdoor.current`）
+
 部分テスト: `test_appt_meet_place`（新規・遡及も） `test_outing_move`（新規） `test_outing_moving`（新規・一緒の移動も） `test_geo` `test_redirect` `test_transit` `test_appoint` `test_closed_away` `test_offline` `test_encounters` `test_street` `test_outing_effects` `test_outing_migrate` `test_face_talk` `test_js_names` `test_api_errors` `test_visit`
 
 ## 1.4.0（2026-11-07）

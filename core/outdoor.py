@@ -71,7 +71,7 @@ class Outdoor:
         if tr and p.get("mode") in ("out", "work"):        # 移動中: 通っていく道 (電車・バスなら駅前, 歩くなら街) の人の多さ
             return {"kind": "out", "place": "station" if tr.get("how") == "transit" else "town", "with": None, "moving": True,
                     "inside": tr.get("how") in ("car", "taxi"),        # 車・タクシーの中では, 偶然の出会いは無い
-                    "dest": tr["to"] if tr.get("dir") == "go" else places_mod.HOME_ME}
+                    "dest": tr["to"] if tr.get("dir") == "go" else places_mod.HOME_ME, "how": tr.get("how")}
         if p.get("mode") == "out":
             pl = p.get("place") or "town"
             if places_mod.is_home(pl):              # 相手の家の前 (約束の訪問で待っている)
@@ -85,6 +85,11 @@ class Outdoor:
                 continue
             ov = app.state(cid).get("override") or {}
             if ov.get("outing") and ov.get("until", 0) > now:
+                trip = app.outing_trip(app.state(cid), now)
+                if trip:                # 一緒に移動中: まだ行き先にはいない (通っていく道. 一人の移動と同じ)
+                    return {"kind": "outing", "place": "station" if trip.get("legs") or trip.get("how") == "transit" else "town",
+                            "with": cid, "moving": True, "inside": trip.get("how") in ("car", "taxi"), "how": trip.get("how"),
+                            "dest": trip["to"] if trip["dir"] == "go" else places_mod.HOME_ME}
                 pl = ov.get("place") if ov.get("place") in PLACES else places_mod.from_location(ov.get("location"))
                 return {"kind": "outing", "place": pl, "with": cid}
         return None
@@ -114,7 +119,7 @@ class Outdoor:
                                   log=(self.app.presence.rec().get("street_log") or [])[-6:])
             if cur.get("moving"):
                 out["current"].update(label="%sへ移動中" % self.app.places.label(cur["dest"]) if cur["dest"] != places_mod.HOME_ME else "家へ移動中",
-                                      icon={"transit": "🚃", "bike": "🚲", "car": "🚗", "taxi": "🚕"}.get((self.app.geo.travel() or {}).get("how"), "🚶"))
+                                      icon={"transit": "🚃", "bike": "🚲", "car": "🚗", "taxi": "🚕"}.get(cur.get("how"), "🚶"))
         # 行き先ごとの行き方の目安 (いまいる場所から)
         out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES) | {places_mod.HOME_ME}), now)   # 家へ: 帰る行き方
         out["travel"] = self.app.geo.view(now)

@@ -80,6 +80,25 @@ def main():
             assert "移動の途中" in str(e)
         print("応じる: OK |", (ok.get("entry") or {}).get("text", "").split("\n")[0], "|", app.person_view(cid)["scene"]["label"])
 
+        # ---- 1a. 出たときは「向かった」と移動の絵 (カフェの反応・絵は, 着いたときに). 移動中はまだカフェにいない
+        e0 = ok["entry"]
+        assert "向かった" in e0["text"] and "latte" not in e0["pos"] and ("walking" in e0["pos"] or "train" in e0["pos"]
+                                                                       or "station" in e0["pos"] or "car" in e0["pos"]), (e0["text"], e0["pos"])
+        assert ov.get("arrive") and ov["arrive"]["aid"] == "cafe"
+        said = ov["arrive"]["text"]
+        cur = app.outdoor.current(time.time())
+        assert cur["moving"] and cur["place"] != "cafe" and cur["dest"] == "cafe" and app.body.here() is None, cur
+        n0 = len(app.log(cid))
+        app.tick(cid, time.time())
+        assert len(app.log(cid)) == n0                         # まだ着いていない
+        app.tick(cid, trip["arr"] + 1)                          # 着いた: カフェでの反応と絵
+        e1 = app.log(cid)[-1]
+        assert e1.get("arrived") and e1["action"] == "cafe" and e1["text"] == said, e1
+        assert "向かった" not in e1["text"] and not st["override"].get("arrive") and abs(e1["t"] - trip["arr"]) < 1, e1
+        cur = app.outdoor.current(trip["arr"] + 1)
+        assert not cur.get("moving") and cur["place"] == "cafe", cur
+        print("出たとき・着いたとき: OK |", e0["text"].split("\n")[0], "→", e1["text"].split("\n")[0][:40])
+
         # ---- 1b. 「誰かと」の移動のコマンドから (分類は「移動」): お出かけ中も押せて, 一緒に次の場所へ
         start()
         av = app.person_view(cid)["available"]
