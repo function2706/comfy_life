@@ -666,10 +666,11 @@ class Geo:
         tr = self.travel()
         return bool(tr) and (now or time.time()) < tr["arr"]
 
-    def midway(self, now=None):
-        """移動中の, いまの地点 ("pt:x,y". 進み具合で, 出たところと行き先の間). 移動していなければ None."""
+    def midway(self, now=None, trip=None):
+        """移動中の, いまの地点 ("pt:x,y". 進み具合で, 出たところと行き先の間). 移動していなければ None.
+        trip: あなたの移動の記録の代わりに見る移動 (相手と一緒のお出かけの行き帰り. engine.outing_trip)."""
         now = now or time.time()
-        tr = self.travel()
+        tr = trip or self.travel()
         if not tr or now >= tr["arr"]:
             return None
         lg = self.leg_at(tr, now)
@@ -688,7 +689,7 @@ class Geo:
                 return lg["to"]
             a, b = self.pt(lg["from"])["xy"], self.pt(lg["to"])["xy"]
             return "pt:%.3f,%.3f" % (a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k)
-        ph = self.phase(now)
+        ph = self.phase(now) if not trip else None
         if ph:                                   # 電車・バス: 乗る前ならまだ出たところ, 乗っていれば次の駅で降りる, 降りたあとなら行き先のそば
             kind, k = ph
             if kind == "pre":
@@ -896,7 +897,11 @@ class Geo:
             return "home:" + w["cid"]
         for cid in app.chars:
             if app.bonds.together(cid):
-                ov = app.state(cid).get("override") or {}
+                st = app.state(cid)
+                trip = app.outing_trip(st, now)
+                if trip:                         # 相手と一緒に移動中: 途中のいまの地点
+                    return self.midway(now, trip) or trip["to"]
+                ov = st.get("override") or {}
                 if ov.get("outing") and ov.get("until", 0) > now and ov.get("place"):
                     return ov["place"]
         if p.get("mode") in ("out", "work"):
@@ -1007,9 +1012,10 @@ class Geo:
         return {"text": "（%s）" % text}
 
     # ------------------------------------------------------------------ 画面
-    def view(self, now=None):
+    def view(self, now=None, trip=None):
+        """移動の様子 (画面). trip: 相手と一緒のお出かけの行き帰り (engine.outing_trip)."""
         now = now or time.time()
-        tr = self.travel()
+        tr = trip or self.travel()
         if not tr:
             return None
         seg, seg_remain = self.seg_now(tr, now)

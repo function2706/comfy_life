@@ -42,6 +42,15 @@ def main():
         assert ov.get("outing") and ov.get("arr", 0) > now, ov
         assert app.outing_moving(st, now)
 
+        # 一緒の移動: 一人の移動と同じ形 (区間・現在地). 相手の様子も「一緒に…へ移動中」
+        trip = app.outing_trip(st, now)
+        assert trip and trip["dir"] == "go" and trip["to"] == "aquarium" and trip.get("segs"), trip
+        pv = app.person_view(cid)
+        assert pv["trip"] and pv["trip"]["label"] == app.places.label("aquarium"), pv["trip"]
+        assert pv["scene"]["label"].startswith("一緒に"), pv["scene"]["label"]
+        mid = app.geo.where(trip["t0"] + (trip["arr"] - trip["t0"]) * 0.5)
+        assert mid not in ("aquarium", "home:me"), mid                 # 途中にいる (もう水族館にいる扱いではない)
+        print("一緒の移動: OK |", pv["scene"]["label"], "|", " → ".join(x["label"] for x in pv["trip"]["segs"]))
         av = app.person_view(cid)["available"]
         assert av["hold_hands"]["ok"], av["hold_hands"]
         assert not av["hug"]["ok"] and av["hug"]["why"] == "移動中です（着いてから）", av["hug"]
@@ -58,6 +67,12 @@ def main():
         ov["arr"] = time.time() - 1
         st["cooldowns"] = {}
         assert not app.outing_moving(st, time.time())
+        ov["trips"][0]["arr"] = time.time() - 1
+        assert app.outing_trip(st, time.time()) is None and app.geo.where() == "aquarium"      # 着いた: 現地で過ごす (デート)
+        if len(ov["trips"]) > 1:
+            back = ov["trips"][1]
+            assert back["dir"] == "home" and back["t0"] == ov["leave"] and back["to"] == "home:me"
+            assert app.outing_trip(st, back["t0"] + 60)["dir"] == "home"
         assert app.person_view(cid)["available"]["hug"]["ok"]
         print("着いたら: OK")
         app.scheduled_scene = sched

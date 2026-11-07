@@ -829,7 +829,16 @@ class App:
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
             tt = dt.timestamp()
-            if ov.get("outing") and ov.get("arr", 0) > tt:            # お出かけの移動中 (core/geo.py)
+            trip = self.outing_trip(st, tt) if ov.get("outing") else None
+            if trip:                                  # 一緒に移動中 (行き・帰り. いまの区間: 電車に乗っている など)
+                i, _ = self.geo.seg_now(trip, tt)
+                seg = (trip.get("segs") or [[None, 0, ""]])[i or 0][2] if trip.get("segs") else ""
+                where = ov.get("location", "") if trip["dir"] == "go" else "家"
+                s["label"] = "一緒に%sへ移動中%s" % (where, "（%s）" % seg if seg and seg != "移動している" else "")
+                s["activity"] = "moving"
+                kind = (trip.get("segs") or [["walk"]])[i or 0][0]
+                s["pos"] = self.TRIP_POS.get(kind, self.TRIP_POS["walk"])       # 絵も移動の区間に (電車なら車内 など)
+            elif ov.get("outing") and ov.get("arr", 0) > tt:            # お出かけの移動中 (以前の形の記録)
                 s["label"] = "%sへ向かっている" % ov.get("location", "")
             elif ov.get("outing") and ov.get("leave") and tt >= ov["leave"]:
                 s["label"] = "%sからの帰り道" % ov.get("location", "")
@@ -2776,11 +2785,20 @@ class App:
                 self.geo.used(back, places_mod.HOME_ME)
         except ValueError:
             return None
+        dur = max(0.0, ov["until"] - now)                  # 現地で過ごす長さ (デート)
+        if back and back.get("legs"):                    # 帰りの電車・バスは, 帰る時刻の時刻表で
+            try:
+                back = self.geo.leg(pl, places_mod.HOME_ME, None, now + go["min"] * 60 + dur, rand=False)
+            except ValueError:
+                pass
         ov["arr"] = now + go["min"] * 60
         ov["until"] += (go["min"] + (back["min"] if back else 0)) * 60
         ov["how"] = go["how"]
+        # 一緒の移動 (行き・帰り) を, 一人の移動と同じ形で (経路の区間. 地図の現在地・区間の表示. core/geo.py)
+        ov["trips"] = [self._trip(frm, pl, go, now, "go")]
         if back:
             ov["leave"] = ov["until"] - back["min"] * 60
+            ov["trips"].append(self._trip(pl, places_mod.HOME_ME, back, ov["leave"], "home"))
         fare = go["fare"] + (back["fare"] if back else 0)
         if fare:
             self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % places_mod.PLACES[pl]["label"])
@@ -2789,6 +2807,47 @@ class App:
         self.life.tire(2.0 * min(go["min"], 60) / 60.0)
         return "（%sまで%sで%d分ほど%s）" % (places_mod.PLACES[pl]["label"], geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),
                                      "・%s円" % format(fare, ",") if fare else "")
+
+    def _trip(self, frm, to, lg, t0, direction):
+        """一緒の移動 1 回の記録 (geo の travel と同じ形). 経路の区間は, 出る時刻にそろえる."""
+        legs = [dict(x) for x in lg.get("legs") or []]
+        if legs and legs[0]["t0"] != t0:
+            d = t0 - legs[0]["t0"]
+            for x in legs:
+                x["t0"] += d
+                x["t1"] += d
+        tr = {"from": frm, "to": to, "how": lg["how"], "t0": t0, "arr": t0 + lg["min"] * 60, "fare": lg.get("fare", 0),
+              "dir": direction, "note": lg.get("note", "")}
+        if legs:
+            tr["legs"] = legs
+        tr["segs"] = self.geo.segs(lg, frm, to)
+        return tr
+
+    TRIP_POS = {"walk": "walking together side by side, street, outdoors", "run": "walking together side by side, street, outdoors",
+                "wait": "waiting together at a train station platform", "ride": "sitting side by side on a train, train interior, window",
+                "bike": "riding bicycles together, street, outdoors", "car": "sitting in a car, passenger seat, car interior",
+                "taxi": "sitting in the back seat of a taxi, car interior"}
+
+    def outing_trip(self, st, now=None):
+        """相手と一緒のお出かけで, いま移動中ならその移動 (行き / 帰り). 現地で過ごしている (デート) あいだと, お出かけでないときは None."""
+        now = now or time.time()
+        ov = st.get("override") or {}
+        if not ov.get("outing") or ov.get("until", 0) <= now:
+            return None
+        for tr in ov.get("trips") or []:
+            if tr["t0"] <= now < tr["arr"]:
+                return tr
+        return None
+
+    def trip_view(self, st, now=None):
+        """一緒の移動の様子 (画面の「誰かと」に出す). 無ければ None."""
+        now = now or time.time()
+        tr = self.outing_trip(st, now)
+        if not tr:
+            return None
+        v = self.geo.view(now, tr)
+        v["label"] = self.places.label(tr["to"]) if tr["dir"] == "go" else "家"
+        return v
 
     def _company_item(self, cid):
         b = self.bonds.view(cid)
@@ -2816,7 +2875,7 @@ class App:
                 "scene": {k: scene[k] for k in ("activity", "label", "location", "away", "asleep", "busy", "source")},
                 "override_until": scene.get("until"),
                 "tags": [{"param": t["param"], "label": t["label"]} for t in self.active_tags(ctx)],
-                "available": self.available(char, st, dt), "absent": ctx["absent"],
+                "available": self.available(char, st, dt), "absent": ctx["absent"], "trip": self.trip_view(st, dt.timestamp()),
                 "dress": self._dress_view(char, st, scene, ctx), "wardrobe": self.wardrobe.owned(char),
                 "posing": self.posing.view(char, st, now),
                 "dress_reset_on_sleep": char.get("dress_reset_on_sleep", True),

@@ -10,13 +10,15 @@
   ふだんは実装のすぐあとに部分テストまで済ませるので、beta から書く。
 - 次の版の中身は下の「次の版」にためる。残件は [REMAINING.md](REMAINING.md)。
 
-## 次の版（未確定）: 1.4.1beta
+## 次の版（未確定）: 1.5.0beta
 
-区分: 修正（部分テスト済み・全テストはまだ）
+区分: 機能追加・修正（部分テスト済み・全テストはまだ）
+
+- お出かけ: 相手と一緒の移動と、現地で過ごす時間（デート）を分けた。一緒の移動は一人の移動と同じ形（経路の区間・地図の現在地）で持ち、相手の様子は「一緒に水族館へ移動中（中央駅まで歩く）」、「誰かと」の画面にも区間と残り時間が出る。絵も移動の区間に合わせる（電車なら車内、歩きなら道）。着いてから現地で過ごし、同居なら帰りも一緒に移動（帰りの電車・バスは帰る時刻の時刻表で）。以前は移動中もすでに行き先にいる扱いだった（`engine.outing_trip` `trip_view`、`geo.midway` / `view` の `trip`）
 
 - お出かけ: 相手と一緒の行き帰りの移動中は「話す・見る・連絡」しかできず、手をつなぐなども「移動中は、話すくらいしかできません」と断られていた（しかも押せるボタンのまま）。移動中でも、手をつなぐ・頭をなでる・写真・飲み物・プレゼントはできる。抱きしめる・料理・ゲームなどは着いてから（押せないボタンに「移動中です（着いてから）」）（`engine.moving_ok` `outing_moving`）
 
-部分テスト: `test_outing_moving`（新規） `test_outing_effects` `test_outing_migrate` `test_face_talk` `test_js_names` `test_api_errors` `test_visit`
+部分テスト: `test_outing_moving`（新規・一緒の移動も） `test_geo` `test_redirect` `test_transit` `test_appoint` `test_closed_away` `test_offline` `test_encounters` `test_street` `test_outing_effects` `test_outing_migrate` `test_face_talk` `test_js_names` `test_api_errors` `test_visit`
 
 ## 1.4.0（2026-11-07）
 

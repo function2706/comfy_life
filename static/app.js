@@ -304,7 +304,7 @@ function tickClock() {
   $('#clock-hm').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   $('#clock-s').textContent = ':' + pad(d.getSeconds());
   $('#clock-date').textContent = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`;
-  const tv = S.view && (((S.view.presence || {}).travel) || ((S.view.outdoor || {}).travel));      // 移動の区間を進める
+  const tv = S.view && (((S.view.presence || {}).travel) || ((S.view.outdoor || {}).travel) || ((T() || {}).trip));      // 移動の区間を進める (一緒の移動も)
   if (tv) for (const el of document.querySelectorAll('.travel-steps')) el.replaceWith(travelSteps(tv));
   const t = T();
   if (t && t.override_until) {
@@ -803,6 +803,12 @@ function renderWith() {
         t.life && t.life.hint ? h('span', { class: 'tag hint', title: '「何かあった？」で聞いてみよう' },
           t.life.hint_mood === 'good' ? '✨うれしそう' : '💭何かあったみたい') : '',
         ...t.tags.map((x) => h('span', { class: 'tag' }, x.label))))));
+  if (t.trip) {             // 一緒に移動中 (行き・帰り): 一人の移動と同じ区間の表示. 着いたら現地で過ごす (デート)
+    const tv = t.trip;
+    $('#with-card').append(h('div', { class: 'pgroup trip-box', style: 'margin-top:6px;padding:6px 8px' },
+      h('b', { class: 'small' }, `${HOW_ICON[tv.how] || '🚶'} 一緒に${tv.label}へ移動中（${tv.how_label}・あと${Math.max(1, Math.round(tv.remain / 60))}分）`),
+      travelSteps(tv), h('div', { class: 'muted small' }, '移動中は、話す・手をつなぐ・写真などができます。そこでのこと（見て回る・食べるなど）は着いてから。')));
+  }
   showSub(S.sub);
   renderCommands();
   renderDress();
