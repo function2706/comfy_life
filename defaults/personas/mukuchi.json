@@ -2633,6 +2633,12 @@
   ],
   "outing.move_no_no": [
    "……ここが、いい"
+  ],
+  "outing.move_no_keep": [
+   "……もう、向かってる。……このまま"
+  ],
+  "outing.move_no_fickle": [
+   "……また？ ……最初のところ"
   ]
  }
 }
