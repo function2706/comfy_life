@@ -1293,7 +1293,7 @@ class App:
                 o = places_mod.open_state(pl, dt)
                 if not o["open"]:
                     raise ValueError("%sは閉まっています（%s）" % (places_mod.PLACES[pl]["label"], o["note"]))
-            if a.get("home_only") and ctx["outing"]:
+            if a.get("home_only") and ctx["outing"] and not opts.get("move_on"):      # move_on: 一緒に次の場所へ (outing_move)
                 raise ValueError("お出かけ中は「%s」できません" % a.get("name", aid))
             if not appt and not opts.get("deliver") and ((a.get("override") or {}).get("outing") or a.get("bond") == "visit_start") \
                     and self.stay_home():
@@ -1491,7 +1491,7 @@ class App:
                     pl = pl if pl in places_mod.PLACES else places_mod.from_location(ov.get("location"))
                     ov["place"] = pl
                     ov["location"] = places_mod.PLACES[pl]["label"]
-                    travel_note = self._outing_travel(cid, ov, pl, now)      # 行き (同居なら帰りも) の移動 (core/geo.py)
+                    travel_note = self._outing_travel(cid, ov, pl, now, opts.get("how"))      # 行き (同居なら帰りも) の移動 (core/geo.py)
                 st["override"] = ov
                 worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
@@ -2770,14 +2770,14 @@ class App:
             }
             return out
 
-    def _outing_travel(self, cid, ov, pl, now):
+    def _outing_travel(self, cid, ov, pl, now, how=None):
         """お出かけの移動: いまいる場所から行き先まで (同居相手となら, 帰りの移動も一緒). お出かけの時間はその分のびる.
         移動中は ov["arr"] まで / ov["leave"] から. 運賃はあなたの分 (相手の分は相手の財布から). ナレーションを返す."""
         frm = self.geo.where(now)
         if frm == pl or geo_mod.INSTANT:
             return None
         try:
-            go = self.geo.leg(frm, pl, None, now)
+            go = self.geo.leg(frm, pl, how, now)
             self.geo.used(go, pl)
             back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] in ("bike", "car") else None, now, rand=False) \
                 if self.bonds.mode(cid) == "home" else None
@@ -2827,6 +2827,71 @@ class App:
                 "wait": "waiting together at a train station platform", "ride": "sitting side by side on a train, train interior, window",
                 "bike": "riding bicycles together, street, outdoors", "car": "sitting in a car, passenger seat, car interior",
                 "taxi": "sitting in the back seat of a taxi, car interior"}
+
+    # ------------------------------------------------------------------ 一緒に次の場所へ
+    MOVE_ORDER = ("eat_out", "cafe", "aquarium", "amusement", "beach", "hiking", "shopping", "walk", "date", "picnic", "stargazing")
+    MOVE_NO = {"tired": "今日はもう疲れちゃった……。そろそろ帰らない？", "late": "もう遅いし、今日はここまでにしない？",
+               "no": "今日はここでもう少しゆっくりしたいな"}
+
+    def outing_now(self, now=None):
+        """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None)."""
+        now = now or time.time()
+        for cid in self.bonds.company():
+            ov = self.state(cid).get("override") or {}
+            if ov.get("outing") and ov.get("until", 0) > now:
+                return cid, ov
+        return None, None
+
+    def _move_action(self, to, char, st):
+        """行き先 to で一緒にすること (お出かけのコマンド). できるものが無ければ None."""
+        ctx = self.context(char, st, datetime.now())
+        for aid in self.MOVE_ORDER:
+            try:
+                a = self.action(aid)
+            except KeyError:
+                continue
+            ov = a.get("override") or {}
+            if to == ov.get("place") or to in (a.get("places") or []):
+                if cond.check(self._when(a, ctx), ctx):
+                    return aid
+        return None
+
+    def outing_move(self, to, how=None):
+        """一緒にお出かけしている先から, そのまま一緒に次の場所へ (帯同したまま場所を変える). 相手が応じるかは, 疲れ・時間・
+        機嫌・仲しだい. 応じれば, いまいる場所から一緒に移動して, 着いたらそこで過ごす (その場所のコマンドの反応と費用)."""
+        now = time.time()
+        cid, ov = self.outing_now(now)
+        if not cid:
+            raise ValueError("いまは誰とも出かけていません")
+        char, st = self.char(cid), self.state(cid)
+        if self.outing_trip(st, now):
+            raise ValueError("移動の途中です（着いてから）")
+        if to == ov.get("place"):
+            raise ValueError("いまここにいます")
+        aid = self._move_action(to, char, st)
+        if not aid:
+            raise ValueError("%sへは、いまは一緒に行けません" % self.places.label(to))
+        p = st["params"]
+        h = datetime.fromtimestamp(now).hour
+        if p.get("energy", 60) < 20:
+            why = "tired"
+        elif (h >= 21 or h < 5) and self.bonds.stage(cid) != "live":
+            why = "late"
+        else:
+            # 関係 (間柄・好感度・依存度)・機嫌・性格 (話したがり・献身的) で決まる. 疲れていれば渋る
+            close = {"live": 0.15, "visit": 0.1}.get(self.bonds.stage(cid), 0.0)
+            pr = 0.5 + close + (p.get("mood", 50) - 50) / 100.0 + (p.get("affection", 50) - 50) / 150.0                 + 0.1 * self.attach.factor(char, st, "dependence") + 0.08 * self.attach.factor(char, st, "devotion")                 + 0.15 * (float(self.traits(char).get("approach", 1.0)) - 1.0) - (0.2 if p.get("energy", 60) < 35 else 0)
+            why = None if random.random() < max(0.05, min(0.95, pr)) else "no"
+        self.trace.add("outing", "一緒に次の場所へ: %s" % (why or "ok"), cid, now, to=to, aid=aid, energy=p.get("energy"), mood=p.get("mood"),
+                       affection=p.get("affection"), stage=self.bonds.stage(cid))
+        if why:
+            line = self.persona_text(char, "outing.move_no_" + why) or self.MOVE_NO[why]
+            fp, _, call = self.pronouns(char)
+            line = line.replace("{fp}", fp).replace("{call}", call)
+            r = self.my_entry("out", "次の場所へ", "🚶", "%sへ行こうと誘った。%s「%s」" % (self.places.label(to), char.get("name", ""), line))
+            r["refused"] = True
+            return r
+        return self.act(aid, cid, opts={"place": to, "move_on": True, "how": how})
 
     def outing_trip(self, st, now=None):
         """相手と一緒のお出かけで, いま移動中ならその移動 (行き / 帰り). 現地で過ごしている (デート) あいだと, お出かけでないときは None."""

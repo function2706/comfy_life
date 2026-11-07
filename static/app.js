@@ -2375,7 +2375,12 @@ const MAP_GO_NOTE = { walk: '歩いて', transit: '電車・バスで', bike: '�
 async function mapGo(id, how) {
   const pres = (S.view || {}).presence || {};
   if (S.busy) return;
-  if (id === 'home:me' && (pres.mode === 'out' || pres.mode === 'work')) {      // 家へ: 帰る (行き方を選んで)
+  const wo = ((S.view || {}).outdoor || {}).with_outing;
+  if (wo && id !== 'home:me') {                 // 相手と一緒に出かけている: 一緒に次の場所へ (応じるかは相手しだい)
+    S.busy = true;
+    try { const r = await api('/api/outing/move', { to: id, how }); handleActResult(r); if (r.refused) toast(`${wo.name}は乗り気でないようだ`, 'err'); }
+    catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
+  } else if (id === 'home:me' && (pres.mode === 'out' || pres.mode === 'work')) {      // 家へ: 帰る (行き方を選んで)
     await comeBack(how);
   } else if (pres.mode === 'out' || pres.mode === 'work') {
     S.busy = true;
@@ -2480,18 +2485,20 @@ function renderMap() {
     const pl = P[sel] || {};
     const r = routeOf(sel);
     const here = sel === od.here && !tv;
-    const can = free && goable(sel) && !here && pl.open !== false;
+    const can = free && goable(sel) && !here && pl.open !== false && !(od.with_outing && (sel === 'home:me' || od.with_outing.moving));
     const modes = r ? Object.entries(r.modes || {}).sort(([a], [b]) => (b === r.best) - (a === r.best)) : [];
     detail = h('div', { class: 'pgroup', style: 'margin-top:6px' },
       h('div', { class: 'row', style: 'gap:6px;align-items:center' }, h('h4', { style: 'margin:0' }, `${mapIcon(sel)} ${mapName(sel)}`),
         h('span', { class: 'muted small' }, [placeTip(sel).replace(/\n/g, '・'), r ? `道のり ${r.km}km` : ''].filter(Boolean).join('・')),
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: () => { S.mapSel = null; renderMap(); } }, '✕')),
       pl.open === false ? h('div', { class: 'small down' }, `閉まっています（${pl.note}）`) : '',
+      od.with_outing && !here ? h('div', { class: 'small' }, sel === 'home:me' ? `${od.with_outing.name}と一緒に帰るときは、「誰かと」の「家に帰る」から`
+        : `${od.with_outing.name}と一緒に行く（応じてくれるかは、その時の気分しだい）`) : '',
       here ? h('div', { class: 'small muted' }, 'いまここにいます') : !goable(sel) ? h('div', { class: 'small muted' }, sel === 'office' ? '職場へは「仕事に行く」から' : '') : '',
       can && modes.length ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },
         ...modes.map(([k, m]) => h('button', { class: 'btn small' + (k === r.best ? ' primary' : ''), disabled: S.busy || !m.ok, why: m.ok ? '' : (m.note || '行けません'),
           title: m.note || '', onclick: () => mapGo(sel, k) },
-          `${HOW_ICON[k]} ${MAP_GO_NOTE[k]}${sel === 'home:me' ? '帰る' : '行く'}（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '',
+          `${HOW_ICON[k]} ${od.with_outing && sel !== 'home:me' ? '一緒に' : ''}${MAP_GO_NOTE[k]}${sel === 'home:me' ? '帰る' : '行く'}（${m.min}分${m.fare ? `・${m.fare}円` : ''}）${m.ok ? '' : '×'}`))) : '',
       can && r && (r.routes || []).length ? routeList(r.routes, (key) => mapGo(sel, key)) : '',
       !here ? routeSearchBox(sel) : '');
   }

@@ -120,6 +120,10 @@ class Outdoor:
         out["travel"] = self.app.geo.view(now)
         out["vehicles"] = self.app.geo.vehicles_view(now)
         out["here"] = self.app.geo.where(now)
+        cid, ov = self.app.outing_now(now)                    # 相手と一緒に出かけている: 地図で行き先を押すと「一緒に行く」
+        if cid:
+            out["with_outing"] = {"cid": cid, "name": self.app.chars[cid].get("name", ""), "place": ov.get("place"),
+                                  "moving": bool(self.app.outing_trip(self.app.state(cid), now))}
         out["map"] = self.app.geo.map_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES)), now)
         out["net"] = self.app.geo.transit.map_view()          # 路線と駅・停留所 (地図に描く. 押すと時刻表)
         return out

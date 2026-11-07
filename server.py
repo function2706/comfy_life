@@ -197,6 +197,8 @@ def route(method, path, q, body):
                 return {"meal": a.body.eat(b["how"], b["id"])}
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
+        if path == "/api/outing/move":            # 一緒に次の場所へ
+            return a.outing_move(b["to"], b.get("how"))
         if path == "/api/timetable":
             return a.geo.transit.timetable(b["id"], b.get("t") or time.time())
         if path == "/api/route":
