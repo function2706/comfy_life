@@ -63,7 +63,8 @@ def main():
         # ---- 1b. レストランに誘う: 予約 (いっぱいのこともある) を調べてから誘う (以前は記録の引数がぶつかって落ちていた)
         rd = ch.get("restaurant") or []
         assert rd, sorted(ch)
-        d2 = datetime.fromtimestamp(now + 2 * 86400).replace(hour=19, minute=0, second=0, microsecond=0)
+        # 下の誘う確かめ (4 時間おきに 2 日分と, その 3 日後に 2 日分) とぶつからない日に (以前は流す時刻しだいで 2 日後の 19 時が重なって落ちた)
+        d2 = datetime.fromtimestamp(now + 7 * 86400).replace(hour=19, minute=0, second=0, microsecond=0)
         try:
             x = A.propose(cid, d2.timestamp(), "restaurant", rd[0])
             x["status"] = "refused"               # 以降の確かめに響かないように
@@ -164,6 +165,7 @@ def main():
 
         # ---- 3c. 誘いに「別の日時なら」と返す: 相手は受ける / 断る / さらに別の案 (回数の上限まで)
         outcomes = collections.Counter()
+        random.seed(31)                           # 別の案が 60 回で 1 度も出ないことがまれにあった (乱数しだい). ここは決まった並びで
         for i in range(60):
             x = {"id": "c%d" % i, "cid": cid, "t": time.time() + 2 * 86400, "place": "riverside", "do": "walk", "by": "her",
                  "status": "offered", "made": time.time()}
