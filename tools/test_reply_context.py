@@ -123,7 +123,8 @@ def main():
         app.life.player_state().setdefault("fix_comp", {}).pop("apology_count", None)
         m0 = st["params"]["mood"]
         got = M.apology_count_comp()
-        assert got == {cid: 1} and abs(st["params"]["mood"] - m0 - 2) < 0.01 and st["apologies"] == [], (got, st["apologies"])
+        # 機嫌は +2 戻す (高いと上がり方が鈍るので, 2 以下で上がっていればよい. 1.5.0)
+        assert got == {cid: 1} and 0 < st["params"]["mood"] - m0 <= 2.01 and st["apologies"] == [], (got, st["apologies"], m0, st["params"]["mood"])
         assert M.apology_count_comp() == {}
         print("お詫び:", C.load(cid)["items"][-1]["text"])
         print("ALL OK")

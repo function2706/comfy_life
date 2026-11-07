@@ -225,9 +225,11 @@ def main():
         st["override"] = None
         st["override"] = {"activity": "date", "label": "デート", "location": "街", "outing": True, "until": time.time() + 3600}
         av = app.person_view()["available"]
-        bad = [k for k in ("cook", "tea", "bath", "clean", "movie", "game", "side_job", "walk") if av[k]["ok"]]
+        # 散歩などは, お出かけ中は「一緒に次の場所へ」のコマンドになる (move_on. 1.5.0)
+        bad = [k for k in ("cook", "tea", "bath", "clean", "movie", "game", "side_job", "walk") if av[k]["ok"] and not av[k].get("move_on")]
+        assert av["walk"].get("move_on"), av["walk"]
         print("お出かけ中に出せてしまう家のコマンド:", bad)
-        assert not bad and av["go_home"]["ok"] and av["talk"]["ok"]
+        assert not bad and av["go_home"]["ok"] and av["talk"]["ok"], (av["go_home"], av["talk"])
         try:
             app.act("cook")
             raise AssertionError("お出かけ中に料理できてしまう")

@@ -186,6 +186,9 @@ def main():
                 slow += 1
         assert quick and slow, "すぐ返ることが多いが, 必ずではない (%d / %d)" % (quick, slow)
         # すぐ返すと決まれば, 1 分半以内に届き, 届いたらまたしばらくスマホを見ている
+        # (上の 40 通でノリが尽きて切り上げられないように, 会話の始まりからにする. ノリの切り上げは test_nori で)
+        st.pop("nori", None)
+        app.set_params({"mood": 70}, cid)
         for _ in range(20):
             st["contacts"] = []
             st.pop("msg_pending", None)

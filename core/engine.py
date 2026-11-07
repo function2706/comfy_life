@@ -1108,11 +1108,34 @@ class App:
             parts.append({"src": "反応", "pos": reaction.get("pos", ""), "neg": reaction.get("neg", "")})
         parts = [p for p in parts if p["pos"] or p["neg"]]
         pos = join_tags(p["pos"] for p in parts)
+        pos = self._blush_by_shyness(pos, st, parts)
         rm = {t.lower() for t in scene.get("remove_tags") or []}
         if rm:   # ミニゲームの段階で外したもの (例: hair ribbon) を外見プロンプトからも除く
             pos = ", ".join(t for t in split_tags(pos) if t.lower() not in rm)
             parts.append({"src": "除外", "pos": "", "neg": "（除外）" + ", ".join(sorted(rm))})
-        return pos, join_tags(p["neg"] for p in parts if p["src"] != "除外"), parts
+        return pos, join_tags(p["neg"] for p in parts if p["src"] not in ("除外", "照れ")), parts
+
+    BLUSH_TAGS = ("blush", "light blush", "full-face blush")
+    BLUSH_MIN, BLUSH_MID, BLUSH_FULL = 30.0, 55.0, 80.0
+
+    def _blush_by_shyness(self, pos, st, parts=None):
+        """頬の赤さは, いまの照れの値に合わせる (コマンド・反応の絵に書いてある blush もそのまま使わない).
+        照れが BLUSH_MIN 未満なら赤くしない, BLUSH_MID 未満ならほんのり (light blush), BLUSH_FULL 未満なら顔じゅう真っ赤にはしない."""
+        sh = float(st["params"].get("shyness", 0))
+        tags = split_tags(pos)
+        if sh >= self.BLUSH_FULL or not any(t.lower() in self.BLUSH_TAGS for t in tags):
+            return pos
+        want = None if sh < self.BLUSH_MIN else "light blush" if sh < self.BLUSH_MID else "blush"
+        out, seen = [], False
+        for t in tags:
+            if t.lower() in self.BLUSH_TAGS:
+                if seen or not want:
+                    continue
+                t, seen = want, True
+            out.append(t)
+        if parts is not None:
+            parts.append({"src": "照れ", "pos": "", "neg": "（照れ %d: %s）" % (sh, want or "赤くしない")})
+        return ", ".join(out)
 
     # ------------------------------------------------------------------ text
     def pronouns(self, char):
@@ -1237,12 +1260,27 @@ class App:
         cands = [r for r in cands if int(r.get("priority", 0)) == top]
         return random.choices(cands, [1 + cond.count(r.get("when", "")) for r in cands])[0]
 
-    def apply_effects(self, st, effects):
+    # 上がり方の現実性: 機嫌・照れ・ドキドキは, 高いほど上がりにくい (上がりきるほど鈍る. 値: 上限までの残りがこれ以下で鈍り始める)
+    SATURATE = {"mood": 50.0, "shyness": 60.0, "heart": 60.0}
+    # 照れ・ドキドキは, 短い間に何度も揺さぶられると慣れる (秒, 1 回あたりの鈍り). 褒める・見つめるを続けても, 赤くなり続けはしない
+    HABITUATE = {"shyness": (1800, 0.35), "heart": (1800, 0.35)}
+
+    def apply_effects(self, st, effects, now=None):
         deltas = {}
+        now = now or time.time()
         for pid, dv in effects.items():
             p = self.param_def(pid)
             if not p:
                 continue
+            dv = float(dv)
+            if dv > 0 and pid in self.SATURATE:
+                dv *= min(1.0, max(0.0, float(p.get("max", 100)) - st["params"][pid]) / self.SATURATE[pid])
+            if dv > 0 and pid in self.HABITUATE:
+                win, k = self.HABITUATE[pid]
+                hb = st.setdefault("habit", {})
+                recent = [t for t in hb.get(pid) or [] if now - t < win]
+                dv /= 1.0 + k * len(recent)
+                hb[pid] = recent + [now]
             old = st["params"][pid]
             st["params"][pid] = self._clamp(p, old + float(dv))
             d = round(st["params"][pid] - old, 1)
