@@ -416,7 +416,7 @@ function cmdButton(a) {
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
       : a.anniv ? sayAnniv(a.anniv, tid())
       : a.pick && a.mood_action ? pickFace(a)
-      : (a.places || []).length > 1 ? pickPlace(a) : (!a.confirm || confirm(a.confirm)) && doAct(a.id)) },
+      : (a.places || []).length > 1 ? pickPlace(a) : (!(st.confirm || a.confirm) || confirm(st.confirm || a.confirm)) && doAct(a.id)) },     // st.confirm: 引き止められている (別れぎわ)
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
     st.cooldown ? h('span', { class: 'cd' }, '♻') : null);
@@ -2129,6 +2129,9 @@ function renderAway() {
   box.replaceChildren(h('div', { class: 'away-card' },
     h('div', { class: 'away-ic' }, a[0]),
     h('div', { class: 'away-title' }, p.travel ? `${HOW_ICON[p.travel.how] || '🚶'} ${p.label}` : p.solo ? `${p.solo.icon} ${p.solo.label}` : a[1]),
+    // 離れる直前の, 相手との最後のやりとり (解散して家へ など): この画面が会話を覆うので, ここに出す
+    p.last_words ? h('div', { class: 'away-words' }, h('div', { class: 'muted small' }, `${fmtTime(p.last_words.t)} ${p.last_words.name}と別れぎわ`),
+      h('div', {}, p.last_words.text)) : '',
     p.travel ? h('div', { class: 'muted small' }, p.travel.dir === 'home' ? '家に着くまでは、まだ外です（スマホは使えます）'
       : `着くまでは、${p.travel.label}でのことはできません（スマホは使えます）${p.travel.note ? '。' + p.travel.note : ''}`) : '',
     p.travel ? travelSteps(p.travel) : '',

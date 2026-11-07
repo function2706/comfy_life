@@ -879,6 +879,7 @@ a.btn { color: inherit; }
 
 /* 約束 */
 .appoint-line { padding: 4px 0; display: flex; flex-direction: column; gap: 4px; }
+.away-words { margin: 8px 0; padding: 8px 12px; border-radius: 10px; background: #2a2540; text-align: left; white-space: pre-wrap; font-size: 14px; }
 .away-appoint { margin: 6px 0; padding: 6px 10px; border-radius: 10px; background: #2a2540; font-size: 13px; }
 .away-appoint.here { background: #263028; }
 

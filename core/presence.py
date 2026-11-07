@@ -164,6 +164,9 @@ class Presence:
             elif sl.get("shop_need") and not p.get("travel"):           # 店に着いてから, 品を選ぶ
                 out["shop_wait"] = max(0, int(p.get("arrived", sl["t"]) + sl["shop_need"] * 60 - now))
             out["label"] = doing or out["label"]
+        lw = p.get("last_words")
+        if lw and float(lw.get("t", 0)) >= float(p.get("since") or 0) - 5:
+            out["last_words"] = lw      # 離れる直前の, 相手との最後のやりとり (解散して家へ など)
         tv = self.app.geo.view(now)
         if tv:                      # 移動中 (core/geo.py)
             out["travel"] = tv

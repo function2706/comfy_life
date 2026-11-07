@@ -18,6 +18,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store  # noqa: E402
+from core import parting as _parting  # noqa: E402
+_parting.FIXED = "ok"      # 別れぎわは必ず応じる (引き止めは test_parting で)
 from core import places as places_mod  # noqa: E402
 from core.appoint import COUNTER_MAX, GIVE_UP, GRACE, phase_ok  # noqa: E402
 from testclock import fix_noon  # noqa: E402

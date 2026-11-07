@@ -24,6 +24,7 @@ from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
 from . import stay as stay_mod
+from . import parting as parting_mod
 from . import replyspeed as replyspeed_mod
 from . import saveedit as saveedit_mod
 from . import charmake as charmake_mod
@@ -201,6 +202,7 @@ class App:
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
         self.askhelp = askhelp_mod.AskHelp(self)          # あなたから手伝いを頼む (来てもらう・見返り・貸し)
+        self.parting = parting_mod.Parting(self)         # 別れぎわ: 相手が応じるか (引き止める・名残惜しい)
         self.stay = stay_mod.Stay(self)                  # お泊り (相手の家に泊まる・あなたの家に泊める)
         self.care = care_mod.Care(self)                  # 相手が体調を崩す (風邪) と, 看病に呼ぶか
         self.athome = visit_mod.Visit(self)              # 相手の家にいるとき (お客としてできること・頼まれごとの手伝い)
@@ -1324,6 +1326,10 @@ class App:
                 out[a["id"]].update(ok=False, why="移動中です（着いてから）")
             if out[a["id"]]["ok"] and social_block and not (ctx["apart"] and a.get("category") in ("連絡", "会う")):
                 out[a["id"]].update(ok=False, why=social_block)
+            if a["id"] in parting_mod.PART_ACTIONS:      # 引き止められている: もう一度押すなら, 確かめてから
+                c = self.parting.confirm(char, st, a["id"], now)
+                if c:
+                    out[a["id"]]["confirm"] = c
             if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
                 why = self.why_not(a, char, ctx, shut)
                 if why:
@@ -1397,6 +1403,7 @@ class App:
             cid = char["id"]
             self.tick(cid)
             st, a = self.state(cid), self.action(aid)
+            pm0 = self.presence.rec().get("mode")     # この行動で離れる (解散して家へ・仕事へ など) なら, 最後のやりとりを離席の画面に
             called = False
             uses = items_mod.USES.get(aid)          # 家での行動が使う持ち物 (料理=食材 など)
             gift_item = opts.get("gift_item")       # 持ち物からのプレゼント
@@ -1547,7 +1554,13 @@ class App:
                 self.manners.favor(st, "consult", now)
                 ctx["consult"], _, ex = self.chat.consult_reply(char, st, pick, now, {})
                 extra.update(ex)
+            # 別れぎわ (解散・帰る・送っていく): 相手はもっといたいか, それを口に出すか (core/parting.py)
+            part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
+            if part:
+                ctx["part"] = part
             r = self.pick_reaction(a, ctx)
+            if part:
+                self.parting.settle(char, st, aid, part, now)
             invite = apart and (a.get("override") or {}).get("outing")
             promised = st.get("date_promise", 0) > now          # メッセージで「会おう」に応じてくれていた
             if invite and not appt and not promised and ctx.get("affection", 0) < float(self.bonds.cfg()["meet_min_affection"]) and not r.get("override"):
@@ -1628,6 +1641,8 @@ class App:
                     ov["location"] = places_mod.PLACES[pl]["label"]
                     # 行き (同居なら帰りも) の移動 (core/geo.py). 約束の場所で会ったときは, 二人ともそこにいるので移動しない
                     travel_note = None if appt else self._outing_travel(cid, ov, pl, now, opts.get("how"))
+                    # 一緒に出かけた時刻 (次の場所へ移っても, 出かけたときのまま. 別れぎわの「もう？」に使う)
+                    ov["start"] = (st.get("override") or {}).get("start", now) if opts.get("move_on") else now
                 st["override"] = ov
                 worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
@@ -1783,6 +1798,10 @@ class App:
             if self.settings.get("auto_generate") and gen_ok:
                 job = self._present_image(cid, entry)
             self.save_log(cid)
+            if pm0 == "none" and not apart and self.presence.rec().get("mode") != "none":
+                # 会っていた相手と別れて離れた: 離席の画面 (移動中など) が会話を覆うので, 最後のやりとりをそこに出す
+                self.presence.rec()["last_words"] = {"cid": cid, "name": char.get("name", ""), "text": text, "t": now}
+                self.presence.save()
         if entry and (a.get("id") == "movie" or (a.get("override") or {}).get("outing")) and not apart:
             try:
                 self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる

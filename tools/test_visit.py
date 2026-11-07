@@ -16,6 +16,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import earn as EA, engine, store  # noqa: E402
+from core import parting as _parting  # noqa: E402
+_parting.FIXED = "ok"      # 別れぎわは必ず応じる (引き止めは test_parting で)
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)

@@ -2749,9 +2749,35 @@
    },
    {
     "text": "もう帰るんですか？ ……もうちょっとだけ、いたかったな。",
-    "when": "mood>=70",
+    "when": "part=reluctant",
     "pos": "pout, smile",
-    "neg": ""
+    "neg": "",
+    "key": "mood_ge_70",
+    "priority": 1,
+    "effects": {
+     "mood": -1
+    }
+   },
+   {
+    "text": "え、もう帰るんですか？ ……もう少しだけ、どこか寄っていきませんか。",
+    "when": "part=hold",
+    "pos": "hesitant, looking at viewer, holding own hands",
+    "neg": "",
+    "key": "part_hold",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "……そうですね。じゃあ、今日はここまでにしましょうか。",
+    "when": "part=insist",
+    "pos": "small smile, looking down",
+    "neg": "",
+    "key": "part_insist",
+    "priority": 3,
+    "effects": {
+     "mood": -3,
+     "loneliness": 3
+    }
    }
   ],
   "confirm": "ここで解散して、家に帰りますか？（一緒にほかの場所へ行くなら、「移動」のほかのコマンドから）"
@@ -3115,12 +3141,46 @@
    },
    {
     "text": "えっ、もう帰っちゃうんですか……？ 泊まっていってもいいのに……",
-    "when": "dependence>=75",
+    "when": "part=reluctant, dependence>=60",
     "pos": "holding sleeve, looking up at viewer, pleading",
     "neg": "",
     "priority": 2,
     "effects": {
      "loneliness": 4
+    },
+    "key": "dependence_ge_75"
+   },
+   {
+    "text": "そうですか……。気をつけて帰ってくださいね。",
+    "when": "part=reluctant",
+    "pos": "small smile, waving, doorway",
+    "neg": "",
+    "key": "part_reluctant",
+    "priority": 1,
+    "effects": {
+     "mood": -1,
+     "loneliness": 2
+    }
+   },
+   {
+    "text": "もう少しゆっくりしていっても大丈夫ですよ。お茶、もう一杯淹れますから。",
+    "when": "part=hold",
+    "pos": "smile, looking at viewer, indoors",
+    "neg": "",
+    "key": "part_hold",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "わかりました。……引き止めちゃって、ごめんなさい。また来てくださいね。",
+    "when": "part=insist",
+    "pos": "small smile, waving, doorway",
+    "neg": "",
+    "key": "part_insist",
+    "priority": 3,
+    "effects": {
+     "mood": -3,
+     "loneliness": 3
     }
    }
   ]
@@ -3183,12 +3243,44 @@
    },
    {
     "text": "……まだ帰りたくないです。もう少しだけ、ここにいちゃだめですか？",
-    "when": "dependence>=75",
+    "when": "part=hold, dependence>=60",
     "pos": "standing at door, hesitant, looking down, pleading",
     "neg": "",
-    "priority": 2,
+    "priority": 4,
+    "key": "dependence_ge_75",
+    "override": true
+   },
+   {
+    "text": "……はい。じゃあ、そろそろ帰りますね。今日はありがとうございました。",
+    "when": "part=reluctant",
+    "pos": "small smile, entrance",
+    "neg": "",
+    "key": "part_reluctant",
+    "priority": 1,
     "effects": {
-     "loneliness": 4
+     "mood": -1,
+     "loneliness": 2
+    }
+   },
+   {
+    "text": "もうちょっとだけ、いてもいいですか？ まだ話したいことがあって。",
+    "when": "part=hold",
+    "pos": "standing at door, hesitant, looking at viewer",
+    "neg": "",
+    "key": "part_hold",
+    "priority": 3,
+    "override": true
+   },
+   {
+    "text": "……そうですよね、遅くなっちゃいますし。今日はありがとうございました。",
+    "when": "part=insist",
+    "pos": "small smile, waving, entrance",
+    "neg": "",
+    "key": "part_insist",
+    "priority": 3,
+    "effects": {
+     "mood": -3,
+     "loneliness": 3
     }
    }
   ],

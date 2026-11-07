@@ -26,6 +26,8 @@ import time
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE)
 from core import engine, store  # noqa: E402
+from core import parting as _parting  # noqa: E402
+_parting.FIXED = "ok"      # 別れぎわは必ず応じる (引き止めは test_parting で)
 from core import bonds as bonds_mod, chat as chat_mod, life as life_mod, offline as offline_mod  # noqa: E402
 from core import outdoor as outdoor_mod, presence as presence_mod, solo as solo_mod, street as street_mod  # noqa: E402
 from core import encounters as encounters_mod, items as items_mod, games as games_mod, home as home_mod  # noqa: E402

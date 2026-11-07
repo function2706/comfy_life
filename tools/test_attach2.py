@@ -13,6 +13,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import appoint as APm, engine, msgreply, store  # noqa: E402
+from core import parting as _parting  # noqa: E402
+_parting.FIXED = "ok"      # 別れぎわは必ず応じる (引き止めは test_parting で)
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)
@@ -46,12 +48,16 @@ def main():
         base = {"asleep": False, "away": False, "loneliness": 30}
         assert "誰と" in reaction("go_out", **base)["text"]
         assert "もうちょっとだけ" in reaction("go_leave", **base)["text"]
-        assert "泊まって" in reaction("leave_visit", **base)["text"]
-        assert "帰りたくない" in reaction("see_off", **base)["text"]
+        # 相手の家から帰る / 送っていく: 名残惜しいとき・引き止めるとき (別れぎわの判定 core/parting.py) に, 依存の強さが出る
+        assert "泊まって" in reaction("leave_visit", part="reluctant", **base)["text"]
+        assert "帰りたくない" in reaction("see_off", part="hold", **base)["text"]
+        assert "泊まって" not in reaction("leave_visit", part="ok", **base)["text"]
         setv(dependence=85.0, devotion=60.0)
         assert "誰と" not in reaction("go_out", **base)["text"]          # 献身的なら詮索しない (引き止めはする)
         setv(dependence=40.0, devotion=30.0)
         assert "もうちょっとだけ" not in reaction("go_leave", **base)["text"]
+        assert "泊まって" not in reaction("leave_visit", part="reluctant", **base)["text"]
+        assert "帰りたくない" not in reaction("see_off", part="hold", **base)["text"]
         print("引き止め・出かける先の詮索: OK")
 
         # ---- 2. 離れたくない (そばで): 依存度がとても高いときだけ
