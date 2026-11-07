@@ -2492,7 +2492,8 @@ function renderMap() {
     const pl = P[sel] || {};
     const r = routeOf(sel);
     const here = sel === od.here && !tv;
-    const can = free && goable(sel) && !here && pl.open !== false && !(od.with_outing && (sel === 'home:me' || od.with_outing.moving));
+    const heading = od.with_outing && od.with_outing.to === sel;        // 一緒に向かっているところ
+    const can = free && goable(sel) && !here && !heading && pl.open !== false && !(od.with_outing && sel === 'home:me');
     const modes = r ? Object.entries(r.modes || {}).sort(([a], [b]) => (b === r.best) - (a === r.best)) : [];
     detail = h('div', { class: 'pgroup', style: 'margin-top:6px' },
       h('div', { class: 'row', style: 'gap:6px;align-items:center' }, h('h4', { style: 'margin:0' }, `${mapIcon(sel)} ${mapName(sel)}`),
@@ -2500,6 +2501,8 @@ function renderMap() {
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: () => { S.mapSel = null; renderMap(); } }, '✕')),
       pl.open === false ? h('div', { class: 'small down' }, `閉まっています（${pl.note}）`) : '',
       od.with_outing && !here ? h('div', { class: 'small' }, sel === 'home:me' ? `${od.with_outing.name}と一緒に帰るときは、「誰かと」の「家に帰る」から`
+        : heading ? `いま${od.with_outing.name}と一緒に向かっています`
+        : od.with_outing.moving ? `行き先を変えて、${od.with_outing.name}と一緒に行く（応じてくれるかは、その時の気分しだい。何度も変えると嫌がられる）`
         : `${od.with_outing.name}と一緒に行く（応じてくれるかは、その時の気分しだい）`) : '',
       here ? h('div', { class: 'small muted' }, 'いまここにいます') : !goable(sel) ? h('div', { class: 'small muted' }, sel === 'office' ? '職場へは「仕事に行く」から' : '') : '',
       can && modes.length ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;margin-top:6px' },

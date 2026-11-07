@@ -38,7 +38,7 @@ def main():
         L = app.life
 
         def start():
-            st["override"], st["cooldowns"] = None, {}
+            st["override"], st["cooldowns"], st["move_log"] = None, {}, []
             L.player_state()["money"] = 100000
             app.set_params({"affection": 80, "mood": 75, "energy": 80, "trust": 70}, cid)
             app.act("aquarium", cid)
@@ -74,10 +74,10 @@ def main():
         trip = app.outing_trip(st, time.time())
         assert trip and trip["from"] == "aquarium" and trip["to"] == "cafe", trip
         try:
-            app.outing_move("park")
-            raise AssertionError("移動の途中に次へ行けた")
+            app.outing_move("cafe")
+            raise AssertionError("向かっている先へ行き先を変えられた")
         except ValueError as e:
-            assert "移動の途中" in str(e)
+            assert "向かって" in str(e)
         print("応じる: OK |", (ok.get("entry") or {}).get("text", "").split("\n")[0], "|", app.person_view(cid)["scene"]["label"])
 
         # ---- 1a. 出たときは「向かった」と移動の絵 (カフェの反応・絵は, 着いたときに). 移動中はまだカフェにいない
@@ -113,6 +113,58 @@ def main():
             st["cooldowns"] = {}
         assert not r.get("refused") and st["override"]["place"] == "park" and st["override"]["from_action"] == "walk", st["override"]
         print("移動のコマンドから: OK | 散歩で公園へ")
+
+        # ---- 1c. 移動の途中で行き先を変える: いまの地点から新しい行き先へ. 乗らなかった運賃・まだの帰りの運賃は戻る
+        def to_cafe():
+            start()
+            for _ in range(20):
+                st["move_log"] = []
+                r = app.outing_move("cafe")
+                if not r.get("refused"):
+                    return app.outing_trip(st, time.time())
+            raise AssertionError("カフェへ応じない")
+        trip = to_cafe()
+        st["move_log"] = []
+        av = app.person_view(cid)["available"]
+        assert av["walk"]["ok"] and av["walk"]["move_on"] and not av["cafe"]["ok"] and av["cafe"]["why"] == "いま向かっています", (av["walk"], av["cafe"])
+        r = None
+        for _ in range(20):
+            m0, h0 = L.player_state()["money"], L.her_money(st)["a"]
+            st["move_log"] = []
+            r = app.outing_move("park", None, "walk")
+            if not r.get("refused"):
+                break
+            assert "そのまま" in r["entry"]["text"] and app.outing_trip(st, time.time())["to"] == "cafe", r["entry"]["text"]
+        assert not r.get("refused"), r
+        t2 = app.outing_trip(st, time.time())
+        ov = st["override"]
+        assert ov["place"] == "park" and ov["arrive"]["aid"] == "walk" and (not t2 or t2["to"] == "park"), (ov["place"], t2)
+        assert "行き先を変えて" in r["entry"]["text"], r["entry"]["text"]
+        assert any("途中で行き先を変えた" in x.get("n", "") and x["a"] > 0 for x in app.kakeibo.rec()["raw"]), "運賃が戻っていない"
+        print("移動の途中で行き先を変える: OK |", r["entry"]["text"].replace(chr(10), " "))
+
+        # ---- 1d. 何度も変える・連れ回すと, うんざりされる (応じにくく, 機嫌も少し下がる)
+        def change_rate(log_n):
+            n, why = 0, {}
+            for _ in range(40):
+                to_cafe()
+                st["move_log"] = [[time.time() - 600 * (i + 1), True] for i in range(log_n)]
+                r = app.outing_move("park", None, "walk")
+                n += 0 if r.get("refused") else 1
+                if r.get("refused"):
+                    w = r["entry"]["text"]
+                    why[w[w.find("「"):w.find("」") + 1]] = 1
+            return n, why
+        fresh, _ = change_rate(0)
+        tired_of, lines = change_rate(4)
+        assert fresh > tired_of + 8, (fresh, tired_of)
+        assert any("また変える" in w for w in lines), lines
+        to_cafe()
+        st["move_log"] = [[time.time() - 600 * (i + 1), True] for i in range(3)]
+        m0 = st["params"]["mood"]
+        r = app.outing_move("park", None, "walk")
+        assert st["params"]["mood"] < m0 and ("あきれた" in r["entry"]["text"] or r.get("refused")), (m0, st["params"]["mood"], r["entry"]["text"])
+        print("何度も変えると: OK | はじめて %d/40・4 回変えたあと %d/40 |" % (fresh, tired_of), " ".join(lines))
 
         # ---- 2. 疲れていれば断る
         start()

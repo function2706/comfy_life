@@ -1239,7 +1239,9 @@ class App:
         out = {}
         moving = self.outing_moving(st, now)
         ocid, oov = self.outing_now(now)
-        move_on = ocid == char["id"] and not moving               # 一緒にお出かけ中 (着いている): 移動のコマンドで次の場所へ
+        move_on = ocid == char["id"]               # 一緒にお出かけ中: 移動のコマンドで次の場所へ (移動の途中なら, 行き先を変える)
+        otrip = self.outing_trip(st, now) if move_on else None
+        cur_pl = (otrip["to"] if otrip["dir"] == "go" else None) if otrip else (oov or {}).get("place")
         for a in self.actions:
             if a.get("category") == "system":
                 continue
@@ -1255,14 +1257,14 @@ class App:
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
             ovp = a.get("override") or {}
             if move_on and ovp.get("outing") and not shut:           # 一緒に次の場所へ (家でのことではない. いまいる場所へは行かない)
-                spots = [p for p in (a.get("places") or [ovp.get("place")]) if p and p != oov.get("place")]
+                spots = [p for p in (a.get("places") or [ovp.get("place")]) if p and p != cur_pl]
                 ok = bool(spots) and cond.check(self._when(a, ctx), ctx)
                 out[a["id"]].update(ok=ok, move_on=True)
                 if not ok:
-                    out[a["id"]]["why"] = "いまここにいます" if not spots else (self.cond_why(self._when(a, ctx), ctx, char.get("name", "相手")) or "")
+                    out[a["id"]]["why"] = ("いま向かっています" if otrip else "いまここにいます") if not spots else (self.cond_why(self._when(a, ctx), ctx, char.get("name", "相手")) or "")
                     if not out[a["id"]]["why"]:
                         out[a["id"]].pop("why")
-            if out[a["id"]]["ok"] and moving and not self.moving_ok(a):     # お出かけの移動中: 着いてから
+            if out[a["id"]]["ok"] and moving and not self.moving_ok(a) and not out[a["id"]].get("move_on"):     # お出かけの移動中: 着いてから
                 out[a["id"]].update(ok=False, why="移動中です（着いてから）")
             if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
                 why = self.why_not(a, char, ctx, shut)
@@ -1375,7 +1377,7 @@ class App:
                 raise ValueError(self.stay_home())
             ovm = st.get("override") or {}
             if ovm.get("outing") and ovm.get("until", 0) > now and (ovm.get("arr", 0) > now or now >= ovm.get("leave", ovm["until"])) \
-                    and not self.moving_ok(a):
+                    and not self.moving_ok(a) and not opts.get("move_on"):
                 raise ValueError("移動中は、話す・手をつなぐくらいしかできません（着いてから）")
             apart = ctx["apart"]
             if apart and a.get("category") == "連絡" and not opts.get("deliver") and opts.get("msg_kind") != "apology":
@@ -2918,7 +2920,9 @@ class App:
     # ------------------------------------------------------------------ 一緒に次の場所へ
     MOVE_ORDER = ("eat_out", "cafe", "aquarium", "amusement", "beach", "hiking", "shopping", "walk", "date", "picnic", "stargazing")
     MOVE_NO = {"tired": "今日はもう疲れちゃった……。そろそろ帰らない？", "late": "もう遅いし、今日はここまでにしない？",
-               "no": "今日はここでもう少しゆっくりしたいな"}
+               "no": "今日はここでもう少しゆっくりしたいな",
+               "keep": "せっかくもう向かってるんだし、このまま行こうよ",
+               "fickle": "また変えるの？ 今日はさっき決めたところにしようよ"}
 
     def outing_now(self, now=None):
         """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None)."""
@@ -2951,21 +2955,29 @@ class App:
         if not cid:
             raise ValueError("いまは誰とも出かけていません")
         char, st = self.char(cid), self.state(cid)
-        if self.outing_trip(st, now):
-            raise ValueError("移動の途中です（着いてから）")
+        trip = self.outing_trip(st, now)          # 移動の途中なら, 行き先を変える (いまの地点から)
         if aid:                                  # コマンドから (移動の分類): 行き先はそのコマンドの場所か, 選んだ場所
             a = self.action(aid)
             ovp = a.get("override") or {}
             to = to if to in (a.get("places") or []) else ovp.get("place")
             if not ovp.get("outing") or not to:
                 raise ValueError("一緒に行けるところではありません")
-        if to == ov.get("place"):
+        if trip and trip["dir"] == "go" and to == trip["to"]:
+            raise ValueError("いま%sへ向かっています" % self.places.label(to))
+        if not trip and to == ov.get("place"):
             raise ValueError("いまここにいます")
         aid = aid or self._move_action(to, char, st)
         if not aid:
             raise ValueError("%sへは、いまは一緒に行けません" % self.places.label(to))
         p = st["params"]
         h = datetime.fromtimestamp(now).hour
+        # 何度も行き先を変える・次々に連れ回すと, うんざりされる (4 時間のうち. 移動の途中で変えるのは, 着いてから次へより重い).
+        # 決めたとおりに動きたい性格 (punctual が高い) ほど嫌がる. 誘っただけでも (断られても) 数える
+        log = [x for x in st.get("move_log") or [] if now - x[0] < 4 * 3600]
+        n_move, n_change = len(log), sum(1 for x in log if x[1])
+        fussy = 0.5 + float(self.traits(char).get("punctual", 0.7))
+        fussed = (0.04 * n_move + 0.08 * n_change + (0.08 if trip else 0)) * fussy
+        st["move_log"] = log + [[now, bool(trip)]]
         if p.get("energy", 60) < 20:
             why = "tired"
         elif (h >= 21 or h < 5) and self.bonds.stage(cid) != "live":
@@ -2973,18 +2985,48 @@ class App:
         else:
             # 関係 (間柄・好感度・依存度)・機嫌・性格 (話したがり・献身的) で決まる. 疲れていれば渋る
             close = {"live": 0.15, "visit": 0.1}.get(self.bonds.stage(cid), 0.0)
-            pr = 0.5 + close + (p.get("mood", 50) - 50) / 100.0 + (p.get("affection", 50) - 50) / 150.0                 + 0.1 * self.attach.factor(char, st, "dependence") + 0.08 * self.attach.factor(char, st, "devotion")                 + 0.15 * (float(self.traits(char).get("approach", 1.0)) - 1.0) - (0.2 if p.get("energy", 60) < 35 else 0)
-            why = None if random.random() < max(0.05, min(0.95, pr)) else "no"
-        self.trace.add("outing", "一緒に次の場所へ: %s" % (why or "ok"), cid, now, to=to, aid=aid, energy=p.get("energy"), mood=p.get("mood"),
-                       affection=p.get("affection"), stage=self.bonds.stage(cid))
+            pr = 0.5 + close + (p.get("mood", 50) - 50) / 100.0 + (p.get("affection", 50) - 50) / 150.0 \
+                + 0.1 * self.attach.factor(char, st, "dependence") + 0.08 * self.attach.factor(char, st, "devotion") \
+                + 0.15 * (float(self.traits(char).get("approach", 1.0)) - 1.0) - (0.2 if p.get("energy", 60) < 35 else 0)
+            pr -= fussed
+            why = None if random.random() < max(0.05, min(0.95, pr)) else \
+                "fickle" if fussed >= 0.25 and random.random() < min(0.9, fussed * 2) else "keep" if trip else "no"
+        self.trace.add("outing", "一緒に%s: %s" % ("行き先を変える" if trip else "次の場所へ", why or "ok"), cid, now, to=to, aid=aid,
+                       energy=p.get("energy"), mood=p.get("mood"), affection=p.get("affection"), stage=self.bonds.stage(cid),
+                       moves=n_move, changes=n_change, fussed=round(fussed, 2))
+        name = char.get("name", "")
+        sigh = n_change + (1 if trip else 0) >= 2 or n_move >= 3          # もう何度目か: 応じても少しあきれる / 断るなら機嫌も少し
+        if sigh:
+            self.apply_effects(st, self.trait_effects(char, {"mood": -round(1.5 * fussy * min(4, n_change + n_move / 2.0), 1)}))
+            self.save_state(cid)
         if why:
             line = self.persona_text(char, "outing.move_no_" + why) or self.MOVE_NO[why]
             fp, _, call = self.pronouns(char)
             line = line.replace("{fp}", fp).replace("{call}", call)
-            r = self.my_entry("out", "次の場所へ", "🚶", "%sへ行こうと誘った。%s「%s」" % (self.places.label(to), char.get("name", ""), line))
+            what = "%sへ行き先を変えようと言った" % self.places.label(to) if trip else "%sへ行こうと誘った" % self.places.label(to)
+            r = self.my_entry("out", "行き先を変える" if trip else "次の場所へ", "🚶", "%s。%s「%s」%s" % (
+                what, name, line, "（%sへの移動はそのまま）" % self.places.label(trip["to"]) if trip and trip["dir"] == "go" else ""))
             r["refused"] = True
             return r
-        return self.act(aid, cid, opts={"place": to, "move_on": True, "how": how})
+        old = dict(ov)
+        res = self.act(aid, cid, opts={"place": to, "move_on": True, "how": how})
+        if trip and res.get("entry"):
+            # 途中で行き先を変えた: 乗らなかった分の運賃 (行き) と, まだの帰りの運賃は, 二人に戻る (新しい移動の運賃は新しく払う)
+            back = self.geo.unused_fare(trip, now) + sum(int(t.get("fare") or 0) for t in old.get("trips") or [] if t["t0"] > now)
+            if back > 0:
+                self.life.move(None, dp=back, cat="transport", note="交通費（途中で行き先を変えた分）")
+                hm = self.life.her_money(st)
+                hm["a"] += back
+                self.save_state(cid)
+            e = res["entry"]
+            e["text"] = e["text"].replace("（%sと一緒に" % name, "（行き先を変えて、%sと一緒に" % name, 1)
+            if sigh:
+                e["text"] += "\n（%sは少しあきれた様子だった）" % name
+            self.save_log(cid)
+        elif sigh and res.get("entry"):
+            res["entry"]["text"] += "\n（%sは少しあきれた様子だった）" % name
+            self.save_log(cid)
+        return res
 
     def _outing_arrived(self, char, st, ov, now):
         """一緒に移動して行き先に着いた: 出たときに決まっていた, そこでの反応 (文) を着いた時刻の記録にし, 絵もそこで出す."""
