@@ -2570,6 +2570,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}はねー、ちょっと苦手"
+  ],
+  "outing.move_no_tired": [
+   "ごめん、もう歩き疲れちゃった。今日は帰ろ？"
+  ],
+  "outing.move_no_late": [
+   "もう遅いし、また今度ね！ 今日は楽しかった"
+  ],
+  "outing.move_no_no": [
+   "えー、もうちょっとここにいようよ"
   ]
  }
 }

@@ -2624,6 +2624,15 @@
   ],
   "topic.genre_dislike": [
    "……{genre}は、あまり"
+  ],
+  "outing.move_no_tired": [
+   "……疲れた。……帰りたい"
+  ],
+  "outing.move_no_late": [
+   "……もう遅い。……また今度"
+  ],
+  "outing.move_no_no": [
+   "……ここが、いい"
   ]
  }
 }

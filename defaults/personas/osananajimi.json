@@ -2918,6 +2918,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は無理。昔からでしょ"
+  ],
+  "outing.move_no_tired": [
+   "もう歩けないって。今日は帰ろ"
+  ],
+  "outing.move_no_late": [
+   "もう遅いでしょ。今日はここまで"
+  ],
+  "outing.move_no_no": [
+   "えー、{fp}まだここにいたいんだけど"
   ]
  }
 }

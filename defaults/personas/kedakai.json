@@ -2610,6 +2610,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、あまり好まないわね"
+  ],
+  "outing.move_no_tired": [
+   "少し疲れたわ。今日はもう帰りましょう"
+  ],
+  "outing.move_no_late": [
+   "もう遅いわ。今日はここまでにしましょう"
+  ],
+  "outing.move_no_no": [
+   "ここで十分よ。もう少しゆっくりさせてちょうだい"
   ]
  }
 }

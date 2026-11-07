@@ -2580,6 +2580,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は嫌い。退屈だもの"
+  ],
+  "outing.move_no_tired": [
+   "疲れたわ。今日はもう帰るの"
+  ],
+  "outing.move_no_late": [
+   "もう遅いわ。今日はここまでよ"
+  ],
+  "outing.move_no_no": [
+   "嫌よ。{fp}はまだここにいたいの"
   ]
  }
 }

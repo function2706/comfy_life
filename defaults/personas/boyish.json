@@ -2618,6 +2618,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、ちょっと苦手なんだよね"
+  ],
+  "outing.move_no_tired": [
+   "ごめん、もう足が限界。今日は帰ろ"
+  ],
+  "outing.move_no_late": [
+   "もう遅いし、今日はここまでにしとこ"
+  ],
+  "outing.move_no_no": [
+   "えー、{fp}はもうちょっとここにいたいな"
   ]
  }
 }

@@ -2611,6 +2611,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は嫌い。それだけ"
+  ],
+  "outing.move_no_tired": [
+   "もう疲れたの。今日は帰るわよ"
+  ],
+  "outing.move_no_late": [
+   "もう遅いでしょ。今日はここまでよ"
+  ],
+  "outing.move_no_no": [
+   "嫌よ。{fp}はまだここにいたいの"
   ]
  }
 }

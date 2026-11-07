@@ -3072,6 +3072,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}はパス。苦手なんだよね"
+  ],
+  "outing.move_no_tired": [
+   "もうへとへと。おんぶしてくれるなら行ってもいいけど？"
+  ],
+  "outing.move_no_late": [
+   "もうこんな時間だよ。今日はここまでにしとこ"
+  ],
+  "outing.move_no_no": [
+   "えー、ここ気に入っちゃったのに。もうちょっといよ？"
   ]
  }
 }

@@ -2696,6 +2696,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、ちょっと苦手なのよねぇ"
+  ],
+  "outing.move_no_tired": [
+   "なんだか疲れちゃったわぁ。今日はもう帰りましょうねぇ"
+  ],
+  "outing.move_no_late": [
+   "もう遅いわぁ。今日はこのへんにしましょうねぇ"
+  ],
+  "outing.move_no_no": [
+   "ここ、もう少しのんびりしたいわぁ"
   ]
  }
 }

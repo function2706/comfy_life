@@ -2624,6 +2624,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}はあまり好きじゃないわ"
+  ],
+  "outing.move_no_tired": [
+   "もう体力が残っていないわ。今日は帰りましょう"
+  ],
+  "outing.move_no_late": [
+   "もう遅いわ。今日はここまでにしましょう"
+  ],
+  "outing.move_no_no": [
+   "ここにもう少しいたいわ。移動はやめておく"
   ]
  }
 }

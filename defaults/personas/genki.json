@@ -2628,6 +2628,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、ちょっと苦手なんだよね……"
+  ],
+  "outing.move_no_tired": [
+   "さすがにちょっと疲れたー！ 今日は帰ろっか"
+  ],
+  "outing.move_no_late": [
+   "もうこんな時間！ 今日はここまでにしよ！"
+  ],
+  "outing.move_no_no": [
+   "えー、まだここで遊びたい！ もうちょっといよ！"
   ]
  }
 }

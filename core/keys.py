@@ -65,6 +65,9 @@ def all_keys(actions, minigames, approaches=()):
     for kind, label in (("like", "好き"), ("dislike", "苦手")):
         out["topic.genre_" + kind] = {"scene": "話題 / 本・映画のジャンルが%s ({genre} にジャンル)" % label, "when": "",
                                       "text": Topics.REVEAL[kind]}
+    from .engine import App                                                 # 一緒にお出かけ中, 次の場所へ誘われて断る
+    for kind, label in (("tired", "疲れている"), ("late", "夜遅い"), ("no", "いまの場所にいたい")):
+        out["outing.move_no_" + kind] = {"scene": "お出かけ / 次の場所へ誘われて断る (%s)" % label, "when": "", "text": App.MOVE_NO[kind]}
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}

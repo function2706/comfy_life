@@ -2582,6 +2582,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、なんだか落ち着かないの"
+  ],
+  "outing.move_no_tired": [
+   "……足が、もう帰り道を歩きたがってる"
+  ],
+  "outing.move_no_late": [
+   "空がもう夜の色。今日はここまでにしよう"
+  ],
+  "outing.move_no_no": [
+   "ここ、まだ見足りないの。もう少しだけ"
   ]
  }
 }

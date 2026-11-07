@@ -2625,6 +2625,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、あんまり好きじゃないかも"
+  ],
+  "outing.move_no_tired": [
+   "もう足がくたくた！ 今日は帰ろ"
+  ],
+  "outing.move_no_late": [
+   "あ、もう暗い！ 今日はここまでにしよ"
+  ],
+  "outing.move_no_no": [
+   "まだここで見たいものがあるの！ もうちょっと！"
   ]
  }
 }

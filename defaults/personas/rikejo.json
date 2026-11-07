@@ -2574,6 +2574,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、あまり好みじゃない"
+  ],
+  "outing.move_no_tired": [
+   "体力が尽きた。今日はもう帰りたい"
+  ],
+  "outing.move_no_late": [
+   "もう遅い。睡眠時間を考えると、今日はここまで"
+  ],
+  "outing.move_no_no": [
+   "ここ、まだ観察し足りない。もう少しいたい"
   ]
  }
 }

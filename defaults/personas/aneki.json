@@ -2915,6 +2915,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、あんまりね"
+  ],
+  "outing.move_no_tired": [
+   "さすがに疲れたわ。今日はもう帰りましょう"
+  ],
+  "outing.move_no_late": [
+   "もう遅いわよ。今日はここまでにしなさい"
+  ],
+  "outing.move_no_no": [
+   "今日はここで十分よ。慌ただしく回らなくていいの"
   ]
  }
 }

@@ -2567,6 +2567,15 @@
   ],
   "topic.genre_dislike": [
    "{genre}は、あんまりですね"
+  ],
+  "outing.move_no_tired": [
+   "もう疲れました。今日は帰りましょうよ"
+  ],
+  "outing.move_no_late": [
+   "もう遅いですし、今日はここまでにしましょう"
+  ],
+  "outing.move_no_no": [
+   "えー、移動するんですか。ここでいいじゃないですか"
   ]
  }
 }
