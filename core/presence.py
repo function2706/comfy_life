@@ -393,13 +393,38 @@ class Presence:
         return e, None
 
     def _reply(self, char, st, a, choice, now, auto=False):
-        """メッセージに選んだ返事をする. 相手の受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
+        """メッセージに選んだ返事をする. 相手の返しは, ふつうのメッセージと同じく時間差で届く (engine.reply_delay:
+        まだスマホを見ていればすぐ, 置いていれば数分〜. 寝ている・手が離せないなら, そのあと). 以前は返信した瞬間に返ってきていた.
+        届いたとき (engine._chat_reply → reply_land) に, 受け取り方 (good / neutral / bad) と返しが決まる.
+        auto: 画面を閉じていた間の自動の返事 (その場で済ませる)."""
         opts = [o["id"] for o in msgreply.options(a["id"])]
         kind = choice if choice in opts else opts[0]
+        ap = st.get("approach") or {}
         st["approach"] = None
         self.touch(now)
         st["last_interaction"] = now
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
+        chat = self.app.chat
+        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind), "・自動" if auto else ""), kind="approach", t=now)
+        if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
+            return self.reply_land(char, st, a["id"], kind, now, auto=auto)
+        app = self.app
+        d = datetime.fromtimestamp(now)
+        scene = app.scene_at(char, st, d)
+        delay, quick, _ = app.reply_delay(char, st, now, scene, app.context(char, st, d, scene))
+        st["msg_pending"] = {"aid": "_ap_reply", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "ap_reply",
+                             "quick": quick, "meta": {"ap": a["id"], "choice": kind, "waited": now - float(ap.get("t", now))}}
+        app.trace.add("msg", "働きかけに返事: 返しの予定を決めた", char["id"], now, ap=a["id"], choice=kind, due_min=delay / 60.0,
+                      quick=quick, waited_min=(now - float(ap.get("t", now))) / 60.0)
+        e = self._entry(char, st, now, a, "sent", "（📱 %sに返信した）" % char.get("name", ""), {}, None, gen=False)
+        e["sent"] = True
+        app.save_log(char["id"])
+        app.save_state(char["id"])
+        return e
+
+    def reply_land(self, char, st, aid, kind, now, auto=False):
+        """働きかけへのあなたの返事を, 相手が読んだ: 受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
+        a = self.find(aid) or {"id": aid}
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
         res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15)     # 自動の返事は, 相手の様子を読み違えやすい
@@ -427,7 +452,6 @@ class Presence:
         e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
         e["reply"] = {"kind": kind, "result": res}
         chat = self.app.chat
-        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind), "・自動" if auto else ""), kind="approach", t=now)
         chat.mark_read_by_her(char["id"], now)
         chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001)
         closing = nori.after_choice(self.app, char, st, now, res)

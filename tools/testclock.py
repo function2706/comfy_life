@@ -58,3 +58,20 @@ def run_at(hour=11, minute=0, weekday=True):
     off = d.timestamp() - real()
     _t.time = lambda: real() + off
     return d.timestamp()
+
+
+def landed(app, r, cid=None):
+    """向こうからのメッセージへの返事 (answer_approach) は, 相手の返しが時間差で届く (core/presence.py _reply).
+    受け取り方を見るテスト用: 返事待ちを今すぐ届けたことにして, 届いた記録 {"entry": ...} を返す (返事待ちでなければ r のまま)."""
+    import time as _t
+    e = (r or {}).get("entry") or {}
+    cid = cid or app.settings["active_character"]
+    st = app.state(cid)
+    pend = st.get("msg_pending") or {}
+    if not e.get("sent") or pend.get("kind") != "ap_reply":
+        return r
+    st.pop("msg_pending", None)
+    m = pend["meta"]
+    e2 = app.presence.reply_land(app.char(cid), st, m["ap"], m["choice"], _t.time())
+    app.save_state(cid)
+    return {"entry": e2, "job": None}

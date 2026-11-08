@@ -13,7 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 from core import engine, msgreply as MR, store  # noqa: E402
-from testclock import fix_noon  # noqa: E402
+from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
 
@@ -50,7 +50,7 @@ def main():
         for _ in range(60):
             fire()
             m0 = st["params"]["mood"]
-            r = app.answer_approach("reply", cid, random.choice(["cheerful", "expand", "tease", "curt"]))
+            r = landed(app, app.answer_approach("reply", cid, random.choice(["cheerful", "expand", "tease", "curt"])), cid)
             res[r["entry"]["reply"]["result"]] += 1
             more += bool(r["entry"].get("more"))
             if r["entry"]["reply"]["result"] == "bad":
@@ -134,7 +134,7 @@ def main():
 
         # ---- 6. 選ばずに「返信する」(以前の形) でも受け付ける (先頭の選択肢)
         fire()
-        r = app.answer_approach("accept", cid)
+        r = landed(app, app.answer_approach("accept", cid), cid)
         assert r["entry"]["reply"]["kind"] == "cheerful"
         print("ALL OK")
     finally:

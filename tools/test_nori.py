@@ -11,7 +11,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, nori, store  # noqa: E402
-from testclock import fix_noon  # noqa: E402
+from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
 
@@ -77,7 +77,7 @@ def main():
         st["approach"] = None
         app.force_approach("msg_chat", cid)
         st["nori"]["v"] = 21
-        r = app.answer_approach("reply", cid, "curt")
+        r = landed(app, app.answer_approach("reply", cid, "curt"), cid)
         last = C.thread(cid)["items"][-1]
         if r["entry"].get("closed"):
             assert last["kind"].startswith("close_") and st.get("phone_until", 0) == 0

@@ -58,7 +58,12 @@ def main():
         rep = O.simulate(at(wd2, "06:30"), at(wd2, "22:00"))
         dos = [x["do"] for x in rep["timeline"]]
         assert "work" in dos and "practice" in dos, dos
-        assert all(x["do"] == "work" for x in rep["timeline"] if 10 <= datetime.fromtimestamp(x["t"]).hour < 12), dos
+        sick = next((w for w in rep["works"] if w.get("sick")), None)
+        if sick:      # 体調のくじで早退した (以前はここで落ちていた: 残件 F5). そのあとは仕事にも研鑽にも行かず, 家で休む
+            after = [x["do"] for x in rep["timeline"] if x["t"] >= sick["end"] and datetime.fromtimestamp(x["t"]).hour < 21]
+            assert after and set(after) <= {"move", "rest"} and after.count("move") <= 1, dos
+        else:
+            assert all(x["do"] == "work" for x in rep["timeline"] if 10 <= datetime.fromtimestamp(x["t"]).hour < 12), dos
         P.rec()["items"] = []
         print("予定を組んだ日: OK |", dos)
 

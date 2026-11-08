@@ -2076,6 +2076,10 @@ class App:
             first = pend.get("apology_first")
             if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
                 self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"]}, now - 1)
+            if kind == "ap_reply":              # 向こうからのメッセージへの, あなたの返事を読んだ (core/presence.py)
+                m = pend.get("meta") or {}
+                e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now)
+                return {"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600}
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import appoint as APm, engine, msgreply, store  # noqa: E402
 from core import parting as _parting  # noqa: E402
 _parting.FIXED = "ok"      # 別れぎわは必ず応じる (引き止めは test_parting で)
-from testclock import fix_noon  # noqa: E402
+from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
 
@@ -83,7 +83,7 @@ def main():
         app.force_approach("msg_where", cid)
         ids = [c["id"] for c in app.presence.pending_view(char, st)["choices"]]
         assert ids[0] == "expand" and "curt" in ids
-        r = app.answer_approach("reply", cid, "expand")
+        r = landed(app, app.answer_approach("reply", cid, "expand"), cid)
         res = r["entry"]["reply"]["result"]
         assert r["entry"]["text"] == (app.persona_text(char, "msgr.msg_where." + res) or msgreply.LINES["msgr.msg_where." + res])
         good = {"expand": 0, "curt": 0}

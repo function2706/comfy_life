@@ -246,7 +246,12 @@ class Offline:
                                                                "。" + lg["note"] if lg.get("note") else ""), "skipped": False, "plan": None})
             t += lg["min"] * 60
 
+        sick_day = None                            # 体調が悪くて早退した日: その日はもう出かけず, 家で休む
+
         for (s, e, b), nb in _peek(source):
+            if sick_day and datetime.fromtimestamp(s).date() == sick_day and b["do"] not in ("sleep", "meal", "rest", "exam", "appoint"):
+                # 以前は早退したあとも, 昼休みのあとの勤めにまた職場へ行き, 空き時間は研鑽などをしていた
+                b = {"do": "rest", "_sick": True}
             fixed = nb[0] if nb and nb[2]["do"] in ("exam", "appoint") else None     # 次が時刻の決まったこと (試験・約束): 残業はその前まで
             # 出先にいるまま続ける: 同じ場所での次の行動 (昼休みのあとも職場) / 出先のすぐあとの食事 (近くで食べる)
             stay = bool(back_leg) and (self._dest(b) == back_leg[1] or (
@@ -338,7 +343,9 @@ class Offline:
                     ent["text"] = app.kakeibo.write(min(e, s + 900))["text"]
             elif do in ("rest", "home"):
                 recover(s, e, rec_rest if do == "rest" else None)
-                ent["text"] = "家で休んでいた" if do == "rest" else "家で静かに過ごしていた"
+                ent["text"] = "体調がすぐれず、家で休んでいた" if b.get("_sick") else "家で休んでいた" if do == "rest" else "家で静かに過ごしていた"
+                if b.get("_sick"):
+                    ent["label"] = "休む（体調が悪いので）"
             elif do == "parttime":            # アルバイト: シフトと重なった分だけ (シフトが無ければ家で過ごす)
                 if not app.earn.pt() or app.body.level() >= 3:
                     recover(s, e, None)
@@ -365,6 +372,8 @@ class Offline:
                 meets += m
                 ent.update(end=w["end"], text="仕事（%s円）%s" % (format(w["pay"], ","), "・" + "・".join(w["notes"]) if w["notes"] else ""),
                            meets=m)
+                if w.get("sick"):
+                    sick_day = datetime.fromtimestamp(s).date()
                 t = w["end"]
                 timeline.append(ent)
                 continue
@@ -596,7 +605,7 @@ class Offline:
         end = e
         lv = self.app.body.level()
         if lv >= 3 or (lv == 2 and random.random() < 0.4):           # 体調が悪くて休んだ
-            return {"start": s, "end": s, "hours": 0.0, "paid_h": 0.0, "pay": 0, "skill": 0, "notes": ["体調が悪くて、仕事を休んだ"]}
+            return {"start": s, "end": s, "hours": 0.0, "paid_h": 0.0, "pay": 0, "skill": 0, "notes": ["体調が悪くて、仕事を休んだ"], "sick": True}
         if random.random() < 0.03 + (0.35 if stamina < 25 else 0.12 if stamina < 45 else 0.0) + (0.3 if lv == 2 else 0.1 if lv == 1 else 0.0):
             end = s + (e - s) * random.uniform(0.3, 0.8)                  # 体調が悪くて早退
             notes.append("体調がすぐれず、早退した")
@@ -614,7 +623,8 @@ class Offline:
             L.player_state()["money"] += pay
             L.ledger(end, pay, "income", "給料")
         gain = L.train("work", 0.5 * h) if h >= 0.25 else 0
-        return {"start": s, "end": end, "hours": round(raw, 2), "paid_h": round(h, 2), "pay": pay, "skill": gain, "notes": notes}
+        return {"start": s, "end": end, "hours": round(raw, 2), "paid_h": round(h, 2), "pay": pay, "skill": gain, "notes": notes,
+                "sick": "体調がすぐれず、早退した" in notes}
 
     def _coworkers(self, s, e):
         """職場での出会い. 画面を見ていないので, 声をかけられても気づけない (無難な対応)."""
