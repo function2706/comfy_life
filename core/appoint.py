@@ -319,7 +319,7 @@ class Appoint:
                 st.pop("date_promise", None)
                 self.save()
                 app.attach.give(char, st, "her", 2, "予定を動かして合わせてくれた")
-                app.manners.favor(st, "appoint", now)      # 約束を受けてくれた (お礼の心当たり)
+                self._favor_set(st, x, now)                 # 約束を受けてくれた (お礼の心当たり)
                 return "appoint_rearranged", {"heart": 2, "mood": 1}, extra
             if alt and random.random() < self.counter_chance(char, p, busy=True):
                 return self._counter_back(char, st, x, alt, now, extra)        # その時間は無理だけど, この時間なら
@@ -338,7 +338,7 @@ class Appoint:
             x["plan"] = self._plan(char, st, x)
             st.pop("date_promise", None)
             self.save()
-            app.manners.favor(st, "appoint", now)
+            self._favor_set(st, x, now)
             return "appoint_yes", {"heart": 2, "mood": 2}, extra
         if int(x.get("rounds", 0)) < COUNTER_MAX and not places_mod.is_home(x["place"]) \
                 and random.random() < self.counter_chance(char, p, busy=False):
@@ -348,6 +348,13 @@ class Appoint:
         x["status"] = "declined"
         self.save()
         return "appoint_no", {}, extra
+
+    def _favor_set(self, st, x, now):
+        """約束が決まった: お礼の心当たり. 約束してくれた / もとが相手からの誘いなら, 会おうと言ってくれた
+        (あなたが別の日時を返して決まっても. 以前はそこを見ておらず, 「会おうと言ってくれた」へのお礼に「何のお礼？」と返っていた)."""
+        self.app.manners.favor(st, "appoint", now)
+        if x.get("by") == "her":
+            self.app.manners.favor(st, "invite", now)
 
     def counter_chance(self, char, p, busy):
         """断るときに, 別の日時 (・行き先) を返してくれるか. 予定が合わないだけなら返しやすく, 気が乗らないだけなら返しにくい.
@@ -465,9 +472,7 @@ class Appoint:
                              kind="appoint", t=now)
                 # お礼の心当たり: 相手が出し返した日時・相手からの誘いに応じて決まった約束も, 相手が約束してくれたこと
                 # (以前は記録しておらず, 直後に「約束してくれた」とお礼を言うと「え、何が？」と返っていた)
-                app.manners.favor(st, "appoint", now)
-                if x.get("by") == "her":
-                    app.manners.favor(st, "invite", now)          # 向こうから会おうと言ってくれた
+                self._favor_set(st, x, now)
             else:
                 x["status"] = "refused"
                 eff = {"mood": -2}

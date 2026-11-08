@@ -240,6 +240,7 @@ class App:
         self.appt_travel_comp()                        # 約束の場所で会ったのに, 家からの移動が入っていた分 (運賃を返す・解散したデートを戻す. 一度だけ)
         self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
         self.appoint_favor_comp()                      # 応じて決まった約束にお礼の心当たりが無かった分 (2 日のうち. 一度だけ)
+        self.appoint_invite_comp()                     # 誘われて別の日時を返して決まった約束に「会おうと言ってくれた」が無かった分 (一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
         if rt or rc or paid:
@@ -3774,6 +3775,36 @@ class App:
         self.life.save_player()
         if n:
             self.trace.add("fix", "応じて決まった約束に, お礼の心当たりを足した", None, now, n=n)
+        return n
+
+    SETTLED = ("set", "waiting", "going", "met", "missed", "stood_up", "lapsed")       # 約束が決まったあとの状態
+
+    def appoint_invite_comp(self, now=None):
+        """不具合の直し (一度だけ. ワールドごと. 1.6.0 で直した): 相手から誘われて, あなたが別の日時を返し, 相手が応じて決まった約束に,
+        「会おうと言ってくれた」の心当たりを記録していなかった (「約束してくれた」だけ). そのお礼に「何のお礼？」と返っていた.
+        2 日のうちに決まった, もとが相手からの誘いの約束に, 決まった時刻 (made) で足す. 足した数を返す."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("appoint_invite"):
+            return 0
+        done["appoint_invite"] = now
+        n = 0
+        for x in self.appoint.all():
+            if x.get("by") != "her" or x.get("status") not in self.SETTLED or x.get("cid") not in self.chars:
+                continue
+            t = float(x.get("made") or 0)
+            if not 0 <= now - t < 2 * manners_mod.FAVOR_SPAN:
+                continue
+            st = self.state(x["cid"])
+            if any(f["what"] == "invite" and abs(f["t"] - t) < 3600 for f in st.get("favors") or []):
+                continue
+            st.setdefault("favors", []).append({"t": t, "what": "invite", "thanked": 0})
+            st["favors"] = sorted(st["favors"], key=lambda f: f["t"])[-12:]
+            self.save_state(x["cid"])
+            n += 1
+        self.life.save_player()
+        if n:
+            self.trace.add("fix", "誘われて決まった約束に, 会おうと言ってくれたの心当たりを足した", None, now, n=n)
         return n
 
     def task_marks_comp(self, now=None):
