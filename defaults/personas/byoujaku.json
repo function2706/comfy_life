@@ -2688,6 +2688,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……うん。ちょっと心細かっただけだから、大丈夫』"
+  ],
+  "go_home.part_hold": [
+   "もう帰るの……？ もう少しだけ、一緒にいたいな"
+  ],
+  "go_home.part_insist": [
+   "……うん、そうだね。無理しちゃいけないもんね"
+  ],
+  "leave_visit.part_reluctant": [
+   "もう帰っちゃうんだ。……今日は来てくれて、ありがとう"
+  ],
+  "leave_visit.part_hold": [
+   "もう少しだけ、いてくれないかな。{call}がいると、落ち着くの"
+  ],
+  "leave_visit.part_insist": [
+   "……うん、ごめんね、引き止めて。また来てくれる？"
+  ],
+  "see_off.part_reluctant": [
+   "そろそろだね。……今日は呼んでくれて、ありがとう"
+  ],
+  "see_off.part_hold": [
+   "もう少しだけ、ここにいてもいい？ まだ帰りたくなくて"
+  ],
+  "see_off.part_insist": [
+   "……うん。わがまま言ってごめんね。送ってくれて、ありがとう"
   ]
  }
 }

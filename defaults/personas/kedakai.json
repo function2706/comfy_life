@@ -2649,6 +2649,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……そう。用もないのに送った{fp}が、浅はかだったわ』"
+  ],
+  "go_home.part_hold": [
+   "もう帰るつもり？ もう少し付き合いなさい"
+  ],
+  "go_home.part_insist": [
+   "……仕方ないわね。今日はこれで許してあげる"
+  ],
+  "leave_visit.part_reluctant": [
+   "もう帰るの。……そう。気をつけて帰りなさい"
+  ],
+  "leave_visit.part_hold": [
+   "もう少しいなさい。お茶を淹れ直すから"
+  ],
+  "leave_visit.part_insist": [
+   "……わかったわ。引き止めて悪かったわね。また来なさい"
+  ],
+  "see_off.part_reluctant": [
+   "そろそろね。今日は招いてくれて、感謝しているわ"
+  ],
+  "see_off.part_hold": [
+   "もう少しここにいさせなさい。まだ帰る気分ではないの"
+  ],
+  "see_off.part_insist": [
+   "……そう。送ってくれるのね。ありがとう"
   ]
  }
 }

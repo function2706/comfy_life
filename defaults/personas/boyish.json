@@ -2657,6 +2657,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……そっか。ちょっと声かけたかっただけなんだけどな』"
+  ],
+  "go_home.part_hold": [
+   "え、もう帰んの？ もうちょっとどっか寄ってこうよ"
+  ],
+  "go_home.part_insist": [
+   "……ま、いっか。今日はここまでね"
+  ],
+  "leave_visit.part_reluctant": [
+   "もう帰るんだ。……ん、気をつけて"
+  ],
+  "leave_visit.part_hold": [
+   "まだいいじゃん。もうちょっといなよ"
+  ],
+  "leave_visit.part_insist": [
+   "わかった、わかった。引き止めて悪かったよ。また来なよ"
+  ],
+  "see_off.part_reluctant": [
+   "そっか、そろそろか。今日はありがとね"
+  ],
+  "see_off.part_hold": [
+   "もうちょっとだけいさせてよ。まだ帰りたくないんだよね"
+  ],
+  "see_off.part_insist": [
+   "……ん、わかった。送ってくれてありがと"
   ]
  }
 }

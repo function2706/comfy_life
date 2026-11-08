@@ -3111,6 +3111,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……今日は、ちょっと本気で話したかったんだけどな』"
+  ],
+  "go_home.part_hold": [
+   "え、もう帰るの？ {fp}と一緒じゃ物足りなかった？ もうちょっと付き合ってよ"
+  ],
+  "go_home.part_insist": [
+   "……はいはい。今日は解放してあげる"
+  ],
+  "leave_visit.part_reluctant": [
+   "もう帰るんだ。……ふーん。ま、気をつけて帰りなよ"
+  ],
+  "leave_visit.part_hold": [
+   "まだいいでしょ。もうちょっと遊んでいきなよ"
+  ],
+  "leave_visit.part_insist": [
+   "わかったわかった。引き止めてごめんね。また来てね"
+  ],
+  "see_off.part_reluctant": [
+   "そろそろかぁ。今日はけっこう楽しかったよ"
+  ],
+  "see_off.part_hold": [
+   "もうちょっとだけいさせて。まだ帰る気分じゃないんだよね"
+  ],
+  "see_off.part_insist": [
+   "……しょうがないなぁ。送ってくれてありがと"
   ]
  }
 }

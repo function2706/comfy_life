@@ -2651,6 +2651,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……わかった。一人で寝る』"
+  ],
+  "go_home.part_hold": [
+   "……もう？ もう少し、いいでしょ"
+  ],
+  "go_home.part_insist": [
+   "……わかった。帰る"
+  ],
+  "leave_visit.part_reluctant": [
+   "……帰るの。そう。気をつけて"
+  ],
+  "leave_visit.part_hold": [
+   "……もう少し、いれば"
+  ],
+  "leave_visit.part_insist": [
+   "……わかった。引き止めて、悪かった"
+  ],
+  "see_off.part_reluctant": [
+   "……そうね。今日は、ありがと"
+  ],
+  "see_off.part_hold": [
+   "……もう少し、ここにいたい"
+  ],
+  "see_off.part_insist": [
+   "……わかった。送ってくれて、ありがと"
   ]
  }
 }

@@ -2621,6 +2621,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……そっか。部屋がまた、少し広くなった』"
+  ],
+  "go_home.part_hold": [
+   "もう帰るの？ まだ、ここの空気を吸っていたいな"
+  ],
+  "go_home.part_insist": [
+   "……うん。今日はここで、おしまいにする"
+  ],
+  "leave_visit.part_reluctant": [
+   "帰っちゃうんだ。……{call}がいた場所、まだあったかい"
+  ],
+  "leave_visit.part_hold": [
+   "もう少しいて。時計、まだ急いでないよ"
+  ],
+  "leave_visit.part_insist": [
+   "……わかった。引き止めて、ごめんね。またおいで"
+  ],
+  "see_off.part_reluctant": [
+   "そろそろ帰る時間なんだね。……今日は、ありがとう"
+  ],
+  "see_off.part_hold": [
+   "もう少しだけ、ここにいたい。この部屋、居心地がいいの"
+  ],
+  "see_off.part_insist": [
+   "……うん。帰る道、送ってくれてありがとう"
   ]
  }
 }

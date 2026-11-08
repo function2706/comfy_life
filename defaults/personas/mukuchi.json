@@ -2663,6 +2663,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……少し、寂しかっただけ。……寝る』"
+  ],
+  "go_home.part_hold": [
+   "……もう少し。一緒に、いたい"
+  ],
+  "go_home.part_insist": [
+   "……わかった"
+  ],
+  "leave_visit.part_reluctant": [
+   "……帰るの。……気をつけて"
+  ],
+  "leave_visit.part_hold": [
+   "……もう少し、いて"
+  ],
+  "leave_visit.part_insist": [
+   "……ごめん。……また、来て"
+  ],
+  "see_off.part_reluctant": [
+   "……うん。今日は、ありがと"
+  ],
+  "see_off.part_hold": [
+   "……もう少し、ここに、いたい"
+  ],
+  "see_off.part_insist": [
+   "……わかった。……ありがと"
   ]
  }
 }

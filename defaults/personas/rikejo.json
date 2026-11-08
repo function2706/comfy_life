@@ -2613,6 +2613,30 @@
   ],
   "msgr.why.lonely.bad": [
    "📱『……理由のない連絡は、迷惑だったかな』"
+  ],
+  "go_home.part_hold": [
+   "もう解散？ 時間はまだあるし、もう少し一緒にいたい"
+  ],
+  "go_home.part_insist": [
+   "……わかった。今日はここまでにする"
+  ],
+  "leave_visit.part_reluctant": [
+   "帰るんだ。……気をつけて"
+  ],
+  "leave_visit.part_hold": [
+   "もう少しいて。まだ話の途中だし"
+  ],
+  "leave_visit.part_insist": [
+   "わかった。引き止めてごめん。また来て"
+  ],
+  "see_off.part_reluctant": [
+   "そろそろだね。今日はありがとう、楽しかった"
+  ],
+  "see_off.part_hold": [
+   "もう少しここにいてもいい？ まだ帰りたくない"
+  ],
+  "see_off.part_insist": [
+   "……そうだね、遅くなるし。送ってくれてありがとう"
   ]
  }
 }
