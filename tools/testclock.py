@@ -72,6 +72,6 @@ def landed(app, r, cid=None):
         return r
     st.pop("msg_pending", None)
     m = pend["meta"]
-    e2 = app.presence.reply_land(app.char(cid), st, m["ap"], m["choice"], _t.time())
+    e2 = app.presence.reply_land(app.char(cid), st, m["ap"], m["choice"], _t.time(), why=m.get("why"))
     app.save_state(cid)
     return {"entry": e2, "job": None}

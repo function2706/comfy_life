@@ -274,7 +274,13 @@ class Presence:
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
-        e = self._entry(char, st, now, a, "call", a.get("text", ""), {}, a, gen=a.get("generate", True) and not a.get("apart"))
+        why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
+        if why:
+            st["approach"]["why"] = why
+            self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
+                               energy=st["params"].get("energy"), mood=st["params"].get("mood"), loneliness=st["params"].get("loneliness"))
+        e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else a.get("text", ""), {}, a,
+                        gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
             self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now)
             told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
@@ -397,23 +403,24 @@ class Presence:
         まだスマホを見ていればすぐ, 置いていれば数分〜. 寝ている・手が離せないなら, そのあと). 以前は返信した瞬間に返ってきていた.
         届いたとき (engine._chat_reply → reply_land) に, 受け取り方 (good / neutral / bad) と返しが決まる.
         auto: 画面を閉じていた間の自動の返事 (その場で済ませる)."""
-        opts = [o["id"] for o in msgreply.options(a["id"])]
-        kind = choice if choice in opts else opts[0]
         ap = st.get("approach") or {}
+        why = ap.get("why")
+        opts = [o["id"] for o in msgreply.options(a["id"], why)]
+        kind = choice if choice in opts else opts[0]
         st["approach"] = None
         self.touch(now)
         st["last_interaction"] = now
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         chat = self.app.chat
-        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind), "・自動" if auto else ""), kind="approach", t=now)
+        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind, why), "・自動" if auto else ""), kind="approach", t=now)
         if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
-            return self.reply_land(char, st, a["id"], kind, now, auto=auto)
+            return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why)
         app = self.app
         d = datetime.fromtimestamp(now)
         scene = app.scene_at(char, st, d)
         delay, quick, _ = app.reply_delay(char, st, now, scene, app.context(char, st, d, scene))
         st["msg_pending"] = {"aid": "_ap_reply", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "ap_reply",
-                             "quick": quick, "meta": {"ap": a["id"], "choice": kind, "waited": now - float(ap.get("t", now))}}
+                             "quick": quick, "meta": {"ap": a["id"], "choice": kind, "why": why, "waited": now - float(ap.get("t", now))}}
         app.trace.add("msg", "働きかけに返事: 返しの予定を決めた", char["id"], now, ap=a["id"], choice=kind, due_min=delay / 60.0,
                       quick=quick, waited_min=(now - float(ap.get("t", now))) / 60.0)
         e = self._entry(char, st, now, a, "sent", "（📱 %sに返信した）" % char.get("name", ""), {}, None, gen=False)
@@ -422,12 +429,12 @@ class Presence:
         app.save_state(char["id"])
         return e
 
-    def reply_land(self, char, st, aid, kind, now, auto=False):
+    def reply_land(self, char, st, aid, kind, now, auto=False, why=None):
         """働きかけへのあなたの返事を, 相手が読んだ: 受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
         a = self.find(aid) or {"id": aid}
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
-        res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15)     # 自動の返事は, 相手の様子を読み違えやすい
+        res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15, why=why)     # 自動の返事は, 相手の様子を読み違えやすい
         self.app.attach.move(char, st, "dependence", 0.4, "送ったメッセージに返事が来た", now)
         if res == "good":
             eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
@@ -449,6 +456,8 @@ class Presence:
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         key = "msgr.%s.%s" % (a["id"] if a["id"] in msgreply.AP_REPLY else kind, res)
         text = self.app.persona_text(char, key) or msgreply.LINES[key]
+        if res == "bad" and why in msgreply.WHY_BAD:          # よくなかった: 理由をにじませる (次から読めるように)
+            text = self.app.persona_text(char, "msgr.why.%s.bad" % why) or msgreply.WHY_BAD[why]
         e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
         e["reply"] = {"kind": kind, "result": res}
         chat = self.app.chat
@@ -486,5 +495,5 @@ class Presence:
         return {"id": ap["id"], "entry": ap.get("entry"), "until": ap["until"], "label": a.get("label", ""),
                 "icon": a.get("icon", "💬"), "apart": bool(a.get("apart")),
                 "accept": (a.get("accept") or {}).get("label") or "うん", "later": (a.get("later") or {}).get("label") or "あとでね",
-                "choices": msgreply.options(ap["id"]) if a.get("apart") else None}
+                "choices": msgreply.options(ap["id"], ap.get("why")) if a.get("apart") else None}
 

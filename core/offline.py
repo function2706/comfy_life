@@ -689,7 +689,7 @@ class Offline:
             a = app.presence.find(st["approach"]["id"]) or {}
             if pol and a.get("apart"):
                 from .msgreply import options
-                ids = [o["id"] for o in options(a["id"])]
+                ids = [o["id"] for o in options(a["id"], st["approach"].get("why"))]
                 choice = pol if pol in ids else ids[0]
                 rt = min(t1 - 30, sent + random.uniform(5, 40) * 60)
                 re_ = app.presence._reply(char, st, a, choice, rt, auto=True)

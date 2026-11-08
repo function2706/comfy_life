@@ -9,6 +9,47 @@
 """
 import random
 
+# 「話そう」(msg_chat) の理由 (1.6.0): 相手のいまの状態から決めて, 誘いの文に出す (どの返事が合うかの手がかり).
+# 以前は理由が書かれておらず, どれが効くかは画面に出ない性格の好みと揺らぎで決まって, 当てもののようになっていた.
+WHY_AIDS = ("msg_chat",)
+WHY_LABEL = {"bored": "退屈", "tired": "疲れている", "happy": "いいことがあった", "lonely": "寂しい"}
+WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理由> があればそちら)
+    "bored": "📱『{call}、暇すぎて……。いま何してます？』",
+    "tired": "📱『今日ちょっと疲れちゃって。……少しだけ話せます？』",
+    "happy": "📱『{call}、ちょっと聞いてほしいことがあって！』",
+    "lonely": "📱『なんとなく、{call}と話したくなって』",
+}
+WHY_OPTIONS = {
+    "bored": [("cheerful", "「いいよ、話そう」と返す"), ("expand", "「何して暇つぶしてたの？」と聞き返す"),
+              ("tease", "「暇人だなぁ」とからかう"), ("curt", "「ちょっと忙しい」とだけ返す")],
+    "tired": [("worry", "「お疲れさま。何かあった？」と返す"), ("cheerful", "「いいよ、気晴らしになるなら」と返す"),
+              ("tease", "「もうバテたの？」とからかう"), ("curt", "「いまはちょっと無理」とだけ返す")],
+    "happy": [("expand", "「なになに？ 聞かせて」と返す"), ("cheerful", "「お、ご機嫌だね」と返す"),
+              ("tease", "「どうせ大したことないんでしょ」とからかう"), ("curt", "「あとでね」とだけ返す")],
+    "lonely": [("cheerful", "「うん、話そう」と返す"), ("worry", "「どうしたの？ 何かあった？」と返す"),
+               ("expand", "「今日はどんな一日だった？」と聞き返す"), ("curt", "「眠いからまた今度」とだけ返す")],
+}
+WHY_FIT = {"bored": {"cheerful": 6, "expand": 6, "tease": 4, "curt": -12},
+           "tired": {"worry": 10, "cheerful": 2, "tease": -20, "curt": -6},
+           "happy": {"expand": 10, "cheerful": 6, "tease": -20, "curt": -10},
+           "lonely": {"cheerful": 8, "worry": 6, "expand": 6, "curt": -16, "tease": -6}}
+# よくなかったときの返し: 理由をにじませる (次から読めるように. 性格プリセットの msgr.why.<理由>.bad があればそちら)
+WHY_BAD = {"bored": "📱『……そんなに忙しいなら、いいです』",
+           "tired": "📱『……今日はちょっと、そういう気分じゃなくて。疲れてて』",
+           "happy": "📱『……せっかく話したかったのに』",
+           "lonely": "📱『……そっか。ごめんなさい、急に』"}
+
+
+def pick_why(char, st):
+    """いまの状態から「話そう」の理由を決める (いちばん当てはまるものを, 少し揺らして)."""
+    p = st["params"]
+    sc = {"bored": (p.get("boredom", 30) - 40) / 30.0,
+          "tired": max((45 - p.get("energy", 60)) / 25.0, (p.get("stress", 20) - 55) / 25.0),
+          "happy": (p.get("mood", 50) - 62) / 18.0,
+          "lonely": (p.get("loneliness", 30) - 45) / 25.0}
+    return max(sc, key=lambda k: sc[k] + random.uniform(0, 0.35))
+
+
 KINDS = {"cheerful": "明るく乗る", "expand": "話を広げる", "worry": "心配する", "tease": "からかう", "curt": "素っ気なく"}
 # メッセージごとの選択肢と, あなたの返事 (トークに残る要約)
 OPTIONS = {
@@ -81,28 +122,38 @@ BAD_TELL = {"cheerful": "{call}の返事が軽かった", "expand": "{call}に�
             "tease": "{call}にからかわれた", "curt": "{call}の返事が素っ気なかった"}
 
 
-def options(aid):
-    return [{"id": k, "label": label} for k, label in OPTIONS.get(aid, DEFAULT_OPTIONS)]
+def _opts(aid, why=None):
+    return WHY_OPTIONS[why] if why in WHY_OPTIONS and aid in WHY_AIDS else OPTIONS.get(aid, DEFAULT_OPTIONS)
 
 
-def label(aid, kind):
-    return dict(OPTIONS.get(aid, DEFAULT_OPTIONS)).get(kind, KINDS.get(kind, kind))
+def options(aid, why=None):
+    return [{"id": k, "label": label} for k, label in _opts(aid, why)]
 
 
-def said(aid, kind):
+def label(aid, kind, why=None):
+    return dict(_opts(aid, why)).get(kind, KINDS.get(kind, kind))
+
+
+def said(aid, kind, why=None):
     """トークに残す, あなたの返事の要約 (過去形)."""
-    t = label(aid, kind)
+    t = label(aid, kind, why)
     for a, b in (("返す", "返した"), ("からかう", "からかった"), ("聞き返す", "聞き返した")):
         if t.endswith(a):
             return t[:-len(a)] + b
     return t
 
 
-def judge(char, st, aid, kind, skill_mult=1.0, rng=random, noise=15):
-    """返事がどう受け取られるか: good / neutral / bad (揺らぎあり)."""
+def judge(char, st, aid, kind, skill_mult=1.0, rng=random, noise=15, why=None):
+    """返事がどう受け取られるか: good / neutral / bad (揺らぎあり).
+    why (「話そう」の理由) があるときは, 合い方を主に理由で決める (誘いの文に出ているので読める). 性格の好みは半分に弱め, 揺らぎも小さく."""
     p = st["params"]
     taste = TASTE.get(char.get("persona_id") or "", {})
-    score = KIND_BASE[kind] + FIT.get(aid, {}).get(kind, 0) + taste.get(kind, 0) \
+    fit = FIT.get(aid, {}).get(kind, 0)
+    if why in WHY_FIT and aid in WHY_AIDS:
+        fit = WHY_FIT[why].get(kind, 0)
+        taste = {k: v * 0.5 for k, v in taste.items()}
+        noise = min(noise, 8)
+    score = KIND_BASE[kind] + fit + taste.get(kind, 0) \
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill_mult - 1.0) \
         + rng.uniform(-noise, noise)
     if kind == "tease":                    # からかいは仲が深いほど通じる

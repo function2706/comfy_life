@@ -73,6 +73,11 @@ def all_keys(actions, minigames, approaches=()):
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}
+    from .msgreply import WHY_TEXT, WHY_BAD, WHY_LABEL      # 向こうからの「話そう」の理由ごとの誘い / 返事がよくなかったときの返し
+    for why, label in WHY_LABEL.items():
+        out["ap.msg_chat.call_" + why] = {"scene": "働きかけ「メッセージが届いた」/ 話そう (理由: %s)" % label, "when": "", "text": WHY_TEXT[why]}
+        out["msgr.why.%s.bad" % why] = {"scene": "メッセージの返事 / 話そう (理由: %s) への返事がよくなかった" % label, "when": "",
+                                       "text": WHY_BAD[why]}
     from .moneytalk import LINES as MT_LINES, SCENE_LABEL as MT_SCENES     # お金の使い方への口出し・どっちが出すか
     for k, t in MT_LINES.items():
         out[k] = {"scene": "お金のこと / %s" % MT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
