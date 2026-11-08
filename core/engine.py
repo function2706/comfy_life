@@ -239,6 +239,7 @@ class App:
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
         self.appt_travel_comp()                        # 約束の場所で会ったのに, 家からの移動が入っていた分 (運賃を返す・解散したデートを戻す. 一度だけ)
         self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
+        self.appoint_favor_comp()                      # 応じて決まった約束にお礼の心当たりが無かった分 (2 日のうち. 一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
         if rt or rc or paid:
@@ -3746,6 +3747,34 @@ class App:
         return used, p0 + w / 2 >= SIDE_JOB_TIRED_MIN
 
     TASK_MARKS_UNTIL = time.mktime((2026, 11, 8, 0, 0, 0, 0, 0, -1))
+
+    def appoint_favor_comp(self, now=None):
+        """不具合の直し (一度だけ. ワールドごと. 1.6.0 で直した): 相手が出し返した日時・相手からの誘いに, あなたが応じて決まった約束に,
+        お礼の心当たり (約束してくれた / 会おうと言ってくれた) を記録していなかった. 直後にお礼を言うと「え、何が？」と返っていた.
+        2 日のうちにそうして決まった約束 (スマホの「（…の約束をした）」) に, その時刻で心当たりを足す (お礼が効くのは, いつもどおり 1 日のうち).
+        足した数を返す."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("appoint_favor"):
+            return 0
+        done["appoint_favor"] = now
+        n = 0
+        for cid in list(self.chars):
+            st = self.state(cid)
+            mine = [it for it in self.chat.load(cid)["items"] if it.get("who") == "me" and it.get("kind") == "appoint"
+                    and str(it.get("text", "")).endswith("の約束をした）") and 0 <= now - it["t"] < 2 * manners_mod.FAVOR_SPAN]
+            for it in mine:
+                if any(f["what"] == "appoint" and abs(f["t"] - it["t"]) < 600 for f in st.get("favors") or []):
+                    continue
+                st.setdefault("favors", []).append({"t": it["t"], "what": "appoint", "thanked": 0})
+                st["favors"] = sorted(st["favors"], key=lambda f: f["t"])[-12:]
+                n += 1
+            if mine:
+                self.save_state(cid)
+        self.life.save_player()
+        if n:
+            self.trace.add("fix", "応じて決まった約束に, お礼の心当たりを足した", None, now, n=n)
+        return n
 
     def task_marks_comp(self, now=None):
         """不具合のお詫び (一度だけ. ワールドごと. TASK_MARKS_UNTIL まで): ピクロスの×印が読み込み直すと消えて, 続けられなくなった分.

@@ -463,6 +463,11 @@ class Appoint:
                 app.bonds.touch(st, now)
                 app.chat.add(x["cid"], "me", "（%s、%sの約束をした）" % (fmt_when(x["t"], now), app.places.label(x["place"])),
                              kind="appoint", t=now)
+                # お礼の心当たり: 相手が出し返した日時・相手からの誘いに応じて決まった約束も, 相手が約束してくれたこと
+                # (以前は記録しておらず, 直後に「約束してくれた」とお礼を言うと「え、何が？」と返っていた)
+                app.manners.favor(st, "appoint", now)
+                if x.get("by") == "her":
+                    app.manners.favor(st, "invite", now)          # 向こうから会おうと言ってくれた
             else:
                 x["status"] = "refused"
                 eff = {"mood": -2}

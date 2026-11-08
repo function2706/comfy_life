@@ -176,7 +176,9 @@ def main():
             A.counter(x["id"], time.time() + 3 * 86400 + 3600 * (i % 5))
             assert x["status"] == "asked" and x["rounds"] == 1 and st["msg_pending"]["kind"] == "appoint"
             busy = i % 2 == 0
-            app.scheduled_scene = (lambda c, d: dict(sched(c, d), away=True, busy=False, asleep=False)) if busy else free
+            # 予定が合わない: 誘った時刻だけ埋まっている (いつでも埋まっていると, 別の日時の候補が見つからず, 返せるのは
+            # 気が乗らないときだけになって, 日付しだいで 1 度も返ってこないことがあった)
+            app.scheduled_scene = (lambda c, d, t=x["t"]: dict(sched(c, d), away=abs(d.timestamp() - t) < 1800, busy=False, asleep=False))                 if busy else free
             app.set_params({"affection": 60, "mood": 60}, cid)
             key, _, extra = A.reply(char, st, st["msg_pending"], time.time(), app.context(char, st, datetime.now()))
             outcomes[(busy, key)] += 1
