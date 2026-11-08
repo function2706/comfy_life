@@ -1370,10 +1370,12 @@ function renderEncounter() {
 
 /* ---- スマホ: 外出中・仕事中・一人の時間・誰かといるときでも, そばにいない相手にメッセージ・電話できる (トーク一覧から).
    メッセージの返信は相手の状況しだいで遅れる/来ない. 電話は出ないことも (あとで折り返しが来ることも) */
+// 離席の画面のスマホ: 連絡先がいなくても (カレンダー・買うものリストは使える)
 function phonePanel() {
-  if (!(S.view.contacts || []).length) return '';
+  const n = ((S.view.items || {}).shop_list || []).length;
   return h('div', { class: 'phone-panel' }, h('button', { class: 'btn small', onclick: () => openChat() },
-    `📱 スマホを見る${S.view.chat_unread ? `（未読 ${S.view.chat_unread}）` : ''}`));
+    `📱 スマホを見る${S.view.chat_unread ? `（未読 ${S.view.chat_unread}）` : ''}`),
+    h('button', { class: 'btn small', style: 'margin-left:6px', onclick: () => openShopList() }, `📝 買うものリスト${n ? `（${n}品）` : ''}`));
 }
 
 /* ---- 持ち物: 持っている品物・買うものリスト・品物の一覧 (どの店で売っているか) */
@@ -1594,9 +1596,13 @@ async function drawChat(auto) {
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
     h('div', { class: 'chat-head' }, h('b', { title: '相手を選んで、メッセージか電話' }, '📱 スマホ'), h('div', { class: 'spacer' }),
-      h('button', { class: 'btn ghost small' + (S.calOn && !S.chatCid ? ' on' : ''), title: '約束・頼まれごと・予定・知っている相手の予定を月の表で',
-        onclick: () => openCal() }, '🗓 カレンダー'),
-      h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
+      h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕'),
+      h('div', { class: 'chat-tools' },
+        h('button', { class: 'btn ghost small' + (S.calOn && !S.chatCid ? ' on' : ''), title: '約束・頼まれごと・予定・知っている相手の予定を月の表で',
+          onclick: () => openCal() }, '🗓 カレンダー'),
+        // 買うものリストもスマホで (外出中・仕事中も. 以前は持ち物タブからだけで, 外では離席の画面に隠れて触れなかった)
+        h('button', { class: 'btn ghost small', title: '買うものリスト（店ごと・種類ごと）', onclick: () => openShopList() },
+          `📝 買うもの${((S.view.items || {}).shop_list || []).length ? `（${S.view.items.shop_list.length}）` : ''}`))),
     list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; S.calOn = false; S.apForm = null; drawChat(); } },
       avatar(c.face, c.name),
       h('div', { class: 'chat-row-main' },
