@@ -2640,6 +2640,30 @@
   ],
   "outing.move_no_fickle": [
    "また変えるのか。行き先は一度決めたら通そう。最初のところだ"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、手持ち無沙汰でな。少し話さないか』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日は少し疲れた。……少しだけ、話せるか』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いてほしいことがある。いい話だ』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『用はないんだが、{call}と話したくなってな』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……そうか、忙しいなら仕方ない』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はそういうのは、こたえる。疲れてるんだ』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……そうか。話すのは、また今度だな』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……いや、いい。少し誰かと話したかっただけだ』"
   ]
  }
 }

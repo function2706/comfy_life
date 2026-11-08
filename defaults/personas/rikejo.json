@@ -2589,6 +2589,30 @@
   ],
   "outing.move_no_fickle": [
    "変更、何回目？ 移動時間ばかり増えてる。最初の目的地で確定にしよう"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、暇を持て余してる。いま何してる？』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日は消耗が激しかった。……少しだけ話せる？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いてほしいことがある。いい結果が出たの』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『理由はないんだけど、{call}と話したくなった』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しいなら仕方ない。暇だったのは{fp}だけみたい』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はその手の冗談、受け止めきれない。疲れてるの』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……せっかく話そうと思ったのに。報告は保留にする』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……理由のない連絡は、迷惑だったかな』"
   ]
  }
 }

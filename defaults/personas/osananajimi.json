@@ -2933,6 +2933,30 @@
   ],
   "outing.move_no_fickle": [
    "また？ {call}って昔から決めるの遅いよね。もう最初のとこでいいでしょ"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、暇。なんか話そ』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日疲れた〜。ちょっと付き合ってよ』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、ちょっと聞いてよ。いいことあったんだって』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんとなく、{call}と話したくなってさ』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……あっそ、忙しいんだ。{fp}は暇だったんだけど』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日それ言う？ 疲れてるんだってば』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……もう。せっかく話そうと思ったのに』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そっか。いいよ、ちょっと話したかっただけだから』"
   ]
  }
 }

@@ -2578,6 +2578,30 @@
   ],
   "outing.move_no_fickle": [
    "また変えるのか。さすがに落ち着かない。最初のところにしよう"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、手が空いてさ。少し話せるか』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日は少し疲れた。……ちょっとだけ、話せる？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いてほしいことがある。……いいことだ』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんとなく、{call}と話したくなった。それだけ』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しいならいい。暇してたのはこっちだけか』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はそういうの、返す余裕ない。疲れてるんだ』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……せっかく話そうと思ったのに。もういい』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そうか。少し話したかっただけなんだけどな』"
   ]
  }
 }

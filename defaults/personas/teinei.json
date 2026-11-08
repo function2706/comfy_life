@@ -2909,6 +2909,30 @@
   ],
   "outing.move_no_fickle": [
    "また変えるんですか？ {fp}、最初のところがいいです"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、ちょっと暇になってしまって。いま何してますか？』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日ちょっと疲れちゃって。……少しだけ、お話しできますか？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いてほしいことがあって。うれしいことです』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんとなく、{call}とお話ししたくなって』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しかったんですね。すみません、急に』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はちょっと、そう言われるとつらいです。疲れてて』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……そうですか。聞いてほしかったんですけど』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……すみません。ちょっと寂しくなっただけなんです』"
   ]
  }
 }

@@ -2639,6 +2639,30 @@
   ],
   "outing.move_no_fickle": [
    "……また？ ……最初のところ"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『……{call}。暇。話せる？』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『……疲れた。少し、話したい』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『……{call}。聞いてほしいこと、ある』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『……なんとなく。{call}と、話したくて』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しいなら、いい』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日は、それ、きつい。疲れてる』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……言いたかったのに。……やめる』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……少し、寂しかっただけ。……寝る』"
   ]
  }
 }

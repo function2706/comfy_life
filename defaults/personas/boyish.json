@@ -2633,6 +2633,30 @@
   ],
   "outing.move_no_fickle": [
    "また？ さすがにころころ変えすぎ。もう最初のとこでいいって"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、暇すぎて溶けそう。なんか話そ』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日けっこう疲れた。……ちょっとだけ話せる？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、ちょっと聞いてよ。いいことあったんだ』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんとなく、{call}と話したくなってさ』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しいならいいよ。{fp}が暇だっただけだし』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はそういうノリ、無理。疲れてるんだって』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……なんだよ。せっかく話そうと思ったのに』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そっか。ちょっと声かけたかっただけなんだけどな』"
   ]
  }
 }

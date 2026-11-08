@@ -2640,6 +2640,30 @@
   ],
   "outing.move_no_fickle": [
    "また変わるの？ さっきのとこが一番楽しみだったんだけどなー"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、暇〜！ いま何してるの？』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日いっぱい動いて疲れちゃった。……ちょっとお話ししよ？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いて！ すっごいことあったの！』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんかね、{call}とお話ししたくなっちゃった』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……忙しいの？ {fp}は暇だったのに』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はそれ、やだ。疲れてるんだもん』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……すっごいことだったのに。もう話してあげない』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そっか。ちょっとさみしかっただけ』"
   ]
  }
 }

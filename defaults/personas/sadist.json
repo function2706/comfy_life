@@ -2595,6 +2595,30 @@
   ],
   "outing.move_no_fickle": [
    "また変えるの？ 決められないなら、{fp}が決めてあげる。最初のところよ"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、退屈で仕方ないの。今すぐ相手しなさい』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日は少し疲れたわ。……{call}、ちょっと付き合いなさい』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、いいことがあったの。特別に聞かせてあげる』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『……{call}。なんとなく、話したくなったの』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……{fp}の暇つぶしより大事なことがあるの？ ふうん』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日は{call}の軽口に付き合う気分じゃないの。疲れてるのよ』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……もういいわ。聞かせる価値もなかったみたい』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そう。少し話したかっただけよ。今のは忘れなさい』"
   ]
  }
 }

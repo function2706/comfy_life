@@ -2597,6 +2597,30 @@
   ],
   "outing.move_no_fickle": [
    "行き先がくるくる回ってる。……{fp}、最初の場所がいいな"
+  ],
+  "ap.msg_chat.call_bored": [
+   "📱『{call}、時計の針がずっと同じところにいるの。いまなにしてる？』"
+  ],
+  "ap.msg_chat.call_tired": [
+   "📱『今日は、体が少し重たいの。……ちょっとだけ、お話しできる？』"
+  ],
+  "ap.msg_chat.call_happy": [
+   "📱『{call}、聞いて。今日、いいものを見つけたの』"
+  ],
+  "ap.msg_chat.call_lonely": [
+   "📱『なんとなく、{call}の文字が見たくなって』"
+  ],
+  "msgr.why.bored.bad": [
+   "📱『……そっか。時計の針、また止まっちゃった』"
+  ],
+  "msgr.why.tired.bad": [
+   "📱『……今日はね、そういう言葉が重たいの。疲れてるから』"
+  ],
+  "msgr.why.happy.bad": [
+   "📱『……見つけたもの、しまっておくね』"
+  ],
+  "msgr.why.lonely.bad": [
+   "📱『……そっか。部屋がまた、少し広くなった』"
   ]
  }
 }
