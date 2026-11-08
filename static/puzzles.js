@@ -974,7 +974,16 @@ function renderTask(result) {
   const extra = v.kind === 'picross' ? 1 : 0;
   // 盤に収まるマスの大きさ. 押しにくいほど小さい (30px 未満) ときは「拡大」で大きくして, 盤を縦横にずらして遊べる
   const room = ($('#task-body').clientWidth || Math.min(560, window.innerWidth * 0.96)) - 40;      // 作業画面の中の実際の幅
-  const fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
+  let fit = Math.max(18, Math.min(v.kind === 'slide' || v.kind === 'g2048' ? 64 : v.kind === 'slither' ? 48 : 34, room / (n + extra * 2.2 + (v.kind === 'slither' ? 0.8 : 0))));     // 測れない (表示の途中など) ときも小さくしすぎない
+  if (v.kind === 'picross') {
+    // 横のヒントの欄は中身の長さで広がる (難しいほど数字が多い). 2.2 マス分と決め打ちにすると, 難では盤がはみ出して左右が切れていた.
+    // いちばん長いヒントの字数から実際の幅を見積もり, 盤 (マス + 1px のすき間) と合わせて収まる大きさにする
+    const clueW = (c) => {
+      const f = Math.min(15, Math.max(12, c * 0.48));          // .pz-clue の字の大きさ (style.css と同じ)
+      return 10 + Math.max(...v.rows.map((cl) => cl.reduce((a, x) => a + String(x).length, 0) * 0.64 * f + (cl.length - 1) * 0.3 * f));
+    };
+    for (fit = 34; fit > 18 && v.n * fit + clueW(fit) + v.n + 3 > room; fit -= 0.5);
+  }
   const small = fit < 30 && v.kind !== 'typing' && !SOL_KINDS.includes(v.kind);
   const host = $('#task-dlg') || document.querySelector('.lab');        // トランプは本体と単独版で同じ広さに
   if (host) host.classList.toggle('sol-wide', SOL_KINDS.includes(v.kind));     // タイピング・トランプは拡大しない (大きさは盤の側で合わせる)

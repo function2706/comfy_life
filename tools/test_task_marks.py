@@ -16,6 +16,8 @@ from core import engine, puzzles, store  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)
+# お詫びには期限がある (TASK_MARKS_UNTIL). 期限を過ぎてから流すと, 起動時のお詫びが出ずに落ちていた. テストでは先に延ばす
+engine.App.TASK_MARKS_UNTIL = __import__("time").time() + 30 * 86400
 
 
 def main():

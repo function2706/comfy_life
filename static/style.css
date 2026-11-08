@@ -653,7 +653,7 @@ a.btn { color: inherit; }
 .pz-levels { gap: 6px; align-items: center; }
 .pz-stats { text-align: center; font-variant-numeric: tabular-nums; }
 .pz-title { text-align: center; font-weight: 600; margin: 6px 0; }
-.pz-wrap { display: flex; justify-content: center; overflow-x: auto; }
+.pz-wrap { display: flex; justify-content: safe center; overflow-x: auto; }     /* 収まらないときは左端から (中央寄せのままだと左が切れてずらせない) */
 .pz-wrap.zoom { justify-content: flex-start; overflow: auto; max-height: 62vh; border-radius: 6px; -webkit-overflow-scrolling: touch; }
 .pz-wrap.zoom .pz-grid { margin: 0 auto; }
 .pz-grid { display: grid; gap: 1px; background: var(--line); padding: 1px; border-radius: 6px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
