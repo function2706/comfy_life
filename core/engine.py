@@ -241,6 +241,7 @@ class App:
         self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
         self.appoint_favor_comp()                      # 応じて決まった約束にお礼の心当たりが無かった分 (2 日のうち. 一度だけ)
         self.appoint_invite_comp()                     # 誘われて別の日時を返して決まった約束に「会おうと言ってくれた」が無かった分 (一度だけ)
+        self.appoint_change_comp()                     # 約束の変更に応じてもらったのに「約束を変えてくれた」が無かった分 (一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
         if rt or rc or paid:
@@ -3821,6 +3822,33 @@ class App:
         self.life.save_player()
         if n:
             self.trace.add("fix", "誘われて決まった約束に, 会おうと言ってくれたの心当たりを足した", None, now, n=n)
+        return n
+
+    def appoint_change_comp(self, now=None):
+        """不具合の直し (一度だけ. ワールドごと. 1.6.0beta で直した): 決まった約束を変えたいと伝えて相手が応じたのに,
+        お礼の心当たり (約束を変えてくれた) を記録していなかった. お礼を言うと「何のお礼？」と返っていた.
+        2 日のうちの「📅 約束を変えた」に, その時刻で心当たりを足す. 足した数を返す."""
+        now = now or time.time()
+        done = self.life.player_state().setdefault("fix_comp", {})
+        if done.get("appoint_change"):
+            return 0
+        done["appoint_change"] = now
+        n = 0
+        for cid in list(self.chars):
+            st = self.state(cid)
+            got = [it for it in self.chat.load(cid)["items"] if it.get("who") == "sys" and it.get("kind") == "promise"
+                   and str(it.get("text", "")).startswith("📅 約束を変えた") and 0 <= now - it["t"] < 2 * manners_mod.FAVOR_SPAN]
+            for it in got:
+                if any(f["what"] == "change" and abs(f["t"] - it["t"]) < 600 for f in st.get("favors") or []):
+                    continue
+                st.setdefault("favors", []).append({"t": it["t"], "what": "change", "thanked": 0})
+                st["favors"] = sorted(st["favors"], key=lambda f: f["t"])[-12:]
+                n += 1
+            if got:
+                self.save_state(cid)
+        self.life.save_player()
+        if n:
+            self.trace.add("fix", "変更に応じてもらった約束に, お礼の心当たりを足した", None, now, n=n)
         return n
 
     def task_marks_comp(self, now=None):

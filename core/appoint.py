@@ -361,6 +361,8 @@ class Appoint:
         self.app.manners.favor(st, "appoint", now)
         if x.get("by") == "her":
             self.app.manners.favor(st, "invite", now)
+        if x.pop("moving", None):                      # こちらが変えたいと言って, 相手が出し返した時間で決まった: 変えてくれた
+            self.app.manners.favor(st, "change", now)
 
     def counter_chance(self, char, p, busy):
         """断るときに, 別の日時 (・行き先) を返してくれるか. 予定が合わないだけなら返しやすく, 気が乗らないだけなら返しにくい.
@@ -849,6 +851,7 @@ class Appoint:
             x.setdefault("plan", {})["cancel_checked"] = False
         self.save()
         app.trace.add("appoint", "約束を変えた", x["cid"], now, appoint=x["id"], old_t=old_t, new_t=x["t"])
+        app.manners.favor(st, "change", now)            # お礼の心当たり: 渋々でも応じてくれた (もとのまま・取りやめは残さない)
         if s < 0.15:
             return ("appoint_change_glad", {"mood": 1}, extra) if content > 0.08 else ("appoint_change_fine", {}, extra)
         if s < 0.4:

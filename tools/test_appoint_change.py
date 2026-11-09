@@ -5,6 +5,7 @@
 - その時間に予定があれば, 別の時間を返すか, もとのままがいいと言う (もとの約束は残る)
 - 取りやめは伝えた時点で決まる (断れない). 受け取り方は同じように変わる. 引っかかったら, 謝れる心当たりになる
 - 約束の返事を待っている間に別のメッセージを送っても, 約束の返事は消えない
+- 応じてくれたら (渋々でも), 「約束を変えてくれた」のお礼が効く. もとのまま・取りやめでは効かない. 遡及 (一度だけ)
 (一時データ)
 
     python tools/test_appoint_change.py
@@ -201,6 +202,48 @@ def main():
             print("返事が二つ: OK |", kinds)
         else:
             print("返事が二つ: (送れなかったので飛ばした)")
+
+        # ---- 9. お礼: 応じてくれたら「約束を変えてくれた」が効く (渋々でも). もとのまま・取りやめは効かない
+        M = app.manners
+        seen = set()
+        for _ in range(200):
+            reset()
+            st["favors"] = []
+            x = mk(day_at(0, 23) if random.random() < 0.5 else day_at(4))
+            A.change(x["id"], x["t"] - 3600)
+            k = land()
+            tier = "ok" if k in GOOD or k.startswith("appoint_change_s") else "no"
+            if tier in seen and len(seen) == 2:
+                continue
+            got = M.thanks_pick(st, time.time(), "change", char)[0]
+            assert got == ("thanks" if tier == "ok" else "thanks_what"), (k, got)
+            seen.add(tier)
+            if len(seen) == 2:
+                break
+        reset()
+        st["favors"] = []
+        x = mk(day_at(4))
+        A.cancel(x["id"])
+        land()
+        assert M.thanks_pick(st, time.time(), "change", char)[0] == "thanks_what"
+        # 出し返した時間に, あなたが応じて決まった
+        reset()
+        st["favors"] = []
+        x = mk(day_at(4))
+        x.update(status="offered", moving=True, t=day_at(5))
+        A.save()
+        A.answer(x["id"], True)
+        assert M.thanks_pick(st, time.time(), "change", char)[0] == "thanks" and "moving" not in A.get(x["id"])
+        print("お礼: OK |", sorted(seen))
+
+        # ---- 10. 遡及: 2 日のうちの「約束を変えた」に心当たりを足す (一度だけ)
+        st["favors"] = []
+        C.add(cid, "sys", "📅 約束を変えた: 11/14 河川敷", kind="promise", t=time.time() - 3600)
+        C.add(cid, "sys", "📅 約束を変えた: 10/01 河川敷", kind="promise", t=time.time() - 5 * 86400)
+        app.life.player_state().get("fix_comp", {}).pop("appoint_change", None)
+        assert app.appoint_change_comp() == 1 and app.appoint_change_comp() == 0
+        assert M.thanks_pick(app.state(cid), time.time(), "change", char)[0] == "thanks"
+        print("遡及: OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("ALL OK")
