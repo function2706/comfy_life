@@ -3629,13 +3629,14 @@ class App:
                 return {"entry": e, "job": (e or {}).get("job")}
             ap = st.get("approach") or {}
             spec = (self.presence.find(ap.get("id")) or {}).get(ans) or {}
-            aid = spec.get("action")
+            aid = (ap.get("act") if ans == "accept" else None) or spec.get("action")     # 「次, あそこ行かない？」は誘われた行き先へ
             if aid:           # 応じたら, そのコマンドをする (できない状況なら, ふつうに応じたことにする)
                 try:
                     a = self.action(aid)
                     now = time.time()
                     ctx = self.context(char, st, datetime.fromtimestamp(now))
-                    if not cond.check(a.get("when", ""), ctx) or (a.get("home_only") and ctx["outing"]):
+                    move_on = ctx["outing"] and (a.get("override") or {}).get("outing")     # お出かけ中に, 次の場所へ (一緒に移る)
+                    if not cond.check(a.get("when", ""), ctx) or (a.get("home_only") and ctx["outing"] and not move_on):
                         aid = None
                 except KeyError:
                     aid = None
@@ -3646,7 +3647,11 @@ class App:
                     self.solo.finish(ll)
             e, run = self.presence.answer(char, st, ans, use_action=bool(aid), choice=choice)
         if run:
-            return self.act(run, char["id"], opts={"approach": True})
+            opts = {"approach": True}
+            ovp = self.action(run).get("override") or {}
+            if ovp.get("outing") and self.outing_now(time.time())[0] == char["id"]:     # 一緒にお出かけ中, 相手から誘った次の場所へ
+                opts.update(move_on=True, place=ovp.get("place"))                   # (誘ったのは相手なので, 応じるかの判定はしない)
+            return self.act(run, char["id"], opts=opts)
         return {"entry": e, "job": e.get("job") if e else None}
 
     def force_approach(self, aid, cid=None):

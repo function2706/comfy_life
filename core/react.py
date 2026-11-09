@@ -165,6 +165,19 @@ def answer_all_chance(app, char, st, now):
     return max(0.1, min(0.95, 0.3 + 0.45 * mame(app, char) + 0.3 * (lv - 0.5) + (st["params"].get("mood", 50) - 50) / 120.0))
 
 
+def face_choices(tone):
+    """対面で話しかけられたときの返し方 (メッセージの「返す」と同じ種類・同じ判定)."""
+    return [{"id": r[0], "label": r[1]} for r in REACTS if r[0] in kinds_for(tone)]
+
+
+def face_line(text):
+    """メッセージの返しのセリフ (📱『…』) を, 対面のセリフにする (中身は同じ)."""
+    t = (text or "").strip()
+    if t.startswith("📱『") and t.endswith("』"):
+        t = t[2:-1]
+    return t
+
+
 def said(kind):
     from .chat import KINDS
     return KINDS[kind][2] if kind in KINDS else ""

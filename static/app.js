@@ -2625,7 +2625,11 @@ function renderApproach() {
     return h('div', { class: 'ap-item' },
       h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
         h('span', { class: 'muted small', id: 'ap-rest-' + ap.cid }, `（あと${Math.ceil(rest / 60)}分）`)),
-      ap.choices        // メッセージ: トークを開いて「↩ 返す」から返す (どれが良く効くかは, 話の中身と相手しだい)
+      ap.choices && !ap.apart     // そばで話しかけられた: 返し方を選ぶ (メッセージの「返す」と同じ. どれが効くかは話の中身と相手しだい)
+        ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+          ...ap.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'reply', c.id) }, c.label)),
+          h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))
+      : ap.choices        // メッセージ: トークを開いて「↩ 返す」から返す (どれが良く効くかは, 話の中身と相手しだい)
         ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
           h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => openChat(ap.cid) }, '📱 トークを開いて返す'),
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))

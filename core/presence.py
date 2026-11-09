@@ -243,6 +243,8 @@ class Presence:
             * (1 + 0.4 * (ctx.get("dependence", 50) - 50) / 50.0) * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど構いに来る (言い争いのあとは来ない)
         if ctx.get("presence") == "busy":
             f *= 0.7 if ctx.get("loneliness", 0) >= 75 else 0.25
+        elif ctx.get("outing"):
+            f *= 2.0                 # お出かけ中 (デート): 一緒に歩いていて, 見つけたこと・疲れた・次はどこ, と話すきっかけが多い
         elif ctx.get("presence") == "here" and ctx.get("absent", 1) < 5 / 60.0:
             f *= 0.3
         return max(0.05, min(2.0, f))
@@ -268,6 +270,8 @@ class Presence:
                     continue          # あなたのメッセージを既読のまま返さなかったばかり: 気軽な話は送ってこない (とても寂しければ別)
                 if not cond.check(a.get("when", ""), ctx):
                     continue
+                if a.get("pick_place") and not self._next_places(char, st, a, ctx):
+                    continue
             cands.append(a)
         if not cands:
             self.app.trace.add("approach", "候補なし (条件・間隔)", char["id"], now, apart=apart, force=force)
@@ -277,12 +281,19 @@ class Presence:
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
+        text0 = a.get("text", "")
+        if a.get("pick_place"):          # お出かけ中「次, あそこ行かない？」: 行き先はその人の好みで (応じれば, そこへ移る)
+            nxt = self._next_places(char, st, a, ctx)
+            if nxt:
+                act = random.choices(nxt, [w for _, w in nxt])[0][0]
+                st["approach"]["act"] = act["id"]
+                text0 = text0.replace("{place}", (act.get("override") or {}).get("location") or act.get("name", ""))
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
         if why:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
                                energy=st["params"].get("energy"), mood=st["params"].get("mood"), loneliness=st["params"].get("loneliness"))
-        e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else a.get("text", ""), {}, a,
+        e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else text0, {}, a,
                         gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
             self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now, ap=a["id"], why=why)    # 何の話か (返し方の合う・外す)
@@ -296,6 +307,30 @@ class Presence:
             self.app.picked_up_phone(char, st, now)
         st["approach"]["entry"] = e["id"]
         return e
+
+    def _next_places(self, char, st, a, ctx):
+        """次に誘える行き先 [(コマンド, 重み)]: いまいる場所以外で, いま行けるところ (時間帯・好み)."""
+        app = self.app
+        here = (st.get("override") or {}).get("place")
+        out = []
+        for aid in a.get("pick_place") or []:
+            try:
+                act = app.action(aid)
+            except KeyError:
+                continue
+            ov = act.get("override") or {}
+            if ov.get("place") == here or not cond.check(act.get("when", ""), ctx):
+                continue
+            from . import places as places_mod
+            pl = ov.get("place")
+            if pl in places_mod.PLACES and not places_mod.open_state(pl, datetime.now())["open"]:     # 閉まっている所には誘わない
+                continue
+            try:
+                w = max(0.05, float(app.appoint.place_weight(char, st, ov.get("place"))))      # その人の行き先の好み (約束と同じ)
+            except (KeyError, TypeError, ValueError):
+                w = 1.0
+            out.append((act, w))
+        return out
 
     def _entry(self, char, st, now, a, ev, text, deltas, prompt_src, gen=True):
         """働きかけの記録を作る (セリフは性格プリセットの ap.<id>.<場面> があればそちら)."""
@@ -365,6 +400,8 @@ class Presence:
         a = self.find(ap["id"]) or {"id": ap["id"]}
         if a.get("apart") and ans in ("accept", "reply"):
             return self._reply(char, st, a, choice, now), None
+        if a.get("talk") and ans == "reply":          # 対面で話しかけられた: 返し方を選んで返す (メッセージと同じ判定)
+            return self._reply_face(char, st, a, choice, now), None
         out = a.get(ans) or {}
         st["approach"] = None
         self.touch(now)
@@ -375,8 +412,9 @@ class Presence:
             st["ap_quiet_until"] = now + 30 * 60
         else:
             st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
-        if ans == "accept" and out.get("action") and use_action:
-            return None, out["action"]
+        run = (ap.get("act") if ans == "accept" else None) or out.get("action")     # 「次, あそこ」は誘われた行き先のコマンド
+        if ans == "accept" and run and use_action:
+            return None, run
         mult = self.app.life.skill_mult(out["skill"]) if out.get("skill") else 1.0
         eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                for k, v in (out.get("effects") or {}).items()}
@@ -435,6 +473,47 @@ class Presence:
         e = self._entry(char, st, now, a, "sent", "（📱 %sに返信した）" % char.get("name", ""), {}, None, gen=False)
         e["sent"] = True
         app.save_log(char["id"])
+        app.save_state(char["id"])
+        return e
+
+    def _reply_face(self, char, st, a, choice, now):
+        """そばで話しかけられて, 返し方を選んで返した (1.6.0. 以前は「いいよ / あとでね」の 2 択).
+        何の話か (働きかけの talk: 話の向き) と返し方の合い方で, 受け取り方 (good / neutral / bad) が決まる (core/react.py).
+        よく効けば「応じた」ときの効き目. 相手の返しは, メッセージの返しと同じセリフを対面の言い方で."""
+        app = self.app
+        tone = a.get("talk") or "plain"
+        kind = choice if choice in [c["id"] for c in react.face_choices(tone)] else "re_more"
+        st["approach"] = None
+        self.touch(now)
+        st["last_interaction"] = now
+        st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
+        res, score = react.judge(app, char, st, tone, kind)
+        app.trace.add("approach", "そばで話しかけられて返した: %s → %s" % (kind, res), char["id"], now, ap=a["id"], tone=tone,
+                      score=round(score, 1))
+        out = a.get("accept") or {}
+        mult = app.life.skill_mult("talk")
+        if res == "good":
+            eff = {k: (float(v) * mult if float(v) * (1 if not (app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
+                   for k, v in (out.get("effects") or {}).items()}
+        else:
+            eff = dict(msgreply.EFFECT[res])
+        eff, _ = app.bonds.realize(char, st, eff, "_ap_" + a["id"], now)
+        app.bonds.touch(st, now)
+        deltas = app.apply_effects(st, app.trait_effects(char, eff))
+        app.life.train("talk", 1.0)
+        call = app.pronouns(char)[2]
+        if res == "good" and out.get("reason_good") and deltas.get("mood", 0) > 0:
+            app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", call), now, told=True,
+                                delta=deltas.get("mood", 0), action="_ap_" + a["id"])
+        if res == "bad":
+            app.life.add_reason(st, "player", "bad", react.BAD_TELL[kind].replace("{call}", call), now, told=True,
+                                delta=deltas.get("mood", 0), action="_react")
+        nori.after_choice(app, char, st, now, res)
+        key = "chat.react_%s_%s" % (kind[3:], res)
+        line = react.face_line(app.persona_text(char, key) or react.LINES[key])
+        e = self._entry(char, st, now, a, "reply", line, deltas, None, gen=False)     # ほかの対面のコマンドと同じく, 相手のセリフだけ
+        e["said"] = react.said(kind)
+        e["reply"] = {"kind": kind, "result": res}
         app.save_state(char["id"])
         return e
 
@@ -507,8 +586,9 @@ class Presence:
         if not ap:
             return None
         a = self.find(ap["id"]) or {}
-        return {"id": ap["id"], "entry": ap.get("entry"), "until": ap["until"], "label": a.get("label", ""),
+        return {"id": ap["id"], "entry": ap.get("entry"), "until": ap["until"], "label": a.get("label", ""), "act": ap.get("act"),
                 "icon": a.get("icon", "💬"), "apart": bool(a.get("apart")),
                 "accept": (a.get("accept") or {}).get("label") or "うん", "later": (a.get("later") or {}).get("label") or "あとでね",
-                "choices": msgreply.options(ap["id"], ap.get("why")) if a.get("apart") else None}
+                "choices": msgreply.options(ap["id"], ap.get("why")) if a.get("apart")
+                else react.face_choices(a["talk"]) if a.get("talk") else None}       # そばで話しかけられた: 返し方を選ぶ
 

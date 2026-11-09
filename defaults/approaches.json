@@ -1,6 +1,6 @@
 [
  {
-  "id": "chat", "label": "話しかけてきた", "icon": "💬", "when": "boredom>=45", "weight": 3, "cooldown_h": 2,
+  "id": "chat", "talk": "bored", "label": "話しかけてきた", "icon": "💬", "when": "boredom>=45", "weight": 3, "cooldown_h": 2,
   "text": "ねえねえ、{call}。ちょっとお話ししません？", "pos": "looking at viewer, leaning forward, smile", "neg": "",
   "accept": {"label": "いいよ", "text": "やった！ あのですね……（他愛ない話で盛り上がった）", "skill": "talk",
    "effects": {"boredom": -12, "loneliness": -10, "mood": 4, "affection": 1}, "reason_good": "{call}がおしゃべりに付き合ってくれた"},
@@ -9,7 +9,7 @@
    "effects": {"mood": -3, "loneliness": 5, "boredom": 3}}
  },
  {
-  "id": "tea", "label": "お茶を淹れてくれた", "icon": "🍵", "when": "mood>=45, phase!=midnight", "weight": 2, "cooldown_h": 4,
+  "id": "tea", "label": "お茶を淹れてくれた", "icon": "🍵", "when": "mood>=45, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
   "text": "お茶、淹れたんですけど……{call}も飲みます？", "pos": "holding teacup, offering, smile", "neg": "",
   "accept": {"label": "もらう", "text": "どうぞ。……ふふ、こうして一緒に飲むの、好きです。",
    "effects": {"mood": 4, "affection": 2, "loneliness": -6}, "pos": "drinking tea, smile, sitting", "neg": ""},
@@ -27,7 +27,7 @@
    "effects": {"mood": -4, "loneliness": 6}}
  },
  {
-  "id": "bored", "label": "かまってほしそう", "icon": "🥱", "when": "boredom>=65", "weight": 2, "cooldown_h": 3,
+  "id": "bored", "talk": "bored", "label": "かまってほしそう", "icon": "🥱", "when": "boredom>=65, outing=false", "weight": 2, "cooldown_h": 3,
   "text": "暇です〜……。{call}、かまってください〜。", "pos": "lying down, bored, looking at viewer, pouting", "neg": "",
   "accept": {"label": "かまう", "text": "わーい！ じゃあ、何して遊びます？", "skill": "talk",
    "effects": {"boredom": -18, "mood": 5, "loneliness": -8}},
@@ -36,7 +36,7 @@
    "effects": {"mood": -4, "boredom": 6}}
  },
  {
-  "id": "lonely", "label": "そばに来たがっている", "icon": "🫂", "when": "loneliness>=65", "weight": 3, "cooldown_h": 2,
+  "id": "lonely", "label": "そばに来たがっている", "icon": "🫂", "when": "loneliness>=65, outing=false", "weight": 3, "cooldown_h": 2,
   "text": "……{call}。そばに行っても、いいですか？", "pos": "standing, hesitant, looking at viewer, blush", "neg": "",
   "accept": {"label": "おいで", "text": "……えへへ。ありがとうございます。", "skill": "touch",
    "effects": {"loneliness": -20, "mood": 6, "affection": 2, "trust": 1}, "pos": "sitting next to viewer, relieved smile, blush",
@@ -46,7 +46,7 @@
    "effects": {"mood": -6, "loneliness": 8}}
  },
  {
-  "id": "show", "label": "何か見せたいみたい", "icon": "✨", "when": "mood>=60", "weight": 1, "cooldown_h": 5,
+  "id": "show", "talk": "happy", "label": "何か見せたいみたい", "icon": "✨", "when": "mood>=60", "weight": 1, "cooldown_h": 5,
   "text": "{call}、見てください、これ！ かわいくないですか？", "pos": "holding phone, showing screen, excited, smile", "neg": "",
   "accept": {"label": "見せて", "text": "でしょう！ ……ふふ、{call}ならわかってくれると思いました。", "skill": "talk",
    "effects": {"mood": 4, "affection": 1, "boredom": -5}},
@@ -54,7 +54,7 @@
   "ignore": {"text": "（{name}は少しがっかりした様子で、画面をしまった）", "effects": {"mood": -3}}
  },
  {
-  "id": "cook_for", "label": "ごはんを作ろうかと", "icon": "🍳", "when": "phase=noon|evening, satiety<60", "weight": 1, "cooldown_h": 8,
+  "id": "cook_for", "label": "ごはんを作ろうかと", "icon": "🍳", "when": "phase=noon|evening, satiety<60, outing=false", "weight": 1, "cooldown_h": 8,
   "text": "お腹すきません？ {fp}、何か作りましょうか。", "pos": "apron, kitchen, smile, looking at viewer", "neg": "",
   "accept": {"label": "お願い", "text": "まかせてください！ ……できました、どうぞ！", "effects": {"mood": 5, "affection": 2, "satiety": 30},
    "pos": "apron, serving food, dining table, smile", "reason_good": "{call}がごはんをおいしそうに食べてくれた"},
@@ -62,7 +62,7 @@
   "ignore": {"text": "（{name}は一人分だけ作って、静かに食べた）", "effects": {"mood": -3, "loneliness": 4}}
  },
  {
-  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, phase!=midnight", "weight": 2, "cooldown_h": 4,
+  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
   "text": "ねえ、一緒にゲームしません？", "pos": "holding game controller, excited, looking at viewer", "neg": "",
   "accept": {"label": "やろう", "action": "game", "text": "やった！ 負けませんよ？", "effects": {"boredom": -15, "mood": 5}},
   "later": {"label": "あとでね", "text": "約束ですよ？", "effects": {"mood": -1}},
@@ -76,7 +76,7 @@
   "ignore": {"text": "（{name}は窓の外を眺めて、小さくため息をついた）", "effects": {"mood": -2, "boredom": 3}}
  },
  {
-  "id": "sleepy", "label": "眠そうにしている", "icon": "😪", "when": "sleepiness>=70, phase=night|midnight", "weight": 2, "cooldown_h": 6,
+  "id": "sleepy", "label": "眠そうにしている", "icon": "😪", "when": "sleepiness>=70, phase=night|midnight, outing=false", "weight": 2, "cooldown_h": 6,
   "text": "ふぁ……。なんだか、眠くなってきちゃいました……。", "pos": "yawning, rubbing eyes, pajamas, sleepy", "neg": "",
   "accept": {"label": "寝かしつける", "action": "tuck_in", "text": "……おやすみなさい、{call}。", "effects": {"mood": 3}},
   "later": {"label": "もう少し起きてて", "text": "もうちょっとだけ……がんばります……。", "effects": {"sleepiness": 3}},
@@ -120,6 +120,79 @@
   "ignore": {"text": "（{name}は話したそうにしていたが、あきらめたようだ）", "effects": {"mood": -3}}
  },
  {
+  "id": "date_look", "talk": "happy", "label": "何か見つけたみたい", "icon": "👀", "when": "outing=true, mood>=45", "weight": 3, "cooldown_h": 1,
+  "text": "{call}、あれ見てください！", "pos": "pointing at something, excited, outdoors, looking back at viewer", "neg": "",
+  "accept": {"label": "見る", "skill": "talk", "effects": {"mood": 4, "affection": 1, "boredom": -6}},
+  "later": {"label": "あとでね", "text": "えー、いま見てほしかったのに。", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は指さした手を、そっと下ろした）", "effects": {"mood": -2}}
+ },
+ {
+  "id": "date_fun", "talk": "happy", "label": "楽しそうにしている", "icon": "😊", "when": "outing=true, mood>=65", "weight": 2, "cooldown_h": 2,
+  "text": "……なんか、今日、楽しいですね。", "pos": "smile, looking at viewer, outdoors, happy", "neg": "",
+  "accept": {"label": "うん", "skill": "talk", "effects": {"mood": 3, "affection": 1, "heart": 3}, "reason_good": "{call}と楽しい時間を過ごせた"},
+  "later": {"label": "……", "text": "……あれ、楽しくなかったです？", "effects": {"mood": -2}},
+  "ignore": {"text": "（{name}は少しだけ照れたように前を向いた）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_cold", "label": "寒そうにしている", "icon": "🥶", "when": "outing=true, season=winter", "weight": 1, "cooldown_h": 3,
+  "text": "ちょっと寒くないですか……？", "pos": "shivering, rubbing hands, winter clothes, outdoors", "neg": "",
+  "accept": {"label": "上着を貸す", "text": "え、いいんですか？ ……あったかいです。", "effects": {"heart": 4, "affection": 1, "mood": 3},
+   "reason_good": "{call}が上着を貸してくれた"},
+  "later": {"label": "もう少し我慢しよう", "text": "……はい。", "effects": {"mood": -2}},
+  "ignore": {"text": "（{name}は手に息を吹きかけている）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_hot", "label": "暑そうにしている", "icon": "🥵", "when": "outing=true, season=summer, phase=noon", "weight": 1, "cooldown_h": 3,
+  "text": "暑いですね……。どこかで冷たいもの、飲みません？", "pos": "fanning herself, sweat, summer clothes, outdoors", "neg": "",
+  "accept": {"label": "飲みに行こう", "text": "やった。生き返りますね。", "effects": {"mood": 4, "energy": 4}},
+  "later": {"label": "もう少し歩こう", "text": "……はい。", "effects": {"mood": -2, "energy": -3}},
+  "ignore": {"text": "（{name}は手で顔をあおいでいる）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_rest", "label": "疲れてきたみたい", "icon": "🪑", "when": "outing=true, energy<40", "weight": 2, "cooldown_h": 2,
+  "text": "ちょっと、休憩しません？", "pos": "tired, sitting on bench, outdoors", "neg": "",
+  "accept": {"label": "休もうか", "text": "ふう……。ありがとうございます。", "effects": {"energy": 10, "mood": 2}},
+  "later": {"label": "もう少し", "text": "……はい。", "effects": {"mood": -3, "stress": 3}},
+  "ignore": {"text": "（{name}は少し遅れて、後ろからついてくる）", "effects": {"mood": -2, "stress": 2}}
+ },
+ {
+  "id": "date_hungry", "label": "お腹がすいてきたみたい", "icon": "🍽", "when": "outing=true, satiety<35, phase=noon|evening", "weight": 2, "cooldown_h": 3,
+  "text": "お腹、すいてきませんか？", "pos": "hand on stomach, embarrassed smile, outdoors", "neg": "",
+  "accept": {"label": "食べに行こう", "action": "eat_out", "text": "やった、行きましょう！", "effects": {"mood": 3}},
+  "later": {"label": "もう少しあとで", "text": "……はい。", "effects": {"mood": -2}},
+  "ignore": {"text": "（{name}のお腹が小さく鳴った）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_next", "label": "次の場所に行きたいみたい", "icon": "🗺", "when": "outing=true, mood>=50, energy>=40", "weight": 2, "cooldown_h": 2,
+  "pick_place": ["cafe", "eat_out", "shopping", "walk", "aquarium", "amusement", "beach", "stargazing"],
+  "text": "次、{place}に行きません？", "pos": "looking at viewer, suggesting, outdoors, smile", "neg": "",
+  "accept": {"label": "行こう", "text": "やった、行きましょう！", "effects": {"mood": 3}},
+  "later": {"label": "もう少しここにいよう", "text": "そうですね、もう少しここで。", "effects": {}},
+  "ignore": {"text": "（{name}は、あたりを見回している）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_home", "label": "そろそろ帰りたいみたい", "icon": "🏠", "when": "outing=true, energy<30", "weight": 3, "cooldown_h": 2,
+  "text": "そろそろ、帰りましょうか。", "pos": "tired smile, looking at viewer, outdoors, evening", "neg": "",
+  "accept": {"label": "帰ろうか", "action": "go_home", "text": "今日はありがとうございました。", "effects": {"mood": 2}},
+  "later": {"label": "もう少しだけ", "text": "……もう少しだけ、ですよ？", "effects": {"mood": -3, "stress": 3}},
+  "ignore": {"text": "（{name}は、疲れたように小さくあくびをした）", "effects": {"mood": -2, "stress": 2}}
+ },
+ {
+  "id": "date_photo", "label": "写真を撮りたいみたい", "icon": "📷", "when": "outing=true, mood>=60", "weight": 1, "cooldown_h": 3,
+  "text": "{call}、写真撮りません？ 一緒に。", "pos": "holding smartphone, selfie pose, outdoors, smile", "neg": "",
+  "accept": {"label": "撮ろう", "text": "はい、撮りますよ……。ふふ、いい感じです。", "effects": {"heart": 3, "mood": 3, "affection": 1},
+   "pos": "selfie together, cheek to cheek, outdoors, smile", "reason_good": "{call}と一緒に写真を撮った"},
+  "later": {"label": "写真はちょっと", "text": "……そうですか。", "effects": {"mood": -2}},
+  "ignore": {"text": "（{name}は一人で景色の写真を撮った）", "effects": {"mood": -1}}
+ },
+ {
+  "id": "date_hands", "label": "手をつなぎたいみたい", "icon": "🤝", "when": "outing=true, affection>=65", "weight": 1, "cooldown_h": 4,
+  "text": "……あの、手、つないでもいいですか？", "pos": "blush, looking away, reaching hand, outdoors", "neg": "",
+  "accept": {"label": "つなぐ", "action": "hold_hands", "text": "……えへへ。", "effects": {"heart": 5, "affection": 1}},
+  "later": {"label": "ちょっと照れる", "text": "……そ、そうですよね。", "effects": {"mood": -2, "shyness": 4}},
+  "ignore": {"text": "（{name}は差し出しかけた手を、そっと引っ込めた）", "effects": {"mood": -2, "shyness": 3}}
+ },
+ {
   "id": "msg_chat", "label": "メッセージが届いた", "icon": "📱", "apart": true, "when": "boredom>=35", "weight": 3,
   "cooldown_h": 6, "wait_minutes": 90, "urgency": 1.0,
   "text": "📱『{call}、いま何してます？ ちょっとお話ししたくて』",
@@ -147,7 +220,7 @@
   "ignore": {"text": "（{name}からの長いメッセージが、読まれないまま残っている）", "effects": {"mood": -2, "loneliness": 3}}
  },
  {
-  "id": "need_you", "label": "離れたくないみたい", "icon": "🥺", "when": "dependence>=80, loneliness>=45, affection>=55", "weight": 2, "cooldown_h": 6,
+  "id": "need_you", "label": "離れたくないみたい", "icon": "🥺", "when": "dependence>=80, loneliness>=45, affection>=55, outing=false", "weight": 2, "cooldown_h": 6,
   "text": "……{call}。{call}がいないと、なんだかだめなんです。今日は、そばにいてくれますか？", "pos": "hugging viewer, face buried, clinging", "neg": "",
   "accept": {"label": "そばにいる", "text": "……よかった。……離さないでくださいね。", "skill": "touch",
    "effects": {"loneliness": -15, "mood": 4}, "pos": "hugging viewer, relieved, eyes closed"},
