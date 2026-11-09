@@ -254,6 +254,10 @@ def route(method, path, q, body):
             if c:                   # 「別の日時（・行き先）なら」
                 return a.appoint.counter(b["id"], c["t"], c.get("place"), c.get("do"))
             return a.appoint.answer(b["id"], bool(b.get("yes")))
+        if path == "/api/appoint/change":     # 決まった約束を変えたい (返事は時間差)
+            return a.appoint.change(b["id"], b["t"], b.get("place"), b.get("do"))
+        if path == "/api/appoint/cancel":     # 決まった約束を取りやめる
+            return a.appoint.cancel(b["id"])
         if path == "/api/appoint/go":
             return a.appoint.go(b["id"])
         if path == "/api/street/join":

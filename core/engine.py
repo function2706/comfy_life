@@ -1980,7 +1980,10 @@ class App:
                 if pend.get("kind") == "apology" and kind != "apology" and not pend.get("apology_first"):
                     # 謝罪の返事を待っている間に別のメッセージ: 謝罪を上書きしない (返事は謝罪への分と, 新しい方への分の 2 つ)
                     pend["apology_first"] = {"t": pend.get("kind_t") or pend["t"], "meta": pend.get("meta") or {}}
-                pend["kind"] = kind                    # 返信は, いちばん新しいメッセージに対して
+                if pend.get("kind") in appoint_mod.APPT_KINDS and not pend.get("appoint_first"):
+                    # 約束の話 (誘い・変更・取りやめ) の返事を待っている間に別のメッセージ: 約束の返事も消さない
+                    pend["appoint_first"] = {"kind": pend["kind"], "appoint": pend.get("appoint"), "t": pend.get("kind_t") or pend["t"]}
+                pend["kind"] = kind                   # 返信は, いちばん新しいメッセージに対して
                 pend["meta"] = meta
                 pend["kind_t"] = now
         else:
@@ -2076,6 +2079,9 @@ class App:
             first = pend.get("apology_first")
             if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
                 self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"]}, now - 1)
+            af = pend.get("appoint_first")
+            if af:              # 先に送った約束の話 (誘い・変更・取りやめ) に返してから, 新しい方に返す
+                self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"]}, now - 0.5)
             if kind == "ap_reply":              # 向こうからのメッセージへの, あなたの返事を読んだ (core/presence.py)
                 m = pend.get("meta") or {}
                 e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"))
@@ -2083,6 +2089,8 @@ class App:
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
+            elif kind in ("appoint_change", "appoint_cancel_me"):     # 決まった約束を変えたい・取りやめたい への返事
+                key, eff, extra = self.appoint.change_reply(char, st, pend, now)
             else:
                 ctx["_meta"] = pend.get("meta") or {}
                 ctx["_sent"] = pend.get("kind_t") or pend.get("t")
@@ -2123,6 +2131,10 @@ class App:
             if key == "favor_yes":
                 self.chat.add(cid, "sys", "📅 約束した: %s %sの家で%s" % (extra["when"], char.get("name", ""), extra.get("what", "")),
                               kind="promise", t=now + 0.001)
+            if key in ("appoint_change_fine", "appoint_change_glad", "appoint_change_sad") or key.startswith("appoint_change_sour"):
+                self.chat.add(cid, "sys", "📅 約束を変えた: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
+            if key in ("appoint_change_keep_busy", "appoint_change_keep_want"):
+                self.chat.add(cid, "sys", "📅 約束はもとのまま: %s" % extra["was"], kind="promise", t=now + 0.001)
             if key in ("appoint_yes", "appoint_rearranged"):
                 self.chat.add(cid, "sys", "📅 約束した: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)

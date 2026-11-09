@@ -1637,7 +1637,7 @@ async function drawChat(auto) {
             h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'))
             : (x.status === 'set' || x.status === 'waiting') && !x.here
               ? h('span', {}, '　', h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) },
-                x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`)) : ''));
+                x.plants ? `🚶 ${x.place_label}へ水やりに行く` : `🚶 ${x.place_label}へ出かける`), ' ', ...changeBtns(x)) : ''));
         continue;
       }
       body.push(h('div', { class: 'chat-sys' }, `📅 ${x.when}に${x.place_label}「${x.do_label}」（${x.status_label}）`, calBtn(x.t),
@@ -1646,8 +1646,9 @@ async function drawChat(auto) {
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る'), ' ',
           h('button', { class: 'btn small ghost', disabled: S.busy, title: '別の日時（・行き先）を返す。相手の予定や気分しだいで、受けてくれる・断られる・また別の案が返ってくる',
             onclick: () => { S.apForm = { counter: x.id, place: x.place, do: x.do }; drawChat(); } }, '別の日時なら'))
-          : (x.status === 'set' || x.status === 'waiting') && !x.here && !x.home_me
-            ? h('span', {}, '　', h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`)) : ''));
+          : (x.status === 'set' || x.status === 'waiting') && !x.here
+            ? h('span', {}, '　', x.home_me ? '' : h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, `🚶 ${x.place_label}へ出かける`),
+              ' ', ...changeBtns(x)) : ''));
     }
     const can = !th.together;
     threadEl = h('div', { class: 'chat-thread' },
@@ -1732,7 +1733,7 @@ function calEntry(e) {
           x.ask ? '行ける日時を返す' : '別の日時なら') : '',
         open ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る') : '',
         set && !x.here ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, x.plants ? '水やりに行く' : '出かける') : '',
-        talk));
+        ...changeBtns(x, true), talk));
   }
   return h('div', { class: 'cal-ent' + (open || set ? '' : ' muted') },
     h('span', {}, `📅 ${e.at} ${x.name}と${x.place_label}で「${x.do_label}」・${x.status_label}`),
@@ -1740,7 +1741,34 @@ function calEntry(e) {
       open ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAppoint(x.id, true) }, '行く') : '',
       open ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerAppoint(x.id, false) }, '断る') : '',
       set && !x.here && !x.home_me ? h('button', { class: 'btn small', disabled: S.busy, onclick: () => goAppoint(x.id) }, '出かける') : '',
-      talk));
+      ...changeBtns(x, true), talk));
+}
+// 決まった約束を, こちらから 変えたい (日時・行き先を選んで送る. 返事は時間差) / 取りやめる (伝えた時点で決まる. 受け取り方はあとで)
+function changeBtns(x, fromCal) {
+  const out = [];
+  if (x.can_change) {
+    out.push(h('button', { class: 'btn small ghost', disabled: S.busy,
+      title: '日時（・行き先）を変えたいと伝える。応じてくれるかは、相手の予定・伝えた時期・何回目か・仲や機嫌・性格しだい',
+      onclick: () => {
+        const d = new Date(x.t * 1000);
+        const m = Math.round((d.getHours() * 60 + d.getMinutes()) / 30) * 30;
+        S.apForm = { change: x.id, favor: !!x.favor, help: x.do && String(x.do).startsWith('_help:'),
+          place: x.place, do: x.do, day: Math.max(0, Math.min(13, dayOffset(isoDay(d)))),
+          time: `${String(Math.min(22, Math.floor(m / 60))).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` };
+        if (fromCal) { S.calOn = false; S.chatCid = x.cid; }
+        drawChat();
+      } }, '変えたい'));
+  }
+  if (x.can_cancel) {
+    out.push(h('button', { class: 'btn small ghost danger', disabled: S.busy, title: '約束を取りやめると伝える（断られることはないが、受け取り方は伝えた時期や回数しだい）',
+      onclick: async () => {
+        if (!window.confirm(`${x.when}の${x.name}との約束を、取りやめると伝えますか？`)) return;
+        if (S.busy) return; S.busy = true;
+        try { await api('/api/appoint/cancel', { id: x.id }); toast('取りやめると伝えた', 'ok'); S.chatJump = true; }
+        catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await drawChat(); refresh(); }
+      } }, '取りやめる'));
+  }
+  return out;
 }
 function calendarView(C, dlg) {
   const sel = S.calSel && S.calSel.slice(0, 7) === `${C.y}-${String(C.m).padStart(2, '0')}` ? S.calSel
@@ -1828,12 +1856,12 @@ function appointForm(th) {
   const G = ((S.view || {}).outdoor || {}).groups || {};
   return h('div', { class: 'appoint-form', style: 'flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;align-items:center' },
     sel('day', days), sel('time', times.map((t) => [t, t])),
-    f.favor ? h('span', { class: 'muted small' }, '（頼まれごと: 相手の家で）') : '',
-    f.favor ? '' : sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
-    f.favor ? '' : sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
-    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, f.counter ? 'この日時なら、と返す' : '誘う'),
-    f.counter ? h('button', { class: 'btn small ghost', onclick: () => { S.apForm = null; drawChat(); } }, 'やめる') : '',
-    h('span', { class: 'muted small' }, '返事は時間差で届きます。その時間に予定があれば断られます'));
+    f.favor ? h('span', { class: 'muted small' }, '（頼まれごと: 相手の家で）') : f.help ? h('span', { class: 'muted small' }, '（手伝い: あなたの家で）') : '',
+    f.favor || f.help ? '' : sel('place', ch.map((c) => [c.place, `${c.icon}${c.label}（${G[c.group] || ''}${c.hours && c.hours !== '24時間' ? '・' + c.hours : ''}）`])),
+    f.favor || f.help ? '' : sel('do', cur.dos.map((d) => [d.id, `${d.icon} ${d.name}`])),
+    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => proposeAppoint(th.id) }, f.change ? 'この日時に変えたいと送る' : f.counter ? 'この日時なら、と返す' : '誘う'),
+    f.counter || f.change ? h('button', { class: 'btn small ghost', onclick: () => { S.apForm = null; drawChat(); } }, 'やめる') : '',
+    h('span', { class: 'muted small' }, f.change ? '返事は時間差で届きます。返事が来るまでは、もとの約束のままです' : '返事は時間差で届きます。その時間に予定があれば断られます'));
 }
 async function proposeAppoint(cid) {
   const f = S.apForm;
@@ -1843,7 +1871,8 @@ async function proposeAppoint(cid) {
   if (S.busy) return;
   S.busy = true;
   try {
-    if (f.counter) await api('/api/appoint/answer', { id: f.counter, counter: { t: d.getTime() / 1000, place: f.place, do: f.do } });
+    if (f.change) await api('/api/appoint/change', { id: f.change, t: d.getTime() / 1000, place: f.place, do: f.do });
+    else if (f.counter) await api('/api/appoint/answer', { id: f.counter, counter: { t: d.getTime() / 1000, place: f.place, do: f.do } });
     else await api('/api/appoint', { id: cid, t: d.getTime() / 1000, place: f.place, do: f.do });
     S.apForm = null; S.chatJump = true;
   } catch (e) { toast(e.message, 'err'); }

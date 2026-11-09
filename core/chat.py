@@ -157,6 +157,25 @@ LINES = {
     "chat.appoint_rearranged": "📱『その日、予定があったんですけど、ずらしました。{when}、{place}で大丈夫です！』",
     "chat.appoint_move_mine": "📱『ごめんなさい、その日やっぱり都合が悪くなっちゃって……{when}にしてもらえませんか？』",
     "chat.req_money_again": "またお願いしてもいいですか……？ 今月も、ちょっと足りなくて",
+    "chat.appoint_change_fine": "📱『{when}、{place}ですね。大丈夫ですよ』",
+    "chat.appoint_change_glad": "📱『{place}になるんですか？ うれしいです。{when}ですね』",
+    "chat.appoint_change_sad": "📱『そうですか……楽しみにしてたんですけど。じゃあ、{when}に』",
+    "chat.appoint_change_sour": "📱『……そうですか。わかりました、{when}で』",
+    "chat.appoint_change_sour_late": "📱『今になってですか……。わかりました、{when}で』",
+    "chat.appoint_change_sour_again": "📱『また変更ですか……。わかりました、{when}で』",
+    "chat.appoint_change_keep_want": "📱『……できれば、最初の{when}のままがいいです』",
+    "chat.appoint_change_keep_busy": "📱『ごめんなさい、その時間は予定があって……。{when}のままじゃだめですか？』",
+    "chat.appoint_change_counter": "📱『その時間は予定があって……。{when}なら大丈夫ですけど、どうですか？』",
+    "chat.appoint_change_others": "📱『そうですか……。じゃあ、{what}はほかの人に頼んでみますね』",
+    "chat.appoint_change_gone": "📱『あ、その約束のこと……。もう、なしになってますよね』",
+    "chat.appoint_cancel_fine": "📱『わかりました。また今度にしましょう』",
+    "chat.appoint_cancel_sad": "📱『そうですか……。楽しみにしてたんですけど。また今度ですね』",
+    "chat.appoint_cancel_sour": "📱『……そうですか。わかりました』",
+    "chat.appoint_cancel_sour_late": "📱『今になってですか……。……わかりました』",
+    "chat.appoint_cancel_sour_again": "📱『また、ですか。……わかりました』",
+    "chat.appoint_cancel_hurt": "📱『……そうですか。もういいです』",
+    "chat.appoint_cancel_favor": "📱『そうですか……。じゃあ、{what}はほかの人に頼んでみます』",
+    "chat.appoint_cancel_favor_sour": "📱『……当てにしてたんですけど。わかりました、ほかの人に頼みます』",
 }
 # 何もないときの共通の言い方 (性格プリセットに chat.ask_how_nothing が無ければ, ここから選ぶ)
 NOTHING = ("特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。")
@@ -216,7 +235,26 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "favor_lapsed": "頼まれごとの返事を放っておいた / ほかの人に頼んで済んだ ({what})",
                "favor_missed": "頼まれごとの約束をすっぽかした", "favor_plants_dead": "植木の水やりに行かず, 枯れていた",
                "favor_plants_thanks": "留守中の植木の水やりをした / 帰ってきてからのお礼",
-               "favor_resched": "相手の都合で, 頼まれごとの日をずらしたい ({what} {when})", "favor_cancel": "相手の都合で, 頼まれごとが取りやめ ({what})"}
+               "favor_resched": "相手の都合で, 頼まれごとの日をずらしたい ({what} {when})", "favor_cancel": "相手の都合で, 頼まれごとが取りやめ ({what})",
+               "appoint_change_fine": "約束を変えたい (すんなり応じた. {when} {place} は新しい日時・場所)",
+               "appoint_change_glad": "約束を変えたい (変え方がうれしい: 好きな所へ・早く会える)",
+               "appoint_change_sad": "約束を変えたい (応じたが, 少し残念)",
+               "appoint_change_sour": "約束を変えたい (応じたが, 引っかかる)",
+               "appoint_change_sour_late": "約束を変えたい (応じたが, 間際なので引っかかる)",
+               "appoint_change_sour_again": "約束を変えたい (応じたが, 何度も変えられて引っかかる)",
+               "appoint_change_keep_want": "約束を変えたい (応じない. もとの {when} のままがいい)",
+               "appoint_change_keep_busy": "約束を変えたい (その時間は予定がある. もとの {when} のまま)",
+               "appoint_change_counter": "約束を変えたい (その時間は予定がある. 別の {when} を返す)",
+               "appoint_change_others": "頼まれごとの日を変えたい (それならほかの人に頼む. 取りやめ)",
+               "appoint_change_gone": "約束を変えたい (返事を読んだときには, もう約束がなくなっていた)",
+               "appoint_cancel_fine": "約束を取りやめたい (すんなり)",
+               "appoint_cancel_sad": "約束を取りやめたい (残念がる)",
+               "appoint_cancel_sour": "約束を取りやめたい (引っかかる)",
+               "appoint_cancel_sour_late": "約束を取りやめたい (間際なので引っかかる)",
+               "appoint_cancel_sour_again": "約束を取りやめたい (何度も取りやめられて引っかかる)",
+               "appoint_cancel_hurt": "約束を取りやめたい (傷ついた)",
+               "appoint_cancel_favor": "頼まれごとを取りやめたい (ほかの人に頼む)",
+               "appoint_cancel_favor_sour": "頼まれごとを取りやめたい (当てにしていたので引っかかる)"}
 
 
 class Chat:

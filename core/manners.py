@@ -60,7 +60,13 @@ class Manners:
     # メッセージへの返事で嫌がったこと → 機嫌の理由 (あなたのせい). 連絡しすぎ・何度も「今何してる？」などは別に残している
     BAD_REPLY_TELL = {"flirt_cold": "%sに軽々しく甘えられた", "tease_hurt": "%sにからかわれて、傷ついた",
                       "late_night": "%sから夜中に連絡が来た", "stamp_spam": "%sにスタンプばかり続けて送られた",
-                      "selfie_pester": "%sに何度も自撮りをせがまれた"}
+                      "selfie_pester": "%sに何度も自撮りをせがまれた",
+                      # 約束を変えられた・取りやめられた (core/appoint.py の change_reply)
+                      "appoint_change_sour": "%sに約束を変えられた", "appoint_change_sour_late": "%sに、間際になって約束を変えられた",
+                      "appoint_change_sour_again": "%sに、何度も約束を変えられた", "appoint_cancel_sour": "%sに約束を取りやめられた",
+                      "appoint_cancel_sour_late": "%sに、間際になって約束を取りやめられた",
+                      "appoint_cancel_sour_again": "%sに、また約束を取りやめられた", "appoint_cancel_hurt": "%sに約束を取りやめられた",
+                      "appoint_cancel_favor_sour": "当てにしていたのに、%sに頼みごとを取りやめられた"}
 
     def _faults(self, st, now):
         return [r for r in st.get("reasons") or [] if r["kind"] == "player" and r["mood"] == "bad"
@@ -546,7 +552,7 @@ class Manners:
 
     def nudge_urgent(self, char, st, pend, now):
         """催促が多少は許される急ぎの話か (約束の誘いの返事待ち・約束の直前)."""
-        if pend and pend.get("kind") == "appoint":
+        if pend and pend.get("kind") in ("appoint", "appoint_change", "appoint_cancel_me"):
             return True
         return any(x["cid"] == char["id"] and x.get("status") in ("set", "waiting") and 0 <= x["t"] - now < 3 * 3600
                    for x in self.app.appoint.all())
