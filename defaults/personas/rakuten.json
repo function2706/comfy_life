@@ -2634,6 +2634,63 @@
   ],
   "see_off.part_insist": [
    "……ん、そうだね。送ってくれてありがと"
+  ],
+  "chat.appoint_change_fine": [
+   "📱『{when}、{place}ね。うん、大丈夫！』"
+  ],
+  "chat.appoint_change_glad": [
+   "📱『{place}になるの？ いいね、うれしい！ {when}ね』"
+  ],
+  "chat.appoint_change_sad": [
+   "📱『そっかぁ、楽しみにしてたんだけどな。ま、{when}ね！』"
+  ],
+  "chat.appoint_change_sour": [
+   "📱『……そっか。わかった、{when}ね』"
+  ],
+  "chat.appoint_change_sour_late": [
+   "📱『今になって？ ……うん、わかった、{when}ね』"
+  ],
+  "chat.appoint_change_sour_again": [
+   "📱『また変更？ ……わかった、{when}ね』"
+  ],
+  "chat.appoint_change_keep_want": [
+   "📱『んー、できれば最初の{when}のままがいいかな』"
+  ],
+  "chat.appoint_change_keep_busy": [
+   "📱『ごめん、その時間は予定あるんだ。{when}のままじゃだめ？』"
+  ],
+  "chat.appoint_change_counter": [
+   "📱『その時間は予定あるんだ。{when}なら大丈夫だけど、どう？』"
+  ],
+  "chat.appoint_change_others": [
+   "📱『そっか。じゃあ{what}は、ほかの人に頼んでみるね』"
+  ],
+  "chat.appoint_change_gone": [
+   "📱『あれ、その約束？ もうなくなってるよね』"
+  ],
+  "chat.appoint_cancel_fine": [
+   "📱『りょーかい！ また今度にしよ』"
+  ],
+  "chat.appoint_cancel_sad": [
+   "📱『そっかぁ、楽しみにしてたんだけどな。また今度ね』"
+  ],
+  "chat.appoint_cancel_sour": [
+   "📱『……そっか。わかった』"
+  ],
+  "chat.appoint_cancel_sour_late": [
+   "📱『今になって？ ……わかった』"
+  ],
+  "chat.appoint_cancel_sour_again": [
+   "📱『また？ ……わかった』"
+  ],
+  "chat.appoint_cancel_hurt": [
+   "📱『……そっか。もういいよ』"
+  ],
+  "chat.appoint_cancel_favor": [
+   "📱『りょーかい。{what}は、ほかの人に頼んでみるね』"
+  ],
+  "chat.appoint_cancel_favor_sour": [
+   "📱『……当てにしてたんだけどな。わかった、ほかの人に頼むね』"
   ]
  }
 }
