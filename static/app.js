@@ -1558,6 +1558,16 @@ function openChat(cid, cal) {
   if (!S.chatDlg.open) S.chatDlg.showModal();
   drawChat();
 }
+function quoteNeeded(items, it) {
+  const i = items.indexOf(it);
+  let a = i, b = i;                     // 同じ返事の並び (間にあなたの発言を挟まない相手の発言)
+  while (a > 0 && items[a - 1].who !== 'me') a--;
+  while (b < items.length - 1 && items[b + 1].who !== 'me') b++;
+  const refs = new Set(items.slice(a, b + 1).filter((x) => x.who === 'her' && x.re).map((x) => x.re.t.toFixed(2)));
+  if (refs.size >= 2) return true;
+  const lastMe = a > 0 ? items[a - 1] : null;      // 並びの直前のあなたの発言 (いちばん新しいメッセージ)
+  return !lastMe || Math.abs(lastMe.t - it.re.t) >= 0.01;
+}
 const chatText = (t) => String(t || '').replace(/^📱『/, '').replace(/』(\n|$)/, '$1');
 const hhmm = (t) => new Date(t * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 const dayLabel = (t) => new Date(t * 1000).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' });
@@ -1621,8 +1631,9 @@ async function drawChat(auto) {
       if (d !== lastDay) { body.push(h('div', { class: 'chat-day' }, d)); lastDay = d; }
       if (it.who === 'sys') { body.push(h('div', { class: 'chat-sys' }, `${it.text}　${hhmm(it.t)}`)); continue; }
       const mine = it.who === 'me';
-      // 相手の返事: どのメッセージへの返事か (引用. 重ねて送った分に順に返したときも分かるように)
-      const ref = !mine && it.re ? th.items.find((x) => x.who === 'me' && Math.abs(x.t - it.re.t) < 0.01) : null;
+      // 相手の返事: どのメッセージへの返事か (引用). 単一の返事には付けない. 重ねて送った分に続けて返したとき
+      // (同じ返事の並びに別々のメッセージへの返事がある) か, いちばん新しいメッセージではなく前のものへの返事のときだけ
+      const ref = !mine && it.re && quoteNeeded(th.items, it) ? th.items.find((x) => x.who === 'me' && Math.abs(x.t - it.re.t) < 0.01) : null;
       const quote = ref ? h('div', { class: 'chat-quote' }, '＞' + (() => { const q = chatText(ref.text).split('\n')[0]; return q.length > 30 ? q.slice(0, 30) + '…' : q; })()) : '';
       body.push(h('div', { class: 'chat-msg ' + (mine ? 'me' : 'her') },
         mine ? '' : avatar(th.face, th.name, 'small'),
