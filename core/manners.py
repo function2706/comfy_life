@@ -624,7 +624,8 @@ class Manners:
                 return "otsukare", {"mood": 3, "stress": -4, "loneliness": -3, "trust": 1}, {}
             return "otsukare_odd", {}, {}
         if kind == "you_ok":
-            if self.knows_down(st, now):
+            # 沈んだ話・寂しい と言われたあとの「大丈夫？」は, 流れとして通じる (気づいてくれた)
+            if self.knows_down(st, now) or (meta.get("to") or {}).get("tone") in ("down", "lonely"):
                 c = L.skill_soft("care")
                 return "you_ok", {"mood": 2 + 4 * c, "trust": 1 + c, "loneliness": -4, "stress": -2 - 3 * c}, {}
             return "you_ok_what", {"mood": -0.5}, {}

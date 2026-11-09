@@ -1960,6 +1960,33 @@ class App:
         self.save_log(cid)
         return {"entry": e, "job": None, "llm_error": None, "missed": True}
 
+    REPLY_QUEUE_MAX = 2       # 重ねて届いた前のメッセージに返すのは, これだけまで (最新の 1 通とあわせて 3 通)
+    LIGHT_KINDS = ("stamp", "greet_morning", "greet_night", "otsukare", "re_ok", "re_sokka", "smalltalk", "nudge")
+
+    def _reply_queue(self, char, st, pend, now):
+        """重ねて届いた前のメッセージのうち, 返すもの (古い順). 同じ種類は 1 つ (最新の 1 通と同じ種類なら返さない).
+        多ければ, 軽いもの (あいさつ・スタンプ・相づち) から落とし, 3 通まで. 連絡が多すぎる・夜中に起こされた ときは
+        前の分には返さない (いちばん新しい 1 通への返し方で, まとめて伝わる)."""
+        q = [x for x in pend.get("queue") or [] if x.get("kind")]
+        if not q:
+            return []
+        ctx = self.context(char, st, datetime.fromtimestamp(now))
+        if ctx.get("too_often") or (ctx.get("phase") in ("midnight", "dawn") and not self.chat.talking(char["id"], pend.get("t", now))):
+            return []
+        seen, out = {pend.get("kind")}, []
+        for x in reversed(q):                   # 新しいほうを残す
+            if x["kind"] in seen:
+                continue
+            seen.add(x["kind"])
+            out.append(x)
+        out.reverse()
+        while len(out) > self.REPLY_QUEUE_MAX:
+            light = [x for x in out if x["kind"] in self.LIGHT_KINDS]
+            out.remove(light[0] if light else out[0])
+        self.trace.add("reply", "重ねて届いた前のメッセージにも返す", char["id"], now, kinds=[x["kind"] for x in out],
+                       dropped=[x["kind"] for x in q if x not in out])
+        return out
+
     def _send_later(self, char, st, a, now, dt, scene, ctx, kind=None, extra=None):
         """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す.
         kind: メッセージの種類 (chat.KINDS. 無ければ, ただの「メッセージを送る」)."""
@@ -1988,7 +2015,11 @@ class App:
                 if pend.get("kind") in appoint_mod.APPT_KINDS and not pend.get("appoint_first"):
                     # 約束の話 (誘い・変更・取りやめ) の返事を待っている間に別のメッセージ: 約束の返事も消さない
                     pend["appoint_first"] = {"kind": pend["kind"], "appoint": pend.get("appoint"), "t": pend.get("kind_t") or pend["t"]}
-                pend["kind"] = kind                   # 返信は, いちばん新しいメッセージに対して
+                old = pend.get("kind")
+                if old and old != "apology" and old not in appoint_mod.APPT_KINDS:
+                    # 返事待ちの間に重ねて送った: 前のメッセージにも, 読んだときに順に返す (_reply_queue で選ぶ. 以前は最新の 1 通だけ)
+                    pend.setdefault("queue", []).append({"kind": old, "meta": pend.get("meta") or {}, "t": pend.get("kind_t") or pend["t"]})
+                pend["kind"] = kind                   # 返信は, いちばん新しいメッセージに対して (前の分は queue から先に)
                 pend["meta"] = meta
                 pend["kind_t"] = now
         else:
@@ -2089,9 +2120,15 @@ class App:
             af = pend.get("appoint_first")
             if af:              # 先に送った約束の話 (誘い・変更・取りやめ) に返してから, 新しい方に返す
                 self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"]}, now - 0.5)
+            q = self._reply_queue(char, st, pend, now)
+            base = max(now - 0.4, float(pend.get("kind_t") or pend.get("t") or 0) + 0.001)    # あなたの最後のメッセージより後に並ぶ
+            for i, x in enumerate(q):           # 重ねて届いた前のメッセージに, 順に返す (切り上げは最後の返事のあとだけ)
+                self._chat_reply(char, st, {"kind": x["kind"], "meta": x["meta"], "t": x["t"], "kind_t": x["t"], "_no_close": True},
+                                 min(now - 0.01, base + 0.01 * i))
             if kind == "ap_reply":              # 向こうからのメッセージへの, あなたの返事を読んだ (core/presence.py)
                 m = pend.get("meta") or {}
-                e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"))
+                e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"),
+                                             re_t=pend.get("kind_t") or pend.get("t"))
                 return {"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600}
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
@@ -2119,7 +2156,8 @@ class App:
             selfie = key == "selfie_yes" or (
                 key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
-            self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie)
+            self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie,
+                          re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t")))      # どのメッセージへの返事か (トークで引用)
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)
@@ -2128,7 +2166,7 @@ class App:
             closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold)
             # ノリが下がりきった: 相手から切り上げる. ただし「今いい？」への返事 (電話していい / あとで) のすぐあとには付けない
             # (「かけてきなさい」のあとに「用事があるので, またあとで」と続くと食い違う)
-            if closing and key not in ("too_often", "too_often_mild", "late_night", "may_call_ok", "may_call_later"):
+            if closing and not pend.get("_no_close") and key not in ("too_often", "too_often_mild", "late_night", "may_call_ok", "may_call_later"):
                 ck, ctext = nori_mod.close(self, char, st, now)
                 self.chat.add(cid, "her", ctext, kind=ck, t=now + 0.002)
             elif key not in ("too_often", "too_often_mild", "late_night"):

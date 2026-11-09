@@ -1621,9 +1621,12 @@ async function drawChat(auto) {
       if (d !== lastDay) { body.push(h('div', { class: 'chat-day' }, d)); lastDay = d; }
       if (it.who === 'sys') { body.push(h('div', { class: 'chat-sys' }, `${it.text}　${hhmm(it.t)}`)); continue; }
       const mine = it.who === 'me';
+      // 相手の返事: どのメッセージへの返事か (引用. 重ねて送った分に順に返したときも分かるように)
+      const ref = !mine && it.re ? th.items.find((x) => x.who === 'me' && Math.abs(x.t - it.re.t) < 0.01) : null;
+      const quote = ref ? h('div', { class: 'chat-quote' }, '＞' + (() => { const q = chatText(ref.text).split('\n')[0]; return q.length > 30 ? q.slice(0, 30) + '…' : q; })()) : '';
       body.push(h('div', { class: 'chat-msg ' + (mine ? 'me' : 'her') },
         mine ? '' : avatar(th.face, th.name, 'small'),
-        h('div', { class: 'chat-bubble' + (mine ? ' summary' : '') }, chatText(it.text)),
+        h('div', { class: 'chat-bubble' + (mine ? ' summary' : '') }, quote, chatText(it.text)),
         h('div', { class: 'chat-meta' }, mine && it.read_t ? h('div', {}, '既読') : '', h('div', {}, hhmm(it.t)))));
     }
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));

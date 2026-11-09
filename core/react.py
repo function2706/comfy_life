@@ -12,9 +12,11 @@
   遅れてでも返せば, 重くなった分の一部は戻る.
 """
 import random
+import time
 from datetime import datetime
 
 from . import msgreply
+from . import nori
 
 # (id, 文言, 印, トークに残す要約, 働きかけへの返事としての区分 msgreply.KINDS)
 REACTS = [
@@ -219,6 +221,12 @@ def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12):
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill - 1.0) + rng.uniform(-noise, noise)
     if kind in ("tease", "re_lol"):          # 冗談・からかいは, 仲が深いほど通じる
         score += 0.3 * (p.get("affection", 45) - 60)
+    lv = nori.level(st, time.time())         # 会話のノリ: 乗っているほど軽い返し・冗談が通じ, 素っ気ない返しは冷や水になる
+    if lv is not None:
+        if kind in ("tease", "re_lol", "re_agree", "re_really", "re_more", "re_glad"):
+            score += 12 * (lv - 0.5)
+        elif kind in ("re_sokka", "re_ok") and tone not in QUIET:
+            score -= 8 * (lv - 0.5)
     if kind in ("re_sokka", "re_ok") and tone not in QUIET:     # 素っ気ない返しは, 寂しいときほど刺さる
         score -= 0.2 * max(0.0, p.get("loneliness", 30) - 40)
     if tone in AWAIT and late_h > 1:         # 返事を待っていた話に, 遅れて返す

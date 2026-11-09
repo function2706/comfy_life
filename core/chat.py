@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 
 from . import msgpick
+from . import nori
 from . import react
 from . import store
 from .anniv import SCENE_LABEL as ANNIV_SCENES
@@ -291,6 +292,13 @@ class Chat:
         self.save(cid, d)
         return it
 
+    def ref(self, cid, t):
+        """t のあなたのメッセージ (相手の返事が, どのメッセージへのものか. トークで引用する). 無ければ None."""
+        if not t:
+            return None
+        it = next((x for x in reversed(self.load(cid)["items"]) if x.get("who") == "me" and abs(x["t"] - float(t)) < 0.01), None)
+        return {"t": it["t"]} if it else None
+
     def retime_last(self, cid, t, who="her"):
         d = self.load(cid)
         for it in reversed(d["items"]):
@@ -418,19 +426,32 @@ class Chat:
             else:
                 extra["news"] = app.persona_text(char, "chat.ask_how_nothing") or random.choice(NOTHING)
             return "ask_how", {"loneliness": -4, "trust": 1}, extra
+        # 会話の流れ (1.6.0): 何に続けて送ったか (相手の最後のメッセージの向き) と, いまのノリ.
+        # 以前は, 盛り上がっていても沈んだ話のあとでも, からかい・甘え・誘いの通じ方は機嫌と仲だけで決まっていた
+        tone = (meta.get("to") or {}).get("tone")
+        lv = nori.level(st, now)
+        lv = 0.5 if lv is None else lv
         if kind == "tease":
-            if p.get("affection", 0) >= 55 and p.get("mood", 50) >= 50 and random.random() < 0.7:
+            ch = 0.7 + 0.5 * (lv - 0.5) + (0.1 if tone in ("happy", "bored") else 0.0)
+            if tone in ("down", "upset", "lonely"):          # 沈んだ話・不満・寂しい のあとにからかう: 流された
+                ch *= 0.3
+            if p.get("affection", 0) >= 55 and p.get("mood", 50) >= 50 and random.random() < ch:
                 return "tease", {"heart": 3, "mood": 2, "boredom": -4}, extra
             return "tease_hurt", {"mood": -4, "trust": -1}, extra
         if kind == "flirt":
-            if stage in ("visit", "live") or p.get("affection", 0) >= 70:
+            if tone == "upset":                                # 不満を言われたあとに甘えて, ごまかす
+                return "flirt_cold", {"shyness": 2, "affection": -2, "trust": -1}, extra
+            close = stage in ("visit", "live") or p.get("affection", 0) >= 70
+            warm = p.get("affection", 0) >= 60 and lv >= 0.75 and tone not in ("down", "notice")     # 盛り上がっているなら, 少し手前でも
+            if close or warm:
                 return "flirt", {"heart": 6, "affection": 2, "loneliness": -6}, extra
             return "flirt_cold", {"shyness": 5, "affection": -2, "trust": -1}, extra
         if kind == "invite":
             if st.get("date_promise", 0) > now:               # 「会おう」にもう応じている: 改めて聞かれても, その話の続き
                 return "invite_again", {}, extra
             ok = p.get("affection", 0) >= float(app.bonds.cfg()["meet_min_affection"]) and p.get("mood", 50) >= 40 \
-                and random.random() < 0.75
+                and random.random() < (0.75 + (0.1 if tone in ("happy", "bored", "lonely") and lv >= 0.5 else 0.0)
+                                       - (0.25 if tone == "upset" else 0.0))     # 楽しい話・寂しいのあとの「会おうよ」は乗りやすい
             if ok:
                 st["date_promise"] = now + 12 * 3600
                 app.manners.favor(st, "invite", now)          # 誘いに乗ってくれた (お礼の心当たり)
