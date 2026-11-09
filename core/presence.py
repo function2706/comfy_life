@@ -287,7 +287,8 @@ class Presence:
             if nxt:
                 act = random.choices(nxt, [w for _, w in nxt])[0][0]
                 st["approach"]["act"] = act["id"]
-                text0 = text0.replace("{place}", (act.get("override") or {}).get("location") or act.get("name", ""))
+                st["approach"]["place_label"] = (act.get("override") or {}).get("location") or act.get("name", "")
+                text0 = text0.replace("{place}", st["approach"]["place_label"])
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
         if why:
             st["approach"]["why"] = why
@@ -337,6 +338,7 @@ class Presence:
         app = self.app
         d = datetime.fromtimestamp(now)
         text = app.persona_text(char, "ap.%s.%s" % (a["id"], ev)) or text
+        text = text.replace("{place}", (st.get("approach") or {}).get("place_label", ""))     # 「次, あそこ」の行き先 (性格のセリフにも)
         scene = app.scene_at(char, st, d)
         text = app.format_text(text, char, scene, d)
         act = {"id": "_ap_" + a["id"], "name": a.get("label", a["id"]), "icon": a.get("icon", "💬"),
