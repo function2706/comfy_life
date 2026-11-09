@@ -141,6 +141,30 @@ IGNORE_SPAN_H = 48                          # これを過ぎたら数えない
 REFUND = 1.0 / 3                            # 遅れてでも返したら, 重くなった分のうちこれだけ戻る (よくなかった返事なら戻らない)
 
 
+def mame(app, char):
+    """メッセージのマメさ (0〜1): 片付け好き・世話好き・時間に正確 から (性格の数値 mame があればそれ).
+    マメな人ほど, 重ねて届いたメッセージに一つずつ返し, どれへの返事かを引用で示す."""
+    tr = app.traits(char)
+    if "mame" in tr:
+        return max(0.0, min(1.0, float(tr["mame"])))
+    neat = max(0.0, min(1.0, (float(tr.get("neat", 0)) + 8) / 16.0))
+    punct = max(0.0, min(1.0, (float(tr.get("punctual", 0.75)) - 0.5) / 0.45))
+    return max(0.0, min(1.0, 0.35 * neat + 0.35 * min(1.0, float(tr.get("carer", 0.3)) / 0.9) + 0.3 * punct))
+
+
+def quote_chance(app, char, st):
+    """返事に引用を付ける見込み: マメさしだい (機嫌が悪いと雑になる)."""
+    m = mame(app, char)
+    return max(0.03, min(0.95, 1.15 * m - 0.1 + (st["params"].get("mood", 50) - 50) / 250.0))
+
+
+def answer_all_chance(app, char, st, now):
+    """重ねて届いたメッセージに, 一つずつ返す見込み (そうでなければ, 最後の 1 通にだけ). マメさ・機嫌・ノリしだい."""
+    lv = nori.level(st, now)
+    lv = 0.5 if lv is None else lv
+    return max(0.1, min(0.95, 0.3 + 0.45 * mame(app, char) + 0.3 * (lv - 0.5) + (st["params"].get("mood", 50) - 50) / 120.0))
+
+
 def said(kind):
     from .chat import KINDS
     return KINDS[kind][2] if kind in KINDS else ""

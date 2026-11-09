@@ -292,12 +292,13 @@ class Chat:
         self.save(cid, d)
         return it
 
-    def ref(self, cid, t):
-        """t のあなたのメッセージ (相手の返事が, どのメッセージへのものか. トークで引用する). 無ければ None."""
+    def ref(self, cid, t, quote=True):
+        """t のあなたのメッセージ (相手の返事が, どのメッセージへのものか). quote: 相手が引用を付けたか (マメさしだい.
+        付けなければ, 何への返事かは読み取るしかない. 単一の返事には, 付けていても画面には出さない). 無ければ None."""
         if not t:
             return None
         it = next((x for x in reversed(self.load(cid)["items"]) if x.get("who") == "me" and abs(x["t"] - float(t)) < 0.01), None)
-        return {"t": it["t"]} if it else None
+        return {"t": it["t"], "q": bool(quote)} if it else None
 
     def retime_last(self, cid, t, who="her"):
         d = self.load(cid)

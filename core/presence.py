@@ -438,7 +438,7 @@ class Presence:
         app.save_state(char["id"])
         return e
 
-    def reply_land(self, char, st, aid, kind, now, auto=False, why=None, re_t=None):
+    def reply_land(self, char, st, aid, kind, now, auto=False, why=None, re_t=None, quote=None):
         """働きかけへのあなたの返事を, 相手が読んだ: 受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
         a = self.find(aid) or {"id": aid}
         out = a.get("accept") or {}
@@ -476,7 +476,8 @@ class Presence:
         e["reply"] = {"kind": kind, "result": res}
         chat = self.app.chat
         chat.mark_read_by_her(char["id"], now)
-        chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001, re=chat.ref(char["id"], re_t or now))
+        chat.add(char["id"], "her", e["text"], kind="approach", t=now + 0.001, re=chat.ref(char["id"], re_t or now,
+                 random.random() < react.quote_chance(self.app, char, st) if quote is None else quote))
         closing = nori.after_choice(self.app, char, st, now, res)
         lv = nori.level(st, now)
         if closing:                                            # ノリが下がりきった: 相手から切り上げる

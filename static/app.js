@@ -1632,8 +1632,9 @@ async function drawChat(auto) {
       if (it.who === 'sys') { body.push(h('div', { class: 'chat-sys' }, `${it.text}　${hhmm(it.t)}`)); continue; }
       const mine = it.who === 'me';
       // 相手の返事: どのメッセージへの返事か (引用). 単一の返事には付けない. 重ねて送った分に続けて返したとき
-      // (同じ返事の並びに別々のメッセージへの返事がある) か, いちばん新しいメッセージではなく前のものへの返事のときだけ
-      const ref = !mine && it.re && quoteNeeded(th.items, it) ? th.items.find((x) => x.who === 'me' && Math.abs(x.t - it.re.t) < 0.01) : null;
+      // (同じ返事の並びに別々のメッセージへの返事がある) か, いちばん新しいメッセージではなく前のものへの返事のときだけ.
+      // 引用するかは相手しだい (マメな人ほど付ける. q が false なら, 何への返事かは読み取るしかない)
+      const ref = !mine && it.re && it.re.q !== false && quoteNeeded(th.items, it) ? th.items.find((x) => x.who === 'me' && Math.abs(x.t - it.re.t) < 0.01) : null;
       const quote = ref ? h('div', { class: 'chat-quote' }, '＞' + (() => { const q = chatText(ref.text).split('\n')[0]; return q.length > 30 ? q.slice(0, 30) + '…' : q; })()) : '';
       body.push(h('div', { class: 'chat-msg ' + (mine ? 'me' : 'her') },
         mine ? '' : avatar(th.face, th.name, 'small'),

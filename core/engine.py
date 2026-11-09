@@ -1969,10 +1969,10 @@ class App:
         前の分には返さない (いちばん新しい 1 通への返し方で, まとめて伝わる)."""
         q = [x for x in pend.get("queue") or [] if x.get("kind")]
         if not q:
-            return []
+            return [], False
         ctx = self.context(char, st, datetime.fromtimestamp(now))
         if ctx.get("too_often") or (ctx.get("phase") in ("midnight", "dawn") and not self.chat.talking(char["id"], pend.get("t", now))):
-            return []
+            return [], False
         seen, out = {pend.get("kind")}, []
         for x in reversed(q):                   # 新しいほうを残す
             if x["kind"] in seen:
@@ -1983,9 +1983,18 @@ class App:
         while len(out) > self.REPLY_QUEUE_MAX:
             light = [x for x in out if x["kind"] in self.LIGHT_KINDS]
             out.remove(light[0] if light else out[0])
-        self.trace.add("reply", "重ねて届いた前のメッセージにも返す", char["id"], now, kinds=[x["kind"] for x in out],
-                       dropped=[x["kind"] for x in q if x not in out])
-        return out
+        # 全部に一つずつ返すか, 最後の 1 通にだけ返すか (マメさ・機嫌・ノリ). 最後が軽いもの (スタンプ・あいさつ・相づち) で,
+        # その前に中身のあるメッセージがあれば, そちらにだけ返して最後には触れないことも (質問のあとの 👍 など. 自然)
+        pa = react_mod.answer_all_chance(self, char, st, now)
+        all_ = random.random() < pa
+        heavy = [x for x in out if x["kind"] not in self.LIGHT_KINDS]
+        skip_last = bool(heavy) and pend.get("kind") in self.LIGHT_KINDS and random.random() < 0.5
+        if not all_:
+            out = heavy[-1:] if skip_last else []
+        self.trace.add("reply", "重ねて届いた前のメッセージ: " + ("一つずつ返す" if all_ else "最後の 1 通にだけ返す")
+                       + (" (最後の軽いものには触れない)" if skip_last else ""), char["id"], now, kinds=[x["kind"] for x in out],
+                       dropped=[x["kind"] for x in q if x not in out], p_all=round(pa, 2))
+        return out, skip_last
 
     def _send_later(self, char, st, a, now, dt, scene, ctx, kind=None, extra=None):
         """離れている相手にメッセージを送る. 返信の予定 (いつ・来るか) を決めて, 送った記録だけを残す.
@@ -2114,21 +2123,29 @@ class App:
         dt = datetime.fromtimestamp(now)
         kind = pend["kind"]
         with self.lock:
+            rq = pend.get("_rq")                # 引用を付けるか (一度の読みで同じ. マメさしだい)
+            if rq is None:
+                rq = random.random() < react_mod.quote_chance(self, char, st)
             first = pend.get("apology_first")
             if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
-                self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"]}, now - 1)
+                self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"], "_rq": rq}, now - 1)
             af = pend.get("appoint_first")
             if af:              # 先に送った約束の話 (誘い・変更・取りやめ) に返してから, 新しい方に返す
-                self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"]}, now - 0.5)
-            q = self._reply_queue(char, st, pend, now)
+                self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"], "_rq": rq}, now - 0.5)
+            q, skip_last = self._reply_queue(char, st, pend, now)
+            if skip_last and q:                 # 最後の軽いメッセージには触れず, その前の中身のあるメッセージで締める
+                last = q.pop()
+                pend = dict(pend, kind=last["kind"], meta=last["meta"], kind_t=last["t"])
+                kind = pend["kind"]
             base = max(now - 0.4, float(pend.get("kind_t") or pend.get("t") or 0) + 0.001)    # あなたの最後のメッセージより後に並ぶ
             for i, x in enumerate(q):           # 重ねて届いた前のメッセージに, 順に返す (切り上げは最後の返事のあとだけ)
-                self._chat_reply(char, st, {"kind": x["kind"], "meta": x["meta"], "t": x["t"], "kind_t": x["t"], "_no_close": True},
+                self._chat_reply(char, st, {"kind": x["kind"], "meta": x["meta"], "t": x["t"], "kind_t": x["t"], "_no_close": True,
+                                            "_rq": rq},
                                  min(now - 0.01, base + 0.01 * i))
             if kind == "ap_reply":              # 向こうからのメッセージへの, あなたの返事を読んだ (core/presence.py)
                 m = pend.get("meta") or {}
                 e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"),
-                                             re_t=pend.get("kind_t") or pend.get("t"))
+                                             re_t=pend.get("kind_t") or pend.get("t"), quote=rq)
                 return {"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600}
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
@@ -2157,7 +2174,7 @@ class App:
                 key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie,
-                          re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t")))      # どのメッセージへの返事か (トークで引用)
+                          re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t"), rq))      # どのメッセージへの返事か (トークで引用)
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)
