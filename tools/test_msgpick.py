@@ -50,7 +50,8 @@ def main():
         th = C.thread(cid)
         assert [g["id"] for g in th["groups"]] == ["chat", "feel", "invite", "photo", "call"] and set(th["pick"]) == {"apology", "thanks", "consult", "stamp"}
         grouped = {k for g in th["groups"] for k in g["kinds"]}
-        assert grouped | {"stamp", "nudge"} == set(k["id"] for k in th["kinds"]), set(k["id"] for k in th["kinds"]) - grouped
+        from core import react      # 相手のメッセージへの返しは「返す」のまとまりにだけ (返していないメッセージがあるとき)
+        assert grouped | {"stamp", "nudge"} | set(react.IDS) == set(k["id"] for k in th["kinds"]), set(k["id"] for k in th["kinds"]) - grouped
         print("一覧: OK | 謝る理由 %d 件・分類 %d" % (len(ids), len(th["groups"])))
 
         # ---- 2. 謝る: 的中 / 近い / 気にしていない / 心当たりなし

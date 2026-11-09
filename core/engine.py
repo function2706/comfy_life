@@ -37,6 +37,7 @@ from . import offline as offline_mod
 from . import items as items_mod
 from . import msgpick as msgpick_mod
 from . import nori as nori_mod
+from . import react as react_mod
 from . import attach as attach_mod
 from . import topics as topics_mod
 from . import anniv as anniv_mod
@@ -1966,12 +1967,15 @@ class App:
         p = st["params"]
         pend = st.get("msg_pending")
         self.bonds.met(st, now, contact=True)
+        to = react_mod.target(self, cid, st, now) if kind else None     # 何に返したか (相手の最後のメッセージ. 返していなければ)
         if st.get("approach"):
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
         said = (extra or {}).get("said") or "（%sをした）" % extra["topic_text"] if (extra or {}).get("said") or (extra or {}).get("topic_text") else \
             chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）"
         self.chat.add(cid, "me", said, kind=kind, t=now)
-        meta = self.manners.on_send(char, st, kind, now) if kind else {}     # 送った時刻・続け方 (あいさつ・スタンプ など)
+        meta = self.manners.on_send(char, st, kind, now, to) if kind else {}     # 送った時刻・続け方 (あいさつ・スタンプ など)
+        if to:
+            meta["to"], meta["sent"] = to, now
         meta.update(extra or {})                       # 振った話題 など
         if pend:
             pend["count"] = pend.get("count", 1) + 1
@@ -1989,6 +1993,8 @@ class App:
                 pend["kind_t"] = now
         else:
             pr = self._reply_chance(st, ctx, kind, now)
+            if kind in react_mod.IDS:                  # 「了解」「そっか」で話が終わるのは自然: 返さないことも多い
+                pr = react_mod.reply_chance(pr, kind, meta.get("to"))
             lv = nori_mod.level(st, now)
             delay, quick, hand = self.reply_delay(char, st, now, scene, ctx)
             reply = random.random() < pr
@@ -2270,6 +2276,10 @@ class App:
             if pend.get("nudge"):
                 self._nudge_seen(char, st, pend, now)
             if not pend.get("reply"):
+                if pend.get("kind") in react_mod.IDS:     # 相手のメッセージへの返し: 返事はしなくても, 受け取り方は決まる
+                    react_mod.land_silent(self, char, st, pend, now)
+                    self.save_state(cid)
+                    continue
                 # 読んだが, 返事はしなかった (既読だけ). しばらくは, 自分から気軽な話を送ってこない (presence.fire)
                 st["ap_ignored_until"] = now + random.uniform(1, 3) * 3600
                 self.save_state(cid)

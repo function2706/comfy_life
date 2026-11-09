@@ -39,6 +39,7 @@ ACTION_ITEM = {
     "_appoint": "appoint", "_drop_in": "drop_in", "_drift": "drift", "_street": "street", "_anniv_forgot": "anniv_forgot",
     "_home": "home", "_chores": "chores", "_chores_mine": "chores", "_chores_scold": "chores_scold",
     "_borrow": "borrow", "_money_concern": "borrow", "_pay": "pay", "_help": "help", "_fight": "fight", "_jealous": "jealous",
+    "_react": "reply_manner",
 }
 # 「近い」(それもだけど……) とみなすまとまり. 画面には出さない
 NEAR = [

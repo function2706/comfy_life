@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 
 from . import msgpick
+from . import react
 from . import store
 from .anniv import SCENE_LABEL as ANNIV_SCENES
 
@@ -255,6 +256,10 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "appoint_cancel_hurt": "約束を取りやめたい (傷ついた)",
                "appoint_cancel_favor": "頼まれごとを取りやめたい (ほかの人に頼む)",
                "appoint_cancel_favor_sour": "頼まれごとを取りやめたい (当てにしていたので引っかかる)"}
+# 相手のメッセージへの返し (core/react.py): 「返す」のまとまりにだけ出す (GROUPS には入れない)
+KINDS.update({r[0]: (r[1], r[2], r[3]) for r in react.REACTS})
+LINES.update(react.LINES)
+SCENE_LABEL.update(react.SCENE_LABEL)
 
 
 class Chat:
@@ -323,6 +328,13 @@ class Chat:
             raise ValueError("話題を選んでください")
         if kind == "tell_bday" and not self.app.anniv.my_birthday():
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
+        if kind in react.IDS or kind in react.AP_KINDS:
+            st = self.app.state(cid)
+            ap = st.get("approach") or {}
+            if ap and (self.app.presence.find(ap.get("id")) or {}).get("apart"):
+                return self.app.answer_approach("reply", cid, choice=kind)     # 相手から来たメッセージへの返事 (以前の 4 択の代わり)
+            if kind in react.IDS and not react.target(self.app, cid, st, time.time()):
+                raise ValueError("返す相手のメッセージがありません")
         extra = msgpick.check_extra(self.app, kind, extra)
         return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": {k: v for k, v in extra.items() if k != "said" or v != KINDS[kind][2]} or None})
 
@@ -370,6 +382,8 @@ class Chat:
             return "late_night", {"mood": -2, "stress": 2}, extra
         if kind == "topic":                     # 振った話題: 乗るか (好み・飽き・知っているか・機嫌)
             return app.topics.phone_reply(char, st, meta, now)
+        if kind in react.IDS:                                   # 相手のメッセージへの返し (送ったときに, 何に返したかを覚えている)
+            return react.land(app, char, st, kind, meta, now)
         if app.quarrel.cold_reply(st, kind, now):              # 言い争いのあと: 素っ気ない
             return "fight_cold", {"mood": -0.5}, {}
         if kind in ("ask_bday", "tell_bday", "congrats"):      # 誕生日・おめでとう (送った日で見る)
@@ -509,13 +523,15 @@ class Chat:
         app = self.app
         d = self.load(cid)
         st = app.state(cid)
+        rg, tg = react.group(app, cid, st, time.time()) if not app.bonds.together(cid) else (None, None)
         return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": d["items"][-200:],
                 "seen_t": d["seen_t"], "waiting": bool(st.get("msg_pending")), "together": app.bonds.together(cid),
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
                 "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
                 "appoint_choices": app.appoint.choices(cid) if app.bonds.stage(cid) in ("contact", "visit") else [],
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
-                "groups": [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
+                "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
+                "react": {"t": tg["t"]} if rg else None,     # 返していない相手のメッセージ (「返す」のまとまりを出す)
                 "pick": {"apology": msgpick.apology_choices(app), "thanks": msgpick.thanks_choices(),
                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT],
                          "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS]},

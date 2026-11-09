@@ -22,6 +22,7 @@ from datetime import datetime
 from . import cond
 from . import msgreply
 from . import nori
+from . import react
 
 DECLARED = ("busy", "out", "work", "sleep", "left")
 AWAY_MODES = ("out", "work", "sleep", "left")
@@ -182,6 +183,8 @@ class Presence:
 
     def live(self, char, st, now):
         """画面を開いている間 (state_view のたび) に呼ぶ. 期限切れの処理と, 新しい働きかけ. 作った記録を返す."""
+        if react.ignore_tick(self.app, char, st, now):     # 返さないまま既読で放っておくほど, 少しずつ重くなる
+            self.app.save_state(char["id"])
         ap = st.get("approach")
         if ap and now >= ap.get("until", 0):
             return self._expire(char, st, now)
@@ -282,7 +285,7 @@ class Presence:
         e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else a.get("text", ""), {}, a,
                         gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
-            self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now)
+            self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now, ap=a["id"], why=why)    # 何の話か (返し方の合う・外す)
             told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
             if told:
                 self.app.chat.add(char["id"], "sys", told, kind="sched", t=now + 0.0005)
@@ -345,6 +348,9 @@ class Presence:
             self.app.life.add_reason(st, "player", "bad", tell.replace("{call}", call), now, told=False,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         e = self._entry(char, st, now, a, "busy" if busy and ig.get("busy_text") else "ignore", text, deltas, None, gen=False)
+        if a.get("apart"):        # 待ち時間が過ぎたあとも既読のままなら, 少しずつ重くなる (core/react.py ignore_tick. 返せば一部戻る)
+            st["ap_ignored"] = {"t": now, "t_msg": float(ap.get("t", now)), "aid": a["id"], "read": read, "applied": 0.0,
+                                "urgency": float(a.get("urgency", 1.0))}
         if a.get("apart") and read:
             self.app.chat.add(char["id"], "sys", "既読のまま返事をしなかった", kind="ignored", t=now)
         self.app.save_state(char["id"])
@@ -406,13 +412,16 @@ class Presence:
         ap = st.get("approach") or {}
         why = ap.get("why")
         opts = [o["id"] for o in msgreply.options(a["id"], why)]
-        kind = choice if choice in opts else opts[0]
+        kind = choice if choice in opts or choice in react.AP_KINDS else opts[0]       # 「返す」の種類 (1.6.0) / 以前の 4 択
         st["approach"] = None
         self.touch(now)
         st["last_interaction"] = now
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         chat = self.app.chat
-        chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind, why), "・自動" if auto else ""), kind="approach", t=now)
+        if kind in react.AP_KINDS:
+            chat.add(char["id"], "me", react.said(kind), kind=kind, t=now)
+        else:
+            chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind, why), "・自動" if auto else ""), kind="approach", t=now)
         if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
             return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why)
         app = self.app
@@ -434,7 +443,12 @@ class Presence:
         a = self.find(aid) or {"id": aid}
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
-        res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15, why=why)     # 自動の返事は, 相手の様子を読み違えやすい
+        if kind in react.AP_KINDS:       # 「返す」の種類: 何の話か (働きかけ・理由) と返し方の合い方で (core/react.py)
+            res, _ = react.judge(self.app, char, st, react.ap_tone(a["id"], why), kind)
+            cat = react.CAT[kind]
+        else:
+            res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15, why=why)     # 自動の返事は, 相手の様子を読み違えやすい
+            cat = kind
         self.app.attach.move(char, st, "dependence", 0.4, "送ったメッセージに返事が来た", now)
         if res == "good":
             eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
@@ -452,9 +466,9 @@ class Presence:
             self.app.life.add_reason(st, "player", "good", out["reason_good"].replace("{call}", call), now, told=True,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         if res == "bad":
-            self.app.life.add_reason(st, "player", "bad", msgreply.BAD_TELL[kind].replace("{call}", call), now, told=True,
+            self.app.life.add_reason(st, "player", "bad", (react.BAD_TELL.get(kind) or msgreply.BAD_TELL[cat]).replace("{call}", call), now, told=True,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
-        key = "msgr.%s.%s" % (a["id"] if a["id"] in msgreply.AP_REPLY else kind, res)
+        key = "msgr.%s.%s" % (a["id"] if a["id"] in msgreply.AP_REPLY else cat, res)
         text = self.app.persona_text(char, key) or msgreply.LINES[key]
         if res == "bad" and why in msgreply.WHY_BAD:          # よくなかった: 理由をにじませる (次から読めるように)
             text = self.app.persona_text(char, "msgr.why.%s.bad" % why) or msgreply.WHY_BAD[why]

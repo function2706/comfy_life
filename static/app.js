@@ -1658,13 +1658,12 @@ async function drawChat(auto) {
         h('span', { class: 'muted small', style: 'margin-left:8px' }, th.together ? 'そばにいる' : th.promise ? `📅 会う約束（${hhmm(th.promise)}まで）` : ''),
         h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small chat-close', onclick: () => dlg.close() }, '✕')),
       h('div', { class: 'chat-body' }, body.length ? body : h('p', { class: 'muted small', style: 'text-align:center' }, 'まだやりとりはありません')),
-      (() => {          // 返事を待たれているメッセージ: ここでも返事を選べる
+      (() => {          // 返事を待たれているメッセージ: 下の「↩ 返す」(ほかの種類でも) から返す. 「あとで」だけここに
         const ap = can && (S.view.approaches || []).find((x) => x.cid === th.id && x.choices);
         if (!ap) return '';
-        return h('div', { class: 'chat-reply' }, h('div', { class: 'muted small' }, `${ap.icon} 返事を選ぶ（あと${Math.max(1, Math.ceil((ap.until - Date.now() / 1000) / 60))}分）`),
-          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
-            ...ap.choices.map((c) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'reply', c.id); S.chatJump = true; drawChat(); } }, c.label)),
-            h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later)));
+        return h('div', { class: 'chat-reply row', style: 'gap:8px;align-items:center' },
+          h('span', { class: 'muted small' }, `${ap.icon} 返事を待っています（あと${Math.max(1, Math.ceil((ap.until - Date.now() / 1000) / 60))}分）。「↩ 返す」から選ぶか、ほかのメッセージでも返せます`),
+          h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later));
       })(),
       h('div', { class: 'chat-send' },
         can ? [chatSendBox(th), S.apForm ? appointForm(th) : '']
@@ -1935,6 +1934,10 @@ function chatSendBox(th) {
   const G = th.groups || [];
   const KD = Object.fromEntries((th.kinds || []).map((k) => [k.id, k]));
   const P = th.pick || {};
+  if (th.react && (S.reactSeen = S.reactSeen || {})[th.id] !== th.react.t) {       // 返していない新しいメッセージ: 「返す」を開いておく
+    S.reactSeen[th.id] = th.react.t;
+    S.chatTab = 'react'; S.chatPick = null;
+  }
   if (!G.some((g) => g.id === S.chatTab)) S.chatTab = (G[0] || {}).id;
   const btn = (label, onclick, on, dis) => h('button', { class: 'chat-kind' + (on ? ' on' : ''), disabled: S.busy || !!dis, onclick }, label);
   const kindBtn = (id) => {
@@ -1996,11 +1999,7 @@ function renderOffline() {
         (() => {             // まだ返事を待っているメッセージなら, 返事を選ぶ (待ちが終わっていれば出さない)
           const ap = (S.view.approaches || []).find((x) => x.cid === m.cid && x.choices);
           if (!ap) return '';
-          return h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px;max-width:60%' }, ap.choices.map((c) => h('button', { class: 'btn small', onclick: async (ev) => {
-            ev.target.parentNode.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-            try { const r = await api('/api/approach', { answer: 'reply', choice: c.id, character: m.cid }); toast(`${m.name}に返事をした`, 'ok'); if (r && r.entry) S.lastDeltas = r.entry.deltas || {}; }
-            catch (e) { toast(e.message, 'err'); }
-          } }, c.label)));
+          return h('button', { class: 'btn small primary', onclick: async () => { await close(); openChat(m.cid); } }, '📱 トークで返す');
         })())) : h('div', { class: 'muted small' }, 'なし')),
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
   document.body.append(dlg);
@@ -2611,9 +2610,9 @@ function renderApproach() {
     return h('div', { class: 'ap-item' },
       h('div', { class: 'req-text' }, h('b', {}, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`),
         h('span', { class: 'muted small', id: 'ap-rest-' + ap.cid }, `（あと${Math.ceil(rest / 60)}分）`)),
-      ap.choices        // メッセージ: 返事を選ぶ (どれが良く効くかは相手しだい)
+      ap.choices        // メッセージ: トークを開いて「↩ 返す」から返す (どれが良く効くかは, 話の中身と相手しだい)
         ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
-          ...ap.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'reply', c.id) }, c.label)),
+          h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => openChat(ap.cid) }, '📱 トークを開いて返す'),
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))
         : h('div', { class: 'row' },
           h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'accept') }, ap.accept),

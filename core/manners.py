@@ -518,7 +518,7 @@ class Manners:
         return None
 
     # ------------------------------------------------------------------ 送ったとき (時刻・続け方の記録)
-    def on_send(self, char, st, kind, now):
+    def on_send(self, char, st, kind, now, to=None):
         """送った時点のこと (返信を決めるときに使う). pend["meta"] に入れる."""
         app = self.app
         dt = datetime.fromtimestamp(now)
@@ -537,10 +537,11 @@ class Manners:
                     days.append(key)
                     del days[:-14]
         if kind == "stamp":
-            d = app.chat.load(char["id"])
-            items = [it for it in d["items"] if it["who"] in ("me", "her")]
-            last = items[-1] if items else None
-            meta["answering"] = bool(st.get("approach")) or bool(last and last["who"] == "her" and now - last["t"] < 6 * 3600)
+            # 相手のメッセージへの返事か (以前は, 送ったスタンプをトークに足したあとで最後の発言を見ていたので,
+            # 相手から来た働きかけへの返事のときしか「スタンプだけ？」にならなかった. 送る前に見た「何に返したか」で)
+            meta["answering"] = bool(st.get("approach")) or bool(to and now - float(to.get("t", 0)) < 6 * 3600)
+            if to:
+                meta["to_tone"] = to.get("tone")           # 何にスタンプで返したか (大事な話にスタンプだけだと, 軽く流された)
             sts = [t for t in st.get("stamps") or [] if now - t < 3600]
             meta["stamps"] = len(sts)
             st["stamps"] = sts + [now]
@@ -599,7 +600,14 @@ class Manners:
                     fresh[-1]["thanked"] += 1
                     return "stamp_thanks", {"mood": 1.5, "trust": 0.5}, {}
             want = float(app.traits(char).get("approach", 1))       # 話したがりほど「スタンプだけ？」と思う
-            if meta.get("answering") and random.random() < min(0.8, 0.2 + 0.3 * (want - 0.5)):
+            # 何に返したか: 沈んだ話・寂しい・問いかけ・聞かせてくれた話 にスタンプだけだと, 軽く流されたと受け取りやすい.
+            # うれしい話・用件の連絡・あいさつ・切り上げ には, スタンプで十分
+            heavy = {"down": 0.35, "lonely": 0.35, "upset": 0.3, "question": 0.3, "where": 0.45, "news": 0.2, "advice": 0.15}
+            light = ("happy", "notice", "greet", "close")
+            tone = meta.get("to_tone")
+            base = 0.2 + 0.3 * (want - 0.5)
+            base = base * 0.3 if tone in light else base + heavy[tone] if tone in heavy else base * 0.6
+            if meta.get("answering") and random.random() < min(0.85, base):
                 return "stamp_only", {"mood": -2, "loneliness": 2}, {}
             return None
         if kind == "may_call":
