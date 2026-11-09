@@ -2744,6 +2744,87 @@
   ],
   "chat.appoint_cancel_favor_sour": [
    "📱『……当てにしていたのだけど。わかったわ、ほかに頼む』"
+  ],
+  "chat.react_glad_good": [
+   "📱『ありがとう。そう言ってもらえると、素直にうれしいわ』"
+  ],
+  "chat.react_glad_neutral": [
+   "📱『ありがとう』"
+  ],
+  "chat.react_glad_bad": [
+   "📱『……よかった、という話ではないのだけど』"
+  ],
+  "chat.react_hard_good": [
+   "📱『……ええ。わかってもらえると、少し楽になるわね』"
+  ],
+  "chat.react_hard_neutral": [
+   "📱『そこまでではないわ。大丈夫』"
+  ],
+  "chat.react_hard_bad": [
+   "📱『大変？ ……そういう話ではないのだけど』"
+  ],
+  "chat.react_more_good": [
+   "📱『聞いてくれるの？ では続けるわね。それで……』"
+  ],
+  "chat.react_more_neutral": [
+   "📱『続きといっても、それくらいよ』"
+  ],
+  "chat.react_more_bad": [
+   "📱『……いまは、その話はもういいわ』"
+  ],
+  "chat.react_agree_good": [
+   "📱『でしょう。わかってもらえて、うれしいわ』"
+  ],
+  "chat.react_agree_neutral": [
+   "📱『そう？』"
+  ],
+  "chat.react_agree_bad": [
+   "📱『……本当にわかっている？』"
+  ],
+  "chat.react_really_good": [
+   "📱『本当よ。{fp}も驚いたわ』"
+  ],
+  "chat.react_really_neutral": [
+   "📱『本当よ』"
+  ],
+  "chat.react_really_bad": [
+   "📱『……嘘をつく理由がないわ』"
+  ],
+  "chat.react_lol_good": [
+   "📱『笑ってもらえたなら、よかったわ』"
+  ],
+  "chat.react_lol_neutral": [
+   "📱『……そんなに面白かった？』"
+  ],
+  "chat.react_lol_bad": [
+   "📱『……笑うところではないわ』"
+  ],
+  "chat.react_sokka_good": [
+   "📱『ええ。また話しましょう』"
+  ],
+  "chat.react_sokka_neutral": [
+   "📱『……ええ』"
+  ],
+  "chat.react_sokka_bad": [
+   "📱『……それだけ？』"
+  ],
+  "chat.react_ok_good": [
+   "📱『了解。よろしくね』"
+  ],
+  "chat.react_ok_neutral": [
+   "📱『了解』"
+  ],
+  "chat.react_ok_bad": [
+   "📱『……素っ気ないのね』"
+  ],
+  "chat.react_answer_good": [
+   "📱『そうなのね。教えてくれてありがとう』"
+  ],
+  "chat.react_answer_neutral": [
+   "📱『そう、わかったわ』"
+  ],
+  "chat.react_answer_bad": [
+   "📱『……それ、答えになっていないわ』"
   ]
  }
 }
