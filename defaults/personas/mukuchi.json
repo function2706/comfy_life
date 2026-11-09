@@ -2825,6 +2825,120 @@
   ],
   "chat.react_answer_bad": [
    "📱『……答えに、なってない』"
+  ],
+  "ap.date_look.call": [
+   "……{call}。あれ"
+  ],
+  "ap.date_look.later": [
+   "……そう"
+  ],
+  "ap.date_look.ignore": [
+   "（{name}は指さした手を、そっと下ろした）"
+  ],
+  "ap.date_fun.call": [
+   "……今日、楽しい"
+  ],
+  "ap.date_fun.later": [
+   "……楽しく、なかった？"
+  ],
+  "ap.date_fun.ignore": [
+   "（{name}は黙って、少しだけ肩を寄せた）"
+  ],
+  "ap.date_cold.call": [
+   "……寒い"
+  ],
+  "ap.date_cold.accept": [
+   "……あったかい。……ありがと"
+  ],
+  "ap.date_cold.later": [
+   "……うん"
+  ],
+  "ap.date_cold.ignore": [
+   "（{name}は黙って、手に息を吹きかけている）"
+  ],
+  "ap.date_hot.call": [
+   "……暑い。……冷たいの、飲みたい"
+  ],
+  "ap.date_hot.accept": [
+   "……生き返った"
+  ],
+  "ap.date_hot.later": [
+   "……うん"
+  ],
+  "ap.date_hot.ignore": [
+   "（{name}は黙って、日陰を歩いている）"
+  ],
+  "ap.date_rest.call": [
+   "……ちょっと、休憩"
+  ],
+  "ap.date_rest.accept": [
+   "……ふう。……ありがと"
+  ],
+  "ap.date_rest.later": [
+   "……うん"
+  ],
+  "ap.date_rest.ignore": [
+   "（{name}は少し遅れて、後ろからついてくる）"
+  ],
+  "ap.date_hungry.call": [
+   "……お腹、すいた"
+  ],
+  "ap.date_hungry.accept": [
+   "……いこ"
+  ],
+  "ap.date_hungry.later": [
+   "……うん。あとで"
+  ],
+  "ap.date_hungry.ignore": [
+   "（{name}のお腹が小さく鳴った）"
+  ],
+  "ap.date_next.call": [
+   "……次、{place}。……いかない？"
+  ],
+  "ap.date_next.accept": [
+   "……いこ"
+  ],
+  "ap.date_next.later": [
+   "……うん。ここでいい"
+  ],
+  "ap.date_next.ignore": [
+   "（{name}は、あたりを見回している）"
+  ],
+  "ap.date_home.call": [
+   "……そろそろ、帰る？"
+  ],
+  "ap.date_home.accept": [
+   "……今日、ありがと。……楽しかった"
+  ],
+  "ap.date_home.later": [
+   "……もう少しだけ"
+  ],
+  "ap.date_home.ignore": [
+   "（{name}は、小さくあくびをした）"
+  ],
+  "ap.date_photo.call": [
+   "……写真。……いっしょに"
+  ],
+  "ap.date_photo.accept": [
+   "……撮った。……いい"
+  ],
+  "ap.date_photo.later": [
+   "……そう"
+  ],
+  "ap.date_photo.ignore": [
+   "（{name}は一人で景色の写真を撮った）"
+  ],
+  "ap.date_hands.call": [
+   "……手。……つないで、いい？"
+  ],
+  "ap.date_hands.accept": [
+   "……（握り返す手に、少し力がこもった）"
+  ],
+  "ap.date_hands.later": [
+   "……そう"
+  ],
+  "ap.date_hands.ignore": [
+   "（{name}は差し出しかけた手を、そっと引っ込めた）"
   ]
  }
 }

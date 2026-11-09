@@ -2768,6 +2768,120 @@
   ],
   "chat.react_answer_bad": [
    "📱『……それ、答えになってないですよ』"
+  ],
+  "ap.date_look.call": [
+   "{call}、あれ見てください。ちょっと面白いですよ"
+  ],
+  "ap.date_look.later": [
+   "……せっかく教えたのに"
+  ],
+  "ap.date_look.ignore": [
+   "（{name}は指さした手を、ポケットにしまった）"
+  ],
+  "ap.date_fun.call": [
+   "……今日、わりと楽しいです"
+  ],
+  "ap.date_fun.later": [
+   "……楽しくなかったんですか？"
+  ],
+  "ap.date_fun.ignore": [
+   "（{name}は肩をすくめて、前を向いた）"
+  ],
+  "ap.date_cold.call": [
+   "寒くないですか。冷えてきましたね"
+  ],
+  "ap.date_cold.accept": [
+   "え、いいんですか。……あったかいです。どうも"
+  ],
+  "ap.date_cold.later": [
+   "……はいはい、我慢します"
+  ],
+  "ap.date_cold.ignore": [
+   "（{name}はポケットに手を突っ込んで、肩をすくめている）"
+  ],
+  "ap.date_hot.call": [
+   "暑いですね……。冷たいもの、飲みに行きませんか。休憩も兼ねて"
+  ],
+  "ap.date_hot.accept": [
+   "はー、生き返りました"
+  ],
+  "ap.date_hot.later": [
+   "……わかりました、もう少し歩きます"
+  ],
+  "ap.date_hot.ignore": [
+   "（{name}はだるそうに顔をあおいでいる）"
+  ],
+  "ap.date_rest.call": [
+   "ちょっと休憩しませんか。もう歩けません"
+  ],
+  "ap.date_rest.accept": [
+   "ふう……。どうも、助かりました"
+  ],
+  "ap.date_rest.later": [
+   "……わかりました、もう少しだけ"
+  ],
+  "ap.date_rest.ignore": [
+   "（{name}は少し遅れて、だるそうに後ろからついてくる）"
+  ],
+  "ap.date_hungry.call": [
+   "お腹すきません？ 何か食べに行きましょうよ"
+  ],
+  "ap.date_hungry.accept": [
+   "いいですね、行きましょう"
+  ],
+  "ap.date_hungry.later": [
+   "……まあ、もう少しくらいなら"
+  ],
+  "ap.date_hungry.ignore": [
+   "（{name}のお腹が小さく鳴った。「……聞かなかったことにしてください」）"
+  ],
+  "ap.date_next.call": [
+   "次、{place}行きません？ ちょっと気になってて"
+  ],
+  "ap.date_next.accept": [
+   "いいですね、行きましょう"
+  ],
+  "ap.date_next.later": [
+   "……まあ、ここでもいいですけど"
+  ],
+  "ap.date_next.ignore": [
+   "（{name}は、あたりを見回している）"
+  ],
+  "ap.date_home.call": [
+   "そろそろ帰りません？ さすがに疲れました"
+  ],
+  "ap.date_home.accept": [
+   "今日はどうも。わりと楽しかったです"
+  ],
+  "ap.date_home.later": [
+   "……もう少しだけですよ"
+  ],
+  "ap.date_home.ignore": [
+   "（{name}は、大きくあくびをした）"
+  ],
+  "ap.date_photo.call": [
+   "一緒に写真、撮っときます？"
+  ],
+  "ap.date_photo.accept": [
+   "撮りますよ……。まあ、いいんじゃないですか"
+  ],
+  "ap.date_photo.later": [
+   "……そうですか。まあいいですけど"
+  ],
+  "ap.date_photo.ignore": [
+   "（{name}は一人で景色の写真を撮った）"
+  ],
+  "ap.date_hands.call": [
+   "……手、つなぎます？"
+  ],
+  "ap.date_hands.accept": [
+   "……まあ、悪くないですね"
+  ],
+  "ap.date_hands.later": [
+   "……ですよね。言ってみただけです"
+  ],
+  "ap.date_hands.ignore": [
+   "（{name}は差し出しかけた手を、ポケットにしまった）"
   ]
  }
 }

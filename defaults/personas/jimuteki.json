@@ -2825,6 +2825,120 @@
   ],
   "chat.react_answer_bad": [
    "📱『……それ、答えになっていないわ』"
+  ],
+  "ap.date_look.call": [
+   "{call}、あれを見て"
+  ],
+  "ap.date_look.later": [
+   "いま見てほしかったのだけど"
+  ],
+  "ap.date_look.ignore": [
+   "（{name}は指さした手を下ろした）"
+  ],
+  "ap.date_fun.call": [
+   "今日は、楽しいわ。報告しておく"
+  ],
+  "ap.date_fun.later": [
+   "……楽しくなかった？"
+  ],
+  "ap.date_fun.ignore": [
+   "（{name}は前を向いたまま、少しだけ口元をゆるめた）"
+  ],
+  "ap.date_cold.call": [
+   "気温が下がってきたわね。寒くない？"
+  ],
+  "ap.date_cold.accept": [
+   "ありがとう。……体感温度が、だいぶ上がったわ"
+  ],
+  "ap.date_cold.later": [
+   "わかったわ。もう少し我慢する"
+  ],
+  "ap.date_cold.ignore": [
+   "（{name}は手に息を吹きかけている）"
+  ],
+  "ap.date_hot.call": [
+   "暑いわね。水分補給をしましょう。冷たいものでも"
+  ],
+  "ap.date_hot.accept": [
+   "生き返ったわ。ありがとう"
+  ],
+  "ap.date_hot.later": [
+   "了解。もう少し歩きましょう"
+  ],
+  "ap.date_hot.ignore": [
+   "（{name}はハンカチで額を押さえている）"
+  ],
+  "ap.date_rest.call": [
+   "少し休憩を提案するわ"
+  ],
+  "ap.date_rest.accept": [
+   "ふう……。ありがとう、回復したわ"
+  ],
+  "ap.date_rest.later": [
+   "……わかったわ"
+  ],
+  "ap.date_rest.ignore": [
+   "（{name}は少し遅れて、後ろからついてくる）"
+  ],
+  "ap.date_hungry.call": [
+   "そろそろ食事にしない？ お腹がすいてきたわ"
+  ],
+  "ap.date_hungry.accept": [
+   "ええ、行きましょう"
+  ],
+  "ap.date_hungry.later": [
+   "了解。もう少しあとにしましょう"
+  ],
+  "ap.date_hungry.ignore": [
+   "（{name}のお腹が小さく鳴った。{name}は表情を変えなかった）"
+  ],
+  "ap.date_next.call": [
+   "次は{place}に行くのはどう？"
+  ],
+  "ap.date_next.accept": [
+   "ええ、行きましょう"
+  ],
+  "ap.date_next.later": [
+   "そうね。ここでもう少し過ごしましょう"
+  ],
+  "ap.date_next.ignore": [
+   "（{name}は、あたりを見回している）"
+  ],
+  "ap.date_home.call": [
+   "そろそろ帰りましょうか。いい時間だわ"
+  ],
+  "ap.date_home.accept": [
+   "今日はありがとう。楽しかったわ"
+  ],
+  "ap.date_home.later": [
+   "……もう少しだけね"
+  ],
+  "ap.date_home.ignore": [
+   "（{name}は小さくあくびをかみ殺した）"
+  ],
+  "ap.date_photo.call": [
+   "記録に、一緒に写真を撮らない？"
+  ],
+  "ap.date_photo.accept": [
+   "撮るわ……。うん、よく撮れた"
+  ],
+  "ap.date_photo.later": [
+   "そう。わかったわ"
+  ],
+  "ap.date_photo.ignore": [
+   "（{name}は一人で景色の写真を撮った）"
+  ],
+  "ap.date_hands.call": [
+   "……手を、つないでもいい？"
+  ],
+  "ap.date_hands.accept": [
+   "……ええ。悪くないわ"
+  ],
+  "ap.date_hands.later": [
+   "……そう。わかったわ"
+  ],
+  "ap.date_hands.ignore": [
+   "（{name}は差し出しかけた手を、そっと引っ込めた）"
   ]
  }
 }

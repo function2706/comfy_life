@@ -2813,6 +2813,120 @@
   ],
   "chat.react_answer_bad": [
    "📱『……それ、答えになってない』"
+  ],
+  "ap.date_look.call": [
+   "{call}、あれ見て"
+  ],
+  "ap.date_look.later": [
+   "……今だったのに"
+  ],
+  "ap.date_look.ignore": [
+   "（{name}は指さした手を、黙って下ろした）"
+  ],
+  "ap.date_fun.call": [
+   "……今日、楽しい"
+  ],
+  "ap.date_fun.later": [
+   "……楽しくなかった？"
+  ],
+  "ap.date_fun.ignore": [
+   "（{name}は表情を変えずに前を向いた。耳が少し赤い）"
+  ],
+  "ap.date_cold.call": [
+   "……寒い"
+  ],
+  "ap.date_cold.accept": [
+   "……ありがと。あったかい"
+  ],
+  "ap.date_cold.later": [
+   "……そう"
+  ],
+  "ap.date_cold.ignore": [
+   "（{name}はポケットに手を入れて、黙って歩いている）"
+  ],
+  "ap.date_hot.call": [
+   "暑い。冷たいもの、飲みたい"
+  ],
+  "ap.date_hot.accept": [
+   "……生き返った"
+  ],
+  "ap.date_hot.later": [
+   "……わかった"
+  ],
+  "ap.date_hot.ignore": [
+   "（{name}は無言で、日陰を選んで歩いている）"
+  ],
+  "ap.date_rest.call": [
+   "少し、休憩しない？"
+  ],
+  "ap.date_rest.accept": [
+   "……ふう。助かった"
+  ],
+  "ap.date_rest.later": [
+   "……わかった"
+  ],
+  "ap.date_rest.ignore": [
+   "（{name}は少し遅れて、後ろからついてくる）"
+  ],
+  "ap.date_hungry.call": [
+   "お腹すいた"
+  ],
+  "ap.date_hungry.accept": [
+   "行こう"
+  ],
+  "ap.date_hungry.later": [
+   "……わかった。あとで"
+  ],
+  "ap.date_hungry.ignore": [
+   "（{name}のお腹が小さく鳴った。{name}は何事もなかった顔をしている）"
+  ],
+  "ap.date_next.call": [
+   "次、{place}に行かない？"
+  ],
+  "ap.date_next.accept": [
+   "行こう"
+  ],
+  "ap.date_next.later": [
+   "……そう。じゃあ、ここで"
+  ],
+  "ap.date_next.ignore": [
+   "（{name}は、あたりを見回している）"
+  ],
+  "ap.date_home.call": [
+   "そろそろ帰ろう"
+  ],
+  "ap.date_home.accept": [
+   "今日はありがと。……楽しかった"
+  ],
+  "ap.date_home.later": [
+   "……少しだけね"
+  ],
+  "ap.date_home.ignore": [
+   "（{name}は小さくあくびをかみ殺した）"
+  ],
+  "ap.date_photo.call": [
+   "写真、撮らない？ 一緒に"
+  ],
+  "ap.date_photo.accept": [
+   "……撮るよ。……悪くない"
+  ],
+  "ap.date_photo.later": [
+   "……そう"
+  ],
+  "ap.date_photo.ignore": [
+   "（{name}は一人で景色の写真を撮った）"
+  ],
+  "ap.date_hands.call": [
+   "……手、つないでいい？"
+  ],
+  "ap.date_hands.accept": [
+   "……（握り返す手に、少し力がこもった）"
+  ],
+  "ap.date_hands.later": [
+   "……そう。別にいいけど"
+  ],
+  "ap.date_hands.ignore": [
+   "（{name}は差し出しかけた手を、黙って引っ込めた）"
   ]
  }
 }
