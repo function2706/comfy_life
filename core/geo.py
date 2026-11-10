@@ -391,13 +391,13 @@ class Geo:
                 if len(T._csa) > 300:
                     T._csa.clear()
                 T._csa[ck] = sc
-            arr, how = sc
+            arr, how, rarr, rhow = sc
             if taxi not in egress_cache:
                 egress_cache[taxi] = self._ends(b, t, "egress", taxi)
             eg = egress_cache[taxi]
             best = None
-            for sid, at in arr.items():
-                if sid not in eg or how[sid][0] == "access":
+            for sid, at in rarr.items():          # 降りる駅: 電車・バスで着く時刻 (歩いて着くほうが早い駅でも)
+                if sid not in eg:
                     continue
                 m, f, kind, veh = eg[sid]
                 if best is None or at + m * 60 < best[0]:
@@ -405,8 +405,8 @@ class Geo:
             if not best:
                 continue
             t_arr, sid, (m, f, kind, veh) = best
-            legs = T.journey(how, sid)
-            legs.append({"kind": kind, "from": sid, "to": b, "t0": arr[sid], "t1": t_arr, "fare": f, "veh": veh})
+            legs = T.journey(dict(how, **{sid: rhow[sid]}), sid)
+            legs.append({"kind": kind, "from": sid, "to": b, "t0": rarr[sid], "t1": t_arr, "fare": f, "veh": veh})
             sig = tuple((lg["kind"], lg.get("line"), lg["to"]) for lg in legs if lg["kind"] != "wait")
             if sig in seen:
                 continue

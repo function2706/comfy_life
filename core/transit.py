@@ -294,9 +294,14 @@ class Transit:
 
     def scan(self, origin_xy, t, access, transfer=TRANSFER_BUF, horizon=8 * 3600):
         """connection scan: access {駅: (着く時刻, 区間)} から, 各駅に着くいちばん早い時刻と, そこまでの乗り方 (日をまたいでもよい).
-        返す: (着 {駅: t}, 来かた {駅: ("ride", 乗った接続, 降りた接続) / ("access", 区間)})."""
+        返す: (着 {駅: t}, 来かた {駅: ("ride", 乗った接続, 降りた接続) / ("access", 区間)},
+               電車・バスで着く時刻 {駅: t}, その来かた {駅: ("ride", ...)}).
+        後ろの 2 つは, 歩いて (access) 着くほうが早い駅でも, 電車・バスで着く時刻を別に覚えたもの (降りる駅に使う).
+        以前は駅ごとにいちばん早い着き方だけを覚えていたので, バスが出た直後など乗り継ぎの悪い数分は, 降りる駅にも
+        歩いて着くほうが早くなって電車・バスの着き方が消え, 「電車・バスで行ける経路がありません」になっていた."""
         arr = {s: a[0] for s, a in access.items()}
         how = {s: ("access", a[1]) for s, a in access.items()}
+        rarr, rhow = {}, {}
         trip_in = {}
         day = service_day(t)
         conns = self.connections(day) + self.connections(day + timedelta(days=1))
@@ -320,7 +325,10 @@ class Transit:
             if at < arr.get(b, float("inf")):
                 arr[b] = at
                 how[b] = ("ride", trip_in[trip], c)
-        return arr, how
+            if at < rarr.get(b, float("inf")):
+                rarr[b] = at
+                rhow[b] = ("ride", trip_in[trip], c)
+        return arr, how, rarr, rhow
 
     def journey(self, how, sid):
         """駅 sid までの乗り方を, 区間の並び [{kind, from, to, t0, t1, line}] に (access も含む)."""

@@ -131,6 +131,19 @@ def main():
         tx = next((x for x in geo.routes(home, dst, wd) if x["key"] == "route:2"), None)
         if tx:
             assert tx["fare"] < geo._taxi(geo.km(home, dst), wd)[1]
+
+        # ---- 7. 昼間なら, いつ出ても経路がある (1.6.0 で直した): 乗り継ぎの悪い数分 (バスが出た直後など) に,
+        # 降りる駅にも歩いて着くほうが早くなって電車・バスの着き方が消え, 経路が 0 件になっていた (20 分おきに数分ずつ)
+        # 歩くより遅くても, 電車・バスの経路は出す. 行き先を変えて, いくつかの駅で 2 分おきに確かめる
+        day0 = datetime.fromtimestamp(wd).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        gaps = {}
+        for to in ("mall", "aquarium", dst):
+            g = [m for m in range(10 * 60, 16 * 60, 2) if geo.options(home, to, day0 + m * 60)["modes"].get("transit")
+                 and not geo.routes(home, to, day0 + m * 60)]
+            if g:
+                gaps[to] = ["%02d:%02d" % (m // 60, m % 60) for m in g[:5]]
+        assert not gaps, gaps
+        print("昼間はいつでも経路がある: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

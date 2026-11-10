@@ -43,6 +43,9 @@ def main():
         app.save_settings({"auto_generate": False})
         app.create_world("寄り道")
         geo, L, P = app.geo, app.life, app.presence
+        # run_at で time.time は 11 時にずらしてあるが, 一人の行動の在席の判定 (you_context) は本物の時刻 (datetime.now) で見る.
+        # 午後に流すと, 心拍が何時間も前のものとみなされて「いない」扱いになり, 仕事に行けなかった (テスト側の不具合). 心拍の途絶えは見ない
+        app.world.setdefault("presence", {})["gone_minutes"] = 10 ** 6
         L.player_state()["stamina"] = 100
         L.player_state()["money"] = 50000
         geo.ensure()
