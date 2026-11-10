@@ -86,7 +86,12 @@ def main():
         P.add(day, dep, {"do": "out", "place": "aquarium", "go": "transit"})
         L.player_state()["stamina"], L.player_state()["money"] = 100, 50000
         app.presence.rec()["pos"] = "home:me"
-        rep = O.simulate(at(day, "09:00"), at(day, "13:00"))
+        ev = (geo.EV_DELAY, geo.EV_JAM)
+        geo.EV_DELAY = geo.EV_JAM = 0.0         # ここは便の時刻どおりに着くかの確かめ (電車の遅れ・渋滞のくじは test_geo で). 以前は 4% ほどで遅れが当たって落ちていた
+        try:
+            rep = O.simulate(at(day, "09:00"), at(day, "13:00"))
+        finally:
+            geo.EV_DELAY, geo.EV_JAM = ev
         mv = [x for x in rep["timeline"] if x["do"] == "move"]
         assert mv and "電車・バス" in mv[0]["text"] and mv[0]["end"] <= goal + 60, [(x["text"], datetime.fromtimestamp(x["end"]).strftime("%H:%M")) for x in mv]
         print("到着時刻から: OK | 12:00 までに着くには %s に出る → 着いたのは %s" % (dep, datetime.fromtimestamp(mv[0]["end"]).strftime("%H:%M")))
