@@ -38,6 +38,7 @@ def main():
         cid = app.settings["active_character"]
         app.bonds.set_stage(cid, "contact")
         st, char = app.state(cid), app.char(cid)
+        app.life.player_state()["money"] = 1000000      # 何度もお出かけする (お金は主題でない)
 
         def ctx_now():
             d = datetime.fromtimestamp(time.time())

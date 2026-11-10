@@ -60,8 +60,9 @@ def main():
         ago(10 * 60)
         w_fresh = app.parting.want(char, st, "go_home", time.time())
         meet(energy=30, mood=55)
+        app.set_params({"mood": 55}, cid)      # 会ったとき (カフェ) の効き目で機嫌が上がる分は戻す (5 時間たって疲れている前提)
         ago(5 * 3600)
-        w_long = app.parting.want(char, st, "go_home", time.time())
+        w_long =app.parting.want(char, st, "go_home", time.time())
         meet(energy=15)
         w_done = app.parting.want(char, st, "go_home", time.time())
         assert w_fresh > 0.6 and w_long < 0.1 and w_done == 0, (w_fresh, w_long, w_done)
@@ -94,6 +95,7 @@ def main():
         ago(10 * 60)
         d_fresh = dist()
         meet(energy=30, mood=55)
+        app.set_params({"mood": 55}, cid)      # 会ったときの効き目で上がる機嫌は戻す (上と同じ)
         ago(5 * 3600)
         d_long = dist()
         assert d_fresh["ok"] < 160 and d_fresh["hold"] > 60 and d_fresh["reluctant"] > 30, d_fresh

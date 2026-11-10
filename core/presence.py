@@ -26,6 +26,7 @@ from . import react
 
 DECLARED = ("busy", "out", "work", "sleep", "left")
 AWAY_MODES = ("out", "work", "sleep", "left")
+AWAY_SEND = 0.35        # 相手が仕事中・出かけているときの, 送ってくる見込みの倍率 (休憩・移動の合間)
 MODE_LABEL = {"here": "そばにいる", "idle": "そばでのんびり", "busy": "作業中", "out": "外出中", "work": "仕事中",
               "sleep": "就寝中", "left": "離れている", "gone": "いない"}
 
@@ -200,17 +201,26 @@ class Presence:
         if not dt_h:
             return None
         pres = self.at(now)
-        if pres not in ("here", "idle", "busy", "out", "work") or st.get("game"):
+        if st.get("game"):
             return None
         d = datetime.fromtimestamp(now)
         scene = self.app.scene_at(char, st, d)
         ctx = self.app.context(char, st, d, scene)
+        apart = bool(ctx.get("apart"))
+        # あなたが寝る・離れると告げていても, 離れている相手のメッセージは届く (読むのは戻ってから. 以前はこの間は来なかった)
+        if pres not in ("here", "idle", "busy", "out", "work") + (("sleep", "left") if apart else ()):
+            return None
+        away_f = 1.0
         if not ctx["free"]:
+            # 相手が仕事中・出かけている: 休憩や移動の合間に, ときどきスマホを見て送ってくる (以前は一切来なかった).
+            # 寝ている・入浴などで手が離せないときは来ない
+            if not (apart and scene.get("away") and not scene.get("asleep") and not scene.get("busy")):
+                return None
+            away_f = AWAY_SEND
+        if apart and ctx.get("stage") == "known":    # 連絡先を知らない相手からは来ない
             return None
-        if ctx.get("apart") and ctx.get("stage") == "known":    # 連絡先を知らない相手からは来ない
-            return None
-        if ctx.get("apart"):         # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
-            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx) * hour_factor(d)
+        if apart:                    # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
+            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx) * hour_factor(d) * away_f
         elif pres in ("out", "work"):
             return None
         else:
@@ -250,10 +260,16 @@ class Presence:
         return max(0.05, min(2.0, f))
 
     def eagerness_apart(self, ctx):
-        """離れている相手がメッセージを送りたくなる度合い. 寂しさ・好感度・機嫌しだい (仲が浅いうちはほとんど来ない)."""
-        f = (ctx.get("loneliness", 30) / 80.0 + (ctx.get("affection", 50) - 50) / 80.0 + (ctx.get("mood", 50) - 50) / 200.0) \
-            * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0) * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど送ってくる (言い争いのあとは来ない)
-        return max(0.05, min(1.5, f))
+        """離れている相手がメッセージを送りたくなる度合い (1.6.0 で掛け算に).
+        あなたへの興味 (好感度) × 送る理由の強さ (寂しさ・退屈・機嫌) × 依存度. 好感度 30 以下なら 0 (自分からは送ってこない.
+        お金の催促・約束の取りやめなど用事のあるものは別に届く). 寂しさ・退屈は, 興味のある相手に送る理由を強めるだけ.
+        以前は寂しさと好感度の足し算で下限もあったので, 嫌っている相手からも, 寂しいと毎日のように届いていた."""
+        aff = ctx.get("affection", 50)
+        interest = max(0.0, min(1.25, (aff - 30) / 40.0)) ** 1.4
+        drive = 0.6 + ctx.get("loneliness", 30) / 120.0 + ctx.get("boredom", 30) / 250.0 + (ctx.get("mood", 50) - 50) / 200.0
+        f = interest * max(0.2, drive) * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0) \
+            * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど送ってくる (言い争いのあとは来ない)
+        return max(0.0, min(1.5, f))
 
     def fire(self, char, st, now, ctx, force=None):
         cands = []

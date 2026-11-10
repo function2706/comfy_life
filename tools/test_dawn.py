@@ -58,7 +58,8 @@ def main():
             hours[datetime.fromtimestamp(sent).hour] += 1
         print("閉じていた間に届いた時刻:", dict(sorted(hours.items())))
         assert sum(v for h, v in hours.items() if 1 <= h < 6) == 0, "1:00〜7:00 は寝ている (既定の睡眠)"
-        assert sum(v for h, v in hours.items() if h >= 8) > 300
+        # 8 時から先は仕事・外出の時間 (予定しだい): 合間に送ってくるので届くが, 家にいる時間より少なめ (presence.AWAY_SEND. 1.6.0)
+        assert sum(v for h, v in hours.items() if h >= 8) > 120
         # ひなの予定 (平日は 6:30 まで寝ている): 起きる前には届かない
         if hina:
             slots = O._awake_slots(hina, app.state("hina"), ts(2026, 10, 26, 0, 0), ts(2026, 10, 26, 12, 0))

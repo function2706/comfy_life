@@ -645,7 +645,7 @@ class Offline:
 
     def _awake_slots(self, char, st, t0, t1):
         """t0〜t1 の 30 分ごとの, メッセージを送ってくる見込み [(時刻, 重み)] (寝ている・手が離せない時間は除く)."""
-        from .presence import hour_factor
+        from .presence import hour_factor, AWAY_SEND
         app = self.app
         out = []
         t = t0
@@ -653,7 +653,7 @@ class Offline:
             d = datetime.fromtimestamp(t)
             sc = app.scheduled_scene(char, d)
             if not (sc.get("asleep") or sc.get("busy")):
-                out.append((t, hour_factor(d)))
+                out.append((t, hour_factor(d) * (AWAY_SEND if sc.get("away") else 1.0)))     # 仕事中・外出中は合間に (画面を開いている間と同じ)
             t += 1800
         return out
 
