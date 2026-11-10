@@ -197,6 +197,65 @@ async function switchWorld(id) {
   location.reload();
 }
 
+/* ---- スマホ用の入り口: この端末の通知 (Web Push) と, 閉じている間の届き方 (core/push.py・core/remote.py) */
+const b64uBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), (c) => c.charCodeAt(0));
+async function pushInfo() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const out = { ios, standalone, secure: window.isSecureContext, ok: 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+    perm: 'Notification' in window ? Notification.permission : 'none', sub: null };
+  if (out.ok && out.secure) {
+    try { const reg = await navigator.serviceWorker.getRegistration('/'); out.sub = reg ? await reg.pushManager.getSubscription() : null; } catch (e) { /* なし */ }
+  }
+  return out;
+}
+async function pushOn() {
+  const p = await Notification.requestPermission();
+  if (p !== 'granted') throw new Error('通知が許可されませんでした（端末・ブラウザの設定で、このサイトの通知を許可してください）');
+  const reg = await navigator.serviceWorker.register('/sw.js');
+  await navigator.serviceWorker.ready;
+  const { key } = await api('/api/push/key');
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(key) });
+  await api('/api/push/subscribe', { sub: sub.toJSON(), ua: navigator.userAgent });
+}
+async function pushOff(sub) {
+  try { await api('/api/push/unsubscribe', { endpoint: sub.endpoint }); } finally { await sub.unsubscribe(); }
+}
+async function openPhoneSetup() {
+  if (!S.pushDlg) { S.pushDlg = h('dialog', { class: 'modal', style: 'width:min(520px,96vw);height:auto;max-height:92dvh;overflow:auto' }); document.body.append(S.pushDlg); }
+  const dlg = S.pushDlg;
+  const draw = async () => {
+    const I = await pushInfo();
+    const live = !!(S.boot.settings.remote || {}).live;
+    const run = (fn) => async () => { try { await fn(); } catch (e) { toast(e.message, 'err'); } await draw(); };
+    const why = !I.secure ? 'このページは HTTPS で開いていないので、通知は使えません（Tailscale の serve で出した https:// のアドレスから開いてください）。'
+      : I.ios && !I.standalone ? 'iPhone・iPad では、ホーム画面に追加したアイコンから開いたときだけ通知を使えます（Safari の共有ボタン →「ホーム画面に追加」→ そのアイコンから開く）。'
+        : !I.ok ? 'このブラウザは通知に対応していません。' : I.perm === 'denied' ? '通知が拒否されています。端末・ブラウザの設定で、このサイトの通知を許可してください。' : '';
+    dlg.replaceChildren(h('div', { style: 'padding:16px' },
+      h('div', { class: 'row' }, h('h3', { style: 'margin:0' }, '🔔 通知'), h('div', { class: 'spacer' }),
+        h('button', { class: 'btn ghost small', onclick: () => dlg.close() }, '✕')),
+      h('div', { class: 'pgroup' }, h('h4', {}, 'この端末'),
+        h('p', {}, I.sub ? '通知: オン（この端末で受け取ります）' : '通知: オフ'),
+        why ? h('p', { class: 'hint' }, why) : '',
+        h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' },
+          I.sub ? h('button', { class: 'btn small', onclick: run(() => pushOff(I.sub)) }, '通知をやめる')
+            : h('button', { class: 'btn small primary', disabled: !!why && I.perm !== 'default', onclick: run(pushOn) }, 'この端末で通知を受け取る'),
+          I.sub ? h('button', { class: 'btn small ghost', onclick: run(async () => {
+            const r = await api('/api/push/test', {});
+            const bad = (r.sent || []).filter((x) => !(typeof x[1] === 'number' && x[1] < 300));
+            toast(bad.length ? `送れなかった端末があります: ${bad.map((x) => x.join(' ')).join('・')}` : 'テストの合図を送りました（数秒で通知が出ます）', bad.length ? 'err' : 'ok');
+          }) }, 'テスト通知を送る') : ''),
+        h('p', { class: 'hint' }, '通知は合図だけを送り、本文はこの端末が家の PC から取りに行きます（本文は外のサーバを通りません）。取りに行けないとき（圏外・Tailscale が切れている）は「新しいメッセージ」とだけ出ます。家の画面の前にいる間は通知しません。')),
+      h('div', { class: 'pgroup' }, h('h4', {}, '届き方'),
+        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: live, onchange: run(async (ev) => {
+          S.boot.settings = (await api('/api/settings', { settings: { remote: { live: !live } } })).settings;
+        }) }), '家の画面を閉じている間も、メッセージ・返信をその時刻に届かせる'),
+        h('p', { class: 'hint' }, 'オンにすると、届いた時刻から返事の待ち時間が始まります（返さなければ「返事がなかった」）。オフだと、閉じている間は何も届かず、家の画面を開いたときにまとめて届きます（通知も来ません）。PC がスリープしている間は進みません。'))));
+  };
+  await draw();
+  if (!dlg.open) dlg.showModal();
+}
+
 // 今日のメモ (カレンダーに自分で書いたもの): 一日に一度だけ知らせる
 function noteMemos() {
   const ms = (S.view && S.view.memos_today) || [];
@@ -1622,7 +1681,8 @@ async function drawChat(auto) {
           onclick: () => openCal() }, '🗓 カレンダー'),
         // 買うものリストもスマホで (外出中・仕事中も. 以前は持ち物タブからだけで, 外では離席の画面に隠れて触れなかった)
         h('button', { class: 'btn ghost small', title: '買うものリスト（店ごと・種類ごと）', onclick: () => openShopList() },
-          `📝 買うもの${((S.view.items || {}).shop_list || []).length ? `（${S.view.items.shop_list.length}）` : ''}`))),
+          `📝 買うもの${((S.view.items || {}).shop_list || []).length ? `（${S.view.items.shop_list.length}）` : ''}`),
+        PHONE ? h('button', { class: 'btn ghost small', title: 'この端末の通知・閉じている間の届き方', onclick: () => openPhoneSetup() }, '🔔 通知') : '')),
     list.length ? list.map((c) => h('div', { class: 'chat-row' + (c.id === S.chatCid ? ' on' : ''), onclick: () => { S.chatCid = c.id; S.calOn = false; S.apForm = null; drawChat(); } },
       avatar(c.face, c.name),
       h('div', { class: 'chat-row-main' },
@@ -4476,6 +4536,15 @@ SEC.display = () => {
       set('browserNotify', on);
     } }), '画面を見ていないときは、ブラウザの通知でも知らせる（初めてオンにすると、ブラウザが許可を聞きます）'),
     h('p', { class: 'hint' }, '画面を見ていないときは、タブの題名も点滅します。ブラウザの通知は、この画面を開いたまま別のタブやアプリを見ているときに出ます（画面を閉じているあいだは出ません）。'),
+    h('div', { class: 'sect' }, 'スマホから（外出先で）'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!(S.boot.settings.remote || {}).live, onchange: async (ev) => {
+      const on = ev.target.checked;      // サーバの設定 (全ワールド共通). 編集中の写しにも入れて, 設定を保存しても戻らないように
+      try {
+        S.boot.settings = (await api('/api/settings', { settings: { remote: { live: on } } })).settings;
+        if (SE.settings) SE.settings.remote = Object.assign({}, SE.settings.remote, { live: on });
+      } catch (e) { ev.target.checked = !on; toast(e.message, 'err'); }
+    } }), 'この画面を閉じている間も、離れている相手からのメッセージ・返信を、その時刻に届かせる'),
+    h('p', { class: 'hint' }, `スマホ用の入り口は ${location.origin}/phone（📱 スマホだけの画面。開いていても家にいることにはなりません）。オンにすると、この画面を閉じている間も相手の時間が進み、メッセージが届いた時刻から返事の待ち時間が始まります（返さなければ「返事がなかった」。予定の「自動の応答」を組んでいれば、待ち時間が切れたときに自動の返事）。あなた自身の過ごし方（仕事・買い物など）は、今までどおりこの画面を開いたときにまとめて決まります。オフなら今までどおり（閉じていた間に届くのは、開いたときにまとめて 1 通まで）。PC がスリープしている間は進みません。`),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },
       h('div', { class: 'fld' }, h('span', { class: 'fl' }, '背景の濃さ'), range('alpha', 0.2, 0.95, 0.05, (v) => Math.round(v * 100) + '%')),
@@ -5214,6 +5283,7 @@ async function init() {
   try { await loadBoot(); } catch (e) { toast('サーバに接続できません: ' + e.message, 'err'); return; }
   if (PHONE) {                        // スマホ用の入り口: 家の画面を取らない・在席にしない. スマホだけを出す
     document.body.classList.add('phone-only');
+    if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => { /* 通知なしで使う */ });
     document.title = 'Comfy LIFE スマホ';
     await refresh();
     openChat();

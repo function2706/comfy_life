@@ -35,6 +35,21 @@ def schedule_restart():
     threading.Timer(0.8, SRV.shutdown).start()
 
 
+def ticker():
+    """家の画面を閉じている間も, 相手の側を 1 分おきに進める (設定でオンのとき. core/remote.py)."""
+    from core import remote
+    while True:
+        time.sleep(remote.STEP_SEC)
+        try:
+            if APP and not RESTART["want"]:
+                APP.remote.step()
+        except Exception as e:  # noqa: BLE001
+            try:
+                APP.trace.error("remote.step", "%s: %s" % (type(e).__name__, e), tb=traceback.format_exc().rstrip())
+            except Exception:  # noqa: BLE001
+                pass
+
+
 def _safe_join(root, rel):
     full = os.path.normpath(os.path.join(root, *[p for p in rel.split("/") if p]))
     if not full.startswith(os.path.normpath(root) + os.sep):
@@ -147,6 +162,10 @@ def route(method, path, q, body):
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
         if path == "/api/chat":
             return a.chat.thread(_q(q, "id", ""))
+        if path == "/api/push/key":             # 通知: 送り主の公開鍵と, 受け取る端末の数 (core/push.py)
+            return a.push.view()
+        if path == "/api/phone/news":           # 届いたものの控え (通知から開いたスマホが取りに来る. core/remote.py)
+            return {"news": a.remote.news_since(_q(q, "since", 0)), "unread": a.chat.unread_total()}
         if path == "/api/calendar":
             with a.lock:
                 return a.calview.month(int(_q(q, "y", "0") or 0), int(_q(q, "m", "0") or 0))
@@ -246,6 +265,13 @@ def route(method, path, q, body):
             return a.chat.send(b["id"], b["kind"], {k: b[k] for k in ("reason", "consult", "stamp") if b.get(k)} or None)
         if path == "/api/chat/seen":
             return a.chat.mark_seen(b["id"])
+        if path == "/api/push/subscribe":       # この端末で通知を受け取る
+            return a.push.subscribe(b.get("sub"), b.get("ua"))
+        if path == "/api/push/unsubscribe":
+            return a.push.unsubscribe(b.get("endpoint"))
+        if path == "/api/push/test":            # 通知のテスト: 控えに 1 件足して, すぐ合図を送る
+            a.remote.add_news("_test", "Comfy LIFE", "通知のテストです（届いています）")
+            return {"sent": [list(x) for x in a.push.send_all(force=True)]}
         if path == "/api/offline/ack":
             return a.offline.ack()
         if path == "/api/street":
@@ -468,7 +494,7 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
         client = self.headers.get("X-Client")
-        APP.via.phone = bool(client and client.startswith(PHONE_CLIENT))     # スマホ用の入り口から: 在席を動かさない (engine.remote)
+        APP.via.phone = bool(client and client.startswith(PHONE_CLIENT))     # スマホ用の入り口から: 在席を動かさない (engine.from_phone)
         g = gate(method, u.path, client)
         obj, code = g if g else call_api(method, u.path, q, body)
         self._json(obj, code)
@@ -481,6 +507,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._api("GET")
         if p in ("/", "/index.html", "/phone", "/phone/"):
             return self._file(os.path.join(STATIC, "index.html"))
+        if p == "/sw.js":                       # 通知を受け取る service worker (範囲をサイト全体にするため, 直下で配る)
+            return self._file(os.path.join(STATIC, "sw.js"))
         if p.startswith("/static/"):
             return self._file(_safe_join(STATIC, p[len("/static/"):]))
         if p.startswith("/images/"):
@@ -550,6 +578,7 @@ def main():
     args = ap.parse_args()
     mimetypes.add_type("application/javascript", ".js")
     mimetypes.add_type("text/css", ".css")
+    mimetypes.add_type("application/manifest+json", ".webmanifest")
     url = "http://%s:%d/" % ("127.0.0.1" if args.host in ("0.0.0.0", "") else args.host, args.port)
     url_file = os.path.join(store.DATA, "server.url")
     restarted = os.path.exists(update.restart_flag_path())      # 更新・再起動で起動し直した: 前のサーバが終わるのを待つ
@@ -584,6 +613,7 @@ def main():
     with open(url_file, "w", encoding="utf-8") as f:
         f.write(url)
     APP = engine.App()
+    threading.Thread(target=ticker, daemon=True, name="remote-ticker").start()
     v = update.version()
     print("Comfy LIFE: %s で%sしました%s (Ctrl+C で終了)" % (url, "起動し直" if restarted else "起動",
                                                     "（%s %s %s）" % (v.get("number") or "", v["commit"], v["date"]) if v else ""))

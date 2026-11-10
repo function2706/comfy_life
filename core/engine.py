@@ -20,6 +20,8 @@ import uuid
 from datetime import datetime
 
 from . import bonds as bonds_mod
+from . import remote as remote_mod
+from . import push as push_mod
 from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
@@ -217,6 +219,9 @@ class App:
         self.offline = offline_mod.Offline(self)
         self.items = items_mod.Items(self)
         self.chat = chat_mod.Chat(self)
+        self.remote = remote_mod.Remote(self)         # 外出先から: 家の画面を閉じている間も, 相手の側を進める (設定でオンのとき)
+        self.push = push_mod.Push(self)               # スマホへの通知 (Web Push. 合図だけ送り, 本文はスマホが取りに来る)
+        self.remote.on_news = self.push.on_news
         self.home = home_mod.Home(self)
         self.places = places_mod.Places(self)
         self.geo = geo_mod.Geo(self)
@@ -1035,7 +1040,7 @@ class App:
                 d = 0.0 if room <= 0 else max(-room, d * min(1.0, room / 15.0))
             vals[pid] = self._clamp(p, v + d)
 
-    def remote(self):
+    def from_phone(self):
         """この呼び出しが, スマホ用の入り口 (/phone. 外から開く画面) からか. そこからの操作は在席 (心拍・操作の時刻) を動かさない:
         家の画面を閉じている間は, 閉じていた間の過ごし方 (行動パターン・予定) のままで, スマホだけ見ている."""
         return bool(getattr(self.via, "phone", False))
@@ -1424,7 +1429,7 @@ class App:
             if a.get("category") != "system":       # 画面から操作した = そばにいる
                 pr = self.presence.rec()
                 # 時間差で届いた返信は, あなたの操作ではない. スマホ用の入り口 (外から) の操作も, 家の画面の前にいることにはしない
-                if not opts.get("deliver") and not self.remote():
+                if not opts.get("deliver") and not self.from_phone():
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)

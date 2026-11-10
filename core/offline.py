@@ -662,6 +662,12 @@ class Offline:
         app = self.app
         out = []
         h = (t1 - t0) / 3600.0
+        # 閉じている間も相手の側を進めていた時間 (core/remote.py) は除く: そこで届く分は, その時刻にもう届いている
+        live = app.remote.uncovered(t0, t1) < (t1 - t0) - 1
+        if live:
+            h = app.remote.uncovered(t0, t1) / 3600.0
+            if h < 0.5:
+                return out
         for cid, char in app.chars.items():
             if app.bonds.together(cid) or app.bonds.stage(cid) == "known":
                 continue
@@ -671,6 +677,8 @@ class Offline:
             ctx = app.context(char, st, datetime.fromtimestamp(t1))
             # 送ってくるのは, 相手が起きていて手が空いている時間. 夜中・早朝にはまず送らない (presence.hour_factor)
             slots = self._awake_slots(char, st, t0, t1)
+            if live:
+                slots = [s for s in slots if not app.remote.covered(s[0])]
             if not slots:
                 continue
             avail = sum(w for _, w in slots) / float(len(slots))

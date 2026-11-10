@@ -81,7 +81,7 @@ class Presence:
 
     def touch(self, now=None):
         """あなたが何か操作した (スマホ用の入り口からの操作は数えない: 家の画面の前にはいない)."""
-        if self.app.remote():
+        if self.app.from_phone() or self.app.remote.active:     # 閉じている間の進行の中 (自動の返事) も
             return
         p = self.rec()
         p["input"] = now or time.time()
@@ -189,7 +189,15 @@ class Presence:
         if react.ignore_tick(self.app, char, st, now):     # 返さないまま既読で放っておくほど, 少しずつ重くなる
             self.app.save_state(char["id"])
         ap = st.get("approach")
+        remote = self.app.remote.active         # 家の画面を閉じている間の進行 (core/remote.py. 設定でオンのとき)
         if ap and now >= ap.get("until", 0):
+            a0 = self.find(ap["id"]) or {}
+            pol = remote and a0.get("apart") and self.app.planner.rec()["auto"].get("reply")
+            if pol:                             # 予定の「自動の応答」: 待ち時間が切れたときに, 弱い自動の返事 (閉じていた間のまとめと同じ)
+                ids = [o["id"] for o in msgreply.options(a0["id"], ap.get("why"))]
+                re_ = self._reply(char, st, a0, pol if pol in ids else ids[0], now, auto=True)
+                self.app.save_log(char["id"])
+                return re_
             return self._expire(char, st, now)
         last = st.get("ap_check") or now
         st["ap_check"] = now
@@ -210,7 +218,9 @@ class Presence:
         ctx = self.app.context(char, st, d, scene)
         apart = bool(ctx.get("apart"))
         # あなたが寝る・離れると告げていても, 離れている相手のメッセージは届く (読むのは戻ってから. 以前はこの間は来なかった)
-        if pres not in ("here", "idle", "busy", "out", "work") + (("sleep", "left") if apart else ()):
+        # 家の画面を閉じている間 (gone) も, 設定でオンなら, 離れている相手のメッセージは届く (スマホで読む. core/remote.py)
+        if pres not in ("here", "idle", "busy", "out", "work") + (("sleep", "left") if apart else ()) \
+                + (("gone",) if apart and remote else ()):
             return None
         away_f = 1.0
         if not ctx["free"]:

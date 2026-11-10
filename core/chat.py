@@ -290,6 +290,8 @@ class Chat:
         if who == "me":
             d["seen_t"] = max(d["seen_t"], it["t"])        # 自分で送った時点までは, 読んだことに
         self.save(cid, d)
+        if who == "her":
+            self.app.remote.note(cid, it)                   # いま届いたもの (スマホの通知・取り寄せ. core/remote.py)
         return it
 
     def ref(self, cid, t, quote=True):
