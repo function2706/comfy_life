@@ -93,7 +93,10 @@ window.addEventListener('unhandledrejection', (ev) => {
 });
 
 // この画面の目印 (一度に使える画面は 1 つ. server.py の gate)
-const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+// スマホ用の入り口 (/phone): 📱 スマホ (トーク・カレンダー・買うもの) だけを全画面で出す. 外から (Tailscale など) 開く用で,
+// 在席の心拍を送らず (家にいることにならない), 家の画面と排他にもならない (目印が phone- で始まる. server.py の gate)
+const PHONE = location.pathname.replace(/\/+$/, '') === '/phone';
+const CLIENT_ID = (PHONE ? 'phone-' : '') + Math.random().toString(36).slice(2) + Date.now().toString(36);
 async function api(path, body) {
   const opt = body === undefined ? { headers: { 'X-Client': CLIENT_ID } } :
     { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Client': CLIENT_ID }, body: JSON.stringify(body) };
@@ -207,9 +210,15 @@ async function refresh() {
   if (S.inactive) return;           // 別の画面で使われている: 状態も在席も送らない
   try {
     const q = S.view && S.view.target ? '&character=' + encodeURIComponent(S.view.target) : '';
-    const v = await api('/api/state?beat=1&idle=' + idleSec() + q);
+    const v = await api(PHONE ? '/api/state?phone=1' : '/api/state?beat=1&idle=' + idleSec() + q);
     if (v.inactive) return;
     S.view = v;
+    if (PHONE) {                      // スマホ用の入り口: 家の画面は描かない. 届いたものを知らせて, トークを描き直すだけ
+      for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
+      for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
+      if (S.chatDlg && S.chatDlg.open) drawChat(true);
+      return;
+    }
   } catch (e) {
     toast('状態の取得に失敗: ' + e.message, 'err');
     return;
@@ -1549,7 +1558,8 @@ function topicPicker(cid, phone) {
 function openChat(cid, cal) {
   if (!S.chatDlg) {
     S.chatDlg = h('dialog', { class: 'modal chat-dlg' });
-    S.chatDlg.addEventListener('close', () => { S.chatCid = null; });
+    S.chatDlg.addEventListener('close', () => { S.chatCid = null; if (PHONE) setTimeout(() => openChat(), 0); });   // スマホ用の入り口では閉じない
+    if (PHONE) S.chatDlg.addEventListener('cancel', (ev) => ev.preventDefault());
     document.body.append(S.chatDlg);
   }
   S.chatCid = cid || null;
@@ -2130,6 +2140,7 @@ function appointCard() {
   return h('div', { class: 'street-card calling' }, due.map((x) => appointLine(x, true)));
 }
 async function goAppoint(id) {
+  if (PHONE) { toast('出かけるのは、家の画面（PC）を開いてからです', 'err'); return; }
   if (S.busy) return;
   S.busy = true;
   try { const r = await api('/api/appoint/go', { id }); if (r.text) toast(r.text, 'ok'); else handleActResult(r); } catch (e) { toast(e.message, 'err'); }
@@ -5201,6 +5212,14 @@ function bind() {
 async function init() {
   bind();
   try { await loadBoot(); } catch (e) { toast('サーバに接続できません: ' + e.message, 'err'); return; }
+  if (PHONE) {                        // スマホ用の入り口: 家の画面を取らない・在席にしない. スマホだけを出す
+    document.body.classList.add('phone-only');
+    document.title = 'Comfy LIFE スマホ';
+    await refresh();
+    openChat();
+    setInterval(refresh, 30000);
+    return;
+  }
   try { await api('/api/claim', {}); if (CLIENT_BC) CLIENT_BC.postMessage({ claim: CLIENT_ID }); } catch (e) { /* 古いサーバ */ }
   await refresh();
   if (T()) showTab('with');

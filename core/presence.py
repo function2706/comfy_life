@@ -80,7 +80,9 @@ class Presence:
         self.save()
 
     def touch(self, now=None):
-        """あなたが何か操作した."""
+        """あなたが何か操作した (スマホ用の入り口からの操作は数えない: 家の画面の前にはいない)."""
+        if self.app.remote():
+            return
         p = self.rec()
         p["input"] = now or time.time()
 

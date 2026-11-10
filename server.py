@@ -51,13 +51,16 @@ def _q(q, k, default=None):
 # 新しく開いた画面 (POST /api/claim) か「こちらで使う」を押した画面が使う側になる. ほかの画面の状態の取得は
 # {"inactive": true} だけを返し (在席も知らせない), 操作 (POST) は 409 で断る. 目印の無い呼び出し (テストなど) はそのまま通す.
 # サーバを起動し直したら, 最初に来た画面が使う側になる.
+# スマホ用の入り口 (/phone. 外から開く用): 目印が phone- で始まる画面は排他の外 (家の画面を取らず, 止められもしない).
+# 在席の心拍を送らないので, 開いていても家にいることにはならない (static/app.js の PHONE).
 ACTIVE = {"client": None}
+PHONE_CLIENT = "phone-"
 INACTIVE_MSG = "別の画面で開いています（この画面で使うには「こちらで使う」）"
 
 
 def gate(method, path, client):
     """排他の判定. 断るなら (応答, 状態コード), 通すなら None."""
-    if not client:
+    if not client or client.startswith(PHONE_CLIENT):
         return None
     if path == "/api/claim":
         ACTIVE["client"] = client
@@ -464,7 +467,9 @@ class Handler(BaseHTTPRequestHandler):
         if method == "POST":
             n = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
-        g = gate(method, u.path, self.headers.get("X-Client"))
+        client = self.headers.get("X-Client")
+        APP.via.phone = bool(client and client.startswith(PHONE_CLIENT))     # スマホ用の入り口から: 在席を動かさない (engine.remote)
+        g = gate(method, u.path, client)
         obj, code = g if g else call_api(method, u.path, q, body)
         self._json(obj, code)
 
@@ -474,7 +479,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._export()
         if p.startswith("/api/"):
             return self._api("GET")
-        if p in ("/", "/index.html"):
+        if p in ("/", "/index.html", "/phone", "/phone/"):
             return self._file(os.path.join(STATIC, "index.html"))
         if p.startswith("/static/"):
             return self._file(_safe_join(STATIC, p[len("/static/"):]))

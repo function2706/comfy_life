@@ -921,3 +921,8 @@ a.btn { color: inherit; }
 .route-card { border: 1px solid var(--line, #8884); border-radius: 8px; padding: 5px 7px; margin-top: 4px; }
 .tt summary { cursor: pointer; }
 .tt-body { padding: 2px 0 4px 8px; font-variant-numeric: tabular-nums; }
+/* スマホ用の入り口 (/phone): 📱 スマホだけを全画面で (家の画面は出さない. 閉じるボタンも出さない) */
+body.phone-only > header, body.phone-only > main, body.phone-only > .away-overlay, body.phone-only > .drawer { display: none !important; }
+body.phone-only .chat-dlg { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
+body.phone-only .chat-close { display: none; }
+

@@ -177,6 +177,7 @@ class App:
         self._icon_tried = set()
         self.logq = queue.Queue()
         threading.Thread(target=self._log_writer, daemon=True, name="log-writer").start()
+        self.via = threading.local()        # この呼び出しがスマホ用の入り口 (/phone) からか (server.py が呼び出しごとに入れる)
         prev_hook = threading.excepthook
 
         def hook(args):              # 裏のスレッドで捕まえきれなかった例外: 時刻つきでログと判断の記録に (書き出しのエラーの欄)
@@ -1034,6 +1035,11 @@ class App:
                 d = 0.0 if room <= 0 else max(-room, d * min(1.0, room / 15.0))
             vals[pid] = self._clamp(p, v + d)
 
+    def remote(self):
+        """この呼び出しが, スマホ用の入り口 (/phone. 外から開く画面) からか. そこからの操作は在席 (心拍・操作の時刻) を動かさない:
+        家の画面を閉じている間は, 閉じていた間の過ごし方 (行動パターン・予定) のままで, スマホだけ見ている."""
+        return bool(getattr(self.via, "phone", False))
+
     def tick(self, cid, now=None):
         char, st = self.char(cid), self.state(cid)
         now = now or time.time()
@@ -1417,7 +1423,8 @@ class App:
             dt = datetime.fromtimestamp(now)
             if a.get("category") != "system":       # 画面から操作した = そばにいる
                 pr = self.presence.rec()
-                if not opts.get("deliver"):        # 時間差で届いた返信は, あなたの操作ではない
+                # 時間差で届いた返信は, あなたの操作ではない. スマホ用の入り口 (外から) の操作も, 家の画面の前にいることにはしない
+                if not opts.get("deliver") and not self.remote():
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
