@@ -30,6 +30,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 f.onload = () => setTimeout(async () => {
   const w = f.contentWindow, d = f.contentDocument, out = [], S = w.eval('S');      // const の S は window に載らない
   const closeModal = (keep) => d.querySelectorAll('dialog[open]').forEach((x) => { if (x !== keep) x.close(); });
+  // A headless browser sometimes loads this page twice at once (seen with Edge 157: two headless processes hit the server 0.1 s apart).
+  // Only one screen can be active (server.py gate), so the copy that lost must not drive the app: it reports no RESULT,
+  // and the runner below moves on to the next browser if the dumped copy was the one that lost.
+  if (S.inactive) { document.getElementById('out').textContent = 'LOST (another copy of this page is the active screen)'; return; }
   // 欄にフォーカスを置いたまま, 周期の描き直し (refresh と, トークを開いていればトークの描き直し) を起こし, フォーカスが残るか
   const keep = async (el, name) => {
     el.focus();
@@ -115,12 +119,16 @@ def main():
         url = "http://127.0.0.1:%d/static/_focus_test.html" % port
         out = ""
         for k, br in enumerate(brs):
-            try:                                  # Edge の版によっては画面なしの起動が返らない: 次のブラウザへ
-                out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
-                                      "--virtual-time-budget=60000", "--dump-dom", url],
-                                     stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=90).stdout.decode("utf-8", "replace")
-            except subprocess.TimeoutExpired:
-                out = ""
+            for again in range(5):                # LOST: the dumped copy of the page was not the active screen (see PAGE). Try again
+                try:                              # Edge の版によっては画面なしの起動が返らない: 次のブラウザへ
+                    out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run",
+                                          "--user-data-dir=" + os.path.join(tmp, "prof%d_%d" % (k, again)),
+                                          "--virtual-time-budget=60000", "--dump-dom", url],
+                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=90).stdout.decode("utf-8", "replace")
+                except subprocess.TimeoutExpired:
+                    out = ""
+                if "LOST (" not in out:
+                    break
             if "RESULT:" in out:
                 break
     finally:
