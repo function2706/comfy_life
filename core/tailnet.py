@@ -14,6 +14,8 @@ import os
 import shutil
 import subprocess
 
+from . import qr
+
 TIMEOUT = 20
 WIN_PATHS = (r"C:\Program Files\Tailscale\tailscale.exe", r"C:\Program Files (x86)\Tailscale\tailscale.exe")
 
@@ -115,6 +117,8 @@ class Tailnet:
         code, out = self.run(["serve", "status", "--json"])
         cfg = _json(out) if code == 0 else None
         v["serving"] = bool(cfg) and any(_to_port(p, self.port) for p in _proxies(cfg))
+        if v["serving"] and v["url"]:
+            v["qr"] = qr.matrix(v["url"])        # スマホのカメラで読めるように (長すぎて入らなければ None)
         return v
 
     def set(self, on):

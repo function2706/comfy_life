@@ -954,10 +954,10 @@ LLM への紹介）。呼ばれ方はキャラクターごとです。</p></div>
 <ol>
   <li><b>PC に Tailscale を入れる</b>: <code>https://tailscale.com/download</code> から Windows 版を入れて、サインインします。</li>
   <li><b>HTTPS を有効にする</b>: Tailscale の管理画面（<code>https://login.tailscale.com/admin/dns</code>）で MagicDNS をオンにし、「HTTPS Certificates」を有効にします（一度だけ）。</li>
-  <li><b>アプリを起動して、外から開けるようにする</b>: いつもどおり <code>start.bat</code> で起動して、⚙ 設定 →「表示」→「スマホから（外出先で）」の「Tailscale で、外のスマホから開けるようにする」をオンにします。すぐ下に「スマホで開くアドレス」（<code>https://（PC の名前）.（tailnet の名前）.ts.net/phone</code>）が出ます。オンのあいだは、アプリを起動するたびに出し直すので、次からは何もしなくて構いません。Tailscale が入っていない・サインインしていない・HTTPS が有効でないときは、その場に理由が出ます。同じ Tailscale につないだ自分の端末からだけ開けるアドレスで、インターネットには公開しません（funnel は使いません）。手でする場合は、コマンドプロンプトで <code>tailscale serve --bg 8765</code>（やめるときは <code>tailscale serve --https=443 off</code>）。</li>
+  <li><b>アプリを起動して、外から開けるようにする</b>: いつもどおり <code>start.bat</code> で起動して、⚙ 設定 →「表示」→「スマホから（外出先で）」の「Tailscale で、外のスマホから開けるようにする」をオンにします。すぐ下に「スマホで開くアドレス」（<code>https://（PC の名前）.（tailnet の名前）.ts.net/phone</code>）と、その QR コードが出ます。オンのあいだは、アプリを起動するたびに出し直すので、次からは何もしなくて構いません。Tailscale が入っていない・サインインしていない・HTTPS が有効でないときは、その場に理由が出ます。同じ Tailscale につないだ自分の端末からだけ開けるアドレスで、インターネットには公開しません（funnel は使いません）。手でする場合は、コマンドプロンプトで <code>tailscale serve --bg 8765</code>（やめるときは <code>tailscale serve --https=443 off</code>）。</li>
   <li><b>PC をスリープさせない</b>: Windows の 設定 → システム → 電源 で、電源につないでいるときのスリープを「なし」に。スリープすると、その間は届かず通知も来ません。</li>
   <li><b>スマホに Tailscale を入れる</b>: App Store / Google Play から Tailscale を入れて、PC と同じアカウントでサインインし、接続をオンにします。外でも通知の本文を取りに行けるよう、接続はオンのままにしておきます（iPhone は Tailscale の設定の「VPN On Demand」が便利です）。</li>
-  <li><b>スマホで開く</b>: 3 で出た「スマホで開くアドレス」を開きます（iPhone は Safari、Android は Chrome）。</li>
+  <li><b>スマホで開く</b>: 3 で出た QR コードをスマホのカメラで読むか、「スマホで開くアドレス」を開きます（iPhone は Safari、Android は Chrome）。</li>
   <li><b>ホーム画面に追加する</b>: iPhone は Safari の共有ボタン（□に↑）→「ホーム画面に追加」。Android は Chrome の ⋮ →「ホーム画面に追加」（または「アプリをインストール」）。<b>iPhone・iPad の通知は、ホーム画面に追加したアイコンから開いたときだけ使えます</b>（iOS 16.4 以降）。</li>
   <li><b>通知をオンにする</b>: ホーム画面のアイコンから開いて、「🔔 通知」→「この端末で通知を受け取る」→ 許可。「テスト通知を送る」で、数秒のうちに通知が出れば完了です。あわせて「家の画面を閉じている間も…届かせる」をオンにします（オフのままだと、閉じている間は何も届かないので通知も来ません）。</li>
 </ol>

@@ -198,6 +198,17 @@ async function switchWorld(id) {
 }
 
 /* ---- Tailscale で外から開けるようにする (設定 → 表示. core/tailnet.py): スイッチ・状態・スマホで開くアドレス */
+// QR コードを描く (rows: 行ごとの "0101…". 1 が黒. core/qr.py). まわりに白い余白を 4 マス (読み取りに要る)
+function qrCanvas(rows, px = 4) {
+  const n = rows.length, q = 4;
+  const c = h('canvas', { width: (n + 2 * q) * px, height: (n + 2 * q) * px, style: 'border-radius:6px;flex:none', title: 'スマホで開くアドレスの QR コード' });
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#000';
+  rows.forEach((r, y) => { for (let x = 0; x < n; x++) if (r[x] === '1') g.fillRect((x + q) * px, (y + q) * px, px, px); });
+  return c;
+}
 function tailnetBox() {
   const box = h('div', { class: 'tailnet-box' }, h('p', { class: 'muted small' }, 'Tailscale の状態を確かめています…'));
   const draw = (v) => {
@@ -219,6 +230,8 @@ function tailnetBox() {
         h('button', { class: 'btn small ghost', onclick: async () => {
           try { await navigator.clipboard.writeText(v.url); toast('アドレスをコピーしました', 'ok'); } catch (e) { toast('コピーできませんでした（アドレスを選んでコピーしてください）', 'err'); }
         } }, 'コピー')) : '',
+      v.serving && v.qr ? h('div', { class: 'row', style: 'gap:10px;align-items:center;margin:6px 0' }, qrCanvas(v.qr),
+        h('span', { class: 'muted small' }, 'スマホのカメラで読むと、スマホ用の入り口が開きます（Tailscale につないだスマホで）。')) : '',
       v.why ? h('p', { class: 'hint down' }, v.why) : '',
       h('p', { class: 'hint' }, 'オンにすると、この PC に入っている Tailscale の serve で、同じ Tailscale につないだ自分の端末からだけ開けるアドレスを出します（インターネットには公開しません）。オンのあいだは、アプリを起動するたびに出し直します。Tailscale のインストール・サインイン・HTTPS の有効化と、スマホ側の設定は、📖 説明書の「外出先から使う」を見てください。'));
   };
