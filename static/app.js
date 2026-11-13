@@ -197,6 +197,36 @@ async function switchWorld(id) {
   location.reload();
 }
 
+/* ---- Tailscale で外から開けるようにする (設定 → 表示. core/tailnet.py): スイッチ・状態・スマホで開くアドレス */
+function tailnetBox() {
+  const box = h('div', { class: 'tailnet-box' }, h('p', { class: 'muted small' }, 'Tailscale の状態を確かめています…'));
+  const draw = (v) => {
+    const state = !v.installed ? '入っていません' : !v.running ? 'つながっていません' : v.serving ? '外から開けます' : '外には出していません';
+    box.replaceChildren(
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!v.serving, disabled: !v.installed || !v.running, onchange: async (ev) => {
+        const on = ev.target.checked;
+        ev.target.disabled = true;
+        try {
+          const r = await api('/api/tailnet', { on });
+          S.boot.settings.remote = Object.assign({}, S.boot.settings.remote, { tailscale: on });
+          if (SE.settings) SE.settings.remote = Object.assign({}, SE.settings.remote, { tailscale: on });
+          draw(r);
+          if (on && !r.serving) toast('外向けのアドレスを出せませんでした', 'err');
+        } catch (e) { toast(e.message, 'err'); load(); }
+      } }), `Tailscale で、外のスマホから開けるようにする（いま: ${state}）`),
+      v.serving && v.url ? h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0' },
+        h('span', { class: 'small' }, 'スマホで開くアドレス: '), h('code', { style: 'user-select:all;word-break:break-all' }, v.url),
+        h('button', { class: 'btn small ghost', onclick: async () => {
+          try { await navigator.clipboard.writeText(v.url); toast('アドレスをコピーしました', 'ok'); } catch (e) { toast('コピーできませんでした（アドレスを選んでコピーしてください）', 'err'); }
+        } }, 'コピー')) : '',
+      v.why ? h('p', { class: 'hint down' }, v.why) : '',
+      h('p', { class: 'hint' }, 'オンにすると、この PC に入っている Tailscale の serve で、同じ Tailscale につないだ自分の端末からだけ開けるアドレスを出します（インターネットには公開しません）。オンのあいだは、アプリを起動するたびに出し直します。Tailscale のインストール・サインイン・HTTPS の有効化と、スマホ側の設定は、📖 説明書の「外出先から使う」を見てください。'));
+  };
+  const load = async () => { try { draw(await api('/api/tailnet')); } catch (e) { box.replaceChildren(h('p', { class: 'hint down' }, 'Tailscale の状態を取れませんでした: ' + e.message)); } };
+  load();
+  return box;
+}
+
 /* ---- スマホ用の入り口: この端末の通知 (Web Push) と, 閉じている間の届き方 (core/push.py・core/remote.py) */
 const b64uBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)), (c) => c.charCodeAt(0));
 async function pushInfo() {
@@ -4556,6 +4586,7 @@ SEC.display = () => {
         if (SE.settings) SE.settings.remote = Object.assign({}, SE.settings.remote, { live: on });
       } catch (e) { ev.target.checked = !on; toast(e.message, 'err'); }
     } }), 'この画面を閉じている間も、離れている相手からのメッセージ・返信を、その時刻に届かせる'),
+    tailnetBox(),
     h('p', { class: 'hint' }, `スマホ用の入り口は ${location.origin}/phone（📱 スマホだけの画面。開いていても家にいることにはなりません）。オンにすると、この画面を閉じている間も相手の時間が進み、メッセージが届いた時刻から返事の待ち時間が始まります（返さなければ「返事がなかった」。予定の「自動の応答」を組んでいれば、待ち時間が切れたときに自動の返事）。あなた自身の過ごし方（仕事・買い物など）は、今までどおりこの画面を開いたときにまとめて決まります。オフなら今までどおり（閉じていた間に届くのは、開いたときにまとめて 1 通まで）。PC がスリープしている間は進みません。`),
     h('div', { class: 'sect' }, '見た目'),
     h('div', { class: 'grid2' },

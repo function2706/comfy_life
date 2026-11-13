@@ -22,6 +22,7 @@ from datetime import datetime
 from . import bonds as bonds_mod
 from . import remote as remote_mod
 from . import push as push_mod
+from . import tailnet as tailnet_mod
 from . import rhythm as rhythm_mod
 from . import visit as visit_mod
 from . import care as care_mod
@@ -222,6 +223,7 @@ class App:
         self.remote = remote_mod.Remote(self)         # 外出先から: 家の画面を閉じている間も, 相手の側を進める (設定でオンのとき)
         self.push = push_mod.Push(self)               # スマホへの通知 (Web Push. 合図だけ送り, 本文はスマホが取りに来る)
         self.remote.on_news = self.push.on_news
+        self.tailnet = tailnet_mod.Tailnet(self)      # Tailscale で外から開けるようにする (設定のスイッチ. もう入っている tailscale を呼ぶだけ)
         self.home = home_mod.Home(self)
         self.places = places_mod.Places(self)
         self.geo = geo_mod.Geo(self)

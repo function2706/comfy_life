@@ -162,6 +162,8 @@ def route(method, path, q, body):
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
         if path == "/api/chat":
             return a.chat.thread(_q(q, "id", ""))
+        if path == "/api/tailnet":              # Tailscale: 入っているか・つながっているか・外向けのアドレス (core/tailnet.py)
+            return a.tailnet.view()
         if path == "/api/push/key":             # 通知: 送り主の公開鍵と, 受け取る端末の数 (core/push.py)
             return a.push.view()
         if path == "/api/phone/news":           # 届いたものの控え (通知から開いたスマホが取りに来る. core/remote.py)
@@ -265,6 +267,8 @@ def route(method, path, q, body):
             return a.chat.send(b["id"], b["kind"], {k: b[k] for k in ("reason", "consult", "stamp") if b.get(k)} or None)
         if path == "/api/chat/seen":
             return a.chat.mark_seen(b["id"])
+        if path == "/api/tailnet":              # Tailscale で外から開けるようにする / やめる
+            return a.tailnet.set(bool(b.get("on")))
         if path == "/api/push/subscribe":       # この端末で通知を受け取る
             return a.push.subscribe(b.get("sub"), b.get("ua"))
         if path == "/api/push/unsubscribe":
@@ -614,6 +618,8 @@ def main():
         f.write(url)
     APP = engine.App()
     threading.Thread(target=ticker, daemon=True, name="remote-ticker").start()
+    APP.tailnet.port = args.port
+    threading.Thread(target=APP.tailnet.startup, daemon=True, name="tailnet").start()     # 設定がオンなら, 外向けのアドレスを出し直す
     v = update.version()
     print("Comfy LIFE: %s で%sしました%s (Ctrl+C で終了)" % (url, "起動し直" if restarted else "起動",
                                                     "（%s %s %s）" % (v.get("number") or "", v["commit"], v["date"]) if v else ""))
