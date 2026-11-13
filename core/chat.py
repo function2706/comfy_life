@@ -424,6 +424,7 @@ class Chat:
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:
                 L.mark_told(untold[0])
+                app.manners.favor(st, "told", now)
                 news = app.persona_text(char, "chat.ask_how_news") or LINES["chat.ask_how_news"]
                 extra["news"] = news.replace("{tell}", untold[0]["tell"])
             else:

@@ -1745,6 +1745,7 @@ class App:
                 for x in self.life.reasons(st, now):
                     if x["kind"] == "event" and x["tell"] and x["tell"] in said:
                         x["told"] = True
+                        self.manners.favor(st, "told", now)
             for k, v in extra.items():                     # 先に差し込む (中の {call} なども下で置換される)
                 text = text.replace("{%s}" % k, str(v))
             text = self.format_text(text, char, scene, dt)
@@ -2429,6 +2430,7 @@ class App:
             if ma == "ask":
                 untold = [x for x in L.reasons(st, now) if not x["told"]]
                 L.mark_told(untold[0] if untold else L.dominant(st, now))
+                self.manners.favor(st, "told", now)
             elif ma == "comfort":
                 self.attach.give(char, st, "me", 1, "相談にのった")
                 bad = L.dominant(st, now, "bad")

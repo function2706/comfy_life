@@ -315,6 +315,8 @@ def land(app, char, st, kind, meta, now, silent=False):
         app.life.add_reason(st, "player", "bad", BAD_TELL[kind].replace("{call}", call), now, told=not silent, delta=-3.0,
                             action="_react")
     _refund(app, char, st, to.get("t"), res, now)
+    if tone == "news" or (not silent and res == "good" and kind in ("re_more", "re_really")):
+        app.manners.favor(st, "told", now)
     return "react_%s_%s" % (kind[3:], res), eff, {}
 
 

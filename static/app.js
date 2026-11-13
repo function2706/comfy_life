@@ -1671,6 +1671,10 @@ async function drawChat(auto) {
   $('#chat-badge').textContent = String(total || '');
   const keepScroll = dlg.querySelector('.chat-body');
   const listTop = (dlg.querySelector('.chat-list') || {}).scrollTop || 0;
+  // 謝る・お礼などの選択欄 (長いと欄の中でスクロールする) の位置も保つ: 以前は 8〜30 秒ごとの描き直しで先頭に戻っていた
+  const pickEl = dlg.querySelector('.chat-pick-list');
+  const pickTop = pickEl ? pickEl.scrollTop : 0;
+  const pickLeft = pickEl ? pickEl.scrollLeft : 0;
   const prevTop = keepScroll ? keepScroll.scrollTop : 0;      // 描き直す前に (外した要素の位置は 0 になる)
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
@@ -1764,6 +1768,10 @@ async function drawChat(auto) {
   if (th) (S.chatSeen = S.chatSeen || {})[th.id] = lastT;
   const nl = dlg.querySelector('.chat-list');
   if (nl) nl.scrollTop = listTop;                 // トーク一覧の位置も保つ
+  const pickKey = [S.chatCid, S.chatTab, S.chatPick, S.callTalk].join('/');     // 同じ選択欄を描き直したときだけ (別の欄を開いたら先頭から)
+  const np = dlg.querySelector('.chat-pick-list');
+  if (np && S.pickDrawn === pickKey) { np.scrollTop = pickTop; np.scrollLeft = pickLeft; }
+  S.pickDrawn = np ? pickKey : null;
   const nb = dlg.querySelector('.chat-body');
   if (nb && (atBottom || S.chatJump || fresh)) nb.scrollTop = nb.scrollHeight;
   else if (nb && keepScroll && S.chatDrawn === (th && th.id)) nb.scrollTop = prevTop;    // 描き直しても, 読んでいた位置のまま
@@ -3820,7 +3828,11 @@ function planSection(v) {
   const fb = S.fbForm = S.fbForm || { do: 'rest' };
   const md = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}`; };
   const call = async (path, body) => { if (S.busy) return false; S.busy = true; let ok = false; try { await api(path, body); ok = true; } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } return ok; };
-  const clash = P.appoints.find((a) => a.date === f.date && Math.abs((+a.at.slice(0, 2) * 60 + +a.at.slice(3)) - (+f.at.slice(0, 2) * 60 + +f.at.slice(3))) < 150);
+  const [apLead, apSpan] = P.appoint_block || [30, 120];      // サーバと同じ幅 (planner.appoint_at: 約束の 30 分前〜2 時間後). 以前は前後 150 分で, 約束のかなり前から入れられなかった
+  const clash = P.appoints.find((a) => {
+    const d = (+f.at.slice(0, 2) * 60 + +f.at.slice(3)) - (+a.at.slice(0, 2) * 60 + +a.at.slice(3));
+    return a.date === f.date && d >= -apLead && d < apSpan;
+  });
   const byDate = P.dates.map((d) => [d, P.items.filter((x) => x.date === d), P.appoints.filter((a) => a.date === d)]);
   const order = (i, dir) => { const xs = P.fallback.map((x) => ({ do: x.do, place: x.place, how: x.how, skill: x.skill, go: x.go })); const j = i + dir; if (j < 0 || j >= xs.length) return; [xs[i], xs[j]] = [xs[j], xs[i]]; call('/api/plan/fallback', { items: xs }); };
   return h('details', { class: 'cat plan', open: !!S.planOpen, ontoggle: (ev) => { S.planOpen = ev.target.open; } },

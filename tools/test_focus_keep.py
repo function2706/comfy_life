@@ -81,6 +81,20 @@ f.onload = () => setTimeout(async () => {
       w.openChat(cid); await sleep(1500);
       await keepAll(async () => { closeModal(S.chatDlg); S.apForm = S.apForm || {}; S.chatTab = 'invite'; await w.drawChat(); }, 'dialog[open]', 'chat');
       if (out[out.length - 1] === 'chat:NONE') out.push('chatdbg:' + (S.chatDlg.innerText || '').replace(/\s+/g, '_').slice(-120));
+      // 6. トーク: スタンプなどの選択欄のスクロール位置 (F9. 描き直しで先頭に戻らない). 欄を低くして, 必ずスクロールできるようにする
+      const st = d.createElement('style');
+      st.textContent = '.chat-pick-list{max-height:26px!important;overflow:auto!important}';
+      d.head.append(st);
+      S.apForm = null; S.chatPick = 'stamp'; await w.drawChat();
+      let pl = d.querySelector('dialog[open] .chat-pick-list');
+      if (!pl || pl.scrollHeight <= pl.clientHeight + 4) out.push('pickscroll:NONE');
+      else {
+        pl.scrollTop = 20;
+        const want = pl.scrollTop;
+        await w.refresh(); await w.drawChat(true);
+        pl = d.querySelector('dialog[open] .chat-pick-list');
+        out.push('pickscroll' + (pl && want > 0 && Math.abs(pl.scrollTop - want) <= 1 ? ':OK' : ':NG(' + (pl ? pl.scrollTop : 'gone') + '/' + want + ')'));
+      }
     }
   } catch (e) { out.push('ERR:' + e.message); }
   document.getElementById('out').textContent = 'RESULT:' + out.join(' ');

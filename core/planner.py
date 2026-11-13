@@ -19,6 +19,7 @@ from .places import OUT_PLACES, open_state
 PLAN_DO = ("sleep", "rest", "home", "work", "out", "chores", "kakeibo", "practice", "meal", "parttime", "jog", "read", "movie")
 STREET_POLICY = ("chat", "nod", "decline")
 NATURAL = {"chores": 3600, "practice": 3600, "kakeibo": 900}      # これより短ければ「切り上げた」
+APPOINT_LEAD = 30 * 60                                                # 約束の何分前から, 予定を入れられないか (画面にも渡す: view の appoint_block)
 APPOINT_SPAN = 2 * 3600                                              # 約束で会う時間の目安
 
 
@@ -90,7 +91,7 @@ class Planner:
     def appoint_at(self, t):
         """その時刻にかかっている約束 (約束の時刻の前後). 予定とぶつからないように見せる."""
         for x in self.app.appoint.all():
-            if x["status"] in ("set", "waiting") and x["t"] - 1800 <= t < x["t"] + APPOINT_SPAN:
+            if x["status"] in ("set", "waiting") and x["t"] - APPOINT_LEAD <= t < x["t"] + APPOINT_SPAN:
                 return x
         return None
 
@@ -177,7 +178,8 @@ class Planner:
         return {"items": [dict(x, label=self.label(x)) for x in p["items"]],
                 "fallback": [dict(x, label=self.label(x)) for x in p["fallback"]],
                 "auto": p["auto"], "dates": self.dates(now), "horizon": self.horizon_days(),
-                "skill": round(self.plan_skill(), 1), "appoints": appts}
+                "skill": round(self.plan_skill(), 1), "appoints": appts,
+                "appoint_block": [APPOINT_LEAD // 60, APPOINT_SPAN // 60]}
 
     # ------------------------------------------------------------------ 画面を開いている間
     def live(self, now=None):

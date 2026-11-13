@@ -142,6 +142,7 @@ function picrossDrag(grid) {
     ev.preventDefault();
     const s = state(el);
     const xmode = ev.button === 2 || T.alt;
+    T.dragging = true;
     d = { el, r0: rc(el), axis: null, seen: new Set(), fill: [], moved: false, long: false,
       mode: s === 'x' ? (xmode ? 'unx' : null) : s === 'fill' ? (xmode ? null : 'erase') : xmode ? 'x' : 'fill' };
     if (ev.pointerType === 'touch' && !xmode) {            // 長押し: そのマスに×
@@ -182,11 +183,20 @@ function picrossDrag(grid) {
     clearTimeout(dd.timer);
     if (!dd.moved && !dd.long && dd.mode) mark(dd.el, dd);          // タップ
     if (!dd.mode && !dd.moved) { T.xs.delete(dd.r0.join(',')); }      // ×のマスをタップ: ×を外す
-    for (const [r, c, op] of dd.fill) {
-      if (T.done) break;
-      await taskMove({ r, c, op });
-    }
-    if (!T.done) renderTask();
+    T.dragging = false;
+    // 手は順番に送る (前のなぞりの分を送り終えてから). 以前は, 前の分を送っている最中に次のなぞり・タップを終えると,
+    // その分の手が送られずに捨てられ (taskMove は送信中なら何もしない), そのあとの描き直しで塗り・消しが元に戻っていた.
+    // 次のなぞりの途中には描き直さない (盤を作り直すと, なぞっている途中の操作が切れる). 描き直すのは, そのなぞりを終えたとき
+    const send = async () => {
+      for (const [r, c, op] of dd.fill) {
+        while (T.busy && !T.done && !T.paused) await new Promise((ok) => setTimeout(ok, 25));
+        if (T.done) break;
+        await taskMove({ r, c, op });
+      }
+    };
+    T.chain = (T.chain || Promise.resolve()).then(send, send);
+    await T.chain;
+    if (!T.done && !T.dragging) renderTask();
   };
   grid.addEventListener('pointerup', end);
   grid.addEventListener('pointercancel', end);
