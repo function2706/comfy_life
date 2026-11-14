@@ -59,6 +59,11 @@ FAVOR_DO = "_favor"
 FAVOR_RESCHED = 0.04     # 約束の 3 時間前ごろに, 相手の都合で日がずれる・取りやめになる確率 (頼まれごと)
 MOVE_SPAN = 21 * 86400   # あなたが約束を動かした・取りやめた回数を数える期間 (続くと受け取り方が悪くなる)
 APPT_KINDS = ("appoint", "appoint_change", "appoint_cancel_me")      # 約束の返事待ち (msg_pending の kind)
+ALT_HOURS = (10, 11, 13, 14, 15, 16, 17, 18, 19)           # 相手が返す別の案の時刻
+ALT_HOURS_WIDE = (9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21)
+RELIFE_SPAN = 120        # 予定を作り直したあとの点検: 約束の時刻からこれだけ (分) のあいだ, ふさがっていれば都合がつかない
+RELIFE_SOON = 3 * 3600   # 約束までこれを切っていれば, 打診はすぐ送る
+RELIFE_NEAR = 3600       # 約束までこれを切っていれば, 打診しない (そのまま来る)
 
 
 def fmt_when(t, now=None):
@@ -903,17 +908,108 @@ class Appoint:
         app = self.app
         base = datetime.fromtimestamp(x["t"])
         a = app.action(x["do"]) if x["do"] != FAVOR_DO and not x.get("help") else {}
+        # 夜勤・シフト・土日が仕事の人は昼の空きが少ないので, 朝と夜の時刻も候補に入れる
+        hours = ALT_HOURS_WIDE if (char.get("life") or {}).get("type") in ("night", "shift", "service") else ALT_HOURS
         for _ in range(12):
             d = (base + timedelta(days=random.choice((0, 0, 1, -1, 2)))).replace(
-                hour=random.choice((10, 11, 13, 14, 15, 16, 17, 18, 19)), minute=0, second=0, microsecond=0)
-            if d.timestamp() < now + 3600 or abs(d.timestamp() - x["t"]) < 3600:
-                continue
-            sc = app.scheduled_scene(char, d)
-            if sc["away"] or sc["busy"] or sc["asleep"]:
-                continue
-            if phase_ok(app, a, d) and places_mod.open_state(x["place"], d)["open"]:
+                hour=random.choice(hours), minute=0, second=0, microsecond=0)
+            if self._alt_ok(char, x, a, d, now):
                 return d.timestamp()
         return None
+
+    def _alt_ok(self, char, x, a, d, now):
+        if d.timestamp() < now + 3600 or abs(d.timestamp() - x["t"]) < 3600:
+            return False
+        sc = self.app.scheduled_scene(char, d)
+        if sc["away"] or sc["busy"] or sc["asleep"]:
+            return False
+        return phase_ok(self.app, a, d) and places_mod.open_state(x["place"], d)["open"]
+
+    def _alt_scan(self, char, x, now):
+        """別の案がくじで見つからないとき: もとの日から近い順に先 7 日を, 時刻を順に探す. 無ければ None."""
+        base = datetime.fromtimestamp(x["t"])
+        a = self.app.action(x["do"]) if x["do"] != FAVOR_DO and not x.get("help") else {}
+        for off in (0, 1, -1, 2, -2, 3, 4, 5, 6, 7):
+            for hour in ALT_HOURS_WIDE:
+                d = (base + timedelta(days=off)).replace(hour=hour, minute=0, second=0, microsecond=0)
+                if self._alt_ok(char, x, a, d, now):
+                    return d.timestamp()
+        return None
+
+    # ------------------------------------------------------------------ 生活の型の割り当て (予定の作り直し) のあと
+    def clash(self, char, t):
+        """その約束の時刻から 2 時間のあいだ, 相手の基本の予定 (日ごとのずれは見ない) がふさがっているか."""
+        for m in range(0, RELIFE_SPAN + 1, 15):
+            sc = self.app._base_scene(char, datetime.fromtimestamp(t + m * 60))
+            if sc["away"] or sc["busy"] or sc["asleep"]:
+                return True
+        return False
+
+    def relife_mark(self, cids, now=None):
+        """予定を作り直した人との, これから先の約束を点検する (core/lifetype.py world_step から一度だけ).
+        新しい予定で都合がつかない約束に印 (relife: 打診を送る時刻) を付ける. 送るのは live (相手が起きていて手が空いているとき).
+        - 決まっている約束 (set / waiting)・誘われて返事待ち (offered): 相手から別の日時を打診してくる.
+        - こちらの誘いの返事待ち (asked): 何もしない (返事は返すときの予定で決まる).
+        - 頼まれごと: 日時の決まっているもの (fixed. 留守の水やり・引っ越し)・都合を聞かれているもの (ask) は触らない.
+        - 看病に呼ばれた・あなたが頼んだ手伝い・急な誘い: 触らない.
+        - 約束まで 1 時間を切っている: 打診しない (そのまま来る). 3 時間を切っている: すぐ送る.
+        ほかは, 人ごとに 5〜90 分ずらす (全員から一斉には来ない). 印を付けた数を返す."""
+        app = self.app
+        now = now or time.time()
+        todo = []
+        for x in self.all():
+            if x["cid"] not in cids or x["cid"] not in app.chars or x["status"] not in ("set", "waiting", "offered"):
+                continue
+            if x.get("fixed") or x.get("plants") or x.get("care") or x.get("help") or x.get("ask") or x.get("now"):
+                continue
+            if x["t"] - now < RELIFE_NEAR or not self.clash(app.chars[x["cid"]], x["t"]):
+                continue
+            todo.append(x)
+        people = sorted({x["cid"] for x in todo})
+        random.shuffle(people)
+        width = 85.0 / max(1, len(people))
+        due = {cid: now + (5 + width * i + random.uniform(0, width * 0.8)) * 60 for i, cid in enumerate(people)}
+        for x in todo:
+            x["relife"] = now if x["t"] - now < RELIFE_SOON else due[x["cid"]]
+        if todo:
+            self.save()
+        return len(todo)
+
+    def _relife_send(self, x, char, st, now, out):
+        """作り直した予定で都合がつかなくなった約束: 相手から別の日時を打診してくる (いまの「自分の都合で日を動かしたい」と同じ流れ.
+        受ける / 断る / 別の日時は, いつもの返事). やりとりの回数 (rounds) は増やさない. 相手が動かした事実 (her_moved) は残す.
+        空きがどこにも無ければ, 相手からの取りやめ (あなたへの悪影響はなし)."""
+        app = self.app
+        cid = x["cid"]
+        x.pop("relife", None)
+        alt = self._alt_time(char, x, now) or self._alt_scan(char, x, now)
+        self.her_moved(cid, now)
+        fav = bool(x.get("favor"))
+        if alt:
+            x.update(t=alt, status="offered", made=now, by="her")
+            x.pop("arrived", None)
+            if fav:
+                app.chat.add(cid, "her", app.chat.line(char, "favor_resched", {"what": x.get("label", ""), "when": fmt_when(alt, now)}),
+                             kind="favor_resched", t=now, appoint=x["id"])
+                out.append("%sから、%sの日をずらしたいと連絡が来た" % (char.get("name", ""), x.get("label", "")))
+            else:
+                app.chat.add(cid, "her", app.chat.line(char, "appoint_move_mine", {"when": fmt_when(alt, now)}),
+                             kind="appoint_move_mine", t=now, appoint=x["id"])
+                out.append("%sから、約束の日を変えたいと連絡が来た" % char.get("name", ""))
+            app.trace.add("appoint", "暮らし方が変わって都合がつかず, 日を動かしたいと言ってきた", cid, now, appoint=x["id"], new_t=alt)
+        else:
+            x["status"] = "cancelled"
+            if fav:
+                app.chat.add(cid, "her", app.chat.line(char, "favor_cancel", {"what": x.get("label", "")}), kind="favor_cancel", t=now)
+                self._favor_drop(x)
+                out.append("%sから、%sは取りやめになったと連絡が来た" % (char.get("name", ""), x.get("label", "")))
+            else:
+                app.chat.add(cid, "sys", "（%sから、都合がつかなくなったので約束を取りやめたいと連絡が来た）" % char.get("name", ""),
+                             kind="appoint_cancel", t=now)
+                out.append("%sから、約束の取りやめの連絡が来た" % char.get("name", ""))
+            app.trace.add("appoint", "暮らし方が変わって都合がつかず, 空きも無いので取りやめた", cid, now, appoint=x["id"])
+        app.picked_up_phone(char, st, now)
+        app.save_state(cid)
 
     # ------------------------------------------------------------------ 当日
     def due_at(self, place, now=None):
@@ -1140,6 +1236,16 @@ class Appoint:
                     out.append("%sの植木の水やりに行かないまま、留守が終わった" % char.get("name", ""))
                     changed = True
                 continue
+            if x.get("relife"):                       # 暮らし方が変わって, 都合がつかなくなった約束 (relife_mark)
+                if x["status"] not in ("set", "offered") or now >= x["t"] - RELIFE_NEAR:
+                    x.pop("relife", None)             # 着いて待っている・もう直前: 打診しない (そのまま来る)
+                    changed = True
+                elif now >= x["relife"]:
+                    sc = app.scene_at(char, st, datetime.fromtimestamp(now))
+                    if x["t"] - now < RELIFE_SOON or not (sc["asleep"] or sc["away"] or sc["busy"]):
+                        self._relife_send(x, char, st, now, out)      # 送るのは, 相手が起きていて手が空いているとき
+                        changed = True
+                        continue
             if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or now > x["t"]):
                 if x["status"] == "offered" and x.get("favor"):     # 頼まれごとの返事を放っておいた: ほかの人に頼んで済んでしまう
                     app.apply_effects(st, app.trait_effects(char, {"trust": -1}))

@@ -23,6 +23,7 @@
  ],
 
  "prompt_history": [],
+ "life": {"type": "student", "v": 1, "src": "given", "seed": "hina", "chrono": 0, "off": [], "slot": 0, "workplace": "bookstore"},
  "default_activity": {
   "activity": "relax", "label": "くつろぎ中", "location": "リビング",
   "pos": "living room, sitting on sofa, relaxing", "neg": "", "effects": {"hydration": 3}

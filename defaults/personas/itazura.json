@@ -28,7 +28,7 @@
   "money": -10,
   "neat": -3,
   "carer": 0.2,
-  "punctual": 0.6,
+  "chrono": 0.4, "punctual": 0.6,
   "repay": 0.6,
   "greed": 0.5,
   "savings": 0.7,

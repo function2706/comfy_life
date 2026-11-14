@@ -78,6 +78,17 @@ class Street:
             return 2.0
         return 0.3
 
+    def around(self, cid, now=None):
+        """登録済みの人が, いま出先でばったり会える様子か: 寝ている・仕事や講義の最中 (基本の予定とその日のずれ) なら会えない.
+        働いている店で会うのは, knowsched.at_workplace の側."""
+        from .rhythm import WORK_ACTS
+        app = self.app
+        char = app.chars[cid]
+        sc = app.scene_at(char, app.state(cid), datetime.fromtimestamp(now or time.time()))
+        if sc.get("asleep"):
+            return False
+        return not (sc.get("away") and sc.get("activity") in WORK_ACTS + ("class",))
+
     def happen(self, cur, now=None):
         """外出中の出会い. cur: {kind, place, with}. 返事待ちのばったりがあるうちは, 次は起きない."""
         app = self.app
@@ -112,6 +123,8 @@ class Street:
         if not pool:
             return None
         _, kind, who = random.choices(pool, [x[0] for x in pool])[0]
+        if kind == "char" and not self.around(who, now):
+            return None                     # 本人が寝ている・仕事や講義の最中: 会わない (代わりの人にも会わせない)
         if kind == "new":
             who = self._new_person(ppl, place, phase, work, now)
             kind = "person"

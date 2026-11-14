@@ -7,7 +7,6 @@
   知り合ったら, 登録する (連絡先を交換する) かどうかをあなたに尋ねる. ランダムなキャラが登録されるのはここだけ.
   定義は全体に 1 つなので, ほかのワールドでも (そこに現れていなければ) 出会いの候補になる.
 """
-import copy
 import glob
 import json
 import math
@@ -16,6 +15,7 @@ import random
 import time
 import uuid
 
+from . import lifetype
 from . import store
 from . import wardrobe as wardrobe_mod
 
@@ -87,7 +87,12 @@ class Encounters:
             stranger = random.random() < float(self.cfg()["stranger_share"])
         if stranger:
             return None if self.pending() else self.meet_stranger(kind, with_cid, where, now)
-        return self.bump(random.choice(known), kind, with_cid, where, now) if known else None
+        if not known:
+            return None
+        cid = random.choice(known)
+        if not self.app.street.around(cid, now):       # 本人が寝ている・仕事や講義の最中: 会わない (代わりの人にも会わせない)
+            return None
+        return self.bump(cid, kind, with_cid, where, now)
 
     # ------------------------------------------------------------------ 登録済みのキャラに偶然会う
     def bump(self, cid, kind, with_cid, where, now):
@@ -187,12 +192,12 @@ class Encounters:
         p = random.choice(ps) if ps else {}
         look = ", ".join(x for x in ["1girl, solo", random.choice(HAIR_COLOR), random.choice(HAIR_STYLE), random.choice(EYES),
                                      random.choice(EXTRA)] if x)
-        tmpl = app.char() if app.chars else {}
-        return {"name": name, "player_call": "", "first_person": "", "persona_id": p.get("id", ""),
-                "persona": p.get("persona", ""), "pos": look, "neg": "", "outfit_default": random.choice(OUTFIT),
-                "outfit_outing": random.choice(OUTING), "clothes": self._starter_clothes(), "age": random.randint(20, 34),
-                "schedule": copy.deepcopy(tmpl.get("schedule") or []),
-                "default_activity": copy.deepcopy(tmpl.get("default_activity") or {}), "prompt_history": []}
+        c = {"name": name, "player_call": "", "first_person": "", "persona_id": p.get("id", ""),
+             "persona": p.get("persona", ""), "pos": look, "neg": "", "outfit_default": random.choice(OUTFIT),
+             "outfit_outing": random.choice(OUTING), "clothes": self._starter_clothes(), "age": random.randint(19, 34),
+             "prompt_history": []}
+        # 暮らし方 (生活の型) は人ごとにくじで決め, 予定はそこから作る (以前は, そばにいる相手の予定をそのまま写していた)
+        return lifetype.assign(c, p.get("traits") or {}, seed=uuid.uuid4().hex[:12])
 
     def _starter_clothes(self):
         """新しく作る人の持っている服: 普段着・部屋着・パジャマと, 一覧のふつうの服からいくつか."""

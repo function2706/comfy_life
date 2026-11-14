@@ -517,6 +517,15 @@ class Manners:
             return "thanks_unforgiven", {"mood": -2, "affection": -0.5}
         return None
 
+    def greet_fits(self, char, kind, dt):
+        """時計では変な時刻のあいさつでも, 本人の暮らしには合っているか (夜勤・夜型の人): 「おはよう」は起きて 3 時間のうち,
+        「おやすみ」はこれから 3 時間のうちに寝るなら, 変ではない. 基本の予定で見る."""
+        app = self.app
+        if app._base_scene(char, dt).get("asleep"):
+            return False
+        step = -1 if kind == "greet_morning" else 1
+        return any(app._base_scene(char, dt + timedelta(minutes=step * m)).get("asleep") for m in range(15, 181, 15))
+
     # ------------------------------------------------------------------ 送ったとき (時刻・続け方の記録)
     def on_send(self, char, st, kind, now, to=None):
         """送った時点のこと (返信を決めるときに使う). pend["meta"] に入れる."""
@@ -526,7 +535,7 @@ class Manners:
         if kind in GREET_OK:
             g = st.setdefault("greets", {})
             key = period(kind, dt)
-            if GREET_ODD[kind](dt.hour):
+            if GREET_ODD[kind](dt.hour) and not self.greet_fits(char, kind, dt):
                 meta["greet"] = "odd"
             elif g.get(kind) == key:
                 meta["greet"] = "again"

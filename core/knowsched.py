@@ -40,8 +40,8 @@ def notable(char):
     """聞いて覚えるような予定: 出かけている・手が離せない・勤め先がある (寝る・食事などの家での時間は除く)."""
     out = []
     for e in char.get("schedule") or []:
-        if e.get("asleep") or e.get("activity") in ("sleep", "breakfast", "lunch", "dinner", "bath", "morning", "night",
-                                                                 "commute", "getready", "cooking"):
+        if e.get("asleep") or e.get("cont") or e.get("activity") in ("sleep", "breakfast", "lunch", "dinner", "bath", "morning", "night",
+                                                                 "commute", "getready", "cooking", "errand"):
             continue
         if e.get("away") or e.get("busy") or e.get("workplace"):
             out.append(e)

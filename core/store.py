@@ -133,6 +133,8 @@ def pending_migrations(meta):
         out.append("registry/characters を全体の定義へ移す")
     if _legacy_routine(load(dpath("settings.json"), {}) or {}):
         out.append("行動パターンの散歩・買い物・カフェを「外出 + 行き先」に読み替える")
+    if any(c and "life" not in c for c in (load(f) for f in glob.glob(dpath("characters", "*.json")))):
+        out.append("キャラクターに生活の型を割り当てて、予定を作り直す")
     return out
 
 
@@ -184,6 +186,8 @@ def bootstrap():
         save(dpath("worlds.json"), meta)
     migrate_characters(meta)
     migrate_routine()
+    from . import lifetype
+    lifetype.migrate_defs()          # 生活の型 (life の無い定義だけ. 済んでいれば何もしない)
     if meta.get("current") not in [w["id"] for w in meta["worlds"]]:
         meta["current"] = meta["worlds"][0]["id"]
         save(dpath("worlds.json"), meta)

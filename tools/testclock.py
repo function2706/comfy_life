@@ -32,7 +32,8 @@ def fix_noon(engine):
             c.update(hour=12, time=720, weekday=6, day="sun", weekend=True)
         return c
     App.you_context = you_context
-    from core import geo, market, nori, offline, places, presence
+    from core import geo, lifetype, market, nori, offline, places, presence
+    lifetype.FIXED = "office"            # 新しく作る人の生活の型は会社員 (日曜の昼は家で手が空いている. 型そのものは tools/test_lifetype.py で)
     nori.hour_at_real = nori.hour_at                          # 会話のノリの時刻 (夜中は乗りにくい) も昼
     nori.hour_at = lambda now: NOON.hour
     geo.INSTANT = True

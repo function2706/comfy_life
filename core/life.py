@@ -65,7 +65,8 @@ class Life:
             self.player = store.load(store.wpath("player.json"))
         if self.player is None:
             t = time.time()
-            self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t}
+            self.player = {"money": int(self.econ().get("start_money_player", 30000)), "last_tick": t,
+                           "life_v": 1}        # 新しいワールド: 生活の型の移行 (core/lifetype.py world_step) は要らない
         ps = self.player
         ps.setdefault("skills", {k: 10.0 for k in SKILLS})
         ps.setdefault("stamina", 100.0)          # あなたの体力 (仕事・内職・外出で減り, 家にいる間に時間で戻る. 寝ると早い)

@@ -4,6 +4,7 @@
 - スケジュール / 行動による一時シーン (override) から現在の場面を決める
 - 行動 → 反応選択 → 効果適用 → プロンプト合成 → ComfyUI ジョブ
 """
+import copy
 import glob
 import hashlib
 import json
@@ -24,6 +25,7 @@ from . import remote as remote_mod
 from . import push as push_mod
 from . import tailnet as tailnet_mod
 from . import rhythm as rhythm_mod
+from . import lifetype as lifetype_mod
 from . import visit as visit_mod
 from . import care as care_mod
 from . import stay as stay_mod
@@ -253,6 +255,7 @@ class App:
         self.appoint_change_comp()                     # 約束の変更に応じてもらったのに「約束を変えてくれた」が無かった分 (一度だけ)
         self.task_marks_comp()                         # 読み込み直して×印が消え, 続けられなくなったピクロスのお詫び (一度だけ)
         self.manners.apology_count_comp()              # 「何のこと？」の謝罪まで続けて謝ったに数えていた分 (一度だけ)
+        lifetype_mod.world_step(self)                  # 生活の型: 作り直した予定に, このワールドの記録を合わせる (一度だけ)
         if rt or rc or paid:
             self.trace.add("retro", "起動時の当て直し", thanks=rt, contacts=rc, missed_work=paid)
         self.solo.rewrite_diaries(force=bool(paid))   # 日記の組み立てを直したので, 書き直せる日を一度だけ書き直す (払った日も)
@@ -4176,6 +4179,7 @@ class App:
             for k in ("icon", "icon_seed"):      # 設定を開いている間にできた顔のアイコンを, 古い画面の保存で消さない
                 if k not in c and (old or {}).get(k):
                     c[k] = old[k]
+            lifetype_mod.ensure(self, c, old)    # 生活の型: 無ければ付ける. 予定を手で書き換えたら, 作り直さない人 (custom) に
             if c["id"] in self.chars or c["id"] in store.load_cast():     # このワールドに現れている人だけ手元に
                 self.chars[c["id"]] = c
             store.save_character(c)              # 定義は全体 (全ワールドに反映)
@@ -4197,7 +4201,9 @@ class App:
             c = {"id": cid, "name": name or "新しいキャラ", "player_call": "", "first_person": "",
                  "persona_id": p.get("id", ""), "persona": p.get("persona", ""),
                  "pos": (pos or "").strip() or "1girl, solo", "neg": "", "outfit_default": src.get("outfit_default", ""),
-                 "schedule": src.get("schedule", []), "default_activity": src.get("default_activity", {}),
+                 # 予定: 写す元を選んだときだけ写す. 選ばなければ, 生活の型をくじで決めて作る (save_character → lifetype.ensure)
+                 "schedule": copy.deepcopy(src.get("schedule", [])) if copy_from else [],
+                 "default_activity": copy.deepcopy(src.get("default_activity", {})),
                  "clothes": [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER], "age": 20,
                  "prompt_history": [], "origin": {"type": "manual", "t": time.time(), "world": store.WORLD}}
             if stage == "random":
@@ -4334,6 +4340,7 @@ class App:
         """セーブの読み込み: いつも新しいワールドとして足す (切り替えはしない)."""
         with self.lock:
             r = transfer.import_world(data, name)
+            lifetype_mod.migrate_defs()        # 以前の版のセーブ: 一緒に入ってきた定義に生活の型を付ける (ワールドの側は開いたときに)
             self._load_index()                 # 足した画像を, 同じプロンプトの再利用に入れる
             r["worlds"] = self.worlds_view()
             return r
@@ -4363,6 +4370,7 @@ class App:
             self.manners.apology_count_comp()
             self.favor_redo_comp()
             self.favor_office_comp()
+            lifetype_mod.world_step(self)
             return self.worlds_view()
 
     def rename_world(self, wid, name):

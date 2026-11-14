@@ -36,27 +36,50 @@ def _entries(char, d, matcher):
 
 
 def sleep_times(char, d, matcher):
-    """その日の基本の (起きる分, 寝る分). 寝る分は 1440 (= 翌 0:00) を超えない. 予定に睡眠が無ければ None."""
+    """その日の基本の (起きる分, 寝る分). 寝る分は 1440 (= 翌 0:00) を超えない. 予定に睡眠が無ければ None.
+    夜に寝て朝起きる人は 起きる分 < 寝る分 (寝るのはその日の夜). 日付が変わってから寝る人・昼に寝る人 (夜勤) は,
+    その日のうちの主な睡眠の枠を取り, 寝る分 < 起きる分 になる (same_day)."""
     es = [e for e in _entries(char, d, matcher) if e.get("asleep")]
     if not es:
         return None
-    wake, bed = None, None
+    runs = []
     for e in es:
         f, t = _mins(e.get("from", "00:00")), _mins(e.get("to", "24:00"))
-        if f == 0 or f > t:                   # 朝まで寝ている (0:00 から, または日をまたぐ)
-            wake = t if t < 12 * 60 else wake
-        if f >= 12 * 60:                      # 夜に寝る
-            bed = f
-    if bed is None:
-        nxt = [e for e in _entries(char, d + timedelta(days=1), matcher) if e.get("asleep") and _mins(e.get("from", "00:00")) == 0]
-        bed = DAY if nxt else None
-    return wake, bed
+        runs += [(0, t), (f, DAY)] if f > t else [(f, t)]       # 1 行で日をまたぐ書き方は, 0:00 で割って見る
+    runs.sort()
+    merged = []
+    for f, t in runs:
+        if merged and f <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], t))
+        else:
+            merged.append((f, t))
+    head = merged[0] if merged[0][0] == 0 else None
+    if head or all(f >= 12 * 60 for f, _ in merged):           # 夜に寝て朝起きる
+        wake = head[1] if head and head[1] < 12 * 60 else None
+        late = [f for f, _ in merged if f >= 12 * 60]
+        bed = late[-1] if late else None
+        if bed is None:
+            nxt = [e for e in _entries(char, d + timedelta(days=1), matcher) if e.get("asleep") and _mins(e.get("from", "00:00")) == 0]
+            bed = DAY if nxt else None
+        return wake, bed
+    f, t = max(merged, key=lambda r: r[1] - r[0])              # 日付が変わってから寝る・昼に寝る: 主な睡眠の枠
+    return (t if t < DAY else None), f
+
+
+def same_day(times):
+    """その日のうちに寝て起きる形か (日付が変わってから寝る・昼に寝る)."""
+    return bool(times) and times[0] is not None and times[1] is not None and times[1] < times[0]
 
 
 def free_morning(char, d, matcher):
-    """その日の朝 (昼まで) に出かける予定が無い."""
+    """起きたあとしばらく, 出かける予定が無い (朝に起きる人は昼まで. 昼すぎに起きる人は, 起きてから 5 時間)."""
+    times = sleep_times(char, d, matcher)
+    wake = times[0] if times else None
     for e in _entries(char, d, matcher):
-        if e.get("away") and _mins(e.get("from", "00:00")) < 12 * 60:
+        if not e.get("away"):
+            continue
+        f = _mins(e.get("from", "00:00"))
+        if (f < 12 * 60) if (wake is None or wake < 12 * 60) else (wake <= f < wake + 300):
             return False
     return True
 
@@ -143,7 +166,7 @@ class Rhythm:
         prev = self.plan(char, d - timedelta(days=1))
         ptimes = sleep_times(char, d - timedelta(days=1), day_match)
         # 前の晩の夜ふかし・徹夜が, 日付をまたいで続いている
-        if prev and ptimes and ptimes[1] is not None:
+        if prev and ptimes and ptimes[1] is not None and not same_day(ptimes):
             pbed = ptimes[1]
             end = (DAY + (wake or 0) + (pl or {}).get("wake", 0)) if prev["all_night"] else pbed + max(0, prev["bed"])
             if end > DAY and m < end - DAY and not raw(dt).get("away"):
@@ -152,6 +175,31 @@ class Rhythm:
         if not pl:
             return raw(dt)
         base = raw(dt)
+        day0 = datetime.combine(d, datetime.min.time())
+        if same_day(today):
+            # 日付が変わってから寝る人・昼に寝る人 (夜勤): 寝るのも起きるのも, その日のうち
+            if pl["all_night"] and bed <= m < wake and not base.get("away"):
+                return self._awake(raw(day0 + timedelta(minutes=max(0, bed - 1))), True, night=bed < 240)
+            if pl["bed"] > 0 and bed <= m < bed + pl["bed"] and not base.get("away"):
+                return self._awake(raw(day0 + timedelta(minutes=max(0, bed - 1))), False, night=bed < 240)
+            if pl["bed"] < 0 and bed + pl["bed"] <= m < bed and not base.get("away") and not base.get("asleep"):
+                return raw(day0 + timedelta(minutes=bed))
+            if not pl["all_night"]:
+                w = wake + pl["wake"]
+                if pl["wake"] > 0 and wake <= m < w and not base.get("away"):
+                    s = raw(day0 + timedelta(minutes=wake - 1))
+                    if s.get("asleep"):
+                        return dict(s, label=s.get("label") or "就寝中")
+                if pl["wake"] < 0 and w <= m < wake:
+                    return raw(day0 + timedelta(minutes=wake))
+            wake = bed = None                 # 朝・夜の直しは済み (残業だけ下で)
+        else:
+            # 夜中の 0 時すぎに寝る人が, 今夜は早寝する (翌日の枠の寝る時刻が, 日付の前へ出る)
+            nt = sleep_times(char, d + timedelta(days=1), day_match)
+            if same_day(nt) and nt[1] < 180 and m >= DAY - 120 and not base.get("away") and not base.get("asleep"):
+                npl = self.plan(char, d + timedelta(days=1))
+                if npl and npl["bed"] < 0 and m >= DAY + nt[1] + npl["bed"]:
+                    return raw(day0 + timedelta(days=1, minutes=nt[1]))
         # 朝: 寝坊 (まだ寝ている) / 早起き (もう起きている)
         if wake is not None and not (prev and prev["all_night"]):
             w = wake + pl["wake"]
@@ -181,8 +229,10 @@ class Rhythm:
         return base
 
     @staticmethod
-    def _awake(s, all_night):
-        """寝る前の場面のまま起きている (夜ふかし・徹夜)."""
+    def _awake(s, all_night, night=True):
+        """寝る前の場面のまま起きている (夜ふかし・徹夜). night: 夜のうちか (昼に寝る人は「夜ふかし」とは言わない)."""
         if s.get("asleep") or s.get("away"):
             s = dict(s, activity="night", asleep=False, away=False, busy=False, location=s.get("location") or "")
+        if not night:
+            return dict(s, label="寝ないで起きている" if all_night else "まだ起きている")
         return dict(s, label="徹夜している" if all_night else "夜ふかし中")
