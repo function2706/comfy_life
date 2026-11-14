@@ -76,6 +76,8 @@ def fmt_when(t, now=None):
 
 HOME_INVITE = 0.2            # 家に行ける仲で, 誘いが家になる割合の基本 (慣れで HOME_INVITE_FAM × 慣れ 増える)
 HOME_INVITE_FAM = 0.3
+TIGHT_INVITE = 0.6          # 所持金が苦しいときの, 誘いの起きやすさの倍率 (core/purse.py)
+TIGHT_PAID = 0.3            # 同じく, お金のかかる行き先・することの選ばれやすさの倍率
 NOW_RATE = 0.012             # 急な誘いの起きやすさ (1 時間あたり. 退屈・寂しさ・機嫌 × 性格 approach)
 NOW_LEAD = (40, 45, 50, 60)  # 急な誘いの待ち合わせまで (分)
 NOW_HOME = 0.35              # 急な誘いが家になる割合の基本
@@ -513,7 +515,7 @@ class Appoint:
             return None
         rate = 0.02 * max(0.1, (p.get("affection", 50) - 35) / 30.0 + (p.get("loneliness", 30) - 40) / 80.0) \
             * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) \
-            * app.regard.invite_factor(char, st)         # 思われていないと感じると, 誘いを控える (core/regard.py)
+            * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0)      # 思われていないと感じる (core/regard.py)・所持金が苦しいと, 誘いを控える
         if random.random() >= rate * h:
             return None
         dt0 = datetime.fromtimestamp(now)
@@ -603,7 +605,7 @@ class Appoint:
             return None
         want = max(0.0, (p.get("boredom", 30) - 40) / 40.0) + max(0.0, (p.get("loneliness", 30) - 40) / 50.0) \
             + max(0.0, (p.get("mood", 50) - 55) / 60.0)
-        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)
+        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0)
         if not rate or random.random() >= rate * h:
             return None
         dt = datetime.fromtimestamp(now)
@@ -665,8 +667,14 @@ class Appoint:
         return max(0.8, min(1.5, w))
 
     def pick(self, char, st, opts):
-        """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然."""
-        return random.choices(opts, [self.place_weight(char, st, pid) for pid, _ in opts])[0]
+        """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然. 所持金が苦しいときは, お金のかかることを避ける."""
+        tight = self.app.purse.tight(char, st)
+        return random.choices(opts, [self.place_weight(char, st, pid) * (TIGHT_PAID if tight and self.paid(a) else 1.0)
+                                     for pid, a in opts])[0]
+
+    @staticmethod
+    def paid(a):
+        return bool(a.get("cost") or a.get("meal_out"))
 
     def remember(self, cid, place, mood_delta):
         """一緒に行った行き先の楽しさを覚える (次に誘うときに, 少しだけ選ばれやすく)."""

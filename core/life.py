@@ -4,6 +4,7 @@
 - 暮らしのお金は家ごと: あなたが払うのは, あなたの家の分だけ. 毎日の生活費 (living_cost_per_day は二人暮らしの額.
   一人なら半分) と, 月はじめの基本コスト (家賃・光熱費・通信費. home_cost_per_month). 一緒に暮らしている相手とは
   その人の living_policy (折半 / あなた / 相手) で分ける. 一緒に暮らしていない人は, 自分の生活費を自分で払う (her_living_cost_per_day).
+  キャラの収入と出費は生活の型ごと (core/purse.py. 日付が変わるときの日締め).
 - 払えなければ, 連絡先を知っている人に借りる (頼む相手・断られるか・印象がどう変わるかは間柄・仲・性格・懐具合しだい).
   借りられなければ借金になる (player.json の debt). 借りたお金は loans に残る.
 - 借金のあいだ (debt か loans が残っている) は, 必需品 (食材・日用品. items.ESSENTIAL_KINDS) しか買えない. スキルの伸びは抑えない.
@@ -317,8 +318,8 @@ class Life:
         start = self.her_start_money(char, random.Random())     # 専用の乱数 (ほかのくじの並びを動かさない)
         m = st.setdefault("money", {})
         st["start_money_v2"] = True
-        if "a" not in m:
-            m["a"] = start
+        if "a" not in m:                                        # 新しく現れた人: 型と年齢でも変わる (学生は少なく, 年上ほど多い)
+            m["a"] = int(round(max(5000, start * self.app.purse.start_mult(char)) / 1000.0)) * 1000
             return True
         extra = start - int(self.econ().get("start_money_her", 20000))
         if extra > 0:
@@ -361,20 +362,30 @@ class Life:
     # ---------------------------------------------------------- 支払い
     def plan_payment(self, char, st, cost, fixed=None):
         """誰が払うか決める. 方針: me (あなた) / split (割り勘) / her (おごってもらう) / auto (おまかせ).
-        払えなければ ValueError."""
+        払えなければ ValueError. 相手が苦しいとき (purse.tight) は, おごらない: おごってもらう取り決めなら割り勘を申し出る
+        (note: tight_split. 一言添える), あなたが払えなければ断られる (ValueError に相手の一言)."""
         ps, hm = self.player_state(), self.her_money(st)
         pol = fixed or char.get("pay_policy") or "auto"
+        tight = self.app.purse.tight(char, st)
+        if tight and pol == "her":                                # おごってもらう取り決めでも, 苦しいときは割り勘を申し出る
+            pol, note = "split", "tight_split"
+        else:
+            note = None
         if pol == "auto":
             r = random.random()
             aff = st["params"].get("affection", 50)
             fv = self.app.attach.factor(char, st, "devotion")     # 献身的なほど払ってくれ, 自分優先なほど払わせる
             ph = max(0.0, 0.2 + aff / 500.0 + 0.25 * fv)
+            if tight:
+                ph = 0.0                                          # 苦しいときは, おごらない (割り勘寄り)
             pol = "her" if (r < ph and hm["a"] >= cost * 2) else "split" if r < max(ph, 0.55 + 0.15 * fv) else "me"
         if pol == "split":
             half = cost // 2
             if ps["money"] >= cost - half and hm["a"] >= half:
-                return {"payer": "split", "p": -(cost - half), "a": -half}
+                return {"payer": "split", "p": -(cost - half), "a": -half, "note": note}
             pol = "me" if ps["money"] >= cost else "her"
+        if tight and ps["money"] < cost:                          # あなたが払えず, 相手も苦しい: 出してもらえない
+            raise ValueError("%s「%s」" % (char.get("name", ""), self.app.moneytalk.line(char, "tight_no")))
         if pol == "her" and hm["a"] >= cost:
             self.app.attach.give(char, st, "her", 2, "払ってくれた")
             return {"payer": "her", "p": 0, "a": -cost}
@@ -386,17 +397,12 @@ class Life:
 
     # ================================================================== キャラの毎日
     def step(self, char, st, t0, t1, h):
-        """5 分ごと: 日付が変わったら収入と (一緒に暮らしていなければ) 自分の生活費, ときどき出来事.
+        """5 分ごと: 日付が変わったら日締め (型ごとの収入と, 一緒に暮らしていなければ自分の住まい・暮らしのお金), ときどき出来事.
         一緒に暮らしている相手の生活費は, あなたの家の分として tick_world (pay_home) で分ける."""
         e = self.econ()
-        hm = self.her_money(st)
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
-            hm["a"] += int(e.get("her_daily_income", 2500))
-            if self.app.bonds.living() != char["id"]:
-                own = int(e.get("her_living_cost_per_day", 1500))
-                if hm["a"] < own:
-                    self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
-                hm["a"] -= min(own, max(hm["a"], 0))
+            if self.app.purse.close(char, st, datetime.fromtimestamp(t0).date()):     # 日締め: 型ごとの収入と出費 (core/purse.py)
+                self.app.apply_effects(st, {"stress": 10, "mood": -5})      # 自分の生活費が苦しい
             self.money_concern(char, st, t1)
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
             self.app.attach.daily(char, st, t1)                  # 献身度・依存度の日ごとの動き

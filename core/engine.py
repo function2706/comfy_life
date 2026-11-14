@@ -57,6 +57,7 @@ from . import home as home_mod
 from . import places as places_mod
 from . import appoint as appoint_mod
 from . import kakeibo as kakeibo_mod
+from . import purse as purse_mod
 from . import body as body_mod
 from . import presence as presence_mod
 from . import knowsched as knowsched_mod
@@ -233,6 +234,7 @@ class App:
         self.geo = geo_mod.Geo(self)
         self.appoint = appoint_mod.Appoint(self)
         self.kakeibo = kakeibo_mod.Kakeibo(self)
+        self.purse = purse_mod.Purse(self)          # キャラクターの所持金の収支 (型ごとの収入と出費. 日締め)
         self.body = body_mod.Body(self)
         self.presence = presence_mod.Presence(self)
         self.planner = planner_mod.Planner(self)
@@ -1057,6 +1059,7 @@ class App:
         now = now or time.time()
         t = st.get("last_tick") or now
         if now - t > MAX_CATCHUP_SEC:
+            self.purse.skip(char, st, int((now - MAX_CATCHUP_SEC - t) // 86400))    # 追いつけない分の収支は, 平均でまとめて
             t = now - MAX_CATCHUP_SEC
         t_from = t
         changed = False
@@ -1832,6 +1835,8 @@ class App:
             except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
                 pass
         if entry and not apart and plan and not (r or {}).get("override"):        # どっちが出したか (性格しだいで, 言わないまま冷めることも)
+            if plan.get("note") == "tight_split":              # 苦しくて, おごる取り決めなのに割り勘を申し出た (core/purse.py)
+                self.note_entry(char, st, now, "_money_tight", "お金のこと", "💴", self.moneytalk.line(char, "tight_split"), {})
             self.moneytalk.after_pay(char, st, plan.get("payer"), now)
         if entry and not apart and st.get("celeb") and not (r or {}).get("override"):      # 誕生日・記念日にしたこと
             self.anniv.mark(char, st, "met", now)

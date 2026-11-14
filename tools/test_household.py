@@ -76,19 +76,25 @@ def main():
         day0 = ts("2026-10-20 23:50")
         ps["last_tick"], st["last_tick"] = day0, day0
         L.tick_world(day0 + 1200)
+        L.her_money(st).pop("pay", None)                 # 日締めをやり直せるように (core/purse.py. 型ごとの収支そのものは test_purse)
         app.life.step(char, st, day0, day0 + 1200, 1200 / 3600.0)
         assert ps["money"] == 50000 + int(e["player_daily_income"]) - int(e["living_cost_per_day"]) // 2, ps["money"]
-        assert L.her_money(st)["a"] == 20000 + int(e["her_daily_income"]) - int(e["her_living_cost_per_day"]), L.her_money(st)
+        own = int(round(app.purse.living_per_day(char) * 0.35, -1))      # 自分の暮らしの分 (給料日でも月はじめでもない日). 買い物は日ごとのくじ
+        assert 20000 - own - 3700 <= L.her_money(st)["a"] <= 20000 - own, (L.her_money(st), own)
 
         # 同居: 二人分を方針 (折半) で分ける. 相手の生活費は二重に引かない
         B.set_stage(cid, "live")
         ps["money"], L.her_money(st)["a"] = 50000, 20000
         ps["last_tick"] = day0
         L.tick_world(day0 + 1200)
+        L.her_money(st).pop("pay", None)
         app.life.step(char, st, day0, day0 + 1200, 1200 / 3600.0)
         half = int(e["living_cost_per_day"]) // 2
         assert ps["money"] == 50000 + int(e["player_daily_income"]) - half, ps["money"]
-        assert L.her_money(st)["a"] == 20000 + int(e["her_daily_income"]) - half, L.her_money(st)
+        assert 20000 - half - 3700 <= L.her_money(st)["a"] <= 20000 - half, L.her_money(st)      # 自分の暮らしの分は引かない (買い物だけ)
+        a1 = L.her_money(st)["a"]
+        app.life.step(char, st, day0, day0 + 1200, 1200 / 3600.0)                              # 同じ日は二度締めない
+        assert L.her_money(st)["a"] == a1
         print("生活費: 一人なら半分, 同居なら折半, 離れている人は自分で: OK")
 
         # ---- 4. 月はじめの家賃・光熱費・通信費 (同居なら折半)

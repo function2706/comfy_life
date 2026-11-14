@@ -43,16 +43,18 @@ HOBBIES = (("趣味のお絵かき", "bedroom, drawing, sketchbook, sitting at d
            ("部屋の片付け", "bedroom, cleaning, tidying up"), ("おやつを作っている", "kitchen, baking, apron"),
            ("音楽を聴いている", "bedroom, headphones, listening to music"), ("ストレッチをしている", "living room, stretching, yoga mat"))
 
-# 型: label / くじの重み / 合う年齢 / 寝起きの基本 (起きる, 寝る. 分) / pay・cost は所持金の収支 (A17 段 3) で使う
+# 型: label / くじの重み / 合う年齢 / 寝起きの基本 (起きる, 寝る. 分) / pay・cost は所持金の収支 (core/purse.py)
+# pay: rate は 1 か月の基準 (econ.her_daily_income × 30.4) への倍率. hours は時給の人のひと月の勤務時間の目安 (予定の平均).
+# 全員の平均が以前と同じ (月に +3 万円ほど) になるように決めてある (tools/test_purse.py で確かめる)
 TYPES = {
     "office": {"label": "会社員", "weight": 34, "age": (20, 99), "sleep": (390, 1410),
-               "pay": {"kind": "monthly", "rate": 1.15, "payday": 25, "bonus": (6, 12)}, "cost": {"home": 1.1, "living": 1.0}},
+               "pay": {"kind": "monthly", "rate": 1.05, "payday": 25, "bonus": (6, 12)}, "cost": {"home": 1.1, "living": 1.0}},
     "shift": {"label": "シフト勤務", "weight": 16, "age": (18, 99), "sleep": (420, 1440),
-              "pay": {"kind": "hourly", "rate": 0.8, "payday": 15}, "cost": {"home": 0.85, "living": 0.9}},
+              "pay": {"kind": "hourly", "rate": 0.8, "hours": 134, "payday": 15}, "cost": {"home": 0.85, "living": 0.9}},
     "night": {"label": "夜勤", "weight": 7, "age": (20, 99), "sleep": (930, 1920),
-              "pay": {"kind": "monthly", "rate": 1.2, "payday": 25, "bonus": (7, 12)}, "cost": {"home": 1.0, "living": 1.0}},
+              "pay": {"kind": "monthly", "rate": 1.15, "payday": 25, "bonus": (7, 12)}, "cost": {"home": 1.0, "living": 1.0}},
     "student": {"label": "学生", "weight": 14, "age": (18, 24), "sleep": (420, 1470),
-                "pay": {"kind": "hourly", "rate": 0.45, "payday": 10, "allowance": 1}, "cost": {"home": 0.7, "living": 0.8}},
+                "pay": {"kind": "hourly", "rate": 0.25, "hours": 35, "payday": 10, "allowance": 0.33}, "cost": {"home": 0.7, "living": 0.8}},
     "freelance": {"label": "在宅・フリーランス", "weight": 12, "age": (22, 99), "sleep": (510, 1530),
                   "pay": {"kind": "irregular", "rate": 1.0}, "cost": {"home": 1.0, "living": 1.0}},
     "service": {"label": "販売・サービス業", "weight": 17, "age": (18, 99), "sleep": (420, 1440),

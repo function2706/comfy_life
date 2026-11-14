@@ -477,6 +477,8 @@ class Bonds:
             + 0.3 * (p.get("mood", 50) - 50) + random.uniform(-20, 20)
         if money:
             f += self.trait(char, "money") - (15 if self.stage(char["id"]) in ("known", "contact") else 0)
+            if self.app.purse.tight(char, st):
+                f += 12                          # 苦しいときは受け取りやすい (誇りの高い性格・浅い仲は, それでも断ることが多い)
         return round(f, 1)
 
     def cool_down(self, char, st, t, h):
