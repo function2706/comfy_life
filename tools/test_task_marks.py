@@ -1,5 +1,5 @@
 """内職の印とお詫び (一時データ, 画像生成なし).
-- 画面の側の印 (ピクロスの×・旗・数独のメモ) は, やりかけと一緒に残り, 再起動・読み込み直しのあとも戻る
+- 画面の側の印 (ピクロスの×・？・旗・数独のメモ) は, やりかけと一緒に残り, 再起動・読み込み直しのあとも戻る
 - お詫び (一度だけ): やりかけのピクロスは仕上げた扱いで終える (体力は使わない). もう途中でやめていれば, 仕上げた額との差を払う
 
     python tools/test_task_marks.py
@@ -32,11 +32,11 @@ def main():
         # ---- 印が残る
         tk = app.task_start("picross", "mid")
         assert tk["marks"] is None
-        app.task_marks(tk["token"], {"xs": ["0,1", "2,3"], "flags": [], "memo": {}, "junk": 1})
+        app.task_marks(tk["token"], {"xs": ["0,1", "2,3"], "qs": ["4,4"], "flags": [], "memo": {}, "junk": 1})
         app2 = engine.App()
         r = app2.task_resume()
         print("読み込み直したあとの印:", r["marks"])
-        assert r["marks"] == {"xs": ["0,1", "2,3"], "flags": [], "memo": {}}
+        assert r["marks"] == {"xs": ["0,1", "2,3"], "qs": ["4,4"], "flags": [], "memo": {}}
 
         # ---- お詫び: やりかけのピクロスは仕上げた扱いで終える
         app2.life.player_state().setdefault("fix_comp", {}).pop("task_marks", None)

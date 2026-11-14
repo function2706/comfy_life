@@ -9,12 +9,12 @@
      closeTask(): 「やめる」で呼ばれる.
    サーバの API: POST /api/task/move {token, move} → {view, wrong?, short?, solved} (答え合わせはサーバ).
    POST /api/task/pause {token, on} → tk (一時停止中は view が null. 経過時間も止まる).
-   POST /api/task/marks {token, marks: {xs, flags, memo}}: 画面の側の印 (答え合わせには使わない) を残す. 読み込み直しても tk.marks から戻る.
+   POST /api/task/marks {token, marks: {xs, qs, flags, memo}}: 画面の側の印 (答え合わせには使わない) を残す. 読み込み直しても tk.marks から戻る.
    beginTask(tk) で始める. tk = {token, view, name, level_name, base, par, desc, elapsed, paused, marks}. */
 
 function beginTask(tk) {
   const mk = tk.marks || {};
-  S.task = { tk, view: tk.view, flags: new Set(mk.flags || []), xs: new Set(mk.xs || []), memo: mk.memo || {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false,
+  S.task = { tk, view: tk.view, flags: new Set(mk.flags || []), xs: new Set(mk.xs || []), qs: new Set(mk.qs || []), pc: pcHist(), pcMode: 'fill', memo: mk.memo || {}, sel: null, t0: Date.now() - (tk.elapsed || 0) * 1000, done: false, alt: false, busy: false,
     paused: !!tk.paused, pausedSec: tk.elapsed || 0 };
   if (tk.view && tk.view.kind === 'slither') slInit(S.task);
   S.task.timer = setInterval(taskStats, 500);
@@ -39,6 +39,12 @@ function beginTask(tk) {
       const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right',
         W: 'up', S: 'down', A: 'left', D: 'right' }[ev.key];
       if (dir && !ev.ctrlKey && !ev.metaKey && !ev.altKey) { ev.preventDefault(); g2048Move(dir); }
+      return;
+    }
+    if (T.view.kind === 'picross' && (ev.ctrlKey || ev.metaKey)) {      // Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z)
+      const k = ev.key.toLowerCase();
+      if (k === 'z' && !ev.shiftKey) { ev.preventDefault(); pcUndo(T); }
+      else if (k === 'y' || (k === 'z' && ev.shiftKey)) { ev.preventDefault(); pcRedo(T); }
       return;
     }
     if (T && !T.done && T.view.kind === 'slither' && (ev.ctrlKey || ev.metaKey)) {      // Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z)
@@ -117,35 +123,40 @@ async function chord(r, c) {
   } catch (e) { toast(e.message, 'err'); }
   finally { T.busy = false; }
 }
-// ピクロス: タップで塗る / 塗ったマスはもう一度で消す / ×. ドラッグで同じ行・列をまとめて (最初のマスで決まる:
-// 空きから始めれば塗る, 塗ったマスから始めれば消す, ×のマスから始めれば×を消す). 長押し・右クリック・「×印」モードは×.
-// 一手ごとの答え合わせはしない (普通のピクロスと同じ). 塗る・消すはサーバへ指を離してから送る
+// ピクロス: タップで塗る / 塗ったマスはもう一度で消す / ×・？. ドラッグで同じ行・列をまとめて (最初のマスで決まる:
+// 空き・？から始めれば塗る, 塗ったマスから始めれば消す, ×のマスから始めれば×を消す). 長押し・右クリック・「×」の手は×.
+// 「？」の手は自分用の？ (迷っているマス. 空きのマスに付け, ？のマスから始めれば？を消す. 塗る・×で上書きされる).
+// 一手ごとの答え合わせはしない (普通のピクロスと同じ). 塗る・消すはサーバへ指を離してから送る.
+// 一つのなぞり・タップが一つの手. 元に戻す・やり直す (Ctrl+Z / Ctrl+Y) は塗り・×・？をまとめてたどる (読み込み直すと履歴は消える)
 function picrossDrag(grid) {
   const T = S.task;
   const cellAt = (ev) => { const el = document.elementFromPoint(ev.clientX, ev.clientY); return el && el.closest && el.closest('.pc'); };
   const rc = (el) => [+el.dataset.r, +el.dataset.c];
-  const state = (el) => (el.classList.contains('fill') ? 'fill' : T.xs.has(rc(el).join(',')) ? 'x' : 'empty');
+  const state = (el) => pcCellState(T, rc(el).join(','), el.classList.contains('fill'));
   let d = null;
   // D: いまのドラッグ. 指を離したとき (end) は d を先に空にするので, そこからは渡したものを使う
   const mark = (el, D = d) => {
     if (D.seen.has(el)) return;
     D.seen.add(el);
-    const s = state(el);
-    if (D.mode === 'fill' && s === 'empty') { el.classList.add('pending'); D.fill.push([...rc(el), 'fill']); }
-    else if (D.mode === 'erase' && s === 'fill') { el.classList.remove('fill'); el.classList.add('pending-erase'); D.fill.push([...rc(el), 'erase']); }
-    else if (D.mode === 'x' && s === 'empty') { T.xs.add(rc(el).join(',')); el.textContent = '×'; }
-    else if (D.mode === 'unx' && s === 'x') { T.xs.delete(rc(el).join(',')); el.textContent = ''; }
+    const s = state(el), k = rc(el).join(',');
+    const to = pcNext(D.mode, s);
+    if (!to) return;
+    D.changes.push([k, s, to]);
+    pcSetMark(T, k, to);
+    if (to === 'fill') { el.classList.add('pending'); el.classList.remove('q'); el.textContent = ''; D.fill.push([...rc(el), 'fill']); }
+    else if (s === 'fill') { el.classList.remove('fill'); el.classList.add('pending-erase'); D.fill.push([...rc(el), 'erase']); }
+    else { el.textContent = to === 'x' ? '×' : to === 'q' ? '？' : ''; el.classList.toggle('q', to === 'q'); }
   };
   grid.addEventListener('pointerdown', (ev) => {
     const el = cellAt(ev);
     if (!el || T.done) return;
     ev.preventDefault();
     const s = state(el);
-    const xmode = ev.button === 2 || T.alt;
+    const pm = ev.button === 2 ? 'x' : T.pcMode;
     T.dragging = true;
-    d = { el, r0: rc(el), axis: null, seen: new Set(), fill: [], moved: false, long: false,
-      mode: s === 'x' ? (xmode ? 'unx' : null) : s === 'fill' ? (xmode ? null : 'erase') : xmode ? 'x' : 'fill' };
-    if (ev.pointerType === 'touch' && !xmode) {            // 長押し: そのマスに×
+    d = { el, r0: rc(el), axis: null, seen: new Set(), fill: [], changes: [], moved: false, long: false,
+      mode: pcStartMode(s, pm) };
+    if (ev.pointerType === 'touch' && pm === 'fill') {            // 長押し: そのマスに×
       d.timer = setTimeout(() => { if (d && !d.moved) { d.long = true; d.mode = s === 'x' ? 'unx' : 'x'; mark(el); } }, 450);
     }
     try { grid.setPointerCapture(ev.pointerId); } catch (e) { /* 取れなくても動く */ }
@@ -182,27 +193,82 @@ function picrossDrag(grid) {
     d = null;
     clearTimeout(dd.timer);
     if (!dd.moved && !dd.long && dd.mode) mark(dd.el, dd);          // タップ
-    if (!dd.mode && !dd.moved) { T.xs.delete(dd.r0.join(',')); }      // ×のマスをタップ: ×を外す
+    if (!dd.mode && !dd.moved && T.xs.has(dd.r0.join(','))) {        // ×のマスをタップ: ×を外す
+      dd.changes.push([dd.r0.join(','), 'x', 'empty']);
+      T.xs.delete(dd.r0.join(','));
+    }
     T.dragging = false;
-    // 手は順番に送る (前のなぞりの分を送り終えてから). 以前は, 前の分を送っている最中に次のなぞり・タップを終えると,
-    // その分の手が送られずに捨てられ (taskMove は送信中なら何もしない), そのあとの描き直しで塗り・消しが元に戻っていた.
-    // 次のなぞりの途中には描き直さない (盤を作り直すと, なぞっている途中の操作が切れる). 描き直すのは, そのなぞりを終えたとき
-    const send = async () => {
-      for (const [r, c, op] of dd.fill) {
-        while (T.busy && !T.done && !T.paused) await new Promise((ok) => setTimeout(ok, 25));
-        if (T.done) break;
-        await taskMove({ r, c, op });
-      }
-    };
-    T.chain = (T.chain || Promise.resolve()).then(send, send);
-    await T.chain;
-    if (!T.done && !T.dragging) renderTask();
+    pcRecord(T.pc, dd.changes);
+    await pcSend(T, dd.fill);
   };
   grid.addEventListener('pointerup', end);
   grid.addEventListener('pointercancel', end);
   grid.addEventListener('contextmenu', (ev) => ev.preventDefault());
   grid.addEventListener('pointerleave', () => { if (!d) { T.hover = null; grid.querySelectorAll('.cur, .hl').forEach((x) => x.classList.remove('cur', 'hl')); } });
 }
+// ---- ピクロスの元に戻す・やり直す. 一つの手 = [[マス "r,c", 前の状態, 後の状態], …]. 状態は 'empty' / 'fill' / 'x' / 'q'
+// (履歴の出し入れ pcHist / pcRecord / pcUndoSt / pcRedoSt は画面にもサーバにも触れない. tools/test_picross_history.py が確かめる)
+const PC_HIST_MAX = 300;
+function pcHist() { return { hist: [], redo: [] }; }
+// なぞりの手は最初のマスと押した手 (pm: 'fill' / 'x' / 'q') で決まる. null はそのなぞりでは何もしない (×のマスのタップは×を外す)
+function pcStartMode(s, pm) {
+  if (s === 'x') return pm === 'x' ? 'unx' : null;
+  if (s === 'fill') return pm === 'fill' ? 'erase' : null;
+  if (s === 'q') return pm === 'q' ? 'unq' : pm;
+  return pm;
+}
+// その手で, 状態 s のマスがどうなるか (変わらなければ null)
+function pcNext(mode, s) {
+  return { fill: s === 'empty' || s === 'q' ? 'fill' : null, erase: s === 'fill' ? 'empty' : null, x: s === 'empty' || s === 'q' ? 'x' : null,
+    unx: s === 'x' ? 'empty' : null, q: s === 'empty' ? 'q' : null, unq: s === 'q' ? 'empty' : null }[mode] || null;
+}
+function pcCellState(T, k, filled) { return filled ? 'fill' : T.xs.has(k) ? 'x' : T.qs.has(k) ? 'q' : 'empty'; }
+function pcSetMark(T, k, to) {             // 画面の側の印 (×・？) だけ. 塗りはサーバ
+  T.xs.delete(k); T.qs.delete(k);
+  if (to === 'x') T.xs.add(k); else if (to === 'q') T.qs.add(k);
+}
+function pcRecord(H, changes) {            // 変わらなかったマスは入れない. 新しい手を積んだらやり直しの残りは消える
+  const ch = changes.filter(([, a, b]) => a !== b);
+  if (!ch.length) return false;
+  H.hist.push(ch);
+  if (H.hist.length > PC_HIST_MAX) H.hist.shift();
+  H.redo = [];
+  return true;
+}
+function pcUndoSt(H) { const ch = H.hist.pop(); if (!ch) return null; H.redo.push(ch); return ch.map(([k, a, b]) => [k, b, a]); }
+function pcRedoSt(H) { const ch = H.redo.pop(); if (!ch) return null; H.hist.push(ch); return ch.map((x) => x.slice()); }
+// 塗る・消すを順に送る (前の分を送り終えてから). 以前は, 前の分を送っている最中に次のなぞり・タップを終えると,
+// その分の手が送られずに捨てられ (taskMove は送信中なら何もしない), そのあとの描き直しで塗り・消しが元に戻っていた.
+// なぞりの途中には描き直さない (盤を作り直すと, なぞっている途中の操作が切れる). 描き直すのは送り終えたとき
+async function pcSend(T, ops) {
+  const send = async () => {
+    for (const [r, c, op] of ops) {
+      while (T.busy && !T.done && !T.paused) await new Promise((ok) => setTimeout(ok, 25));
+      if (T.done) break;
+      await taskMove({ r, c, op });
+    }
+  };
+  T.chain = (T.chain || Promise.resolve()).then(send, send);
+  await T.chain;
+  if (S.task === T && !T.done && !T.dragging) renderTask();
+}
+// 元に戻す・やり直すで得たマスの状態を盤に当てる. 印はすぐ, 塗りは画面に先に出してからサーバへ送る (状態を決めて送るので, 二度送っても同じ)
+function pcApply(T, list) {
+  if (!list) return;
+  const ops = [];
+  for (const [k, from, to] of list) {
+    pcSetMark(T, k, to);
+    if ((from === 'fill') === (to === 'fill')) continue;
+    const [r, c] = k.split(',').map(Number);
+    T.view.filled = T.view.filled.filter(([a, b]) => a !== r || b !== c);
+    if (to === 'fill') T.view.filled.push([r, c]);
+    ops.push([r, c, to === 'fill' ? 'fill' : 'erase']);
+  }
+  renderTask();
+  if (ops.length) pcSend(T, ops);
+}
+function pcUndo(T) { if (!T.done && !T.paused && !T.dragging) pcApply(T, pcUndoSt(T.pc)); }
+function pcRedo(T) { if (!T.done && !T.paused && !T.dragging) pcApply(T, pcRedoSt(T.pc)); }
 // タップ / クリックと, 長押し / 右クリック (旗・×印) を分ける
 function pressable(el, tap, alt) {
   let timer = null, fired = false;
@@ -950,9 +1016,9 @@ function slTools(T) {
       h('input', { type: 'checkbox', checked: slColor(), onchange: (ev) => { setSlColor(ev.target.checked); if (T.slDraw) T.slDraw(); } }), ' つながっていない線を色分け'));
 }
 
-// 印 (ピクロスの×・旗・数独のメモ) をサーバに残す. 変わったときだけ, 送っている間の変化は送り終えてから最新の分を
+// 印 (ピクロスの×・？・旗・数独のメモ) をサーバに残す. 変わったときだけ, 送っている間の変化は送り終えてから最新の分を
 function marksSave(T) {
-  const j = JSON.stringify({ xs: [...T.xs], flags: [...T.flags], memo: T.memo });
+  const j = JSON.stringify({ xs: [...T.xs], qs: [...T.qs], flags: [...T.flags], memo: T.memo });
   if (T.marksJ === undefined) { T.marksJ = j; return; }           // 開いた直後 (受け取ったまま)
   if (j === T.marksJ) return;
   T.marksJ = j;
@@ -1076,10 +1142,10 @@ function renderTask(result) {
       const dn = rowNums(r);
       grid.append(h('div', { class: 'pz-clue row' + (dn.size === v.rows[r].length ? ' done' : '') + (r === hr ? ' cur' : '') }, clue(v.rows[r], dn)));
       for (let c = 0; c < v.n; c++) {
-        const k = key(r, c), f = filled.has(k), w = wrong.has(k), x = T.xs.has(k);
-        grid.append(h('button', { class: 'pz-c pc' + (f ? ' fill' : '') + (w ? ' wrong' : '') + (r === hr || c === hc ? ' hl' : '')
+        const k = key(r, c), f = filled.has(k), w = wrong.has(k), x = T.xs.has(k), q = !f && !x && T.qs.has(k);
+        grid.append(h('button', { class: 'pz-c pc' + (f ? ' fill' : '') + (w ? ' wrong' : '') + (q ? ' q' : '') + (r === hr || c === hc ? ' hl' : '')
           + (c % 5 === 4 && c < v.n - 1 ? ' br' : '') + (r % 5 === 4 && r < v.n - 1 ? ' bb' : ''), 'data-r': r, 'data-c': c },
-        w ? '✕' : x && !f ? '×' : ''));
+        w ? '✕' : x && !f ? '×' : q ? '？' : ''));
       }
     }
     if (!result) picrossDrag(grid);
@@ -1117,9 +1183,18 @@ function renderTask(result) {
     tools.push(h('div', { class: 'row g2-pad' }, [['left', '←'], ['up', '↑'], ['down', '↓'], ['right', '→']].map(([d, l]) =>
       h('button', { class: 'btn small', title: '矢印キー・WASD・スワイプでも', onclick: () => g2048Move(d) }, l))));
   }
-  if (!result && (v.kind === 'mines' || v.kind === 'picross')) {
-    tools.push(h('button', { class: 'btn small' + (T.alt ? ' primary' : ''), onclick: () => { T.alt = !T.alt; renderTask(); } },
-      v.kind === 'mines' ? '🚩 旗を立てる' : '× 印を付ける'));
+  if (!result && v.kind === 'mines') {
+    tools.push(h('button', { class: 'btn small' + (T.alt ? ' primary' : ''), onclick: () => { T.alt = !T.alt; renderTask(); } }, '🚩 旗を立てる'));
+  }
+  if (!result && v.kind === 'picross') {        // 押したときの手 (塗る・×・？) と, 元に戻す・やり直す
+    const modeBtn = (m, label, title) => h('button', { class: 'btn small' + (T.pcMode === m ? ' primary' : ''), title,
+      onclick: () => { T.pcMode = m; renderTask(); } }, label);
+    tools.push(h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap;justify-content:center' },
+      modeBtn('fill', '■ 塗る', 'クリックで塗る（右クリック・長押しは×）'),
+      modeBtn('x', '× 印', 'クリックで×を付ける'),
+      modeBtn('q', '？ 印', 'クリックで？を付ける（迷っているマスの目印。塗る・×で上書きされる）'),
+      h('button', { class: 'btn small', disabled: !T.pc.hist.length, title: 'Ctrl+Z', onclick: () => pcUndo(T) }, '↶ 元に戻す'),
+      h('button', { class: 'btn small', disabled: !T.pc.redo.length, title: 'Ctrl+Y', onclick: () => pcRedo(T) }, '↷ やり直す')));
   }
   if (!result && v.kind === 'sudoku') {
     const used = (d) => v.cur.filter((x) => x === d).length;        // 9 個そろった数字は使い切り

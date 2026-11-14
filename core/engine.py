@@ -3795,7 +3795,7 @@ class App:
                 "elapsed": round(puzzles.elapsed(t), 1), "marks": t.get("marks")}
 
     def task_marks(self, token, marks):
-        """画面の側の印 (ピクロスの×・マインスイーパの旗・数独のメモ) を, やりかけの内職と一緒に残す.
+        """画面の側の印 (ピクロスの×・？・マインスイーパの旗・数独のメモ) を, やりかけの内職と一緒に残す.
         答え合わせには使わない. 読み込み直す・閉じて開き直すと, _task_info の marks から戻る."""
         with self.lock:
             t = self._task_store().get(token)
@@ -3804,7 +3804,7 @@ class App:
             m = marks if isinstance(marks, dict) else {}
             if len(json.dumps(m)) > 60000:
                 raise ValueError("印が多すぎます")
-            t["marks"] = {k: m[k] for k in ("xs", "flags", "memo") if k in m}
+            t["marks"] = {k: m[k] for k in ("xs", "qs", "flags", "memo") if k in m}
             self._task_save()
             return {"ok": True}
 

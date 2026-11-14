@@ -690,6 +690,7 @@ a.btn { color: inherit; }
 .pz-picross .pc.fill.hl { background: #3d3549; }
 .pz-picross .pending { opacity: .6; }
 .pz-picross .wrong { color: #d24b4b; }
+.pz-picross .pc.q { color: #2f7fc0; font-weight: 700; }      /* 自分用の？ (迷っているマス) */
 .pz-clue { background: var(--panel); color: var(--text); font-size: clamp(12px, calc(var(--cell) * .48), 15px); font-weight: 600; display: flex;
   align-items: center; justify-content: flex-end; padding: 0 5px; white-space: nowrap; letter-spacing: .02em; touch-action: pan-x pan-y; }
 .pz-clue.col { flex-direction: column; justify-content: flex-end; padding: 3px 0; min-height: calc(var(--cell) * 1.6); line-height: 1.2; }
