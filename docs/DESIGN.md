@@ -234,11 +234,11 @@ Activity = {
 
 ## 7. 未着手の残件
 
-| 残件 | 中身 | 統一モデルとの関係 |
-|---|---|---|
-| 「外にいる」の一本化 | 行き先の表は 1 つにした（`core/places.py`）。「外にいる」の表し方（あなたの out / work, お出かけの `override.outing`, `with.mode = meet`, スケジュールの `away`）はまだ別々 | 移行手順 2〜3 |
+残件は [REMAINING.md](REMAINING.md) に一本化した（6 章の統一モデルに関わるものは A24）。
 
 ## 8. 開発の手順
+
+作業の進め方（読む範囲・テスト・記録・コミット・セリフ）は [WORKFLOW.md](WORKFLOW.md)。ここは仕組みに関わる手順だけ。
 
 - **新しい場面（セリフのキー）が増えたら**: まず実装を **共通のセリフだけで** コミットする（`LINES` などの既定）。性格別のセリフは, 書く前に **追加予定数（場面数 × 性格数）をユーザーに報告** し, 了承を得てから **別コミット** で足す（ユーザー指示）。書いたら `python tools/check_persona.py`。
 - 既定の `actions.json` / `minigames.json` / `events.json` / `approaches.json` を変えたら, コミット前に `python tools/build_default_history.py`。
