@@ -114,6 +114,27 @@ def main():
         assert store.backup("もう一度") is None, "一回の起動で一度だけ"
     finally:
         cleanup(tmp)
+
+    # ---- 5. 動いているサーバが server.lock に鍵をかけたままでも, 写しは失敗にならない (鍵・アドレスのファイルは写さない)
+    tmp = fresh()
+    lock = None
+    try:
+        j = lambda *p: os.path.join(tmp, *p)  # noqa: E731
+        put(j("player.json"), {"money": 1})
+        with open(j("server.url"), "w") as f:
+            f.write("http://127.0.0.1:1/")
+        lock = open(j("server.lock"), "a+")
+        if os.name == "nt":
+            import msvcrt
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)       # server.single_instance と同じかけ方
+        dst = store.backup("鍵つき")
+        assert dst and os.path.exists(os.path.join(dst, store.BACKUP_MARK)), "鍵のかかったファイルがあっても写せる"
+        assert sorted(os.listdir(dst)) == sorted(["player.json", store.BACKUP_MARK]), os.listdir(dst)
+    finally:
+        if lock:
+            lock.close()
+        cleanup(tmp)
     print("ALL OK")
 
 

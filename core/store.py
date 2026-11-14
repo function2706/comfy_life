@@ -106,7 +106,8 @@ def backup(reason):
     def skip(d, names):
         if os.path.normcase(os.path.abspath(d)) == img:
             return [n for n in names if n != "index.json"]
-        return [n for n in names if n.endswith(".tmp") or (d == DATA and n == "server.log")]
+        # server.lock は動いているサーバが鍵をかけたまま持っている (Windows では読めず, 写しが丸ごと失敗扱いになる)
+        return [n for n in names if n.endswith(".tmp") or (d == DATA and n in ("server.log", "server.lock", "server.url"))]
     try:
         shutil.copytree(DATA, dst, ignore=skip)
         with open(os.path.join(dst, BACKUP_MARK), "w", encoding="utf-8") as f:

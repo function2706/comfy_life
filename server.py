@@ -549,6 +549,12 @@ class Server(ThreadingHTTPServer):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         super().server_bind()
 
+    def handle_error(self, request, client_address):
+        """返事の途中でブラウザが接続を閉じた (読み込み直し・起動し直し・タブを閉じた) のは異常ではない: 長いエラーを出さない."""
+        if isinstance(sys.exc_info()[1], ConnectionError):
+            return
+        super().handle_error(request, client_address)
+
 
 def single_instance(wait=0.0):
     """同じデータ (data/) を使うサーバは一つだけ. ロックを取れたらそのファイルを返す (開いたままにしておく). 取れなければ None.
