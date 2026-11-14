@@ -400,6 +400,7 @@ class Life:
             self.money_concern(char, st, t1)
         if datetime.fromtimestamp(t0).date() != datetime.fromtimestamp(t1).date():
             self.app.attach.daily(char, st, t1)                  # 献身度・依存度の日ごとの動き
+            self.app.regard.daily(char, st, t1)                  # あなたの見立て: 会った日 / 音沙汰がない
             self.app.anniv.daily(char, st, t1)                   # 誕生日・記念日 (前の日の受け止め・今日のこと)
             self.app.chores.daily(char, st, t1)                  # 同居相手: 今日, 自分の担当の家事をやる時刻
         self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた

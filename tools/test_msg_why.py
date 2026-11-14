@@ -23,8 +23,8 @@ from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
 PERSONAS = sorted(os.path.basename(p)[:-5] for p in glob.glob(os.path.join(os.path.dirname(HERE), "defaults", "personas", "*.json")))
-BEST = {"bored": "cheerful", "tired": "worry", "happy": "expand", "lonely": "cheerful"}
-WORST = {"bored": "curt", "tired": "tease", "happy": "tease", "lonely": "curt"}
+BEST = {"bored": "cheerful", "tired": "worry", "happy": "expand", "lonely": "cheerful", "unsure": "expand"}
+WORST = {"bored": "curt", "tired": "tease", "happy": "tease", "lonely": "curt", "unsure": "curt"}
 
 
 def main():
@@ -88,7 +88,7 @@ def main():
                 c += MR.judge(char, st, "msg_chat", kind, why=why) != "bad"
             return c / float(n)
         muk, ama = ok_rate("mukuchi", "curt", "bored"), ok_rate("amaenbo", "curt", "bored")
-        assert muk > ama + 0.15, (muk, ama)
+        assert muk > ama + 0.07, (muk, ama)      # 見込みは 無口 0.125 / 甘えたがり 0 (以前の 0.15 は見込みより高く, 乱数の順しだいで落ちた)
         print("性格の好み: OK | 退屈なときの素っ気ない返事が悪くない割合 無口 %.2f / 甘えたがり %.2f" % (muk, ama))
 
         # ---- 5. よくなかったときは理由をにじませる

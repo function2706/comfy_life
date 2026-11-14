@@ -44,6 +44,7 @@ from . import msgpick as msgpick_mod
 from . import nori as nori_mod
 from . import react as react_mod
 from . import attach as attach_mod
+from . import regard as regard_mod
 from . import topics as topics_mod
 from . import anniv as anniv_mod
 from . import quals as quals_mod
@@ -203,6 +204,7 @@ class App:
         self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
+        self.regard = regard_mod.Regard(self)        # 相手の中の「あなたの見立て」(思われている度と確かさ. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
         self.outdoor = outdoor_mod.Outdoor(self)
@@ -1921,6 +1923,7 @@ class App:
         if not (r.get("entry") or {}).get("override"):
             with self.lock:
                 self.attach.give(char, self.state(char["id"]), "me", 2 + (1 if aid == "expensive_gift" else 0), "贈り物")
+                self.regard.sign(char, self.state(char["id"]), "gift")
         if feel["liked"] or feel["disliked"]:           # 渡してみて分かった, 好きなもの・苦手なもの (関係性)
             lk, dk = self.items.likes(char)
             tags = [t for t in it["tags"] if t in (lk if feel["liked"] else dk)]
@@ -1941,6 +1944,8 @@ class App:
         """スマホで連絡した記録: 相手ごとの頻度 (種類ごとの重み. bonds.contact_weight) と, 仕事中の連絡 (多いと仕事に響く)."""
         w = self.bonds.contact_weight(char, st, kind, now, phone) if char else 1.0
         st["contacts"] = [x for x in st.get("contacts") or [] if now - self.bonds.contact_t(x) < 86400] + [{"t": now, "w": round(w, 2)}]
+        if char and w > 0 and kind != "apology":        # あなたから話を始めた (相手の返事への返しは w = 0)
+            self.regard.sign(char, st, "start", now)
         p = self.presence.rec()
         if p.get("mode") == "work":
             p["work_contacts"] = p.get("work_contacts", 0) + 1
@@ -2446,6 +2451,8 @@ class App:
                 v = getattr(self, "_apol", None) or self.manners.apology(char, st, now, face=True)
                 self._apol = None
                 self.manners.apply_apology(char, st, v, now)
+                if v["out"] in regard_mod.APOLOGY_OUTS:
+                    self.regard.sign(char, st, "apology", now)
             return
         if a.get("request_answer") or a.get("category") == "system":
             return
@@ -3400,7 +3407,8 @@ class App:
                                                          * (0.5 if ctx.get("too_often") else 1) * (0.7 if p.get("affection", 50) < 35 else 1)
                                                          * (1.15 if st.get("call_ok_until", 0) > now else 1))) + "（寝ている・手が離せないときは別）",
                 },
-                "attach": {attach_mod.LABEL.get(k, k): round(v, 1) for k, v in self.attach.view(char, st).items()},
+                "attach": dict({attach_mod.LABEL.get(k, k): round(v, 1) for k, v in self.attach.view(char, st).items()},
+                               **self.regard.debug(char, st)),
                 "traits": {k: v for k, v in sorted(tr.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)},
                 "reasons": [{"mood": r["mood"], "tell": r.get("tell") or "", "delta": r.get("delta", 0), "t": r["t"],
                              "told": bool(r.get("told")), "resolved": bool(r.get("resolved")), "kind": r.get("kind"),

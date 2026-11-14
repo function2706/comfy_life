@@ -63,7 +63,7 @@ _TONES = {
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
-WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely"}
+WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question"}
 AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy")   # 返事を待っている話 (遅れると響きにくい)
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)
@@ -375,6 +375,7 @@ def ignore_tick(app, char, st, now):
                 changed = True
                 if want >= 3 and not rec.get("told"):
                     rec["told"] = True
+                    app.regard.sign(char, st, "ignored_long", now)
                     app.life.add_reason(st, "player", "bad", "%sに既読のまま、ずっと放っておかれた" % call, now, told=False,
                                         delta=-want, action="_ap_ignored")
                 app.trace.add("react", "働きかけを既読のまま放っておいた: 重くなった", cid, now, applied=rec["applied"], k=round(k, 2))

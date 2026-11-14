@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 
 from . import knowsched as ks
 from . import msgpick
+from . import regard as regard_mod
 
 COUNTED_APOLOGY = ("quick", "late", "enough", "irritated")
 APOLOGY_SPAN = 4 * 3600          # この間に続けて謝ると「もういいって」
@@ -576,6 +577,8 @@ class Manners:
         if kind == "apology":
             v = self.apology(char, st, now, pick=meta.get("reason"))
             self.apply_apology(char, st, v, now)
+            if v["out"] in regard_mod.APOLOGY_OUTS:          # 謝ってくれた (相手の見立て. core/regard.py)
+                self.app.regard.sign(char, st, "apology", now)
             out = "confused" if v["out"] == "none" else v["out"]
             if out == "late":
                 return "apology_late", ({"mood": 1, "trust": 0.5} if v.get("s", 0) >= 0.3 else {"mood": -1}), {}

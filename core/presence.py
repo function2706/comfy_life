@@ -232,7 +232,8 @@ class Presence:
         if apart and ctx.get("stage") == "known":    # 連絡先を知らない相手からは来ない
             return None
         if apart:                    # 離れている相手からは, メッセージが届く (外出中・仕事中でも)
-            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx) * hour_factor(d) * away_f
+            rate = float(self.cfg().get("approach_apart_rate_per_hour", 0.25)) * self.eagerness_apart(ctx) * hour_factor(d) * away_f \
+                * self.app.regard.contact_factor(char, st)      # 思われていないと感じると控える (依存度が高いと不安で増える)
         elif pres in ("out", "work"):
             return None
         else:
@@ -318,6 +319,8 @@ class Presence:
                 st["approach"]["place_label"] = (act.get("override") or {}).get("location") or act.get("name", "")
                 text0 = text0.replace("{place}", st["approach"]["place_label"])
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
+        if why and apart and not force and self.app.regard.probe(char, st, now):
+            why = "unsure"                 # 好きなのに, 思われていない気がする: 探りを入れる (core/regard.py)
         if why:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
@@ -394,6 +397,8 @@ class Presence:
             mult = 0.6 * float(self.app.traits(char).get("absence", 1)) * (1.4 if read else 0.7) * float(a.get("urgency", 1.0)) \
                 * (1 + 0.5 * self.app.attach.factor(char, st, "dependence"))
             self.app.attach.move(char, st, "dependence", -0.3, "送ったメッセージに返事が来なかった", now)
+            self.app.regard.sign(char, st, "ignored_read" if read else "ignored_unread", now,
+                                 k=1.5 if ap.get("why") == "unsure" else 1.0)      # 探りを放っておかれると, なお堪える
         else:
             mult = (0.4 if ap.get("presence") == "busy" or pres == "busy"
                     else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
@@ -490,6 +495,9 @@ class Presence:
             chat.add(char["id"], "me", react.said(kind), kind=kind, t=now)
         else:
             chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind, why), "・自動" if auto else ""), kind="approach", t=now)
+        if not auto:                             # 返事の速さ (相手から見える)
+            waited = now - float(ap.get("t", now))
+            self.app.regard.sign(char, st, "reply_fast" if waited < 600 else "reply" if waited < 3600 else "reply_slow", now)
         if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
             return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why)
         app = self.app
@@ -559,6 +567,11 @@ class Presence:
             res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15, why=why)     # 自動の返事は, 相手の様子を読み違えやすい
             cat = kind
         self.app.attach.move(char, st, "dependence", 0.4, "送ったメッセージに返事が来た", now)
+        probe = why == "unsure"                      # 探り (「最近忙しい？」) への返事は, 見立てに強く効く
+        if res == "good":
+            self.app.regard.sign(char, st, "probe_warm" if probe else "warm", now, k=0.5 if auto else 1.0)
+        elif res == "bad" or (probe and cat == "curt"):
+            self.app.regard.sign(char, st, "probe_cold" if probe else "cold", now, k=1.0 if res == "bad" else 0.5)
         if res == "good":
             eff = {k: (float(v) * mult if float(v) * (1 if not (self.app.param_def(k) or {}).get("invert") else -1) > 0 else float(v))
                    for k, v in (out.get("effects") or {}).items()}

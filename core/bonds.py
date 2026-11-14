@@ -458,7 +458,8 @@ class Bonds:
         """段階の提案を受ける気持ち (目安 0〜100). 数値だけでなく, 最近の交流・ご無沙汰・性格・その日の気分で揺れる."""
         p = st["params"]
         return round(50 + (p.get("affection", 40) - 60) + 0.8 * (p.get("trust", 40) - 50) + 4 * (self.freq(st, now) - 4)
-                     - 5 * max(0.0, self.gap_days(st, now) - 3) + self.trait(char, "caution") + random.uniform(-20, 20), 1)
+                     - 5 * max(0.0, self.gap_days(st, now) - 3) + self.trait(char, "caution")
+                     + self.app.regard.ready_shift(char, st) + random.uniform(-20, 20), 1)     # 思われていると感じるほど (core/regard.py)
 
     def exchange_chance(self, char, st):
         """知り合いと偶然会って話したとき, 連絡先を交換する確率 (0.05〜0.85).
@@ -528,6 +529,7 @@ class Bonds:
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         st.setdefault("jealous", {})[other] = t
         name = self.app.chars[other].get("name", other)
+        self.app.regard.sign(char, st, "rival", t, k=0.5 if again else 1.0)
         call = self.app.pronouns(char)[2]
         tell = "%sが%sと親しくしている" % (call, name) + ("のが、まだ続いている" if again else "")
         self.app.life.add_reason(st, "player", "bad", tell, t, told=False, delta=deltas.get("mood", 0), action="_jealous")

@@ -247,6 +247,7 @@ class Anniv:
             app.life.add_reason(st, "player", "good", "%sが%sを祝ってくれた" % (call, "誕生日" if bday else "記念日"), t,
                                 told=True, delta=deltas.get("mood", 0), action="_anniv")
             out = "good"
+            app.regard.sign(char, st, "remembered", t, k=max(0.4, D))
         elif E >= 0.35:
             k = E * (1.0 if not bday else 1.4 if st.get("bday_known") else 0.4) * (1 - D)
             eff = {"mood": -6 * k, "affection": -2 * k, "trust": -1 * k}
@@ -254,6 +255,7 @@ class Anniv:
             app.life.add_reason(st, "player", "bad", "%sに%sを忘れられていた" % (call, "誕生日" if bday else "記念日"), t,
                                 told=False, delta=deltas.get("mood", 0), action="_anniv_forgot")
             out = "bad"
+            app.regard.sign(char, st, "forgot", t, k=min(1.5, max(0.3, k)))
             if bday and E >= 0.6 and random.random() < 0.6:
                 self._schedule(st, t, "bday_forgot", {})
         st["celeb_last"] = {"date": cel["date"], "out": out, "bday": bday, "what": (cel.get("events") or [{}])[0].get("what", ""),

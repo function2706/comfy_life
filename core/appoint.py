@@ -447,10 +447,12 @@ class Appoint:
                     x["status"] = "set"
                     x["plan"] = self._favor_plan()
                     eff, _ = app.bonds.realize(char, st, {"mood": 2, "trust": 1}, "_favor_yes", now)
+                    app.regard.sign(char, st, "favor_yes", now)
                     app.chat.add(x["cid"], "me", "（%sを引き受けた: %s）" % (x.get("label", ""), self.when_of(x, now)), kind="appoint", t=now)
                 else:
                     x["status"] = "refused"
                     eff = {"mood": -1}
+                    app.regard.sign(char, st, "favor_no", now)
                     app.chat.add(x["cid"], "me", "（%sは断った）" % x.get("label", ""), kind="appoint", t=now)
                     f = app.earn.favor(x["favor"])
                     if f:
@@ -465,11 +467,13 @@ class Appoint:
                     x["status"] = "set"
                     x["plan"] = {}
                     eff, _ = app.bonds.realize(char, st, {"mood": 3, "trust": 1}, "_care_yes", now)
+                    app.regard.sign(char, st, "care_yes", now)
                     app.chat.add(x["cid"], "me", "（看病に行くと返した）", kind="appoint", t=now)
                 else:
                     x["status"] = "refused"
                     pm = app.presence.rec().get("mode")
                     eff = {"mood": -1} if pm in ("work", "out") else {"mood": -3, "trust": -1}       # 仕事・外出中なら仕方ない
+                    app.regard.sign(char, st, "care_no_busy" if pm in ("work", "out") else "care_no", now)
                     app.chat.add(x["cid"], "me", "（看病には行けないと返した）", kind="appoint", t=now)
                 app.apply_effects(st, app.trait_effects(char, eff))
                 app.chat.mark_read_by_her(x["cid"], now)
@@ -480,6 +484,7 @@ class Appoint:
                 x["status"] = "set"
                 x["plan"] = self._plan(char, st, x)
                 eff, _ = app.bonds.realize(char, st, {"mood": 3, "heart": 2, "affection": 0.5}, "_appoint", now)
+                app.regard.sign(char, st, "invite_yes", now)
                 app.bonds.touch(st, now)
                 app.chat.add(x["cid"], "me", "（%s、%sの約束をした）" % (fmt_when(x["t"], now), app.places.label(x["place"])),
                              kind="appoint", t=now)
@@ -489,6 +494,7 @@ class Appoint:
             else:
                 x["status"] = "refused"
                 eff = {"mood": -2}
+                app.regard.sign(char, st, "invite_no", now)
                 app.chat.add(x["cid"], "me", "（誘いを断った）", kind="appoint", t=now)
             app.apply_effects(st, app.trait_effects(char, eff))
             app.chat.mark_read_by_her(x["cid"], now)
@@ -506,7 +512,8 @@ class Appoint:
         if p.get("affection", 0) < 45:
             return None
         rate = 0.02 * max(0.1, (p.get("affection", 50) - 35) / 30.0 + (p.get("loneliness", 30) - 40) / 80.0) \
-            * float(app.traits(char).get("approach", 1)) * self.mood_factor(p)
+            * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) \
+            * app.regard.invite_factor(char, st)         # 思われていないと感じると, 誘いを控える (core/regard.py)
         if random.random() >= rate * h:
             return None
         dt0 = datetime.fromtimestamp(now)
@@ -596,7 +603,7 @@ class Appoint:
             return None
         want = max(0.0, (p.get("boredom", 30) - 40) / 40.0) + max(0.0, (p.get("loneliness", 30) - 40) / 50.0) \
             + max(0.0, (p.get("mood", 50) - 55) / 60.0)
-        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p)
+        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)
         if not rate or random.random() >= rate * h:
             return None
         dt = datetime.fromtimestamp(now)
@@ -1120,6 +1127,7 @@ class Appoint:
                 app.life.add_reason(st, "player", "bad", ("当てにしていたのに、%sが%sに来なかった" % (app.pronouns(char)[2], x.get("label", ""))
                                                           if fav else "%sが約束をすっぽかした" % app.pronouns(char)[2]), now,
                                     told=True, delta=d.get("mood", 0), action="_appoint")
+                app.regard.sign(char, st, "missed_favor" if fav else "missed", now)
                 app.chat.add(x["cid"], "her", app.chat.line(char, "favor_missed" if fav else "appoint_missed", {"what": x.get("label", "")}),
                              kind="favor_missed" if fav else "appoint_missed", t=x["t"] + GRACE)
                 app.save_state(x["cid"])
@@ -1139,6 +1147,7 @@ class Appoint:
         late = (x.get("plan") or {}).get("late", 0) if x.get("status") == "waiting" else 0
         x["status"] = "met"
         app.attach.give(char, app.state(cid), "me", 1, "約束を守って会えた")
+        app.regard.sign(char, app.state(cid), "kept", now, k=0.5 if me_late else 1.0)
         self.save()
         if x.get("favor"):
             return self._favor_meet(x, now, me_late, extra_opts or {})

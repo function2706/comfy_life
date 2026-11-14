@@ -13,12 +13,15 @@ import random
 # 「話そう」(msg_chat) の理由 (1.6.0): 相手のいまの状態から決めて, 誘いの文に出す (どの返事が合うかの手がかり).
 # 以前は理由が書かれておらず, どれが効くかは画面に出ない性格の好みと揺らぎで決まって, 当てもののようになっていた.
 WHY_AIDS = ("msg_chat",)
-WHY_LABEL = {"bored": "退屈", "tired": "疲れている", "happy": "いいことがあった", "lonely": "寂しい"}
+WHY_LABEL = {"bored": "退屈", "tired": "疲れている", "happy": "いいことがあった", "lonely": "寂しい",
+             "unsure": "あなたの気持ちが気になる (探り)"}
 WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理由> があればそちら)
     "bored": "📱『{call}、暇すぎて……。いま何してます？』",
     "tired": "📱『今日ちょっと疲れちゃって。……少しだけ話せます？』",
     "happy": "📱『{call}、ちょっと聞いてほしいことがあって！』",
     "lonely": "📱『なんとなく、{call}と話したくなって』",
+    # 探り (core/regard.py): 好きなのに, 思われていない気がするとき. pick_why では選ばれない (presence.fire が決める)
+    "unsure": "📱『{call}、最近忙しいですか？』",
 }
 WHY_OPTIONS = {
     "bored": [("cheerful", "「いいよ、話そう」と返す"), ("expand", "「何して暇つぶしてたの？」と聞き返す"),
@@ -29,16 +32,20 @@ WHY_OPTIONS = {
               ("tease", "「どうせ大したことないんでしょ」とからかう"), ("curt", "「あとでね」とだけ返す")],
     "lonely": [("cheerful", "「うん、話そう」と返す"), ("worry", "「どうしたの？ 何かあった？」と返す"),
                ("expand", "「今日はどんな一日だった？」と聞き返す"), ("curt", "「眠いからまた今度」とだけ返す")],
+    "unsure": [("expand", "「ちょっとバタバタしてた。そっちはどう？」と返す"), ("cheerful", "「元気だよ。また話そう」と返す"),
+               ("worry", "「どうしたの？ 何かあった？」と返す"), ("curt", "「まあね」とだけ返す")],
 }
 WHY_FIT = {"bored": {"cheerful": 6, "expand": 6, "tease": 4, "curt": -12},
            "tired": {"worry": 10, "cheerful": 2, "tease": -20, "curt": -6},
            "happy": {"expand": 10, "cheerful": 6, "tease": -20, "curt": -10},
-           "lonely": {"cheerful": 8, "worry": 6, "expand": 6, "curt": -16, "tease": -6}}
+           "lonely": {"cheerful": 8, "worry": 6, "expand": 6, "curt": -16, "tease": -6},
+           "unsure": {"expand": 10, "cheerful": 6, "worry": 2, "curt": -16, "tease": -10}}
 # よくなかったときの返し: 理由をにじませる (次から読めるように. 性格プリセットの msgr.why.<理由>.bad があればそちら)
 WHY_BAD = {"bored": "📱『……そんなに忙しいなら、いいです』",
            "tired": "📱『……今日はちょっと、そういう気分じゃなくて。疲れてて』",
            "happy": "📱『……せっかく話したかったのに』",
-           "lonely": "📱『……そっか。ごめんなさい、急に』"}
+           "lonely": "📱『……そっか。ごめんなさい、急に』",
+           "unsure": "📱『……そうですか。なら、いいんです』"}
 
 
 def pick_why(char, st):
