@@ -30,7 +30,6 @@
 | S15 対話モード | A23 本体 | 重 | 要 | S8 のあと | 電話・対面の会話 |
 | S16 「外にいる」の一本化 | A24 | 重 | 要 | S11 のあとがよい | DESIGN 6 章の移行手順 2〜3 |
 | S17 交通網と道 | A11 | 重 | 要 | 優先度低。S11 のあと | 経路・路線 |
-| S18 探りのセリフ | A25 | 軽 | 不要 | セリフのセッション（54 行） | 性格プリセットの `ap.msg_chat.call_unsure`・`msgr.why.unsure.bad` |
 | S22 所持金が苦しいときのセリフ | A26 | 軽 | 不要 | セリフのセッション（54 行） | 性格プリセットの `money.tight_split`・`money.tight_no` |
 | S20 自転車と、一緒の移動 | F13 + F14 + F15 | 中 | 不要 | F13 → F14 の順（F13 で自転車が出先に残るようになるので、取りに行く道が要る） | `core/geo.py`（`_best`・`options`・`used`）・`engine._outing_travel` / `act` / `_outing_arrived`・`solo._place`・`body.eat_with`・`test_geo`・`test_outing_move` / `test_outing_moving` |
 | S21 相手の家へ、移動して着く | F16 | 中 | 不要 | —（S20 と同じ `core/geo.py`・`core/solo.py` を触るので、同時には進めない） | `defaults/actions.json` の `visit_home`・`bonds.apply`（`visit_start`）・`engine.act`・`solo.arrive_then`・`geo.depart` / `tick`・`test_geo`・`test_visit*` |
@@ -173,11 +172,6 @@
 | 状態 | 追加 | 重さ | 内容 |
 |---|---|---|---|
 | 未着手 | 〜11/02 | 重 | 行き先の表は 1 つにした（`core/places.py`）。「外にいる」の表し方（あなたの out / work、お出かけの `override.outing`、`with.mode = meet`、スケジュールの `away`）はまだ別々。[DESIGN.md](DESIGN.md) 6 章「いつ・どこで・何を・誰と」の統一モデルの、移行手順 2〜3 にあたる |
-
-### A25 セリフ待ち: 探り「最近忙しい？」（A15 段 1 のぶん）— 軽
-| 状態 | 追加 | 重さ | 内容 |
-|---|---|---|---|
-| セリフ待ち | 11/14 | 軽 | キー 2 つ × 27 性格 = **54 行**。`ap.msg_chat.call_unsure`（相手からのメッセージ。好きなのに、あなたに思われていない気がして探りを入れる。共通は「{call}、最近忙しいですか？」。直接「好き？」とは聞かない: 忙しさ・近況・「楽しい？」を尋ねる形で）・`msgr.why.unsure.bad`（その探りに素っ気なく返されたときの返し。共通は「……そうですか。なら、いいんです」。引き下がる・強がる・気にしていないふり、を性格の地の口調で）。いまは共通のセリフで動いていて、`tools/check_persona.py` は全性格でこの 2 キーを「足りない」と出す（書けば消える） |
 
 ### A26 セリフ待ち: 所持金が苦しいとき（A17 段 3 のぶん）— 軽
 | 状態 | 追加 | 重さ | 内容 |

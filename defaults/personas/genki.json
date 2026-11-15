@@ -2943,6 +2943,12 @@
   ],
   "ap.date_hands.ignore": [
    "（{name}は差し出しかけた手を、慌てて引っ込めた）"
+  ],
+  "ap.msg_chat.call_unsure": [
+   "📱『{call}、最近いそがしい？ あんまり話せてないなーって思って！』"
+  ],
+  "msgr.why.unsure.bad": [
+   "📱『……そっか！ 忙しいならしょうがないよね』"
   ]
  }
 }

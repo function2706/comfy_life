@@ -2939,6 +2939,12 @@
   ],
   "ap.date_hands.ignore": [
    "（{name}は差し出しかけた手を、そっと引っ込めた）"
+  ],
+  "ap.msg_chat.call_unsure": [
+   "📱『……{call}。最近、忙しい？』"
+  ],
+  "msgr.why.unsure.bad": [
+   "📱『……そう。……わかった』"
   ]
  }
 }
