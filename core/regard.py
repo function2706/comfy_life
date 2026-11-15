@@ -15,12 +15,20 @@
   依存度が高ければ不安で増え, そうでなければ減る (presence.live). ときどき探りを入れる (「話そう」の理由 unsure: 最近忙しい？).
 - lean (思われていると感じる): 誘い・連絡に少し踏み出しやすい. 段階の提案を受ける気持ち (bonds.readiness) にも足す.
 
+あなたの癖 (habit. 1.7.0 の段 2〜3): 相手は, あなたの返信の傾向を時間帯 (夜中・朝・昼・夕方・夜) × 平日 / 休日 の枠ごとに覚える
+(来たメッセージの数・返した数・返すまでの分). 覚えた枠で ふだんどおりの遅さ・返ってこなさ は「無視されたわけではない」と軽く受け取り
+(ease < 1), ふだんよく返す枠で返ってこない・ふだんよりずっと遅いと, いつもより気にして (ease > 1), ときどき「何かあった？」と聞く
+(「話そう」の理由 changed). 覚えるまで (枠の記録が少ないうち) は, いままでと同じ. からかいの多さ・連絡を始める時間帯も覚える.
+記録は 1 件ごと・日がたつごとに薄れる (古い癖は 1 か月ほどで薄れる). 遡及はしない (これからの分から覚える).
+
 初めの値は, はじめて使うとき (以前のセーブなら更新後の最初) に, 今の関係と最近のやりとりから一度だけ決める (baseline).
 公理: 確定させない (揺らぎ・一日の上限). 見立ては相手の頭の中のもので, 当たっているとは限らない.
 """
 import random
 import time
 from datetime import datetime
+
+from . import market
 
 DAY_CAP = {"+": 6.0, "-": 10.0}       # 一日に動く幅の上限 (悪いほうが大きい)
 SURE_MAX = 0.9
@@ -57,6 +65,36 @@ SIGNS = {
     "no_contact": (-0.5, "何日も音沙汰がない"),
     "rival": (-4.0, "ほかの人と親しくしている"),
 }
+# あなたの癖 (habit)
+HABIT_SLOTS = ((0, 5, "夜中"), (5, 10, "朝"), (10, 16, "昼"), (16, 19, "夕方"), (19, 24, "夜"))
+HABIT_MIN = 4.0                       # 枠の記録がこれより少ないうちは, その枠では判断しない (全体の記録で. それも少なければ, いままでと同じ)
+HABIT_FULL = 8.0                      # 慣れ = 記録の数 / (これ × 性格の覚えやすさ)
+HABIT_DECAY = 0.97                    # 1 件ごとに, それまでの記録を薄める
+HABIT_HALF = 30 * 86400               # 日がたつと薄れる (半分になるまで)
+HABIT_SLOW_CAP = 720.0                # 返すまでの分は, ここまでで数える
+EASE = 0.6                            # ふだんどおりのとき, 重さから引く割合 (× 慣れ. 依存度が高いと半分)
+EASE_DEP = 0.3                        # これより依存度 (attach.factor) が高いと, 分かっていても不安
+ODD = 0.3                             # ふだんと違うとき, 重さに足す割合 (× 慣れ)
+ODD_MIN = 20.0                        # これより短い待ち (分) は, ふだんと違うとは言わない
+ODD_KEEP = 3 * 86400                  # 「いつもと違う」と気づいてから, これを過ぎたら聞かない
+ASK_GAP = 3 * 86400                   # 「何かあった？」と聞く間隔
+ASK_AFF = 40                          # これより好感度が低いと, 気づいても聞いてこない
+TEASE_KINDS = ("tease", "re_lol")
+TEASE_SHARE, TEASE_FAM, TEASE_BONUS = 0.3, 0.5, 4.0     # からかいが返しの 3 割以上で, 慣れていれば, からかいの点に足す
+
+
+def slot(t):
+    """時刻 → 枠 (w = 平日 / h = 土日・祝日, 0〜4 = 夜中・朝・昼・夕方・夜)."""
+    d = datetime.fromtimestamp(t)
+    hol = d.weekday() >= 5 or d.date() in market.holidays(d.year)
+    i = next(i for i, (a, b, _) in enumerate(HABIT_SLOTS) if a <= d.hour < b)
+    return ("h" if hol else "w") + str(i)
+
+
+def slot_label(key):
+    return ("休日" if key[0] == "h" else "平日") + "の" + HABIT_SLOTS[int(key[1])][2]
+
+
 # 性格ごとの読み方: (bias -1 低く見積もる 〜 +1 高く見積もる, 確かさの上がりやすさ)
 READING = {
     "hikutsu": (-0.8, 0.8), "uchiki": (-0.5, 0.8), "byoujaku": (-0.3, 0.9), "mukuchi": (-0.2, 1.0), "amaenbo": (-0.2, 0.7),
@@ -161,6 +199,152 @@ class Regard:
             self.sign(char, st, "no_contact", t, k=min(2.0, gap / 5.0))
             r["sure"] = round(max(0.05, r["sure"] - 0.01), 3)
 
+    # ------------------------------------------------------------------ あなたの癖
+    def habit(self, char, st):
+        r = self.rec(char, st)
+        h = r.get("habit")
+        if not isinstance(h, dict):
+            h = r["habit"] = {}
+        for k in ("reply", "all", "tease", "start"):
+            if not isinstance(h.get(k), dict):
+                h[k] = {}
+        return h
+
+    def learn(self, char):
+        """癖の覚えやすさ (小さいほど早く覚える. 0.6〜1.5): マメな人は早く, 返事の遅れを気にしない人 (traits.absence が低い) は遅い.
+        性格の traits に habit_learn があればそちら."""
+        from . import react
+        tr = self.app.traits(char)
+        if "habit_learn" in tr:
+            return max(0.4, min(2.0, float(tr["habit_learn"])))
+        m = _clamp((react.mame(self.app, char) - 0.45) / 0.3, 0.0, 1.0)
+        a = _clamp((1.0 - float(tr.get("absence", 1))) / 0.4, 0.0, 1.0)
+        return 1.0 - 0.4 * m + 0.5 * a
+
+    @staticmethod
+    def _faded(b, now):
+        """枠の記録を, いまの時刻まで薄めた値 (数, 返した数, 返すまでの分). 書き換えない."""
+        n, r = float(b.get("n", 0)), float(b.get("r", 0))
+        t = float(b.get("t") or 0)
+        if t and now > t:
+            f = 0.5 ** ((now - t) / HABIT_HALF)
+            n, r = n * f, r * f
+        return n, r, float(b.get("slow", 0))
+
+    def known(self, char, st, t_msg, now):
+        """その時刻の枠について覚えていること: (数, 返す割合, 返すまでの分 (分からなければ None), 慣れ 0〜1, どの記録か).
+        枠の記録が少なければ全体の記録で. それも少なければ None (まだ覚えていない)."""
+        h = self.habit(char, st)
+        key = slot(t_msg)
+        for name, b in ((key, h["reply"].get(key)), ("all", h["all"])):
+            if not b:
+                continue
+            n, r, slow = self._faded(b, now)
+            if n >= HABIT_MIN:
+                return n, r / n, (slow if r >= 2 and slow > 0 else None), min(1.0, n / (HABIT_FULL * self.learn(char))), name
+        return None
+
+    def ease(self, char, st, t_msg, now, waited=None, mark=True):
+        """時刻 t_msg に来たメッセージへの, あなたの返し方の受け取り方の倍率 (重さに掛ける. 0.4〜1.3).
+        waited: 返ってくるまでの分. None = 返ってこなかった (now までの経過で見る).
+        ふだんどおり (その枠ではあまり返さない人 / ふだんの遅さの 1.5 倍まで) → 1 より小さい (慣れているほど. 依存度が高いと半分).
+        ふだんと違う (よく返す枠なのに返ってこない / ふだんの 3 倍より遅い) → 1 より大きい. mark: 「いつもと違う」と気づいたことを覚える."""
+        k = self.known(char, st, t_msg, now)
+        if not k:
+            return 1.0
+        _, share, slow, fam, name = k
+        el = float(waited) if waited is not None else max(0.0, (now - t_msg) / 60.0)
+        if waited is None:
+            usual = share < 0.4 or (slow is not None and el <= 1.5 * slow)
+            odd = share >= 0.8 and el >= ODD_MIN and (slow is None or el > 3 * slow)
+        else:
+            usual = slow is not None and el <= 1.5 * slow
+            odd = slow is not None and el > 3 * slow and el >= ODD_MIN
+        if usual:
+            dep = self.app.attach.factor(char, st, "dependence") > EASE_DEP
+            f = 1 - EASE * fam * (0.5 if dep else 1.0)
+        elif odd:
+            f = 1 + ODD * fam
+            if mark:
+                self.habit(char, st)["odd"] = now
+        else:
+            return 1.0
+        trace = getattr(self.app, "trace", None)
+        if trace and mark:
+            trace.add("regard", "あなたの癖: %s" % ("ふだんどおり (軽く受け取る)" if usual else "ふだんと違う (気にする)"), char.get("id"), now,
+                      slot=name, share=round(share, 2), slow=slow, waited=None if waited is None else round(el, 1), fam=round(fam, 2),
+                      ease=round(f, 2))
+        return f
+
+    def note_reply(self, char, st, t_msg, now, waited=None, late=False):
+        """相手から来たメッセージ 1 件を覚える. waited (分) = 返した / None = 返さなかった.
+        late: 時間切れで「返さなかった」と数えたあとに返した (数は増やさず, 返した数と遅さだけ直す)."""
+        h = self.habit(char, st)
+        for b in (h["reply"].setdefault(slot(t_msg), {}), h["all"]):
+            n, r, slow = self._faded(b, now)
+            if late:
+                if n < 0.5:              # 数えていないメッセージ (覚えはじめる前のもの)
+                    continue
+            else:
+                n, r = n * HABIT_DECAY + 1, r * HABIT_DECAY
+            if waited is not None:
+                r = min(n, r + 1)
+                w = min(HABIT_SLOW_CAP, max(0.0, float(waited)))
+                slow = w if slow <= 0 else slow + max(0.25, 1.0 / max(1.0, r)) * (w - slow)
+            b.update(n=round(n, 3), r=round(r, 3), slow=round(slow, 1), t=now)
+
+    def replied(self, char, st, t_msg, now):
+        """相手からのメッセージに返した (速さは相手から見える). 癖を覚えていれば, ふだんどおりの遅さは「返事が来た」と同じに受け取り,
+        ふだんよりずっと遅いと, 返ってきたうれしさが薄い. 印を入れて, 癖に覚える."""
+        waited = max(0.0, now - float(t_msg))
+        kind = "reply_fast" if waited < 600 else "reply" if waited < 3600 else "reply_slow"
+        ez = self.ease(char, st, t_msg, now, waited=waited / 60.0)
+        k = 1.0
+        if ez < 1 and kind == "reply_slow":
+            k = 1 + (SIGNS["reply"][0] / SIGNS["reply_slow"][0] - 1) * (1 - ez) / EASE
+        elif ez > 1 and kind != "reply_fast":
+            k = max(0.0, 1 - (ez - 1) / ODD)
+        self.sign(char, st, kind, now, k=k)
+        self.note_reply(char, st, t_msg, now, waited=waited / 60.0)
+
+    def note_kind(self, char, st, kind):
+        """あなたの返しの種類 (からかいの多さ)."""
+        t = self.habit(char, st)["tease"]
+        t["n"] = round(float(t.get("n", 0)) * HABIT_DECAY + 1, 3)
+        t["k"] = round(float(t.get("k", 0)) * HABIT_DECAY + (1 if kind in TEASE_KINDS else 0), 3)
+
+    def teaser(self, char, st):
+        """「よくからかう人」と分かっているか (からかいが通じやすい)."""
+        t = self.habit(char, st)["tease"]
+        n = float(t.get("n", 0))
+        return n >= HABIT_MIN and float(t.get("k", 0)) / n >= TEASE_SHARE and min(1.0, n / (HABIT_FULL * self.learn(char))) >= TEASE_FAM
+
+    def note_start(self, char, st, now):
+        """あなたから連絡を始めた時刻の枠 (いつ連絡してくる人か)."""
+        s = self.habit(char, st)["start"]
+        for k in list(s):
+            s[k] = round(float(s[k]) * HABIT_DECAY, 3)
+            if s[k] < 0.05:
+                del s[k]
+        key = slot(now)
+        s[key] = round(float(s.get(key, 0)) + 1, 3)
+
+    def ask_changed(self, char, st, now):
+        """いま「何かあった？」と聞くか: 少し前に「いつもと違う」と気づいていて, 前に聞いてから間があいているとき. 言い争いのあとは聞かない."""
+        h = self.habit(char, st)
+        odd = h.get("odd")
+        if not odd:
+            return False
+        if now - float(odd) > ODD_KEEP:
+            h.pop("odd", None)
+            return False
+        if now - float(h.get("asked") or 0) < ASK_GAP or self.app.quarrel.active(st, now) \
+                or st["params"].get("affection", 50) < ASK_AFF:
+            return False
+        h["asked"] = now
+        h.pop("odd", None)
+        return True
+
     # ------------------------------------------------------------------ 効き方
     def hold(self, char, st):
         """0〜1: 好きなのに, 思われていないと感じている度合い. そもそも好きでなければ気にしない."""
@@ -206,4 +390,10 @@ class Regard:
 
     def debug(self, char, st):
         r = self.rec(char, st)
-        return {"思われている度": r["v"], "確かさ": r["sure"], "控え": round(self.hold(char, st), 2), "踏み出し": round(self.lean(char, st), 2)}
+        out = {"思われている度": r["v"], "確かさ": r["sure"], "控え": round(self.hold(char, st), 2), "踏み出し": round(self.lean(char, st), 2)}
+        now = time.time()
+        for key, b in sorted(self.habit(char, st)["reply"].items()):
+            n, rr, slow = self._faded(b, now)
+            if n >= 1:
+                out["癖: " + slot_label(key)] = "%.1f 件・返す %d%%・%d 分" % (n, round(100 * rr / n), round(slow))
+        return out

@@ -321,6 +321,8 @@ class Presence:
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
         if why and apart and not force and self.app.regard.probe(char, st, now):
             why = "unsure"                 # 好きなのに, 思われていない気がする: 探りを入れる (core/regard.py)
+        elif why and apart and not force and self.app.regard.ask_changed(char, st, now):
+            why = "changed"                # あなたの返し方が, いつもと違った: 「何かあった？」(core/regard.py あなたの癖)
         if why:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
@@ -394,11 +396,15 @@ class Presence:
         if a.get("apart"):
             # メッセージ: 既読のまま放っておかれると重く, 開いていない (未読) なら軽い. 急ぎの内容ほど重い. 気にしない性格もいる
             read = self.app.chat.load(char["id"])["seen_t"] >= ap.get("t", 0)
+            # あなたの癖 (core/regard.py): この時間帯に返ってこないのがふだんどおりなら軽く, ふだんはよく返すのに来ないと重く受け取る
+            t_msg = float(ap.get("t", now))
+            ease = self.app.regard.ease(char, st, t_msg, now)
             mult = 0.6 * float(self.app.traits(char).get("absence", 1)) * (1.4 if read else 0.7) * float(a.get("urgency", 1.0)) \
-                * (1 + 0.5 * self.app.attach.factor(char, st, "dependence"))
+                * (1 + 0.5 * self.app.attach.factor(char, st, "dependence")) * ease
             self.app.attach.move(char, st, "dependence", -0.3, "送ったメッセージに返事が来なかった", now)
             self.app.regard.sign(char, st, "ignored_read" if read else "ignored_unread", now,
-                                 k=1.5 if ap.get("why") == "unsure" else 1.0)      # 探りを放っておかれると, なお堪える
+                                 k=(1.5 if ap.get("why") == "unsure" else 1.0) * ease)      # 探りを放っておかれると, なお堪える
+            self.app.regard.note_reply(char, st, t_msg, now)                 # 返さなかったことを覚える (判定のあとで)
         else:
             mult = (0.4 if ap.get("presence") == "busy" or pres == "busy"
                     else 0.6 if pres in ("gone",) + AWAY_MODES else 1.0)
@@ -420,7 +426,7 @@ class Presence:
         e = self._entry(char, st, now, a, "busy" if busy and ig.get("busy_text") else "ignore", text, deltas, None, gen=False)
         if a.get("apart"):        # 待ち時間が過ぎたあとも既読のままなら, 少しずつ重くなる (core/react.py ignore_tick. 返せば一部戻る)
             st["ap_ignored"] = {"t": now, "t_msg": float(ap.get("t", now)), "aid": a["id"], "read": read, "applied": 0.0,
-                                "urgency": float(a.get("urgency", 1.0))}
+                                "urgency": float(a.get("urgency", 1.0)), "ease": round(ease, 3)}
         if a.get("apart") and read:
             self.app.chat.add(char["id"], "sys", "既読のまま返事をしなかった", kind="ignored", t=now)
         self.app.save_state(char["id"])
@@ -495,9 +501,9 @@ class Presence:
             chat.add(char["id"], "me", react.said(kind), kind=kind, t=now)
         else:
             chat.add(char["id"], "me", "（%s%s）" % (msgreply.said(a["id"], kind, why), "・自動" if auto else ""), kind="approach", t=now)
-        if not auto:                             # 返事の速さ (相手から見える)
-            waited = now - float(ap.get("t", now))
-            self.app.regard.sign(char, st, "reply_fast" if waited < 600 else "reply" if waited < 3600 else "reply_slow", now)
+        if not auto:                             # 返事の速さ (相手から見える. あなたの癖として覚える: core/regard.py)
+            self.app.regard.replied(char, st, float(ap.get("t", now)), now)
+            self.app.regard.note_kind(char, st, kind)
         if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
             return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why)
         app = self.app

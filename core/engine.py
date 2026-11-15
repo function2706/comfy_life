@@ -2118,6 +2118,7 @@ class App:
         st["contacts"] = [x for x in st.get("contacts") or [] if now - self.bonds.contact_t(x) < 86400] + [{"t": now, "w": round(w, 2)}]
         if char and w > 0 and kind != "apology":        # あなたから話を始めた (相手の返事への返しは w = 0)
             self.regard.sign(char, st, "start", now)
+            self.regard.note_start(char, st, now)       # いつ連絡してくる人か (あなたの癖)
         p = self.presence.rec()
         if p.get("mode") == "work":
             p["work_contacts"] = p.get("work_contacts", 0) + 1
@@ -2199,7 +2200,10 @@ class App:
         pend = st.get("msg_pending")
         self.bonds.met(st, now, contact=True)
         to = react_mod.target(self, cid, st, now) if kind else None     # 何に返したか (相手の最後のメッセージ. 返していなければ)
-        if st.get("approach"):
+        ap0 = st.get("approach")
+        if ap0:
+            if (self.presence.find(ap0.get("id")) or {}).get("apart") and ap0.get("t"):      # 返したことを, あなたの癖として覚える (core/regard.py)
+                self.regard.note_reply(char, st, float(ap0["t"]), now, waited=max(0.0, now - float(ap0["t"])) / 60.0)
             self.presence.drop(st)              # 届いていたメッセージには, これが返事になる
         said = (extra or {}).get("said") or "（%sをした）" % extra["topic_text"] if (extra or {}).get("said") or (extra or {}).get("topic_text") else \
             chat_mod.KINDS[kind][2] if kind else "（メッセージを送った）"

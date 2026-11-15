@@ -175,7 +175,10 @@ def main():
         rec = st["ap_ignored"]
         assert rec["read"] and rec["applied"] == 0
         m0 = st["params"]["mood"]
-        R.ignore_tick(app, char, st, now + 3 * 3600)
+        t3 = now + 3 * 3600
+        while R._awake_h(now, t3) < 1:      # 夜中 (0〜4 時) に流すと, 3 時間あとまで相手が寝ていて重くならない: 起きている時間が 1 時間入るまで延ばす
+            t3 += 1800
+        R.ignore_tick(app, char, st, t3)
         a3 = st["ap_ignored"]["applied"]
         R.ignore_tick(app, char, st, now + 30 * 3600)
         a30 = st["ap_ignored"]["applied"]

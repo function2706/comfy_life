@@ -23,8 +23,8 @@ from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
 PERSONAS = sorted(os.path.basename(p)[:-5] for p in glob.glob(os.path.join(os.path.dirname(HERE), "defaults", "personas", "*.json")))
-BEST = {"bored": "cheerful", "tired": "worry", "happy": "expand", "lonely": "cheerful", "unsure": "expand"}
-WORST = {"bored": "curt", "tired": "tease", "happy": "tease", "lonely": "curt", "unsure": "curt"}
+BEST = {"bored": "cheerful", "tired": "worry", "happy": "expand", "lonely": "cheerful", "unsure": "expand", "changed": "expand"}
+WORST = {"bored": "curt", "tired": "tease", "happy": "tease", "lonely": "curt", "unsure": "curt", "changed": "curt"}
 
 
 def main():

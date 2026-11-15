@@ -17,6 +17,7 @@ from datetime import datetime
 
 from . import msgreply
 from . import nori
+from . import regard as regard_mod
 
 # (id, 文言, 印, トークに残す要約, 働きかけへの返事としての区分 msgreply.KINDS)
 REACTS = [
@@ -63,7 +64,7 @@ _TONES = {
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
-WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question"}
+WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question"}
 AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy")   # 返事を待っている話 (遅れると響きにくい)
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)
@@ -248,8 +249,9 @@ def group(app, cid, st, now):
     return {"id": GROUP[0], "icon": GROUP[1], "label": GROUP[2], "kinds": kinds_for(tg["tone"])}, tg
 
 
-def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12):
-    """返しがどう受け取られるか: (good / neutral / bad, 点)."""
+def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0):
+    """返しがどう受け取られるか: (good / neutral / bad, 点).
+    ease: 遅れて返したことの重さへの倍率 (あなたの癖. core/regard.py ease: ふだんどおりの遅さなら 1 より小さい)."""
     p = st["params"]
     taste = msgreply.TASTE.get(char.get("persona_id") or "", {})
     cat = CAT.get(kind, "cheerful")
@@ -258,6 +260,8 @@ def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12):
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill - 1.0) + rng.uniform(-noise, noise)
     if kind in ("tease", "re_lol"):          # 冗談・からかいは, 仲が深いほど通じる
         score += 0.3 * (p.get("affection", 45) - 60)
+        if app.regard.teaser(char, st):      # よくからかう人だと分かっている (あなたの癖): 真に受けない
+            score += regard_mod.TEASE_BONUS
     lv = nori.level(st, time.time())         # 会話のノリ: 乗っているほど軽い返し・冗談が通じ, 素っ気ない返しは冷や水になる
     if lv is not None:
         if kind in ("tease", "re_lol", "re_agree", "re_really", "re_more", "re_glad"):
@@ -267,7 +271,7 @@ def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12):
     if kind in ("re_sokka", "re_ok") and tone not in QUIET:     # 素っ気ない返しは, 寂しいときほど刺さる
         score -= 0.2 * max(0.0, p.get("loneliness", 30) - 40)
     if tone in AWAIT and late_h > 1:         # 返事を待っていた話に, 遅れて返す
-        score -= min(12.0, 1.5 * (late_h - 1))
+        score -= min(12.0, 1.5 * (late_h - 1)) * float(ease)
     res = "good" if score >= 10 else "neutral" if score >= -8 else "bad"
     if res == "good" and rng.random() < 0.1:   # 合う返しでも, 今日はそれほど響かないこともある
         res = "neutral"
@@ -306,9 +310,16 @@ def land(app, char, st, kind, meta, now, silent=False):
     tone = to.get("tone") or "plain"
     sent = float((meta or {}).get("sent") or now)
     late_h = max(0.0, (sent - float(to.get("t") or sent)) / 3600.0)
-    res, score = judge(app, char, st, tone, kind, late_h)
+    # あなたの癖 (core/regard.py): ふだんどおりの遅さなら, 遅れた分は響きにくい. ふだんよりずっと遅いと, いつもより響く
+    G = app.regard
+    t_to = float(to.get("t") or 0)
+    ez = G.ease(char, st, t_to, sent, waited=late_h * 60.0) if t_to and tone in AWAIT and late_h > 1 else 1.0
+    res, score = judge(app, char, st, tone, kind, late_h, ease=ez)
+    if t_to and to.get("ap"):                # 待ち時間が切れたあとに, 相手からのメッセージへ返した: 「返さなかった」の記録を直す
+        G.note_reply(char, st, t_to, sent, waited=late_h * 60.0, late=True)
+    G.note_kind(char, st, kind)
     app.trace.add("react", "返しの受け取り方: %s → %s" % (kind, res), char["id"], now, tone=tone, score=round(score, 1),
-                  late_h=round(late_h, 2), silent=silent)
+                  late_h=round(late_h, 2), silent=silent, ease=round(ez, 2))
     eff = dict(EFFECT[res])
     if res == "bad":
         call = app.pronouns(char)[2]
@@ -366,7 +377,8 @@ def ignore_tick(app, char, st, now):
             rec, changed = None, True
         elif seen >= rec["t_msg"]:
             start = rec.setdefault("from", max(rec["t"], now if not rec.get("read") else rec["t"]))
-            k = float(tr.get("absence", 1)) * float(rec.get("urgency", 1)) * (1 + 0.5 * app.attach.factor(char, st, "dependence"))
+            k = float(tr.get("absence", 1)) * float(rec.get("urgency", 1)) * (1 + 0.5 * app.attach.factor(char, st, "dependence")) \
+                * float(rec.get("ease", 1.0))        # あなたの癖: ふだんどおりなら軽く (時間切れのときに決めた倍率. presence._expire)
             want = min(IGNORE_CAP * k, IGNORE_RATE * k * _awake_h(start, now))
             d_ = want - float(rec.get("applied", 0))
             if d_ >= 0.2:
@@ -388,8 +400,9 @@ def ignore_tick(app, char, st, now):
     if tg and tg["kind"] != "approach" and tg["tone"] in ("question", "news") and tg["t"] >= since and seen >= tg["t"] \
             and now - tg["t"] > AWAIT_AFTER_H * 3600 and now - tg["t"] < IGNORE_SPAN_H * 3600:
         if not aw:
-            aw = st["await_ignored"] = {"t_msg": tg["t"], "applied": 0.0, "tone": tg["tone"]}
-        k = float(tr.get("absence", 1))
+            aw = st["await_ignored"] = {"t_msg": tg["t"], "applied": 0.0, "tone": tg["tone"],
+                                        "ease": round(app.regard.ease(char, st, float(tg["t"]), now, mark=False), 3)}
+        k = float(tr.get("absence", 1)) * float(aw.get("ease", 1.0))       # あなたの癖: 気にしはじめたときに決めた倍率
         want = min(AWAIT_CAP * k, AWAIT_RATE * k * _awake_h(tg["t"] + AWAIT_AFTER_H * 3600, now))
         d_ = want - float(aw.get("applied", 0))
         if d_ >= 0.2:
