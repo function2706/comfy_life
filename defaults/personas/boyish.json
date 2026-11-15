@@ -2960,6 +2960,12 @@
   ],
   "_tryon.tryon_mood": [
    "……いまは、そういう気分じゃない"
+  ],
+  "ap.msg_chat.call_changed": [
+   "📱『{call}、なんかあった？ いつもと返事の感じが違うからさ』"
+  ],
+  "msgr.why.changed.bad": [
+   "📱『……そっか。なんもないならいいんだ』"
   ]
  }
 }

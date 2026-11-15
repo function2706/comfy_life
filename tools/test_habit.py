@@ -421,7 +421,7 @@ def main():
             h = G.habit(char, st)
             assert "odd" not in h and h["asked"] <= time.time()
             text = [it for it in C.load(cid)["items"] if it["who"] == "her"][-1]["text"]
-            assert "何か" in text, text
+            assert "あった" in text and "いつも" in text, text
             assert fire(odd=now - 3600, asked=now - 2 * 86400) != "changed"
             assert G.habit(char, st).get("odd")                              # 聞けなかった気づきは, 残る (間があけば聞く)
             assert fire(odd=now - 3600, asked=now - 4 * 86400) == "changed"
