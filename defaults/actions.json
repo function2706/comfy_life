@@ -2819,7 +2819,8 @@
      "mood": 1
     },
     "pos": "awkward smile, holding gift box",
-    "neg": ""
+    "neg": "",
+    "taken": true
    },
    {
     "text": "わぁ、{item}……！ {fp}、これ大好きなんです。",
@@ -4494,6 +4495,65 @@
     },
     "pos": "angry, glaring",
     "neg": "smile"
+   }
+  ]
+ },
+ {
+  "id": "_tryon",
+  "name": "いま着てみて",
+  "icon": "🧥",
+  "category": "system",
+  "when": "asleep=false, busy=false",
+  "cooldown": 0,
+  "effects": {
+   "shyness": 3,
+   "mood": 2
+  },
+  "pos": "standing, looking at viewer, cowboy shot",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "いま、ですか？ ……じゃあ、着てみますね。{item}、どうですか？",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "text": "わ、いま着ていいんですか？ ……どうですか、{item}。似合ってます？",
+    "when": "tryon=glad",
+    "pos": "smile, happy",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": 3
+    }
+   },
+   {
+    "text": "せっかくなので、帰ってからゆっくり着てみたいです。……今日は、このままで",
+    "when": "tryon=later",
+    "override": true,
+    "effects": {},
+    "pos": "holding shopping bag, smile",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "いまの季節だと、ちょっと合わないかも……。時期が来たら着ますね",
+    "when": "tryon=season",
+    "override": true,
+    "effects": {},
+    "pos": "holding shopping bag, wry smile",
+    "neg": "",
+    "priority": 2
+   },
+   {
+    "text": "……いまは、そういう気分じゃないです",
+    "when": "tryon=mood",
+    "override": true,
+    "effects": {},
+    "pos": "looking away",
+    "neg": "",
+    "priority": 2
    }
   ]
  },

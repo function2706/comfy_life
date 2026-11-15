@@ -888,6 +888,24 @@ class App:
             s["self_picked"] = bool(o)
         if o and not s["fixed_outfit"]:
             s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
+        return self._apply_outer(char, st, s, dt)
+
+    def _apply_outer(self, char, st, s, dt):
+        """外にいるとき, いまの服の上にアウターを羽織る: その場で着てくれたもの (st["outer"]. 寝るまで) か,
+        出かけるときに本人がその日に選んだもの (wardrobe.outer_pick). 服装固定の場面・家の中では羽織らない."""
+        s["outer"] = None
+        if s["fixed_outfit"] or s["asleep"] or not hasattr(self, "bonds"):
+            return s
+        o = None
+        if st.get("outer"):
+            if s["outing"]:
+                o = self.wardrobe_item(char, st["outer"].get("id"))
+        elif dt is not None and s["outing"]:
+            o = self.wardrobe.outer_pick(char, st, dt)
+        if o:
+            s["outfit"] = join_tags([o.get("pos", ""), s["outfit"]])
+            s["outfit_neg"] = join_tags([s["outfit_neg"], o.get("neg", "")])
+            s["outer"] = o.get("name", o["id"])
         return s
 
     def scheduled_scene(self, char, dt):
@@ -1008,6 +1026,9 @@ class App:
         scene = self.scene_at(char, st, dt)
         if scene["asleep"] and st.get("dress") and char.get("dress_reset_on_sleep", True):
             st["dress"] = None   # 寝たら翌日はスケジュール通りの服に戻る
+        if scene["asleep"] and (st.get("outer") or st.get("tryon")):
+            st.pop("outer", None)    # その場で羽織ってくれたアウターも, その日かぎり
+            st.pop("tryon", None)
         ctx = self.context(char, st, dt, scene, view=False)     # 本人の過ごし方で動く (あなたから見えるかとは別)
         vals = st["params"]
         floor = float(self.bonds.cfg()["cool_floor"])
@@ -1119,7 +1140,8 @@ class App:
         pr = self.settings.get("prompt") or {}
         parts = [{"src": "共通", "pos": pr.get("prefix_pos", ""), "neg": pr.get("prefix_neg", "")},
                  {"src": "キャラクター", "pos": char.get("pos", ""), "neg": char.get("neg", "")},
-                 {"src": "服装" + (": " + scene["dress"] if scene["dress"] else ""),
+                 {"src": "服装" + (": " + scene["dress"] if scene["dress"] else "")
+                  + ("＋" + scene["outer"] if scene.get("outer") else ""),
                   "pos": scene["outfit"], "neg": scene["outfit_neg"]}]
         looks = (self.player_profile().get("looks") or "").strip()
         if act and act.get("with_player") and looks:
@@ -1452,6 +1474,12 @@ class App:
             ng = None if opts.get("deliver") or appt else self.guest_ng(a, cid)
             if ng:                                  # 相手の家にいる (お客の立場 / 手伝いの最中)
                 raise ValueError(ng)
+            if dress is not None:
+                if not self.bonds.together(cid):
+                    raise ValueError("そばにいるときだけです")
+                if self.outside_with(cid, now):
+                    # 着替えられるのは家の中 (あなたの家・相手の家) だけ. 外にいる間は, 着替える場所も服もない
+                    raise ValueError("外では着替えられません（家か、%sの家にいるときに）" % char.get("name", "相手"))
             if not replay and not cond.check(when, ctx):
                 raise ValueError("今は「%s」できません（%s）" % (a.get("name", aid), when))
             ovp = (a.get("override") or {})
@@ -1508,6 +1536,8 @@ class App:
                     return {"entry": dis, "job": None, "llm_error": None, "disagree": True}
             outfit = None
             if dress is not None:
+                if dress and (self.wardrobe.get(dress) or {}).get("kind") == wardrobe_mod.OUTER:
+                    raise ValueError("アウターは着せ替えでは選べません（出かけるときに羽織るものです）")
                 if dress:
                     outfit = self.wardrobe_item(char, dress)
                     if not outfit:
@@ -1538,6 +1568,15 @@ class App:
                 self.posing.learn(st, "%s:%s" % (pose["type"], pose["id"]), 1.0)     # 頼んだもの = あなたの好み
             if dress:
                 self.posing.learn(st, "outfit:" + dress, 1.0)
+            tryon = None
+            if aid == "_tryon":                       # 買ってあげたアウターを, その場で着てみてもらう (聞けるのは一度だけ)
+                tv = self.tryon_view(char, st, now)
+                if not tv:
+                    raise ValueError("いまは頼めません（一緒の買い物で買ってあげたアウターを、その場で着てもらうときだけ）")
+                tryon = self.wardrobe_item(char, tv["id"])
+                ctx["tryon"] = self.wardrobe.tryon_feel(char, st, tryon, dt)
+                opts.setdefault("extra", {})["item"] = tryon["name"]
+                st.pop("tryon", None)
             cd = float(a.get("cooldown", 0)) * 60
             hist = [x for x in st["cooldowns"].get(aid, []) if now - x < cd] if cd else []
             ctx["repeat"] = len(hist)
@@ -1638,7 +1677,7 @@ class App:
                 self.items.add(gift_item, -1)        # 受け取ってもらえた (はっきり断られたら手元に残る)
                 if gift_item.startswith("outfit:"):  # 服: その人の持っている服になる (着るかは本人しだい)
                     self.wardrobe.give_to(char, gift_item.split(":", 1)[1], "player", now)
-            social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer") or aid in ("_pose", "_show")
+            social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer") or aid in ("_pose", "_show", "_tryon")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
                 if opts.get("auto_weak"):          # 自動で過ごした (画面を閉じていた間の約束など): 良い影響が出にくい
@@ -1682,6 +1721,8 @@ class App:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
+            if tryon and not r.get("override"):
+                st["outer"] = {"id": tryon["id"], "t": now}       # 羽織ってくれた (寝るまで. 外にいる間の服装に重なる)
             home_note = None
             at_home = self.bonds.mode(cid) in ("home", "guest")
             if at_home and a.get("home_dirty") and (not r.get("override") or r.get("taken")):
@@ -1793,6 +1834,11 @@ class App:
 
         if selfie:
             text += "\n（📷 自撮りが添えられていた）"
+        bt = opts.get("bought")              # 一緒にいる店で, その場で買って渡した (buy_for)
+        if bt:
+            text = "（%sで%sを買って、渡した）\n%s" % (bt["label"], bt["name"], text)
+            if r.get("override") and not r.get("taken"):
+                text += "\n（%sは、あなたの手元に残った）" % bt["name"]
         if real_note:
             text += "\n" + self.format_text(real_note, char, scene, dt)
         if item_note:
@@ -1910,8 +1956,106 @@ class App:
             r["call"] = {"mins": mins, "how": how, "key": key, "text": said[0]["text"] if said else ""}
             return r
 
-    def give_item(self, iid, cid=None):
-        """持ち物からプレゼントする. 好き・苦手と値段で反応が変わる (高価なものは「重い」と断られることも)."""
+    def outside_with(self, cid, now=None):
+        """cid と一緒に, 外 (家でも相手の家でもない所) にいるか: 外で会っている / 一緒にお出かけしている (行き帰りの移動も含む).
+        同居相手と出かけている間, 一緒にいる形 (bonds.mode) は home のままなので, お出かけの一時シーンも見る."""
+        now = now or time.time()
+        if not self.bonds.together(cid):
+            return False
+        ov = self.state(cid).get("override") or {}
+        return self.bonds.mode(cid) == "meet" or bool(ov.get("outing") and ov.get("until", 0) > now)
+
+    def here_shop(self, cid, now=None):
+        """cid と一緒にいる行き先 (店・街なかの場所). 家・相手の家・移動中なら None."""
+        now = now or time.time()
+        st = self.state(cid)
+        if not self.outside_with(cid, now):
+            return None
+        if self.presence.rec().get("travel") or self.outing_trip(st, now) or self.outing_moving(st, now):
+            return None
+        pl = self.geo.where(now)
+        return pl if pl in places_mod.PLACES and not places_mod.is_home(pl) else None
+
+    def shop_gift_view(self, char, st, now=None):
+        """一緒にいる店で, その場で買ってあげられるもの (その店で売っている, 贈れる品). 無ければ None.
+        値段は店の値札どおり. 相手がもう持っている服は並べない."""
+        now = now or time.time()
+        pl = self.here_shop(char["id"], now)
+        if not pl or not places_mod.open_state(pl, datetime.fromtimestamp(now))["open"]:
+            return None
+        have = set(self.wardrobe.owned_ids(char))
+        items = [{"id": it["id"], "name": it["name"], "icon": it["icon"], "price": it["price"], "kind": it["kind"],
+                  "bold": it.get("bold", 0),
+                  "outer": (self.wardrobe.get(it.get("outfit")) or {}).get("kind") == wardrobe_mod.OUTER}
+                 for it in items_mod.CATALOG.values()
+                 if it["giftable"] and pl in it["places"] and not (it.get("outfit") and it["outfit"] in have)]
+        if not items:
+            return None
+        items.sort(key=lambda x: (x["kind"] == "outfit", not x["outer"], x["price"]))
+        return {"place": pl, "label": places_mod.PLACES[pl]["label"], "items": items}
+
+    def tryon_view(self, char, st, now=None):
+        """買ってあげたアウターを「いま着てみて」と頼めるか (買ってから TRYON_MIN 分・まだ外で一緒にいる間・一度だけ)."""
+        now = now or time.time()
+        t = st.get("tryon")
+        if not t or now - t.get("t", 0) > wardrobe_mod.TRYON_MIN * 60:
+            return None
+        if not self.outside_with(char["id"], now) or self.outing_moving(st, now):
+            return None
+        o = self.wardrobe_item(char, t.get("id"))
+        return {"id": o["id"], "name": o["name"], "icon": o["icon"]} if o else None
+
+    def buy_for(self, iid, cid=None):
+        """一緒にいる店で, その場で買って渡す. 払うのはあなた (値札どおり). 受け取るかは持ち物からのプレゼントと同じ判定で,
+        断られたら品物はあなたの手元に残る (買ったことは変わらない). アウターを受け取ってくれたら, その場で着てみてと聞ける."""
+        with self.lock:
+            char = self.char(cid)
+            cid = char["id"]
+            self.tick(cid)
+            st = self.state(cid)
+            now = time.time()
+            v = self.shop_gift_view(char, st, now)
+            if not v:
+                raise ValueError("いまは、一緒に店にいません")
+            it = next((x for x in v["items"] if x["id"] == iid), None)
+            if not it:
+                raise ValueError("ここでは売っていないか、%sがもう持っています" % char.get("name", "相手"))
+            why = self.blocked("social")
+            if why:
+                raise ValueError(why)
+            sc = self.scene_at(char, st, datetime.fromtimestamp(now))
+            if sc["asleep"] or sc["away"]:
+                raise ValueError("いまは渡せません")
+            ps = self.life.player_state()
+            if self.life.in_debt():
+                raise ValueError("借金があるあいだは、贈り物は買えません")
+            if ps["money"] < it["price"]:
+                raise ValueError("お金が足りません（%s円必要）" % format(it["price"], ","))
+            ps["money"] -= it["price"]
+            self.items.add(iid)
+        try:
+            r = self.give_item(iid, cid, bought={"price": it["price"], "label": v["label"]})
+        except Exception:
+            with self.lock:                      # 渡せなかった: 買わなかったことにする
+                self.items.add(iid, -1)
+                self.life.player_state()["money"] += it["price"]
+                self.life.save_player()
+            raise
+        with self.lock:
+            self.life.ledger(now, -it["price"], "social", "%s（%sに）" % (it["name"], char.get("name", "")))
+            self.life.save_player()
+            oid = iid.split(":", 1)[1] if it["kind"] == "outfit" else None
+            got = bool(oid) and oid in self.wardrobe.owned_ids(self.char(cid))
+            if got and it["outer"]:
+                st["tryon"] = {"id": oid, "t": now, "place": v["place"]}
+                self.save_state(cid)
+                r["tryon"] = self.tryon_view(char, st, now)
+            r["bought"] = {"id": iid, "name": it["name"], "price": it["price"], "kept": self.items.count(iid) > 0}
+        return r
+
+    def give_item(self, iid, cid=None, bought=None):
+        """持ち物からプレゼントする. 好き・苦手と値段で反応が変わる (高価なものは「重い」と断られることも).
+        bought: 一緒にいる店でその場で買ったもの {price, label} (buy_for)."""
         it = items_mod.CATALOG.get(iid)
         if not it or not it["giftable"]:
             raise ValueError("プレゼントにできない品物です")
@@ -1924,7 +2068,10 @@ class App:
             if it["outfit"] in self.wardrobe.owned_ids(char):
                 raise ValueError("%sは「%s」をもう持っています" % (char.get("name", ""), it["name"]))
             feel["gift_outfit"] = self.wardrobe.gift_feel(char, self.state(char["id"]), it["outfit"], time.time())
-        r = self.act(aid, char["id"], opts={"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}})
+        opts = {"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}}
+        if bought:
+            opts.update(money={"p": -int(bought["price"])}, bought=dict(bought, name=it["name"]))
+        r = self.act(aid, char["id"], opts=opts)
         if not (r.get("entry") or {}).get("override"):
             with self.lock:
                 self.attach.give(char, self.state(char["id"]), "me", 2 + (1 if aid == "expensive_gift" else 0), "贈り物")
@@ -3369,6 +3516,7 @@ class App:
                 "available": self.available(char, st, dt), "absent": ctx["absent"], "trip": self.trip_view(st, dt.timestamp()),
                 "dress": self._dress_view(char, st, scene, ctx), "wardrobe": self.wardrobe.owned(char),
                 "posing": self.posing.view(char, st, now),
+                "shopgift": self.shop_gift_view(char, st, now), "tryon": self.tryon_view(char, st, now),
                 "dress_reset_on_sleep": char.get("dress_reset_on_sleep", True),
                 "games": self.games.view(char, st, ctx), "life": self.life.partner_view(char, st),
                 "pending_msg": bool(st.get("msg_pending")), "bond": self.bonds.view(cid), "face": self.chat.face(cid),
@@ -3465,9 +3613,14 @@ class App:
             can, why = cond.check(da.get("when", ""), ctx), da.get("when", "")
         except KeyError:
             can, why = False, "着せ替え用のコマンド (_dress) がありません"
+        place_ok = self.bonds.together(char["id"]) and not self.outside_with(char["id"])
+        if not place_ok:                    # 着替えられるのは家の中だけ (act と同じ判定)
+            can, why = False, "外では着替えられません。家か、%sの家にいるときに" % char.get("name", "相手")
         return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"], "self": bool(scene.get("self_picked")),
+                "outer": scene.get("outer"), "place_ok": place_ok,
                 "outfit": scene["outfit"], "fixed": scene["fixed_outfit"], "can": can, "why": why,
-                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)}}
+                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)
+                          if o["kind"] != wardrobe_mod.OUTER}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
     def come_back(self, cid=None, at=None, quiet=False, arrived=False, onward=False, how=None):

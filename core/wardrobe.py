@@ -9,8 +9,12 @@
   ほかに人がいるか)・しつこさの組み合わせ. 仲が深くても断られることはあり, 断られたのに続けて頼むと怒る. 補正なし.
 - 本人の服選び (self_pick): 頼まれていないときは, その日の気分・季節・天気・行き先・持っている服の好みで, 普段着や外出の服を
   自分で選ぶことがある (その日・その場面ごとに決まる). あなたが贈った服は, 仲しだいで選ばれやすい.
+- アウター (kind = outer): 一式ではなく, 外でいまの服の上に羽織るもの. 着せ替えには並ばない. 出かけるとき, 季節が合えば本人が
+  羽織っていくことがある (outer_pick). 一緒の買い物で買ってあげたものは, その場で「いま着てみて」と聞ける (tryon_feel.
+  受け取ってくれても, 季節・気分しだいで「帰ってから」になる. 聞けるのは一度だけ)
 - 以前の形式 (キャラごとの wardrobe) は起動時に一覧へ移し, 元のキャラの持っている服にする (中身が同じものは 1 つに).
 """
+import datetime
 import math
 import random
 import time
@@ -21,7 +25,9 @@ from . import outdoor as outdoor_mod
 from . import store
 
 KINDS = {"casual": "普段着", "lounge": "部屋着", "formal": "よそ行き", "work": "仕事着", "pajamas": "パジャマ",
-         "swim": "水着", "costume": "衣装"}
+         "swim": "水着", "costume": "衣装", "outer": "アウター"}
+OUTER = "outer"                       # 上に羽織るもの (コート・ジャケット). 着せ替えの一式ではなく, いまの服の上に重ねる
+TRYON_MIN = 60                        # 買ってもらったアウターを「いま着てみて」と頼める時間 (分)
 SEASONS = {"spring": "春", "summer": "夏", "autumn": "秋", "winter": "冬"}
 BOLD_LABEL = ("ふつう", "少し大胆", "大胆", "かなり大胆")
 BOLD_NEED = (None, 12, 32, 52)        # 着てくれるのに要る気持ち (下の score) の目安
@@ -132,7 +138,7 @@ class Wardrobe:
             o = self.get(x.get("id"))
             if not o:
                 continue
-            o = dict(o, owned_from=x.get("from", "default"))
+            o = dict(o, owned_from=x.get("from", "default"), owned_t=x.get("t") or 0)
             for k in ("pos", "neg"):
                 if (x.get(k) or "").strip():
                     o[k] = x[k]
@@ -247,8 +253,7 @@ class Wardrobe:
         rng = random.Random("%s|%s|%s" % (char["id"], dt.date().isoformat(), "out" if outing else "home"))
         if rng.random() < 0.45:           # 今日はいつもの服
             return None
-        season = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring", 6: "summer",
-                  7: "summer", 8: "summer"}.get(dt.month, "autumn")
+        season = self.season(dt)
         rain = outdoor_mod.weather(dt)["id"] in ("rain", "snow")
         aff = st["params"].get("affection", 40)
         cap = self.comfort(char, st)
@@ -272,6 +277,42 @@ class Wardrobe:
             return None
         return rng.choices(cands, weights)[0]
 
+    # ------------------------------------------------------------------ アウター (上に羽織るもの)
+    @staticmethod
+    def season(dt):
+        return {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring", 6: "summer",
+                7: "summer", 8: "summer"}.get(dt.month, "autumn")
+
+    def outer_pick(self, char, st, dt):
+        """出かけるときに本人が羽織っていくアウター (持っていて季節が合うものから. 無ければ None). その日ごとに決まる."""
+        season = self.season(dt)
+        day0 = datetime.datetime.combine(dt.date(), datetime.time()).timestamp()
+        cands = [o for o in self.owned(char) if o["kind"] == OUTER and (not o["seasons"] or season in o["seasons"])
+                 and o["owned_t"] < day0]            # 今日手に入れたものは, 出かけるときにはまだ持っていなかった
+        if not cands:
+            return None
+        rng = random.Random("%s|%s|outer" % (char["id"], dt.date().isoformat()))
+        if rng.random() < (0.25 if season == "winter" else 0.5):      # 今日は羽織らない (冬はたいてい着る)
+            return None
+        aff = st["params"].get("affection", 40)
+        w = [max(0.5, min(2.5, 1 + (aff - 45) / 30.0)) if o.get("owned_from") == "player" else 1.0 for o in cands]
+        return rng.choices(cands, w)[0]
+
+    def tryon_feel(self, char, st, o, dt):
+        """買ってもらったアウターを, その場で着てみてと頼まれたとき: glad (喜んで) / yes / later (帰ってから) /
+        season (いまの季節には合わない) / mood (そういう気分じゃない). 受け取ったからといって, 必ずその場で着るわけではない."""
+        p = st["params"]
+        if o.get("seasons") and self.season(dt) not in o["seasons"]:
+            return "season"
+        if p.get("mood", 50) < 25:
+            return "mood"
+        aff = p.get("affection", 40)
+        likes = self.app.items.likes(char)
+        chance = 0.6 + (aff - 50) / 120.0 + (0.1 if "fashion" in likes[0] else -0.1 if "fashion" in likes[1] else 0)             - self.modesty(char) / 60.0
+        if random.random() >= max(0.25, min(0.92, chance)):
+            return "later"
+        return "glad" if aff >= 60 and p.get("mood", 50) >= 60 and random.random() < 0.5 else "yes"
+
     # ------------------------------------------------------------------ 本人が服を買う
     def step(self, char, st, t, h):
         """ときどき自分で服を買う (お金と好みしだい. 一日に一度ほど考えて, 買うのはまれ)."""
@@ -283,7 +324,7 @@ class Wardrobe:
         have = set(self.owned_ids(char))
         cap = self.comfort(char, st)
         cands = [o for o in self.all() if o["id"] not in have and 0 < o["price"] <= money * 0.3 and o["bold"] <= cap
-                 and o["kind"] in ("casual", "formal", "lounge", "pajamas", "work") and not o.get("when")]
+                 and o["kind"] in ("casual", "formal", "lounge", "pajamas", "work", OUTER) and not o.get("when")]
         if not cands:
             return None
         o = random.choice(cands)

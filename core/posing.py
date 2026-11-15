@@ -124,7 +124,8 @@ class Posing:
 
     # ------------------------------------------------------------------ 状況
     def outside(self, cid):
-        return self.app.bonds.mode(cid) not in ("home", "guest", "visit")
+        """外にいるか. 同居相手と出かけている間も外 (一緒にいる形は home のままなので, engine.outside_with で見る)."""
+        return self.app.bonds.mode(cid) not in ("home", "guest", "visit") or self.app.outside_with(cid)
 
     def can(self, char, st, now):
         """頼める・相手からしてくるか (理由). 大人だけ, 起きていて手が空いていて, そばにいるとき."""

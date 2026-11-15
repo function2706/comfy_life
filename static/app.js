@@ -990,6 +990,9 @@ function renderCommands() {
   if (t.visit) out.push(visitCard(t.visit));
   if (t.stay && (t.stay.staying || t.stay.offered || t.stay.can_ask)) out.push(stayCard(t.stay));
   if (t.askhelp) out.push(askHelpCard(t.askhelp));
+  if (t.shopgift) out.push(h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, `${t.shopgift.label}で`),
+    h('div', { class: 'cmds' }, h('button', { class: 'cmd', disabled: S.busy, title: 'この店で売っているものを、その場で買って渡します（払うのはあなた。受け取るかは相手しだい）',
+      onclick: () => shopGiftPicker(t) }, h('span', { class: 'ic' }, '🛍'), h('span', {}, `${t.name}に買ってあげる`)))));
   for (const [cat, list] of cats) {
     out.push(h('div', { class: 'cat' },
       h('div', { class: 'cat-title' }, cat || 'その他'),
@@ -1109,29 +1112,65 @@ function renderWMoney() {
       h('div', { class: 'cmds' }, acts.filter((a) => t.available[a.id].ok || S.showHidden).map(cmdButton))) : '');
 }
 
-/* ---------------------------------------------------------------- dress tab */
+/* ---------------------------------------------------------------- お願い tab (着替えて・ポーズを取って・見せて) */
+// 一緒にいる店で, その場で買って渡す (払うのはあなた. 断られたら品物は手元に残る)
+function shopGiftPicker(t) {
+  const sg = t.shopgift;
+  if (!sg) return;
+  const money = (S.view.you || {}).my_money || 0;
+  const dlg = h('dialog', { class: 'modal', style: 'width:min(480px,94vw);max-height:86vh;height:auto;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  const buy = async (it) => {
+    if (S.busy) return;
+    close();
+    S.busy = true;
+    try {
+      const r = await api('/api/shop/gift', { item: it.id, character: t.character });
+      handleActResult(r);
+      if (r.tryon) toast(`「お願い」から、${r.tryon.name}をいま着てみてもらえるか聞けます`, 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+    finally { S.busy = false; await refresh(); }
+  };
+  dlg.append(h('div', { style: 'padding:16px' }, h('h3', {}, `${sg.label}で、${t.name}に買ってあげる`),
+    h('p', { class: 'muted small' }, `あなたの手元 ${yen(money)}。受け取ってくれるかは相手しだいで、断られたら品物はあなたの手元に残ります。`),
+    sg.items.map((it) => h('div', { class: 'row item-row' },
+      h('span', { style: 'flex:1' }, `${it.icon} ${it.name}${boldMark(it.bold)}${it.outer ? '（アウター）' : it.kind === 'outfit' ? '（服）' : ''}`),
+      h('span', { class: 'muted small', style: 'margin-right:8px' }, yen(it.price)),
+      h('button', { class: 'btn small primary', disabled: money < it.price, onclick: () => buy(it) }, '買って渡す'))),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 function renderDress() {
   const t = T();
   if (!t) { $('#tab-dress').replaceChildren(); return; }
   const d = t.dress;
-  const items = t.wardrobe || [];
+  const outers = (t.wardrobe || []).filter((o) => o.kind === 'outer');
+  const items = (t.wardrobe || []).filter((o) => o.kind !== 'outer');
   const card = (id, icon, name, ok, tip) => h('button', {
     class: 'outfit' + (d.current === id ? ' on' : ''), disabled: !d.can || !ok || S.busy,
     title: tip || '', onclick: () => doAct('_dress', id),
   }, h('span', { class: 'ic' }, icon), h('span', {}, name));
+  const ty = t.tryon;
   $('#tab-dress').replaceChildren(
+    ty ? h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, '買ってあげたアウター'),
+      h('div', { class: 'cmds' }, h('button', { class: 'cmd', disabled: S.busy, title: '聞けるのは一度だけ。その場で着てくれるかは、季節・気分・仲しだい',
+        onclick: () => doAct('_tryon') }, h('span', { class: 'ic' }, ty.icon || '🧥'), h('span', {}, `${ty.name}、いま着てみて`)))) : '',
+    h('div', { class: 'sect', style: 'margin-top:0' }, '👗 着替えて'),
     h('div', { class: 'dress-now' },
-      h('div', {}, h('b', {}, 'いまの服 '), d.wearing || 'おまかせ（スケジュール通り）', d.self ? h('span', { class: 'muted small' }, '（本人が選んだ服）') : ''),
+      h('div', {}, h('b', {}, 'いまの服 '), d.wearing || 'おまかせ（スケジュール通り）', d.outer ? `＋${d.outer}` : '', d.self ? h('span', { class: 'muted small' }, '（本人が選んだ服）') : ''),
       h('div', {}, h('code', {}, d.outfit || '—')),
       d.fixed ? h('div', { class: 'muted small' }, '※ 今の場面は服装固定（就寝中など）なので、着せ替えは場面が変わってから反映されます') : '',
-      !d.can ? h('div', { class: 'muted small' }, `今は着替えられません（${d.why}）`) : ''),
-    h('div', { class: 'outfits' },
+      !d.can ? h('div', { class: 'muted small' }, d.place_ok === false ? d.why : `今は着替えられません（${d.why}）`) : ''),
+    d.place_ok === false ? '' : h('div', { class: 'outfits' },
       card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
       items.map((o) => card(o.id, o.icon || '👕', (o.name || o.id) + boldMark(o.bold), d.items[o.id],
         (o.when ? '条件: ' + o.when + ' / ' : '') + (o.bold ? `大胆さ ${o.bold}（着てくれるかは仲・気分・性格しだい）` : o.pos)))),
-    items.length ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → キャラクター → 着せ替え で持たせられます。'),
-    h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
-      ? '着せ替えた服は、寝るとスケジュール通りの服に戻ります。' : '着せ替えた服は「おまかせ」を選ぶまで続きます。'),
+    items.length || d.place_ok === false ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → キャラクター → 着せ替え で持たせられます。'),
+    outers.length ? h('p', { class: 'muted small', style: 'margin-top:8px' }, `持っているアウター: ${outers.map((o) => o.name).join('、')}（出かけるとき、季節が合えば本人が羽織ります）`) : '',
+    d.place_ok === false ? '' : h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
+      ? '着替えてもらった服は、寝るとスケジュール通りの服に戻ります。' : '着替えてもらった服は「おまかせ」を選ぶまで続きます。'),
     ...poseSections(t),
   );
 }
@@ -3569,7 +3608,7 @@ const TIPS = {
   '毎時の効果': 'この場面にいる1時間あたりのパラメータ変化です（例: energy:+8, sleepiness:-10）',
   'Positive（場面）': '背景・ポーズ・小物など、この場面の画像に足すタグです',
   '継続（分）': '一時シーンが続く時間です。過ぎると予定どおりの場面に戻ります',
-  '着られる条件': '満たさないと、着せ替えタブで選べません。空欄ならいつでも',
+  '着られる条件': '満たさないと、「お願い」タブの着替えで選べません。空欄ならいつでも',
   'Positive（服装）': '服のタグです。外見とは別の層に入り、着替えるとここが差し替わります',
   '実行できる条件': '満たさないとボタンが押せません。例: free=true（手が空いている）',
   '連続時の効果倍率': 'クールダウン中にくり返したときに効果へ掛ける倍率です（0.5 = くり返すたびに半分）',
@@ -4431,7 +4470,7 @@ SEC.wardrobe = () => {
   return [
     saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll('wardrobe'); }),
     charHead('wardrobe'),
-    h('p', { class: 'lead' }, `${c.name}が持っている服です。着せ替えタブには、持っている服だけが並びます。服そのもの（名前・プロンプト・大胆さ・季節など）は「服の一覧」で全員共通に編集します。持っている服は、あなたが店で買って贈る（受け取るかは大胆さ・仲・好みしだい）か、本人が自分で買うことでも増えます。頼まれていないときは、本人が気分・季節・天気で普段着や外出の服を選ぶこともあります。`),
+    h('p', { class: 'lead' }, `${c.name}が持っている服です。「お願い」タブの着替えには、持っている服だけが並びます（アウターは並ばず、出かけるときに本人が羽織ります）。服そのもの（名前・プロンプト・大胆さ・季節など）は「服の一覧」で全員共通に編集します。持っている服は、あなたが店で買って贈る（受け取るかは大胆さ・仲・好みしだい）か、本人が自分で買うことでも増えます。頼まれていないときは、本人が気分・季節・天気で普段着や外出の服を選ぶこともあります。`),
     h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),
     list,
   ];

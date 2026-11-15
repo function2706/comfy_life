@@ -263,6 +263,8 @@ def route(method, path, q, body):
             return a.topics.send(b["id"], b.get("to") or cid)
         if path == "/api/gift":
             return a.give_item(b["item"], cid)
+        if path == "/api/shop/gift":              # 一緒にいる店で, その場で買って渡す
+            return a.buy_for(b["item"], cid)
         if path == "/api/chat/send":
             return a.chat.send(b["id"], b["kind"], {k: b[k] for k in ("reason", "consult", "stamp") if b.get(k)} or None)
         if path == "/api/chat/seen":
