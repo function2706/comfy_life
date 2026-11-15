@@ -2329,20 +2329,42 @@ class App:
         with self.lock:
             return self._deliver_due(now)
 
+    _due_rng = random.Random()
+    LATE_DUE_SEC = 120       # 期限をこれより過ぎて見に来た (画面を閉じていた・PC のスリープ): 届く時刻をさかのぼって決める
+
+    def _due_time(self, char, st, pend, now):
+        """返事待ちを読む時刻. ふだん (開いている・1 分おきに進めている) は now. 期限を大きく過ぎてから見に来たときは,
+        その間も相手は自分の時間を過ごしていたので, 期限の時刻から「寝ている・手が離せない」を 15〜40 分ずつ飛ばして,
+        手が空いた最初の時刻 (now まで. 空かなければ now: いまの様子で決める). 乱数は自前 (全体の乱数の順をずらさない)."""
+        t = max(float(pend.get("due") or 0), float(pend.get("kind_t") or pend.get("t") or 0) + 1.0)
+        if now - t < self.LATE_DUE_SEC:
+            return now
+        while t < now:
+            sc = self.scene_at(char, st, datetime.fromtimestamp(t))
+            if not (sc["asleep"] or sc["busy"]):
+                return t
+            t += self._due_rng.uniform(15, 40) * 60
+        return now
+
     def _deliver_due(self, now=None):
-        now = now or time.time()
+        real_now = now or time.time()
         out = []
         for cid in list(self.chars):
+            now = real_now
             st = self.state(cid)
             pend = st.get("msg_pending")
             if not pend or now < pend.get("due", 0):
                 continue
+            char = self.chars[cid]
+            now = self._due_time(char, st, pend, real_now)      # 閉じていた間に読めたはずの分は, その時刻で (以下の now はこの時刻)
             if now - pend["t"] > 24 * 3600:          # 一日たっても返ってこなければ, もう来ない
                 st.pop("msg_pending", None)
                 self.save_state(cid)
-                self.trace.add("deliver", "一日たったので返事は来ないことに", cid, now, kind=pend.get("kind"), sent=pend["t"])
+                self.trace.add("deliver", "一日たったので返事は来ないことに", cid, real_now, kind=pend.get("kind"), sent=pend["t"])
                 continue
-            char = self.chars[cid]
+            if now < real_now:
+                self.trace.add("deliver", "閉じていた間に読めた分: さかのぼった時刻で届ける", cid, real_now, at=now,
+                               due=pend.get("due"), kind=pend.get("kind"))
             self.tick(cid, now)
             scene = self.scene_at(char, st, datetime.fromtimestamp(now))
             if scene["asleep"] or scene["busy"]:       # 寝ている・入浴中・仕事中など: 落ち着いてから
@@ -2384,6 +2406,7 @@ class App:
                 if r:                               # None: ずっとあとで読んだあいさつ (返さない)
                     out.append(r)
                 continue
+            now = real_now                          # 種類の無い返信 (折り返しなど) は, act がいまの時刻で動く: さかのぼらない
             try:
                 r = self.act(pend["aid"], cid, opts={"deliver": True, "ctx": {"callback": bool(pend.get("callback"))}})
             except (ValueError, KeyError):

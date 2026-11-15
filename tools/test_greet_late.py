@@ -75,7 +75,7 @@ def main():
             fresh()
             C.add(cid, "me", "（雑談を送った）", kind="smalltalk", t=at(22, 50))
             C.add(cid, "me", "（おやすみと送った）", kind="greet_night", t=at(22, 53))
-            st["msg_pending"] = {"aid": "message", "t": at(22, 50), "due": at(23, 30), "reply": True, "count": 2, "kind": "greet_night",
+            st["msg_pending"] = {"aid": "message", "t": at(22, 50), "due": at(37, 52), "reply": True, "count": 2, "kind": "greet_night",
                                  "kind_t": at(22, 53), "meta": {}, "quick": False,
                                  "queue": [{"kind": "smalltalk", "meta": {}, "t": at(22, 50)}]}
             out = app.deliver_due(at(37, 53))
@@ -90,7 +90,7 @@ def main():
         random.seed(1)
         fresh()
         C.add(cid, "me", "（おやすみと送った）", kind="greet_night", t=at(22, 53))
-        st["msg_pending"] = {"aid": "message", "t": at(22, 53), "due": at(23, 30), "reply": True, "count": 1, "kind": "greet_night",
+        st["msg_pending"] = {"aid": "message", "t": at(22, 53), "due": at(31, 29), "reply": True, "count": 1, "kind": "greet_night",
                              "kind_t": at(22, 53), "meta": {}, "quick": False}
         out = app.deliver_due(at(31, 30))
         assert her() == ["greet_morning"] and len(out) == 1, (her(), out)
