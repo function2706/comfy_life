@@ -1223,9 +1223,12 @@ class Appoint:
                                                           "。約束に遅れてしまった" if me_late else ""))
         return {"status": "met", "entry": e}
 
-    def live(self, now=None):
+    def live(self, now=None, contact_only=False):
         """画面を開いている間 (state_view のたび). 期限・キャンセル・遅れて来た相手・相手からの誘い・すっぽかしを進める.
-        何か起きたら [テキスト] を返す."""
+        何か起きたら [テキスト] を返す.
+        contact_only: 家の画面を閉じている間の進行 (core/remote.py) から. 相手からの連絡 (誘い・急な誘い・日を変えたい・取りやめ・
+        すっぽかしのあとの謝り・看病の呼び出し) だけを進める. あなたの側に関わる判定 (着いた・会えた・遅刻・すっぽかし・
+        返事の期限切れ・水やり) は進めない: 今までどおり, 家の画面を開いたとき (閉じていた間のまとめと, ここ)."""
         app = self.app
         now = now or time.time()
         out = []
@@ -1241,7 +1244,7 @@ class Appoint:
             char = app.chars[cid]
             st = app.state(cid)
             if x.get("plants") and x["status"] == "set":
-                if now > x["until"]:                  # 留守のあいだに水やりに行かなかった: 枯れてがっかり
+                if now > x["until"] and not contact_only:                  # 留守のあいだに水やりに行かなかった: 枯れてがっかり
                     x["status"] = "missed"
                     with app.lock:
                         d = app.apply_effects(st, app.trait_effects(char, {"mood": -4, "trust": -3, "affection": -1}))
@@ -1264,6 +1267,8 @@ class Appoint:
                         changed = True
                         continue
             if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or now > x["t"]):
+                if contact_only:
+                    continue
                 if x["status"] == "offered" and x.get("favor"):     # 頼まれごとの返事を放っておいた: ほかの人に頼んで済んでしまう
                     app.apply_effects(st, app.trait_effects(char, {"trust": -1}))
                     app.chat.add(cid, "her", app.chat.line(char, "favor_lapsed", {"what": x.get("label", "")}), kind="favor_lapsed", t=now)
@@ -1278,6 +1283,8 @@ class Appoint:
                 x["status"] = "lapsed"
                 changed = True
             elif x["status"] == "set":
+                if contact_only and now >= x["t"] - EARLY:
+                    continue                               # もう約束の時刻のまわり: 開いたときの判定に任せる
                 plan = x.setdefault("plan", {})
                 if x.get("favor") and not plan.get("cancel_checked") and now >= x["t"] - 3 * 3600:
                     plan["cancel_checked"] = True
@@ -1325,9 +1332,11 @@ class Appoint:
                         app.save_state(cid)
                         out.append("%sから、約束のキャンセルの連絡が来た" % char.get("name", ""))
                         continue
-                changed = self._tick(x, now, out) or changed
+                if not contact_only:
+                    changed = self._tick(x, now, out) or changed
             elif x["status"] == "waiting":
-                changed = self._tick(x, now, out) or changed
+                if not contact_only:
+                    changed = self._tick(x, now, out) or changed
             elif x["status"] == "stood_up" and now >= x.get("sorry_at", 9e18):
                 x.pop("sorry_at", None)
                 changed = True

@@ -29,7 +29,7 @@ python server.py --port 9000 --no-browser
 
 スマホ用の入り口 `/phone`（外から開く用。Tailscale などで家の PC につなぐ）: 📱 スマホ（トーク・カレンダー・買うものリスト）だけを全画面で出す（`static/app.js` の `PHONE`）。目印が `phone-` で始まり、下の排他の外（家の画面を取らず、止められない）。在席の心拍を送らず（`/api/state?phone=1`）、操作しても心拍・操作の時刻を動かさない（`engine.from_phone`。呼び出しごとに `server.py` が `APP.via.phone` を入れる）。
 
-閉じている間の進行（`core/remote.py`。`settings.remote.live` がオンのとき。既定はオフ）: `server.py` の `ticker` が 60 秒おきに `Remote.step` を呼ぶ。家の画面が閉じていれば（心拍が `gone_minutes` より古い）、連絡先を知っていて離れている相手の `App.tick`・`presence.live`（在席 `gone` でも離れている相手のメッセージを通す `remote.active`。待ち時間が切れたとき、予定の自動の応答があれば自動の返事）・`_deliver_due` を進める。進めた時間はあなたの状態の `presence.remote_spans`（`[[始まり, 終わり]]`。5 分より空いたら別の区間）に覚え、`offline._messages` はその時間を除いて数える。あなたの過ごし方・約束（`appoint.live`）は進めない。届いた相手の発言は `Remote.note`（`chat.add` から。いまの時刻のものだけ）で控え、`GET /api/phone/news?since=` で取れる。
+閉じている間の進行（`core/remote.py`。`settings.remote.live` がオンのとき。既定はオフ）: `server.py` の `ticker` が 60 秒おきに `Remote.step` を呼ぶ。家の画面が閉じていれば（心拍が `gone_minutes` より古い）、連絡先を知っていて離れている相手の `App.tick`・`presence.live`（在席 `gone` でも離れている相手のメッセージを通す `remote.active`。待ち時間が切れたとき、予定の自動の応答があれば自動の返事）・`_deliver_due` を進める。進めた時間はあなたの状態の `presence.remote_spans`（`[[始まり, 終わり]]`。5 分より空いたら別の区間）に覚え、`offline._messages` はその時間を除いて数える。約束は、相手からの連絡（誘い・日を変えたい・取りやめ など）だけを進める（`appoint.live(contact_only=True)`）。あなたの過ごし方と、約束のあなたの側の判定（着いた・すっぽかし・期限切れ）は進めない。同居相手は、あなたが行動パターン・予定の枠で家を空けている間（`offline.away_closed`）、スマホ用の入り口とこの進行からは離れている扱い（`bonds.home_together`）。届いた相手の発言は `Remote.note`（`chat.add` から。いまの時刻のものだけ）で控え、`GET /api/phone/news?since=` で取れる。
 
 Tailscale のスイッチ（`core/tailnet.py`。設定 → 表示）: `GET /api/tailnet`（`tailscale status --json` と `serve status --json` から、installed・running・https・serving・url・why）、`POST /api/tailnet {on}`（`settings.remote.tailscale` に覚えて、`tailscale serve --bg <ポート>` / `serve --https=443 off`）。オンなら起動のとき `Tailnet.startup` が出し直す。コマンドの場所は PATH か `C:\Program Files\Tailscale\tailscale.exe`。引数は決め打ち（画面から受け取るのはオン / オフだけ）。外から開けるときは、アドレスの QR コード `qr`（行ごとの "0101…"）も返す（`core/qr.py`: バイトモード・誤り訂正 L・型番 1〜5。画面は `qrCanvas` で描く）。
 
@@ -637,6 +637,7 @@ core/encounters.py 偶然の出会いと, 知り合った人の登録
 tools/test_encounters.py  偶然の出会い・知らない人の登録のテスト
 tools/test_contacts.py  連絡しすぎ（挨拶は軽い・会話の往復は数えない・追いメッセージは重め・相手からよく来ると平気・仕事中は早い・以前の記録・目安）のテスト
 tools/test_reply_catchup.py  閉じていた間に読めたはずの返信が、その時刻にさかのぼって届くことのテスト
+tools/test_remote_rest.py  閉じている間の同居相手との連絡・相手からの約束の連絡のテスト
 tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し・連絡しすぎ・夜中・仕事中・一人の時間中）のテスト
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト

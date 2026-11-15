@@ -7,6 +7,11 @@ offline.simulate). それだと, 閉じている間に「メッセージが届�
 - 連絡先を知っていて離れている相手の時間を進める (App.tick)
 - 離れている相手からのメッセージの抽せん (presence.live. 画面を開いているときと同じ多さ)
 - 返事待ちの返信を届ける (App.deliver_due)
+- 相手からの約束の誘い・急な誘い・日を変えたい・取りやめの連絡 (appoint.live の contact_only. 着いた・すっぽかしなど
+  あなたの側の判定は進めない)
+
+同居相手は, あなたが行動パターン・予定の枠で家を空けている時間 (仕事・外出) は「離れている」扱い (bonds.home_together):
+スマホからメッセージを送れ, 相手からも届く.
 
 あなた自身の過ごし方 (仕事・買い物・食事・約束) は進めない: 今までどおり, 家の画面を開いたときにまとめて (行動パターン・予定).
 そのまとめのメッセージ (offline._messages) は, ここで進めた時間 (spans) を除いて数える (二重に届かない).
@@ -84,6 +89,7 @@ class Remote:
                     if e:
                         app.save_state(cid)
                 out = app._deliver_due(now)
+                app.appoint.live(now, contact_only=True)     # 相手からの約束の誘い・日を変えたい・取りやめの連絡 (トークに入り, 通知される)
             finally:
                 self.active = False
             app.presence.save()

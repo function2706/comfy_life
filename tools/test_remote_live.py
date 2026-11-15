@@ -60,7 +60,8 @@ def main():
             finally:
                 random.random = real_random
 
-        her = lambda: [x for x in C.load(cid)["items"] if x["who"] == "her"]      # noqa: E731
+        # (appointment invites also arrive while closed now: tools/test_remote_rest.py. This test looks at the other messages)
+        her = lambda: [x for x in C.load(cid)["items"] if x["who"] == "her" and not x.get("appoint")]      # noqa: E731
 
         # ---- 1. 設定がオフ: 何もしない
         ready()

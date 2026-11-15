@@ -182,6 +182,38 @@ class Offline:
         h = datetime.fromtimestamp(t).hour
         return h >= 23 or h < 7
 
+    # ------------------------------------------------------------------ 閉じている間, いま家を空けている枠か
+    AWAY_DO = ("work", "parttime", "out", "jog", "exam")
+
+    def away_closed(self, t):
+        """家の画面を閉じている間の時刻 t に, 行動パターン・予定の「いまの枠」で家を空けているか (同居相手が家にいても, そばにはいない.
+        スマホ用の入り口からメッセージを送れる: bonds.home_together). 閉じていた間の本当の過ごし方は, 開いたときにまとめて決まる
+        (体力・店の営業時間で変わりうる) ので, ここでは枠の種類だけで見る: 仕事・アルバイト・外出・ジョギング・試験・
+        外での約束・外食 / 買って食べる. 閉じてから間もない (まとめの対象にならない短さ) うちは, 家にいるまま."""
+        app = self.app
+        beat = app.presence.rec().get("beat", 0)
+        if not beat or t <= beat or not self.will_run(beat, t):
+            return False
+        b = None
+        if app.planner.active():
+            for s, e, kind, x in app.planner.slots(t, t + 60):
+                if not (s <= t < e):
+                    continue
+                if kind == "appoint":
+                    return x.get("place") != HOME_ME
+                if kind == "exam":
+                    return True
+                if kind == "plan":
+                    b = x
+                break
+        if b is None:
+            if not self.cfg().get("enabled"):
+                return False
+            b = next((bb for s, e, bb in self.blocks(t, t + 60) if s <= t < e), None)
+        if not b:
+            return False
+        return b.get("do") in self.AWAY_DO or (b.get("do") == "meal" and b.get("how") in ("out", "buy"))
+
     # ------------------------------------------------------------------ 閉じていた間を過ごす
     def will_run(self, t0, t1):
         """t0〜t1 を閉じていた間の過ごし方 (行動パターン・予定) で埋めるか."""

@@ -120,8 +120,14 @@ class Bonds:
     def home_together(self, cid, t=None):
         """同居相手とあなたが, どちらも家にいるか (時刻 t)."""
         app = self.app
+        current = t is None or abs(t - time.time()) < 5      # now (act / context pass the current time explicitly)
         t = t or time.time()
         if app.presence.at(t) in ("out", "work"):
+            return False
+        # 家の画面を閉じている間: スマホ用の入り口・閉じている間の進行 (core/remote.py) から見たいまは, 行動パターン・予定の
+        # 「いまの枠」が仕事・外出なら, あなたは家にいない (同居相手にスマホからメッセージを送れる. A16).
+        # 家の画面から見たとき・時刻を指定した計算 (閉じていた間のまとめ) は, 今までどおり
+        if current and (app.from_phone() or app.remote.active) and app.remote.closed(t) and app.offline.away_closed(t):
             return False
         char = app.chars.get(cid)
         if not char:
