@@ -30,7 +30,6 @@
 | S15 対話モード | A23 本体 | 重 | 要 | S8 のあと | 電話・対面の会話 |
 | S16 「外にいる」の一本化 | A24 | 重 | 要 | S11 のあとがよい | DESIGN 6 章の移行手順 2〜3 |
 | S17 交通網と道 | A11 | 重 | 要 | 優先度低。S11 のあと | 経路・路線 |
-| S22 所持金が苦しいときのセリフ | A26 | 軽 | 不要 | セリフのセッション（54 行） | 性格プリセットの `money.tight_split`・`money.tight_no` |
 | S20 自転車と、一緒の移動 | F13 + F14 + F15 | 中 | 不要 | F13 → F14 の順（F13 で自転車が出先に残るようになるので、取りに行く道が要る） | `core/geo.py`（`_best`・`options`・`used`）・`engine._outing_travel` / `act` / `_outing_arrived`・`solo._place`・`body.eat_with`・`test_geo`・`test_outing_move` / `test_outing_moving` |
 | S21 相手の家へ、移動して着く | F16 | 中 | 不要 | —（S20 と同じ `core/geo.py`・`core/solo.py` を触るので、同時には進めない） | `defaults/actions.json` の `visit_home`・`bonds.apply`（`visit_start`）・`engine.act`・`solo.arrive_then`・`geo.depart` / `tick`・`test_geo`・`test_visit*` |
 
@@ -172,11 +171,6 @@
 | 状態 | 追加 | 重さ | 内容 |
 |---|---|---|---|
 | 未着手 | 〜11/02 | 重 | 行き先の表は 1 つにした（`core/places.py`）。「外にいる」の表し方（あなたの out / work、お出かけの `override.outing`、`with.mode = meet`、スケジュールの `away`）はまだ別々。[DESIGN.md](DESIGN.md) 6 章「いつ・どこで・何を・誰と」の統一モデルの、移行手順 2〜3 にあたる |
-
-### A26 セリフ待ち: 所持金が苦しいとき（A17 段 3 のぶん）— 軽
-| 状態 | 追加 | 重さ | 内容 |
-|---|---|---|---|
-| セリフ待ち | 11/14 | 軽 | キー 2 つ × 27 性格 = **54 行**。`money.tight_split`（一緒にお金を払う場面で、おごってもらう取り決め（お出かけ代「おごってもらう」）なのに、相手の所持金が苦しくて割り勘を申し出る。会って言う。共通は「……あの、今月ちょっときびしくて。今日は割り勘でもいいですか？」）・`money.tight_no`（あなたが払えず、相手も苦しいので、自分が出すのを断る。画面には「名前「セリフ」」の形でエラーの帯に出る。共通は「ごめんなさい、今月はきびしくて……{fp}が出すのは、ちょっと無理です」）。どちらも、金額や残高は口にしない（相手の所持金は見せない決まり）。誇りの高い性格は、苦しいとは言わずに言い換える（「今日は割り勘にしましょう」など）。いまは共通のセリフで動いていて、`tools/check_persona.py` は全性格でこの 2 キーを「足りない」と出す。定義は `core/moneytalk.py` の `LINES`、使う所は `life.plan_payment` と `engine.act`（`_money_tight`） |
 
 ### 保留
 | 状態 | 追加 | 重さ | 内容 |
