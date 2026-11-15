@@ -1689,11 +1689,9 @@ class App:
                     st.setdefault("gifts", []).append(now)
                     st["gifts"] = [x for x in st["gifts"] if now - x < 30 * 86400]
             deltas = self.apply_effects(st, self.trait_effects(char, eff))
-            if a.get("meal_out") and not r.get("override") and not narrate:
-                pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else (a.get("override") or {}).get("place")
-                meal_note = self.body.eat_with(pl, char, now)          # あなたも食べる (払いは上の費用で済んでいる)
-            else:
-                meal_note = None
+            meal_note = meal_pl = None
+            if a.get("meal_out") and not r.get("override") and not narrate:      # あなたも食べる (下で. 一緒に向かうところなら, 着いてから)
+                meal_pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else (a.get("override") or {}).get("place")
             dress_note = travel_note = None
             if a.get("override") and not r.get("override"):
                 ov = dict(a["override"])
@@ -1717,6 +1715,8 @@ class App:
             # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応・絵・費用は, 着いたときに (tick → _outing_arrived)
             trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
             departing = bool(trip and trip["dir"] == "go")
+            if meal_pl and not departing:
+                meal_note = self.body.eat_with(meal_pl, char, now)     # 払いは費用 (plan) で済んでいる
             if a.get("end_override") and not r.get("override"):
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
@@ -1805,7 +1805,8 @@ class App:
             # 出たときは「向かった」と移動の様子だけ. 行き先での反応・絵・費用は着いたときに
             if departing:
                 st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text,
-                                            "plan": {k: plan[k] for k in ("p", "a") if k in plan} if plan else None}
+                                            "plan": {k: plan[k] for k in ("p", "a") if k in plan} if plan else None,
+                                            "meal": meal_pl}
                 text = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
             gen_ok = a.get("generate", True) and not departing
             selfie = False
@@ -3455,7 +3456,10 @@ class App:
         cid = char["id"]
         scene = self.scene_at(char, st, dt)
         pos, neg, parts = self.build_prompt(char, st, dt, a, r)
-        e = self._new_entry(cid, t, a, x["text"], {}, scene, dt, pos, neg, parts)
+        text = x["text"]
+        if x.get("meal"):                                    # 食事は着いてから (出たときには, まだ食べていない)
+            text += "\n" + self.body.eat_with(x["meal"], char, t)
+        e = self._new_entry(cid, t, a, text, {}, scene, dt, pos, neg, parts)
         e["arrived"] = True
         pl = x.get("plan")
         if pl and (pl.get("p") or pl.get("a")):              # その場所の費用 (出たときに決めた分担で, 着いてから払う)

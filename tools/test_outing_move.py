@@ -166,6 +166,33 @@ def main():
         assert st["params"]["mood"] < m0 and ("あきれた" in r["entry"]["text"] or r.get("refused")), (m0, st["params"]["mood"], r["entry"]["text"])
         print("何度も変えると: OK | はじめて %d/40・4 回変えたあと %d/40 |" % (fresh, tired_of), " ".join(lines))
 
+        # ---- 1e. ご飯を食べに行く: 向かっている間は, まだ食べていない (食事・お腹・「食べた」の一言は, 着いてから)
+        start()
+        r = None
+        for _ in range(20):
+            st["move_log"] = []
+            r = app.outing_move("family", None, "eat_out")
+            if not r.get("refused"):
+                break
+            st["cooldowns"] = {}
+        assert not r.get("refused"), r
+        trip = app.outing_trip(st, time.time())
+        b = app.body.rec()
+        n_meals, sat0 = len(b["meals"]), b["satiety"]
+        assert trip and trip["to"] == "family" and st["override"]["arrive"]["meal"] == "family", (trip, st["override"].get("arrive"))
+        assert "食べた" not in r["entry"]["text"], r["entry"]["text"]
+        app.tick(cid, time.time())
+        assert len(b["meals"]) == n_meals and "食べた" not in app.log(cid)[-1]["text"], "向かっている途中で食べている"
+        app.tick(cid, trip["arr"] + 1)
+        e1 = app.log(cid)[-1]
+        b = app.body.rec()
+        assert e1.get("arrived") and "を食べた）" in e1["text"], e1["text"]
+        assert len(b["meals"]) == n_meals + 1 and b["meals"][-1]["where"] == "family" and abs(b["meals"][-1]["t"] - trip["arr"]) < 1, b["meals"][-1]
+        assert b["satiety"] >= sat0
+        app.tick(cid, trip["arr"] + 60)
+        assert len(app.body.rec()["meals"]) == n_meals + 1, "着いたあとで二度食べている"
+        print("ご飯を食べに行く: OK |", r["entry"]["text"].split(chr(10))[0], "→", e1["text"].split(chr(10))[-1])
+
         # ---- 2. 疲れていれば断る
         start()
         app.set_params({"energy": 10}, cid)
