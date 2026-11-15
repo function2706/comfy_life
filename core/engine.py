@@ -1647,6 +1647,12 @@ class App:
             if narrate:     # 外で会っていた相手と別れて行く: 別れるところまでは, その人との記録
                 what = a.get("apart_text") or bonds_mod.APART_TEXT.get(aid) or a.get("name", aid)
                 r = {"text": "（%s%s）" % ("{name}と別れて、" if parting else "", what)}
+            # 一緒に移動して向かうところ: そこでの効き目 (相手の値・スキル・払いの受け止め・思い出話) は, 着いたときに (_outing_arrived)
+            defer = False
+            if ovp.get("outing") and not r.get("override") and not appt and not narrate and not geo_mod.INSTANT:
+                dpl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ovp.get("place")
+                dpl = dpl if dpl in places_mod.PLACES else places_mod.from_location(ovp.get("location"))
+                defer = self.geo.where(now) != dpl
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             sk = a.get("skill")
             sk_mult = self.life.skill_mult(sk) if sk else 1.0
@@ -1683,12 +1689,13 @@ class App:
                 if opts.get("auto_weak"):          # 自動で過ごした (画面を閉じていた間の約束など): 良い影響が出にくい
                     eff = {k: (float(v) * 0.4 if float(v) * (-1 if (self.param_def(k) or {}).get("invert") else 1) > 0 else float(v))
                            for k, v in eff.items()}
-                eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
+                if not defer:
+                    eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
                 self.bonds.touch(st, now)
                 if a.get("gift"):
                     st.setdefault("gifts", []).append(now)
                     st["gifts"] = [x for x in st["gifts"] if now - x < 30 * 86400]
-            deltas = self.apply_effects(st, self.trait_effects(char, eff))
+            deltas = {} if defer else self.apply_effects(st, self.trait_effects(char, eff))
             meal_note = meal_pl = None
             if a.get("meal_out") and not r.get("override") and not narrate:      # あなたも食べる (下で. 一緒に向かうところなら, 着いてから)
                 meal_pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else (a.get("override") or {}).get("place")
@@ -1715,6 +1722,11 @@ class App:
             # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応・絵・費用は, 着いたときに (tick → _outing_arrived)
             trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
             departing = bool(trip and trip["dir"] == "go")
+            if defer and not departing:                 # 移動にならなかった (経路が無い など): その場で
+                if social and not narrate:
+                    eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
+                deltas = self.apply_effects(st, self.trait_effects(char, eff))
+                defer = False
             if meal_pl and not departing:
                 meal_note = self.body.eat_with(meal_pl, char, now)     # 払いは費用 (plan) で済んでいる
             if a.get("end_override") and not r.get("override"):
@@ -1751,18 +1763,19 @@ class App:
             money = self._act_money(char, st, a, r, None if departing else plan, req, extra)
             for k, v in (opts.get("money") or {}).items():
                 money[k] = money.get(k, 0) + v
-            self._act_reasons(char, st, a, r, deltas, now)
+            if not defer:
+                self._act_reasons(char, st, a, r, deltas, now)
             if (not apart or called) and a.get("category") not in ("system", "あなたの予定") and not narrate:
                 if not apart:
                     self.manners.favor(st, "met", now)          # 会ってくれた (お礼の心当たり)
                 self.manners.saw_down(st, now)                  # 具合の悪さ・落ち込みに気づく (「大丈夫？」の心当たり)
-            if plan and plan.get("payer") == "her":
+            if plan and plan.get("payer") == "her" and not defer:
                 self.manners.favor(st, "treat", now)
-            skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk else {}
+            skill_up = {sk: self.life.train(sk, 1.2 * scale)} if sk and not defer else {}
             if aid in CARE_ACTIONS and not r.get("override"):         # 様子を見る・気持ちを聞く: 気配り
                 skill_up["care"] = self.life.train("care", 0.8 * scale)
             nursed = self.care.nursed(char, st, now) if aid == "nurse" else None     # 相手の家で看病した: 治りが早まる (一度)
-            if not r.get("override") and ((plan and plan.get("payer") == "me") or gift_item or aid in ("gift", "expensive_gift")):
+            if not r.get("override") and not defer and ((plan and plan.get("payer") == "me") or gift_item or aid in ("gift", "expensive_gift")):
                 nursed = self.askhelp.iou_paid(char, st, now) or nursed      # おごった・贈った: 手伝ってもらった貸しが返った
             if aid == "clean" and not r.get("override"):               # 一緒に掃除: 家事
                 skill_up["house"] = self.life.train("house", 0.8 * scale)
@@ -1805,8 +1818,10 @@ class App:
             # 出たときは「向かった」と移動の様子だけ. 行き先での反応・絵・費用は着いたときに
             if departing:
                 st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text,
-                                            "plan": {k: plan[k] for k in ("p", "a") if k in plan} if plan else None,
+                                            "plan": {k: plan[k] for k in ("p", "a", "payer", "note") if k in plan} if plan else None,
                                             "meal": meal_pl}
+                if defer:
+                    st["override"]["arrive"].update(eff=eff, social=bool(social and not narrate), sk=[sk, 1.2 * scale] if sk else None)
                 text = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
             gen_ok = a.get("generate", True) and not departing
             selfie = False
@@ -1876,16 +1891,16 @@ class App:
                 # 会っていた相手と別れて離れた: 離席の画面 (移動中など) が会話を覆うので, 最後のやりとりをそこに出す
                 self.presence.rec()["last_words"] = {"cid": cid, "name": char.get("name", ""), "text": text, "t": now}
                 self.presence.save()
-        if entry and (a.get("id") == "movie" or (a.get("override") or {}).get("outing")) and not apart:
+        if entry and (a.get("id") == "movie" or (a.get("override") or {}).get("outing")) and not apart and not defer:
             try:
                 self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる
             except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
                 pass
-        if entry and not apart and plan and not (r or {}).get("override"):        # どっちが出したか (性格しだいで, 言わないまま冷めることも)
+        if entry and not apart and plan and not (r or {}).get("override") and not defer:        # どっちが出したか (性格しだいで, 言わないまま冷めることも)
             if plan.get("note") == "tight_split":              # 苦しくて, おごる取り決めなのに割り勘を申し出た (core/purse.py)
                 self.note_entry(char, st, now, "_money_tight", "お金のこと", "💴", self.moneytalk.line(char, "tight_split"), {})
             self.moneytalk.after_pay(char, st, plan.get("payer"), now)
-        if entry and not apart and st.get("celeb") and not (r or {}).get("override"):      # 誕生日・記念日にしたこと
+        if entry and not apart and st.get("celeb") and not (r or {}).get("override") and not defer:      # 誕生日・記念日にしたこと
             self.anniv.mark(char, st, "met", now)
             if a.get("gift"):
                 self.anniv.mark(char, st, "gift", now)
@@ -3457,17 +3472,50 @@ class App:
         scene = self.scene_at(char, st, dt)
         pos, neg, parts = self.build_prompt(char, st, dt, a, r)
         text = x["text"]
+        pl = x.get("plan")
+        late = "eff" in x          # そこでの効き目も, 着いてから (無ければ, 出たときに済んでいる: 以前の版で出た分)
+        deltas, skill = {}, None
+        if late:
+            eff, real_note = x["eff"], None
+            if x.get("social"):
+                eff, real_note = self.bonds.realize(char, st, eff, x["aid"], t)
+            deltas = self.apply_effects(st, self.trait_effects(char, eff), t)
+            self._act_reasons(char, st, a, r or {}, deltas, t)
+            if x.get("sk"):
+                skill = {x["sk"][0]: self.life.train(x["sk"][0], x["sk"][1])}
+            if (pl or {}).get("payer") == "her":
+                self.manners.favor(st, "treat", t)           # おごってくれた (お礼の心当たり)
+            elif (pl or {}).get("payer") == "me":
+                paid = self.askhelp.iou_paid(char, st, t)    # おごった: 手伝ってもらった貸しが返った
+                if paid:
+                    text += "\n" + paid
+            if real_note:
+                text += "\n" + self.format_text(real_note, char, scene, dt)
         if x.get("meal"):                                    # 食事は着いてから (出たときには, まだ食べていない)
             text += "\n" + self.body.eat_with(x["meal"], char, t)
-        e = self._new_entry(cid, t, a, text, {}, scene, dt, pos, neg, parts)
+        e = self._new_entry(cid, t, a, text, deltas, scene, dt, pos, neg, parts)
         e["arrived"] = True
-        pl = x.get("plan")
+        if skill and any(skill.values()):
+            e["skill"] = skill
         if pl and (pl.get("p") or pl.get("a")):              # その場所の費用 (出たときに決めた分担で, 着いてから払う)
             cat = a.get("ledger") or "social"
             e["money"] = self.life.move(st, pl.get("p", 0), pl.get("a", 0), cat=cat, note="%s（%s）" % (a.get("name", ""), char.get("name", "")))
         if self.settings.get("auto_generate") and a.get("generate", True) and self.bonds.together(cid):
             self._present_image(cid, e)
         self.save_log(cid)
+        if late:
+            try:
+                self.topics.from_act(char, a, r, {"place": ov.get("place")}, t)     # 一緒に出かけた: 思い出話になる
+            except Exception:  # noqa: BLE001 - 話題が残せなくても, 着いたことは済んでいる
+                pass
+            if pl:                                           # どっちが出したか (性格しだいで, 言わないまま冷めることも)
+                if pl.get("note") == "tight_split":
+                    self.note_entry(char, st, t, "_money_tight", "お金のこと", "💴", self.moneytalk.line(char, "tight_split"), {})
+                self.moneytalk.after_pay(char, st, pl.get("payer"), t)
+            if st.get("celeb"):                              # 誕生日・記念日にしたこと
+                self.anniv.mark(char, st, "met", t)
+                if a.get("meal_out") or a.get("id") in ("date", "eat_out"):
+                    self.anniv.mark(char, st, "meal", t)
         return e
 
     def outing_trip(self, st, now=None):

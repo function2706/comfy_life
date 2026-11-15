@@ -93,7 +93,7 @@ def main():
         assert len(app.log(cid)) == n0                         # まだ着いていない
         app.tick(cid, trip["arr"] + 1)                          # 着いた: カフェでの反応と絵
         e1 = app.log(cid)[-1]
-        assert e1.get("arrived") and e1["action"] == "cafe" and e1["text"] == said, e1
+        assert e1.get("arrived") and e1["action"] == "cafe" and e1["text"].startswith(said), e1
         assert "向かった" not in e1["text"] and not st["override"].get("arrive") and abs(e1["t"] - trip["arr"]) < 1, e1
         assert not e0.get("money") and (e1.get("money") or {}) and any(v < 0 for v in e1["money"].values()), (e0.get("money"), e1.get("money"))   # カフェの費用は着いてから
         cur = app.outdoor.current(trip["arr"] + 1)
@@ -192,6 +192,57 @@ def main():
         app.tick(cid, trip["arr"] + 60)
         assert len(app.body.rec()["meals"]) == n_meals + 1, "着いたあとで二度食べている"
         print("ご飯を食べに行く: OK |", r["entry"]["text"].split(chr(10))[0], "→", e1["text"].split(chr(10))[-1])
+
+        # ---- 1f. そこでの効き目 (相手の値・思い出話・払いの記録) も, 着いてから. 向かっている間・途中で行き先を変えた分は入らない
+        def topics_n():
+            return max([x["t"] for x in app.topics.all() if "カフェ" in x.get("text", "")] or [0])     # 思い出話の新しさ (同じ先は一つのまま)
+        hit = 0
+        for seed in range(6):
+            random.seed(100 + seed)
+            for x in app.topics.all():                     # 前の節で着いた分の思い出話を, 古いことに
+                x["t"] = min(x["t"], time.time() - 1000)
+            trip = to_cafe()
+            p0 = dict(st["params"])
+            tn, ph = topics_n(), list(st.get("pay_hist") or [])
+            ar = st["override"]["arrive"]
+            assert "eff" in ar and ar["eff"], ar
+            e0 = app.log(cid)[-1]
+            assert "向かった" in e0["text"] and not e0.get("deltas") and not e0.get("skill"), e0
+            app.tick(cid, time.time())
+            assert st["params"] == p0, "向かっている間に相手の値が動いた"
+            assert topics_n() == tn and list(st.get("pay_hist") or []) == ph, "向かっている間に思い出話・払いの記録が入った"
+            if seed % 2:                                    # 途中で行き先を変える: カフェの効き目は入らない
+                r = None
+                for _ in range(20):
+                    st["move_log"] = []
+                    r = app.outing_move("park", None, "walk")
+                    if not r.get("refused"):
+                        break
+                assert not r.get("refused")
+                assert st["override"]["arrive"]["aid"] == "walk" and topics_n() == tn and list(st.get("pay_hist") or []) == ph
+                continue
+            app.tick(cid, trip["arr"] + 1)
+            e1 = app.log(cid)[-1]
+            assert e1.get("arrived") and e1["action"] == "cafe", e1
+            moved = {k: round(st["params"][k] - p0[k], 1) for k in p0 if abs(st["params"][k] - p0[k]) >= 0.05}
+            assert moved and (e1.get("deltas") or {}), (moved, e1.get("deltas"))
+            assert topics_n() > tn and abs(topics_n() - trip["arr"]) < 2, (topics_n(), tn, trip["arr"])
+            assert (ph + [st["pay_hist"][-1]])[-6:] == st["pay_hist"], (ph, st.get("pay_hist"))
+            p1 = dict(st["params"])
+            app.tick(cid, trip["arr"] + 30)
+            assert e1 is app.log(cid)[-1] or app.log(cid)[-1].get("t") != e1["t"]
+            assert all(abs(st["params"][k] - p1[k]) < 3 for k in ("affection", "trust")), "着いたあとで二度効いている"
+            hit += 1
+        assert hit == 3
+        random.seed(6)
+        # 以前の版で出た分 (効き目は出たときに済んでいる): 着いても二度は効かない
+        trip = to_cafe()
+        st["override"]["arrive"].pop("eff")
+        p0 = dict(st["params"])
+        app.tick(cid, trip["arr"] + 1)
+        e1 = app.log(cid)[-1]
+        assert e1.get("arrived") and not e1.get("deltas") and all(abs(st["params"][k] - p0[k]) < 0.05 for k in ("affection", "trust")), e1
+        print("そこでの効き目は着いてから: OK |", moved)
 
         # ---- 2. 疲れていれば断る
         start()
