@@ -71,6 +71,33 @@ f.onload = () => setTimeout(async () => {
     await keepAll(() => { closeModal(); w.showTab('solo'); S.readOpen = 'movie'; w.renderSoloTab(); }, '#tab-solo', 'solo');
     // 4. お金・ログ・関係性・持ち物のタブ
     for (const tb of ['money', 'log', 'people', 'items']) await keepAll(() => { closeModal(); w.showTab(tb); }, '#tab-' + tb, tb);
+    // 4b. スクロール位置 (F9): 右の欄の各タブ・地図で, 欄の中をスクロールしたまま描き直しても, 先頭に戻らない (app.js の scrollMarks).
+    //     欄を低くして必ずスクロールできるようにし, その中でスクロールできる入れ子の欄 (買うものリストなど) も, あれば全部確かめる
+    const low = d.createElement('style');
+    // (.plan は描き直しのたびに作り直される欄: 作り直される入れ子の欄でも位置が残ること. 外側の欄は作り直されないので元から残る)
+    low.textContent = '.tab-body{max-height:140px!important;overflow:auto!important}.plan{max-height:60px!important;overflow:auto!important}';
+    d.head.append(low);
+    const scrollers = (root) => [root, ...root.querySelectorAll('*')].filter((el) => el.offsetParent && el.scrollHeight > el.clientHeight + 30
+      && ['auto', 'scroll'].includes(w.getComputedStyle(el).overflowY));
+    const keepScrollAll = async (setup, rootSel, name) => {
+      await setup();
+      const n = scrollers(d.querySelector(rootSel)).length;
+      if (!n) out.push(name + ':NONE');
+      for (let i = 0; i < n; i++) {
+        await setup();
+        const el = scrollers(d.querySelector(rootSel))[i];
+        if (!el) continue;
+        el.scrollTop = 24;
+        const want = el.scrollTop;
+        await w.refresh(); await w.refresh();
+        const el2 = scrollers(d.querySelector(rootSel))[i];
+        out.push(name + i + (el2 && want > 0 && Math.abs(el2.scrollTop - want) <= 1 ? ':OK' : ':NG(' + (el2 ? el2.scrollTop : 'gone') + '/' + want + ')'));
+      }
+    };
+    for (const tb of ['solo', 'money', 'log', 'people', 'items']) await keepScrollAll(() => { closeModal(); w.showTab(tb); }, '#tab-' + tb, 'scroll-' + tb);
+    await keepScrollAll(() => { closeModal(); w.showTab('solo'); S.planOpen = true; w.renderSoloTab(); }, '#tab-solo', 'scroll-plan');
+    await keepScrollAll(() => { closeModal(); w.openMap(); S.mapSel = 'park'; w.renderMap(); }, 'dialog[open]', 'scroll-map');
+    closeModal(); low.remove();
     // 5. トーク: 約束の欄 (日時・行き先)
     const cid = ((S.view.people || [])[0] || {}).id;
     if (cid) {
@@ -159,7 +186,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items), res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items, res
     print("ALL OK")
 
 

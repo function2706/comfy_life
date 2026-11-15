@@ -30,6 +30,7 @@ def old_state(app, cid, now, pending=None, extra_reasons=()):
     app.chat.save(cid, {"seen_t": 0, "items": []})
     for k in NEW_KEYS:
         st.pop(k, None)
+    st.pop("gain_day", None)                 # 前の節の「同じことの繰り返し」(bonds.realize) を持ち越さない
     st["reasons"] = [
         # 以前の連絡しすぎ (同じ理由が続いてまとめられ, 効き目が足し合わさっている)
         {"kind": "player", "mood": "bad", "tell": "ユウさんからの連絡が多くて、少し疲れた", "t": now - 3600, "told": True,
@@ -123,9 +124,11 @@ def main():
         # ---- 6. 謝りすぎ / 謝ったばかりなのに (以前の記録が無い状態から)
         app, st = old_state(app, cid, now)
         keys = []
+        random.gauss, g = (lambda m, s: 0.0), random.gauss      # 1 通目が許されたあとの話 (許されなければ「続けて」に数えない)
         for i in range(3):
             k, _, _ = app.chat.reply(app.char(cid), st, "apology", now + i * 600, {"_meta": {}})
             keys.append(k)
+        random.gauss = g
         assert keys[1] == "apology_enough" and keys[2] == "apology_irritated", keys
         app, st = old_state(app, cid, now)
         random.gauss, g = (lambda m, s: 0.0), random.gauss
@@ -139,7 +142,9 @@ def main():
         app, st = old_state(app, cid, now)
         app.bonds.set_stage(cid, "live")
         st["cooldowns"], st["override"] = {}, None
+        random.gauss, g = (lambda m, s: 0.0), random.gauss      # 許された場合 (「続けて謝った」に数えるのは許したときだけ)
         e = app.act("apologize", cid)["entry"]
+        random.gauss = g
         assert e["text"] and st["apologies"]
         app, st = old_state(app, cid, now)
         for kind in ("thanks", "greet_morning", "greet_night", "stamp", "may_call", "otsukare", "you_ok", "what_doing", "nudge"):

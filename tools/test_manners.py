@@ -95,8 +95,12 @@ def main():
         print("許し方の反映・今さら・心当たりなし: OK")
 
         # ---- 2. 数時間のうちに続けて謝ると「もういいって」, さらに続くと苛立たれる (間隔で見る. 連絡の回数には数えない)
+        # (1 通目が許されたあとの話なので, 許し方の揺らぎは止める: 許されなければ「続けて」に数えないのが正しい動き)
         fault(-2)
+        st["params"].update(mood=50, affection=50, trust=50)
+        random.gauss, g = (lambda m, s: 0.0), random.gauss
         keys = [reply("apology", t=now + i * 600)[0] for i in range(3)]
+        random.gauss = g
         assert keys[1] == "apology_enough" and keys[2] == "apology_irritated", keys
         assert reply("apology", t=now + 6 * 3600)[0] != "apology_enough", "時間をあければ, 続けてではない"
         print("謝罪の連打:", keys)
@@ -141,12 +145,15 @@ def main():
         app.bonds.set_stage(cid, "live")
         app.set_params({"mood": 50, "affection": 50, "trust": 50}, cid)
         seen = {}
-        for i in range(40):
+        g = random.gauss
+        for i in range(40):          # 許し方の揺らぎを 4 通りに振って, すぐ・半分・態度で・受け付けない を必ず通す (乱数の種によらない)
             fault(-12)
             st["cooldowns"], st["override"] = {}, None
             st["params"].update(mood=50, affection=50, trust=50)
+            random.gauss = lambda m, s, _v=(0.4, 0.1, -0.1, -0.3)[i % 4]: _v
             e = app.act("apologize", cid)["entry"]
             seen[e["text"][:8]] = seen.get(e["text"][:8], 0) + 1
+        random.gauss = g
         assert len(seen) >= 3, seen
         st["apologies"] = [time.time() - 60]
         st["cooldowns"] = {}

@@ -347,7 +347,38 @@ async function refresh() {
 // 裏で (取り寄せが終わったときなど) 描き直す: 入力の途中なら, 欄を離れるまで待つ (tools/test_focus_keep.py)
 function softRender(fn) {
   if (editingForm()) { S.renderPending = true; return; }
+  const marks = scrollMarks();
   fn();
+  scrollBack(marks);
+}
+// 描き直しでスクロール位置が先頭に戻らないように (F9. tools/test_focus_keep.py): 描き直す前に, スクロールしている欄の位置を
+// 場所 (id のある親からの道筋) で覚え, 描き直したあと同じ場所の欄へ戻す. 欄ごとに書かなくてよいよう, 画面全体でまとめて扱う.
+// トークは自前で扱う (新着なら末尾へ: drawChat). セリフの欄は, 中身が変われば先頭から読む
+function scrollMarks() {
+  const out = [{ win: true, top: window.scrollY, left: window.scrollX }];      // スマホ幅では, ページ全体がスクロールする
+  const skip = [S.chatDlg, $('#dialogue'), $('#toasts')].filter(Boolean);
+  for (const el of document.body.querySelectorAll('*')) {
+    if (!el.scrollTop && !el.scrollLeft) continue;
+    if (skip.some((x) => x.contains(el))) continue;
+    const path = [];
+    let n = el;
+    while (n && n !== document.body && !n.id) { path.unshift([[...n.parentNode.children].indexOf(n), n.tagName, n.getAttribute('class') || '']); n = n.parentNode; }
+    out.push({ id: n && n !== document.body ? n.id : '', path, top: el.scrollTop, left: el.scrollLeft });
+  }
+  return out;
+}
+function scrollBack(marks) {
+  for (const m of marks) {
+    if (m.win) { if (window.scrollY !== m.top || window.scrollX !== m.left) window.scrollTo(m.left, m.top); continue; }
+    let n = m.id ? document.getElementById(m.id) : document.body;
+    for (const [i, tag, cls] of m.path) {
+      n = n && n.children[i];
+      if (!n || n.tagName !== tag || (n.getAttribute('class') || '') !== cls) { n = null; break; }
+    }
+    if (!n) continue;
+    if (n.scrollTop !== m.top) n.scrollTop = m.top;
+    if (n.scrollLeft !== m.left) n.scrollLeft = m.left;
+  }
 }
 // 入力の途中か (描き直しを待つ)
 function editingForm() {
@@ -362,6 +393,11 @@ document.addEventListener('focusout', () => {
   setTimeout(() => { if (S.renderPending && !editingForm()) { S.renderPending = false; renderState(S.view); } }, 400);
 });
 function renderState(v) {
+  const marks = scrollMarks();
+  renderStateNow(v);
+  scrollBack(marks);
+}
+function renderStateNow(v) {
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
   const who = (v.company || []).map((c) => c.id).join(',');
   if (S.lastCompany !== undefined && S.lastCompany !== who) { S.current = null; clearStage(); }
@@ -1718,6 +1754,7 @@ async function drawChat(auto) {
   const pickEl = dlg.querySelector('.chat-pick-list');
   const pickTop = pickEl ? pickEl.scrollTop : 0;
   const pickLeft = pickEl ? pickEl.scrollLeft : 0;
+  const sendTop = (dlg.querySelector('.chat-send') || {}).scrollTop || 0;      // 送る欄 (ボタンが多いと欄の中でスクロールする) も
   const prevTop = keepScroll ? keepScroll.scrollTop : 0;      // 描き直す前に (外した要素の位置は 0 になる)
   const atBottom = !keepScroll || keepScroll.scrollTop + keepScroll.clientHeight >= keepScroll.scrollHeight - 30;
   const listEl = h('div', { class: 'chat-list' },
@@ -1814,6 +1851,8 @@ async function drawChat(auto) {
   const pickKey = [S.chatCid, S.chatTab, S.chatPick, S.callTalk].join('/');     // 同じ選択欄を描き直したときだけ (別の欄を開いたら先頭から)
   const np = dlg.querySelector('.chat-pick-list');
   if (np && S.pickDrawn === pickKey) { np.scrollTop = pickTop; np.scrollLeft = pickLeft; }
+  const ns = dlg.querySelector('.chat-send');
+  if (ns && S.pickDrawn === pickKey && sendTop) ns.scrollTop = sendTop;
   S.pickDrawn = np ? pickKey : null;
   const nb = dlg.querySelector('.chat-body');
   if (nb && (atBottom || S.chatJump || fresh)) nb.scrollTop = nb.scrollHeight;
