@@ -2939,6 +2939,21 @@
   ],
   "money.tight_no": [
    "悪いけど、{fp}も今月は出せない"
+  ],
+  "_tryon.default": [
+   "いま？ ……わかった。{item}、どう"
+  ],
+  "_tryon.tryon_glad": [
+   "……着ていいの。……{item}、悪くない。ありがと"
+  ],
+  "_tryon.tryon_later": [
+   "帰ってから着る。ここだと落ち着かない"
+  ],
+  "_tryon.tryon_season": [
+   "いまの季節には合わない。時期が来たら着る"
+  ],
+  "_tryon.tryon_mood": [
+   "……いまは、そういう気分じゃない"
   ]
  }
 }
