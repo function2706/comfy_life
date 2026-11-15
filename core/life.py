@@ -386,8 +386,7 @@ class Life:
             pol = "me" if ps["money"] >= cost else "her"
         if tight and ps["money"] < cost:                          # あなたが払えず, 相手も苦しい: 出してもらえない
             raise ValueError("%s「%s」" % (char.get("name", ""), self.app.moneytalk.line(char, "tight_no")))
-        if pol == "her" and hm["a"] >= cost:
-            self.app.attach.give(char, st, "her", 2, "払ってくれた")
+        if pol == "her" and hm["a"] >= cost:              # 「払ってくれた」の帳簿 (attach.give) は, 実際に払ったときに呼び出し側で
             return {"payer": "her", "p": 0, "a": -cost}
         if ps["money"] >= cost:
             return {"payer": "me", "p": -cost, "a": 0}

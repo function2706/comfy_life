@@ -244,6 +244,51 @@ def main():
         assert e1.get("arrived") and not e1.get("deltas") and all(abs(st["params"][k] - p0[k]) < 0.05 for k in ("affection", "trust")), e1
         print("そこでの効き目は着いてから: OK |", moved)
 
+        # ---- 1g. おごってくれた心当たり・尽くした帳簿・記念日の食事の印も, 着いてから (行き先を変えたら入らない)
+        from datetime import datetime
+        char = app.char(cid)
+        pol0 = char.get("pay_policy")
+        char["pay_policy"] = "her"
+
+        def treat_n():
+            return sum(1 for f in st.get("favors") or [] if f["what"] == "treat")
+
+        def led():
+            return (app.attach.rec(char, st).get("ledger") or {}).get("her", 0.0)
+        for change in (False, True):
+            st["favors"] = []
+            trip = None
+            for _ in range(30):
+                start()
+                app.tick(cid, time.time())                  # 前準備の水族館に着いた分を, 先に済ませる
+                L.her_money(st)["a"] = 500000
+                st["favors"] = []
+                st["celeb"] = {"date": datetime.fromtimestamp(time.time()).date().isoformat(), "done": {}}
+                l0 = led()
+                st["move_log"] = []
+                r = app.outing_move("family", None, "eat_out")
+                if not r.get("refused"):
+                    trip = app.outing_trip(st, time.time())
+                    break
+            assert trip and st["override"]["arrive"]["plan"]["payer"] == "her", st["override"].get("arrive")
+            app.tick(cid, time.time())
+            assert treat_n() == 0 and led() == l0 and "meal" not in st["celeb"]["done"], (treat_n(), led(), l0, st["celeb"])
+            if change:
+                for _ in range(30):
+                    st["move_log"] = []
+                    r = app.outing_move("park", None, "walk")
+                    if not r.get("refused"):
+                        break
+                assert not r.get("refused") and treat_n() == 0 and led() == l0 and "meal" not in st["celeb"]["done"], (treat_n(), led(), l0)
+                continue
+            app.tick(cid, trip["arr"] + 1)
+            assert app.log(cid)[-1].get("arrived") and treat_n() == 1 and led() == l0 + 2, (treat_n(), led(), l0)
+            done = st["celeb"]["done"]
+            assert abs(done.get("meal", 0) - trip["arr"]) < 2 and "met" in done, done      # 「会った」は, 一緒にいる時点で付いていてよい
+        char["pay_policy"] = pol0
+        st.pop("celeb", None)
+        print("おごり・帳簿・記念日の印も着いてから: OK")
+
         # ---- 2. 疲れていれば断る
         start()
         app.set_params({"energy": 10}, cid)

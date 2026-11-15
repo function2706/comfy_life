@@ -1653,6 +1653,8 @@ class App:
                 dpl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ovp.get("place")
                 dpl = dpl if dpl in places_mod.PLACES else places_mod.from_location(ovp.get("location"))
                 defer = self.geo.where(now) != dpl
+            if plan and plan.get("payer") == "her" and not r.get("override") and not defer:
+                self.attach.give(char, st, "her", 2, "払ってくれた")      # 断られた・まだ着いていないときは, 払っていない
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
             sk = a.get("skill")
             sk_mult = self.life.skill_mult(sk) if sk else 1.0
@@ -1726,6 +1728,8 @@ class App:
                 if social and not narrate:
                     eff, real_note = self.bonds.realize(char, st, eff, aid, now, gift=a.get("gift"))
                 deltas = self.apply_effects(st, self.trait_effects(char, eff))
+                if plan and plan.get("payer") == "her":
+                    self.attach.give(char, st, "her", 2, "払ってくれた")
                 defer = False
             if meal_pl and not departing:
                 meal_note = self.body.eat_with(meal_pl, char, now)     # 払いは費用 (plan) で済んでいる
@@ -3485,6 +3489,7 @@ class App:
                 skill = {x["sk"][0]: self.life.train(x["sk"][0], x["sk"][1])}
             if (pl or {}).get("payer") == "her":
                 self.manners.favor(st, "treat", t)           # おごってくれた (お礼の心当たり)
+                self.attach.give(char, st, "her", 2, "払ってくれた", t)
             elif (pl or {}).get("payer") == "me":
                 paid = self.askhelp.iou_paid(char, st, t)    # おごった: 手伝ってもらった貸しが返った
                 if paid:
