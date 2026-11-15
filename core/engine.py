@@ -2156,10 +2156,11 @@ class App:
                 rq = random.random() < react_mod.quote_chance(self, char, st)
             first = pend.get("apology_first")
             if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
-                self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"], "_rq": rq}, now - 1)
+                self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"], "_rq": rq, "_no_close": True}, now - 1)
             af = pend.get("appoint_first")
             if af:              # 先に送った約束の話 (誘い・変更・取りやめ) に返してから, 新しい方に返す
-                self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"], "_rq": rq}, now - 0.5)
+                self._chat_reply(char, st, {"kind": af["kind"], "appoint": af.get("appoint"), "t": af["t"], "_rq": rq, "_no_close": True},
+                                 now - 0.5)
             q, skip_last = self._reply_queue(char, st, pend, now)
             if skip_last and q:                 # 最後の軽いメッセージには触れず, その前の中身のあるメッセージで締める
                 last = q.pop()
@@ -2175,6 +2176,17 @@ class App:
                 e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"),
                                              re_t=pend.get("kind_t") or pend.get("t"), quote=rq)
                 return {"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600}
+            # あいさつを, ずっとあとで読んだ (寝ていた・画面を閉じていた): 翌日の昼に「おやすみなさい。また明日」とは返さない.
+            # 朝に読んだ「おやすみ」には「おはよう」で返し, それ以外は既読だけ (前の分への返事は, 上でもう届いている)
+            stale = self.manners.greet_stale(char, kind, pend.get("meta"), pend.get("kind_t") or pend.get("t"), now)
+            if stale:
+                self.trace.add("reply", "あいさつを読むのが遅れた: " + ("「おはよう」で返す" if stale == "morning" else "返さない (既読だけ)"),
+                               cid, now, kind=kind, sent=pend.get("kind_t") or pend.get("t"))
+                if stale == "skip":
+                    self.save_state(cid)
+                    return None
+                pend = dict(pend, meta={})
+                kind = "greet_morning"
             ctx = self.context(char, st, dt)
             if kind == "appoint":               # 約束の誘いへの返事
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
@@ -2208,7 +2220,7 @@ class App:
             self.manners.saw_down(st, now)
             cold = key in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
                            "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad")
-            closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold)
+            closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold, turn=not pend.get("_no_close"))
             # ノリが下がりきった: 相手から切り上げる. ただし「今いい？」への返事 (電話していい / あとで) のすぐあとには付けない
             # (「かけてきなさい」のあとに「用事があるので, またあとで」と続くと食い違う)
             if closing and not pend.get("_no_close") and key not in ("too_often", "too_often_mild", "late_night", "may_call_ok", "may_call_later"):
@@ -2368,7 +2380,9 @@ class App:
                 self.save_state(cid)
                 continue
             if pend.get("kind"):
-                out.append(self._chat_reply(char, st, pend, now))
+                r = self._chat_reply(char, st, pend, now)
+                if r:                               # None: ずっとあとで読んだあいさつ (返さない)
+                    out.append(r)
                 continue
             try:
                 r = self.act(pend["aid"], cid, opts={"deliver": True, "ctx": {"callback": bool(pend.get("callback"))}})

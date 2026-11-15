@@ -374,7 +374,8 @@ class Chat:
         sent = ctx.get("_sent") or now
         if kind == "thanks" and (ctx.get("_after_apology") and not (st.get("apology_last") or {}).get("grace_used")
                                  or app.manners.thanks_grace(st, sent)):
-            st["apology_last"]["grace_used"] = True          # 謝罪の返事のすぐあとのお礼 1 通目: 連絡が多いうちに数えない
+            # 謝罪の返事のすぐあとのお礼 1 通目: 連絡が多いうちに数えない (心当たりのない謝罪のあとは記録が無い: 落ちていた)
+            st.setdefault("apology_last", {})["grace_used"] = True
             st["contacts"] = [x for x in st.get("contacts") or [] if abs(app.bonds.contact_t(x) - sent) > 1e-6]
         elif ctx.get("too_often"):
             if app.manners.again(st, "_too_often", now):      # 謝ったばかりなのに, また連絡しすぎ: ふつうより強く響く

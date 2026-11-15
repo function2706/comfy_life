@@ -65,26 +65,29 @@ def start(app, char, st, now, boost=0.0, why=""):
     return v
 
 
-def bump(app, st, now, d, why=""):
+def bump(app, st, now, d, why="", turn=True):
     r = st.get("nori")
     if not r:
         return None
     r["v"] = round(max(0.0, min(100.0, r["v"] + d)), 1)
     r["t"] = now
-    r["turns"] = r.get("turns", 0) + 1
+    if turn:
+        r["turns"] = r.get("turns", 0) + 1
     trace = getattr(app, "trace", None)
     if trace and why:
         trace.add("nori", "ノリが動いた", t=now, v=r["v"], d=round(d, 1), why=why, turns=r["turns"])
     return r["v"]
 
 
-def after_reply(app, char, st, now, mood_delta, bad=False):
-    """相手が返したあと: 返事の効き目 (機嫌の動き) で上下し, 続けた分だけ疲れる. 切り上げるなら True."""
+def after_reply(app, char, st, now, mood_delta, bad=False, turn=True):
+    """相手が返したあと: 返事の効き目 (機嫌の動き) で上下し, 続けた分だけ疲れる. 切り上げるなら True.
+    turn=False: 一度の読みでまとめて返すうちの, 前の分 (重ねて届いたメッセージ・先の謝罪や約束の話). 往復には数えず,
+    切り上げもしない (時間差で読んで 2 通返しただけで「何往復かした」ことになり, 会話もしていないのに切り上げていた)."""
     if not active(st, now):
         start(app, char, st, now, why="あなたのメッセージを読んだ")
     d = max(-12.0, min(10.0, 2.5 * mood_delta)) - (15 if bad else 0) - TIRE
-    v = bump(app, st, now, d, "返信の効き目")
-    return _closing(st, v)
+    v = bump(app, st, now, d, "返信の効き目", turn=turn)
+    return turn and _closing(st, v)
 
 
 def after_choice(app, char, st, now, res):

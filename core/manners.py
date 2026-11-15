@@ -35,6 +35,7 @@ FAVOR_SPAN = 24 * 3600           # お礼が効く「最近」
 DEEDS_QUIET = 8 * 3600           # 「態度で」: 連絡しすぎなら, これだけ連絡を控えると消える
 GREET_OK = {"greet_morning": lambda h: 4 <= h < 12, "greet_night": lambda h: h >= 18 or h < 4}
 GREET_ODD = {"greet_morning": lambda h: 13 <= h < 18 or h >= 21, "greet_night": lambda h: 5 <= h < 17}
+STALE_GREET = 2 * 3600           # あいさつを読むのがこれより遅れたら, まだ同じ朝・同じ夜かを見る (greet_stale)
 GREET_WORD = {"greet_morning": "おはよう", "greet_night": "おやすみ"}
 # 謝罪の結果ごとの効き目 (メッセージ. その場で謝るのは反応の effects)
 THANKS_GRACE = FAVOR_SPAN  # 謝罪の返事のあと, 連絡が多いうちに数えないお礼の間 (お礼が効く「最近」と同じ 1 日)
@@ -526,6 +527,19 @@ class Manners:
             return False
         step = -1 if kind == "greet_morning" else 1
         return any(app._base_scene(char, dt + timedelta(minutes=step * m)).get("asleep") for m in range(15, 181, 15))
+
+    def greet_stale(self, char, kind, meta, sent, now):
+        """あいさつを, ずっとあとで読んだ (寝ていた・手が離せなかった・画面を閉じていた): 送られた時のあいさつのままは返さない.
+        None: ふつうに返す / "morning": 夜の「おやすみ」を朝に読んだ (「おはよう」で返す) / "skip": 返さない (既読だけ).
+        時間外に送ったあいさつ (meta.greet == "odd") は, 戸惑いの返事がそのまま届く."""
+        if kind not in GREET_OK or (meta or {}).get("greet") == "odd" or not sent or now - sent < STALE_GREET:
+            return None
+        dt, ds = datetime.fromtimestamp(now), datetime.fromtimestamp(sent)
+        if period(kind, dt) == period(kind, ds) and (GREET_OK[kind](dt.hour) or self.greet_fits(char, kind, dt)):
+            return None                     # まだ同じ朝・同じ夜 (夜勤・夜型の人は, 本人の暮らしで見る)
+        if kind == "greet_night" and GREET_OK["greet_morning"](dt.hour) and now - sent < 18 * 3600:
+            return "morning"
+        return "skip"
 
     # ------------------------------------------------------------------ 送ったとき (時刻・続け方の記録)
     def on_send(self, char, st, kind, now, to=None):
