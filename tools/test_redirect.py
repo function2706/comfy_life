@@ -160,6 +160,47 @@ def main():
             P.back(time.time())
         P.rec()["pos"] = home
 
+        # ---- 5b. 自転車で向かう途中で行き先を変える: その場から自転車で行ける (出たときに行き先へ置いた記録で, 乗れなかった)
+        app.items.add("bicycle", 1)
+        geo.rec().setdefault("veh", {})["bicycle"] = home
+        with app.lock:
+            app.solo.start("out", place="park", how="bike")
+        tr = geo.travel()
+        assert tr and tr["how"] == "bike", tr
+        assert geo.veh_at("bicycle", tr["arr"] + 1) == "park"            # 着けば行き先に置いてある
+        shift(app, (tr["arr"] - tr["t0"]) * 0.5)
+        now = time.time()
+        here = geo.where(now)
+        assert here.startswith("pt:") and geo.veh_at("bicycle", now) == here, (here, geo.veh_at("bicycle", now))
+        ch = geo.choices_view(["mall", "convenience"], now)
+        for pid in ("mall", "convenience"):
+            b = ch[pid]["modes"].get("bike")
+            assert b and (b["ok"] or "遠すぎる" in b["note"]), (pid, b)  # 「自転車は公園に置いてある」で押せない, にならない
+        vv = geo.vehicles_view(now)["own"]["bicycle"]
+        assert vv["here"] and vv["ok"], vv
+        with app.lock:
+            app.solo.move("convenience", how="bike")
+        tr2 = geo.travel()
+        assert tr2["how"] == "bike" and tr2["from"] == here and tr2["to"] == "convenience", tr2
+        assert geo.rec()["veh"]["bicycle"] == "convenience"
+        print("自転車で向かう途中で: OK | %s から自転車でコンビニへ" % here)
+        # 歩いている途中なら, 自転車は置いた所のまま (乗っていない)
+        P.rec().pop("travel", None)
+        P.rec()["pos"] = "convenience"
+        with app.lock:
+            app.solo.move("park", how="walk")
+        shift(app, (geo.travel()["arr"] - geo.travel()["t0"]) * 0.5)
+        now = time.time()
+        assert geo.veh_at("bicycle", now) == "convenience"
+        b = geo.choices_view(["mall"], now)["mall"]["modes"]["bike"]
+        assert not b["ok"] and app.places.label("convenience") in b["note"], b
+        print("歩いている途中:", b["note"])
+        P.rec().pop("travel", None)
+        with app.lock:
+            P.back(time.time())
+        P.rec()["pos"] = home
+        app.items.add("bicycle", -1)
+
         # ---- 6. 家で仕事モードでなければ, 寄り道はできない (外出していない)
         try:
             app.solo.move("park")

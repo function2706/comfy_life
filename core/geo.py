@@ -184,16 +184,32 @@ class Geo:
     def fare(km):
         return int(min(1500, 150 + 20 * km) / 10) * 10
 
-    def _vehicle_ok(self, vid, a):
-        """その乗り物で a から出られるか: 持っていて, いま a に置いてある (車は免許も)."""
+    def _vehicle_ok(self, vid, a, t=None):
+        """その乗り物で a から出られるか: 持っていて, t に a に置いてある (車は免許も)."""
         app = self.app
-        if app.items.count(vid) <= 0 or self.veh_at(vid) != a:
+        if app.items.count(vid) <= 0 or self.veh_at(vid, t) != a:
             return False
         return vid != "car" or app.quals.has("drive")
 
-    def veh_at(self, vid):
-        """乗り物の置いてある場所 (乗って出かければ, 行った先に置いてある)."""
-        return self.rec().setdefault("veh", {}).get(vid, places_mod.HOME_ME)
+    def veh_at(self, vid, now=None):
+        """乗り物の置いてある場所 (乗って出かければ, 行った先に置いてある).
+        記録は出たときに行き先へ書くので, 乗っている途中は「いまの地点」(途中で行き先を変えるとき, その場から乗って行ける)."""
+        at = self.rec().setdefault("veh", {}).get(vid, places_mod.HOME_ME)
+        now = now or time.time()
+        tr = self.travel()
+        if not tr or now >= tr["arr"]:
+            return at
+        if tr.get("legs"):                       # 経路: 乗る前は出たところ, 乗っている途中ならいまの地点
+            for x in tr["legs"]:
+                if x.get("veh") == vid:
+                    if now <= x["t0"]:
+                        return x["from"]
+                    if now < x["t1"]:
+                        return self.midway(now) or x["to"]
+            return at
+        if tr["how"] == {"bicycle": "bike", "car": "car"}.get(vid):
+            return self.midway(now) or tr["to"]
+        return at
 
     @staticmethod
     def parking(pid):
@@ -220,21 +236,21 @@ class Geo:
             modes["transit"] = {"min": r0["min"], "fare": r0["fare"], "ok": True, "note": r0["note"]}
         elif km > 1.2 and not routes and walk > 30:
             modes["transit"] = {"min": 0, "fare": 0, "ok": False, "note": "いまは電車・バスで行けない（走っていない時間）"}
-        if km > 0 and self._vehicle_ok("bicycle", a):      # 自転車は近場でも乗れる
+        if km > 0 and self._vehicle_ok("bicycle", a, t):      # 自転車は近場でも乗れる
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN,
                              "note": ("自転車で行くには遠すぎる（%d分を超える）" % BIKE_MAX_MIN) if m > BIKE_MAX_MIN else "雨の中を走る" if wet else ""}
         elif km > 0 and self.app.items.count("bicycle") > 0:  # 持っているが, ここには無い: どこに置いてあるかを出す (行けば乗れる)
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": False,
-                             "note": "自転車は%sに置いてある" % self.app.places.label(self.veh_at("bicycle"))}
-        if km > 0.3 and self._vehicle_ok("car", a):
+                             "note": "自転車は%sに置いてある" % self.app.places.label(self.veh_at("bicycle", t))}
+        if km > 0.3 and self._vehicle_ok("car", a, t):
             m = CAR_ADD + drive_min(km) * (JAM if _rush(h) else 1.0)
             modes["car"] = {"min": round(m), "fare": self.gas(km) + self.parking(b), "ok": True, "note": "渋滞" if _rush(h) else ""}
         elif km > 0.3 and self.app.items.count("car") > 0 and self.app.quals.has("drive"):   # 持っているが, ここには無い
             m = CAR_ADD + drive_min(km) * (JAM if _rush(h) else 1.0)
             modes["car"] = {"min": round(m), "fare": self.gas(km) + self.parking(b), "ok": False,
-                            "note": "車は%sに置いてある" % self.app.places.label(self.veh_at("car"))}
+                            "note": "車は%sに置いてある" % self.app.places.label(self.veh_at("car", t))}
         if km > 0.5:
             night = h >= 22 or h < 5
             m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)
@@ -342,8 +358,8 @@ class Geo:
         net = T.net()
         xy = self.pt(pid)["xy"]
         out = {}
-        bike_here = side == "access" and self._vehicle_ok("bicycle", pid)
-        car_here = side == "access" and self._vehicle_ok("car", pid)
+        bike_here = side == "access" and self._vehicle_ok("bicycle", pid, t)
+        car_here = side == "access" and self._vehicle_ok("car", pid, t)
         wet = self._weather(t) in ("rain", "snow")
         for sid, stn in net["stations"].items():
             if sid == pid:
@@ -360,9 +376,9 @@ class Geo:
                 if car_here and km > 0.5:
                     c.append((CAR_ADD + drive_min(km), transit_mod.CAR_PARK, "car", "car"))
             else:                        # 駅に置いてある自転車・車で, 行き先まで
-                if self.veh_at("bicycle") == sid and self.app.items.count("bicycle") > 0 and km > 0.3:
+                if self.veh_at("bicycle", t) == sid and self.app.items.count("bicycle") > 0 and km > 0.3:
                     c.append((km / BIKE_KMH * 60, 0, "bike", "bicycle"))
-                if self.veh_at("car") == sid and self.app.items.count("car") > 0 and self.app.quals.has("drive") and km > 0.5:
+                if self.veh_at("car", t) == sid and self.app.items.count("car") > 0 and self.app.quals.has("drive") and km > 0.5:
                     c.append((CAR_ADD + drive_min(km), self.parking(pid), "car", "car"))
             if taxi and km > 0.8:
                 m, f = self._taxi(km, t)
@@ -381,7 +397,7 @@ class Geo:
         seen = set()
         egress_cache = {}
         for vi, (vk, label, taxi, tbuf) in enumerate(self.VARIANTS):
-            ck = (store.WORLD, a, int(t // 60), vk, self.veh_at("bicycle"), self.veh_at("car"))
+            ck = (store.WORLD, a, int(t // 60), vk, self.veh_at("bicycle", t), self.veh_at("car", t))
             sc = T._csa.get(ck)
             if sc is None:
                 acc = {}
@@ -642,13 +658,14 @@ class Geo:
     def vehicles_view(self, now=None):
         """持っている乗り物と, どこに置いてあるか (画面)."""
         app = self.app
+        now = now or time.time()
         here = self.where(now)
         out = {}
         for vid, label in (("bicycle", "自転車"), ("car", "車")):
             if app.items.count(vid) > 0:
-                at = self.veh_at(vid)
+                at = self.veh_at(vid, now)
                 out[vid] = {"label": label, "at": at, "at_label": app.places.label(at) if at != places_mod.HOME_ME else "家",
-                            "here": at == here, "ok": self._vehicle_ok(vid, here)}
+                            "here": at == here, "ok": self._vehicle_ok(vid, here, now)}
         return {"own": out, "license": app.quals.has("drive")}
 
     @staticmethod
