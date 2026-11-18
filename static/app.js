@@ -1831,7 +1831,8 @@ async function drawChat(auto) {
       const quote = ref ? h('div', { class: 'chat-quote' }, '＞' + (() => { const q = chatText(ref.text).split('\n')[0]; return q.length > 30 ? q.slice(0, 30) + '…' : q; })()) : '';
       body.push(h('div', { class: 'chat-msg ' + (mine ? 'me' : 'her') },
         mine ? '' : avatar(th.face, th.name, 'small'),
-        h('div', { class: 'chat-bubble' + (mine ? ' summary' : '') }, quote, chatText(it.text)),
+        h('div', { class: 'chat-bubble' + (mine ? ' summary' : '') }, quote, chatText(it.photo && it.photo.im ? String(it.text).replace(/\n?（📷 自撮りが添えられていた）/, '') : it.text),
+          chatPhoto(it.photo)),
         h('div', { class: 'chat-meta' }, mine && it.read_t ? h('div', {}, '既読') : '', h('div', {}, hhmm(it.t)))));
     }
     if (th.waiting) body.push(h('div', { class: 'chat-sys muted' }, '返信待ち…（相手の状況しだい。来ないことも）'));
@@ -1899,7 +1900,17 @@ async function drawChat(auto) {
   S.chatDrawn = th ? th.id : null;
   S.chatJump = false;
   clearTimeout(S.chatPoll);       // 返信待ちの間は, 相手がまだスマホを見ていればすぐ返ってくるので, こまめに見る
-  if (th && th.waiting) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(true); }, 8000);
+  const making = th && th.items.some((x) => x.photo && x.photo.pending);      // 自撮りを作っている途中: できたら差し替える
+  if (th && (th.waiting || making)) S.chatPoll = setTimeout(() => { if (dlg.open && S.chatCid === th.id) drawChat(true); }, making ? 4000 : 8000);
+}
+// 返事に添えられた自撮り (core/chat.py の with_photos): サムネイル. 押すとギャラリーと同じ拡大表示. 作っている途中は「生成中」
+function chatPhoto(p) {
+  if (!p) return '';
+  const wait = p.pending ? h('div', { class: 'chat-photo-wait muted small' }, p.im ? '🖼 新しい画像を生成中…' : '🖼 自撮りを生成中…') : '';
+  if (!p.im) return h('div', { class: 'chat-photo' }, wait);
+  return h('div', { class: 'chat-photo' },
+    h('img', { class: 'chat-photo-img', src: imgUrl(p.im.path), alt: '自撮り', loading: 'lazy', title: '押すと大きく表示',
+      onclick: () => openLightbox(p.entry, p.im, { chat: true }) }), wait);
 }
 /* ---- スマホのカレンダー (アプリ内. core/calview.py): 月の表 + 選んだ日の一覧. 登録は既存の処理 (約束の誘い・日時の案・予定) を呼ぶだけ */
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -3435,13 +3446,25 @@ async function genFromDrawer(useEntry) {
 async function openGallery() {
   S.galMode = S.galMode || 'time';
   $$('#gal-mode button').forEach((x) => { x.onclick = () => { S.galMode = x.dataset.mode; S.galKey = null; drawGallery(); }; });
+  $('#gal-who').onchange = () => { S.galWho = $('#gal-who').value; S.galKey = null; drawGallery(); };
   $('#gallery-dlg').showModal();
+  await galPeople();
   await drawGallery();
+}
+
+// 誰の画像か (全員 / キャラクターごと. 時系列・シチュエーション別のどちらとも組み合わせる). 画像のある人だけ並べる
+async function galPeople() {
+  let ps = [];
+  try { ps = (await api('/api/gallery/people')).people; } catch (e) { toast(e.message, 'err'); }
+  if (S.galWho && !ps.some((p) => p.id === S.galWho)) S.galWho = '';        // 選んでいた人の画像が無くなった
+  $('#gal-who').replaceChildren(h('option', { value: '' }, '全員'),
+    ...ps.map((p) => h('option', { value: p.id }, `${p.name}（${p.count}）`)));
+  $('#gal-who').value = S.galWho || '';
 }
 
 function galItem(e, im) {
   return h('div', { class: 'gal-item', style: `background-image:url("${imgUrl(im.path)}")`, 'data-path': im.path,
-    onclick: () => openLightbox(e, im) }, h('span', {}, `${fmtTime(im.t || e.t)} ${e.icon || ''}${e.action_name || ''}`));
+    onclick: () => openLightbox(e, im) }, h('span', {}, `${fmtTime(im.t || e.t)} ${e.icon || ''}${e.action_name || ''}${!S.galWho && e.who_name ? '・' + e.who_name : ''}`));
 }
 
 async function drawGallery() {
@@ -3449,8 +3472,9 @@ async function drawGallery() {
   box.replaceChildren();
   $$('#gal-mode button').forEach((x) => x.classList.toggle('on', x.dataset.mode === S.galMode));
   $('#gal-more').hidden = true;
+  const who = S.galWho ? '&character=' + encodeURIComponent(S.galWho) : '';
   if (S.galMode === 'prompt' && S.galKey) {
-    const g = await api('/api/album?key=' + S.galKey);
+    const g = await api('/api/album?key=' + S.galKey + who);
     $('#gal-count').textContent = `${g.items.length} 枚`;
     box.append(h('div', { class: 'gal-back' }, h('button', { class: 'btn ghost', onclick: () => { S.galKey = null; drawGallery(); } }, '← シチュエーション一覧'),
       g.items[0] ? h('code', { class: 'muted small' }, g.items[0].pos) : ''));
@@ -3458,7 +3482,7 @@ async function drawGallery() {
     return;
   }
   if (S.galMode === 'prompt') {
-    const r = await api('/api/album');
+    const r = await api('/api/album?' + who.slice(1));
     $('#gal-count').textContent = `${r.groups.length} シチュエーション`;
     for (const g of r.groups) {
       box.append(h('div', { class: 'gal-item group', style: `background-image:url("${imgUrl(g.cover)}")`, title: g.pos,
@@ -3470,7 +3494,7 @@ async function drawGallery() {
   }
   let offset = 0;
   const load = async () => {
-    const r = await api(`/api/log?images=1&offset=${offset}&limit=40`);
+    const r = await api(`/api/log?images=1&offset=${offset}&limit=40${S.galWho ? '&who=' + encodeURIComponent(S.galWho) : ''}`);
     offset += r.items.length;
     $('#gal-count').textContent = `${r.total} 件の記録`;
     for (const e of r.items) for (const im of [...(e.images || [])].reverse()) box.append(galItem(e, im));
@@ -3480,8 +3504,10 @@ async function drawGallery() {
   await load();
 }
 
-function openLightbox(e, im) {
-  $('#lb-stage').hidden = $('#lb-delete').hidden = false;
+function openLightbox(e, im, opt) {
+  const fromChat = !!(opt && opt.chat);         // トークの自撮りから: 舞台に出すとスマホの画面に隠れるので, 出さない
+  $('#lb-stage').hidden = fromChat;
+  $('#lb-delete').hidden = false;
   $('#lb-img').src = imgUrl(im.path);
   $('#lb-open').href = imgUrl(im.path);
   $('#lb-text').textContent = e.text || e.action_name;
@@ -3503,6 +3529,7 @@ Negative: ${im.neg}`;
       $('#lightbox').close();
       toast('消しました', 'ok');
       await refresh();
+      if (fromChat && S.chatDlg && S.chatDlg.open) drawChat(true);
     } catch (err) { toast(err.message, 'err'); }
   };
   $('#lightbox').showModal();

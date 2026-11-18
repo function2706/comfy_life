@@ -4865,6 +4865,17 @@ class App:
         out.sort(key=lambda x: -x["t"])
         return {"groups": out}
 
+    def gallery_people(self):
+        """ギャラリーで選べる人: 画像 (ファイルが残っているもの) が 1 枚以上ある人と, その枚数. 名前順ではなく枚数の多い順."""
+        out = []
+        for cid, c in self.chars.items():
+            n = sum(1 for e in self.log(cid) for im in e.get("images") or []
+                    if os.path.exists(store.dpath("images", *im["path"].split("/"))))
+            if n:
+                out.append({"id": cid, "name": c.get("name", cid), "count": n})
+        out.sort(key=lambda x: -x["count"])
+        return {"people": out}
+
     def delete_image(self, path):
         """気に入らない画像を消す: ファイル・索引・全キャラのログから取り除く."""
         with self.lock:

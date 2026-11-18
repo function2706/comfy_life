@@ -64,6 +64,10 @@ f.onload = () => setTimeout(async () => {
     d.activeElement.blur(); await sleep(800);
     out.push(S.renderPending ? 'resume:NG' : 'resume:OK');
     S.mapDlg.close();
+    // 1b. ギャラリーの「誰の画像か」のプルダウン (A19)
+    await w.openGallery();
+    await keep(d.querySelector('#gal-who'), 'gal-who');
+    d.getElementById('gallery-dlg').close();
     // 2. 一人で: 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)
     await keepAll(() => { closeModal(); w.showTab('solo'); S.planOpen = true; S.planForm = { date: (S.view.plan || {}).dates?.[1], at: '09:00', do: 'out', place: 'mall' }; w.renderSoloTab(); },
       '#tab-solo .plan', 'plan');
@@ -186,7 +190,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items, res
     print("ALL OK")
 
 

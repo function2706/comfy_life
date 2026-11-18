@@ -144,6 +144,8 @@ def route(method, path, q, body):
             return a.log_page(_q(q, "who") or None, int(_q(q, "offset", 0)), int(_q(q, "limit", 60)), _q(q, "images") == "1")
         if path == "/api/album":
             return a.album(cid, _q(q, "key"))
+        if path == "/api/gallery/people":       # ギャラリーの「誰の画像か」の選択肢
+            return a.gallery_people()
         if path == "/api/prompt":
             return a.prompt_preview(cid)
         if path == "/api/workflow":

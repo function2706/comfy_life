@@ -550,7 +550,7 @@ class Chat:
         d = self.load(cid)
         st = app.state(cid)
         rg, tg = react.group(app, cid, st, time.time()) if not app.bonds.together(cid) else (None, None)
-        return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": d["items"][-200:],
+        return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": self.with_photos(cid, d["items"][-200:]),
                 "seen_t": d["seen_t"], "waiting": bool(st.get("msg_pending")), "together": app.bonds.together(cid),
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
                 "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
@@ -562,6 +562,33 @@ class Chat:
                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT],
                          "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS]},
                 "actions": self.phone_actions(cid)}
+
+    SELFIE_MARK = "（📷 自撮りが添えられていた）"
+
+    def with_photos(self, cid, items):
+        """自撮りが添えられた返事に, 記録 (ログ) の画像を付ける (トークのサムネイル). 返事と記録は同じ時刻に作られる.
+        以前の返事にも, 記録に画像があれば付く. photo: {entry, im} (画像がある) / {pending: True} (作っている途中)."""
+        app = self.app
+        want = [i for i, it in enumerate(items) if it.get("who") == "her" and (it.get("selfie") or self.SELFIE_MARK in (it.get("text") or ""))]
+        if not want:
+            return items
+        log = [e for e in app.log(cid) if e.get("selfie") or self.SELFIE_MARK in (e.get("text") or "")]
+        out = list(items)
+        for i in want:
+            it = items[i]
+            e = next((x for x in reversed(log) if abs(float(x.get("t", 0)) - float(it["t"])) < 0.5), None)
+            if not e:
+                continue
+            ims = e.get("images") or []
+            im = ims[-1] if ims else ({"path": e["image"], "seed": e.get("seed"), "pos": e.get("pos", ""), "neg": e.get("neg", ""), "t": e["t"]}
+                                       if e.get("image") else None)
+            j = app.jobs.get(e.get("job") or "")
+            pending = bool(j and j.get("status") in ("queued", "running"))      # 再起動で消えたジョブは「生成中」にしない
+            if not im and not pending:
+                continue
+            ent = {k: e.get(k) for k in ("id", "t", "text", "action_name", "icon", "scene")}
+            out[i] = dict(it, photo={"entry": ent, "im": im, "pending": pending})
+        return out
 
     def phone_actions(self, cid):
         """スマホからできる, メッセージ以外のこと (電話・「家に行ってもいい？」など. 離れている相手だけ)."""
