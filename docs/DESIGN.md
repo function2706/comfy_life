@@ -123,6 +123,7 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 `presence.mode`: none（here / idle は心拍と操作から）・busy・out・work・sleep・left, 心拍が途絶えれば gone。画面は 30 秒ごとに心拍を送る。外出 (out / work) は画面を開いている間だけ続き, 閉じたら最後の心拍で切り上げて家に帰った扱い（`outdoor.check_gap`）。寝る・離れるは閉じてもよい。黙って閉じると相手は寂しさが早く増え, 戻ると機嫌・信頼が下がる（`silent_penalty`）。
 
 ### 同時にできないこと
+ミニゲームのできる場所（`games.spot` / `place_why`）: ゲームの要る道具（`needs`: none / tiles / board / dice / hanafuda / cards。定義に無ければ kind から）と罰の重さ（`privacy`: public / private。無ければ脱衣なら private）を, いる場所の属性（home あなたの家 / her_home 相手の家 / shop 人目のある店 / outdoor 屋外 / moving 移動中。道具は家だけ, 二人きりは `bonds.alone_with`）と突き合わせる。道具は持ち歩かない（家だけ）。途中で場所が合わなくなれば打ち切り。
 あなたは一度に一つのことしかしない。内職・一人の時間（休む・家事・研鑽）・誰かとのミニゲームの途中は, ほかのことを始められない（`App.blocked`。理由は押す前に出す）。外出・仕事・寝る・席を外す間は, 画面ごと切り替わっていてほかの操作はできない。
 
 ### 一人の時間・あなたの予定

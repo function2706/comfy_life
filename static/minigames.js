@@ -20,7 +20,8 @@ function renderGames() {
       ...gv.list.map((g) => h('div', { class: 'game-card' },
         h('h4', {}, g.icon, g.name),
         h('p', {}, g.desc),
-        h('button', { class: 'btn primary', disabled: !g.ok || S.busy, title: g.ok ? '' : '条件: ' + g.require,
+        g.why ? h('p', { class: 'muted' }, g.why) : '',
+        h('button', { class: 'btn primary', disabled: !g.ok || S.busy, title: g.ok ? '' : (g.why || '条件: ' + g.require),
           onclick: () => gameAct('/api/game/start', { game: g.id }) }, g.ok ? 'あそぶ' : '今は遊べません'))),
       gv.list.length ? '' : h('p', { class: 'muted' }, 'ミニゲームがありません（設定 → ミニゲーム）'));
     return;

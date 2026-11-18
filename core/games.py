@@ -21,6 +21,7 @@ from . import mahjong as MJ
 from . import numeron as NM
 from . import speedcards as SC
 from . import yacht as YT
+from .places import PLACES
 
 BEATS = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
 HANDS = ("rock", "scissors", "paper")
@@ -30,6 +31,26 @@ ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着す�
 KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht", "numeron", "speed") + CARD_KINDS
 STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
 BOARD_KINDS = ("connect4", "hex", "reversi")
+
+# できる場所 (A12 の 1 行目). ゲーム名ではなく, 要る道具 (needs) と罰の重さ (privacy) と, いる場所の属性の組み合わせで決める.
+# needs: 要る道具 (none = 道具なし). 道具は家 (あなたの家・相手の家) にしか無い (持ち歩かない) ので, 道具の要るゲームは家だけ.
+# privacy: public (人前で可) / private (二人きりの室内のみ. 脱衣). 定義に needs / privacy を書けば, それが優先する
+NEEDS = {"tiles": "麻雀牌", "board": "盤とコマ", "dice": "サイコロ", "hanafuda": "花札", "cards": "トランプ"}
+KIND_NEEDS = {"mahjong": "tiles", "connect4": "board", "hex": "board", "reversi": "board", "yacht": "dice",
+              "koikoi": "hanafuda", "poker": "cards", "blackjack": "cards", "concentration": "cards", "oldmaid": "cards",
+              "doubt": "cards", "speed": "cards"}     # 野球拳・あっち向いてホイ・数当て (口とスマホのメモで足りる) は道具なし
+PRIVACY = ("public", "private")
+SPOT_LABEL = {"home": "あなたの家", "her_home": "相手の家", "shop": "お店", "outdoor": "外", "moving": "移動中"}
+
+
+def needs_of(g):
+    n = g.get("needs")
+    return n if n in NEEDS or n == "none" else KIND_NEEDS.get(g.get("kind"), "none")
+
+
+def privacy_of(g):
+    p = g.get("privacy")
+    return p if p in PRIVACY else ("private" if Games._is_strip(g) else "public")
 
 
 def judge(me, her):
@@ -163,18 +184,56 @@ class Games:
         game["outfit"] = self.stage_outfit(g, char, st, game["stage"])
         return False
 
+    # ================================================================== できる場所
+    def spot(self, cid, now=None):
+        """cid と一緒にいる場所の属性. そばにいなければ None.
+        spot: home (あなたの家. 同居・来てもらっている・泊まり) / her_home (相手の家. 泊まりも) / shop (人目のある店) /
+              outdoor (屋外) / moving (一緒に移動中). tools: 道具がある (家だけ). private: 二人きりの室内."""
+        app = self.app
+        now = now or time.time()
+        if not app.bonds.together(cid, now):
+            return None
+        if app.outside_with(cid, now):
+            st = app.state(cid)
+            if app.presence.rec().get("travel") or app.outing_trip(st, now) or app.outing_moving(st, now):
+                sp = "moving"
+            else:
+                pl = app.geo.where(now)
+                info = PLACES.get(pl)
+                sp = "outdoor" if (info is None or info["outdoor"]) else "shop"
+            return {"spot": sp, "indoor": sp == "shop", "tools": False, "private": False}
+        sp = "her_home" if app.bonds.mode(cid, now) == "visit" else "home"
+        return {"spot": sp, "indoor": True, "tools": True, "private": app.bonds.alone_with(cid, now)}
+
+    def place_why(self, g, cid, now=None, char=None):
+        """いる場所で g を遊べない理由. 遊べるなら None (そばにいないときも None: それは別に断る)."""
+        sp = self.spot(cid, now)
+        if sp is None:
+            return None
+        need = needs_of(g)
+        if need != "none" and not sp["tools"]:
+            return "%sが無いので、ここでは遊べません（家で遊べます）" % NEEDS[need]
+        if privacy_of(g) == "private" and not (sp["indoor"] and sp["private"] and sp["tools"]):
+            if sp["spot"] in ("home", "her_home"):
+                return "ほかの人がいるので遊べません（二人きりのときだけ）"
+            return "人目があるので、ここでは遊べません（二人きりの家で）"
+        return None
+
     # ================================================================== API
     def view(self, char, st, ctx):
         games = []
         near = self.app.bonds.together(char["id"])      # そばにいない相手とは遊べない
+        now = time.time()
         for g in self.app.minigames:
             if g.get("hidden"):          # 一覧に出さない (ダウトは既定で. 定義の "hidden" を消すと戻る)
                 continue
             desc = (g.get("desc") or "").replace("{name}", char.get("name", "")).replace(
                 "{target}", str(g.get("target", 3)))
+            why = self.place_why(g, char["id"], now) if near else None
             games.append({"id": g["id"], "name": g.get("name", g["id"]), "icon": g.get("icon", "🎲"), "desc": desc,
-                          "kind": g.get("kind"), "ok": near and cond.check(g.get("require", ""), ctx),
-                          "require": g.get("require", "")})
+                          "kind": g.get("kind"), "ok": near and not why and cond.check(g.get("require", ""), ctx),
+                          "require": g.get("require", ""), "why": why or "", "needs": needs_of(g),
+                          "privacy": privacy_of(g)})
         cur = st.get("game")
         out = None
         if cur:
@@ -227,6 +286,9 @@ class Games:
             if not app.bonds.together(cid):
                 raise ValueError("%sはそばにいません（会っているときに遊べます）" % char.get("name", ""))
             dt = datetime.now()
+            pw = self.place_why(g, cid, dt.timestamp())
+            if pw:
+                raise ValueError("「%s」は%s" % (g.get("name"), pw))
             ctx = app.context(char, st, dt)
             if not cond.check(g.get("require", ""), ctx):
                 raise ValueError("今は「%s」で遊べません（%s）" % (g.get("name"), g.get("require")))
@@ -284,7 +346,8 @@ class Games:
             kind = g.get("kind")
             dt = datetime.now()
             over = game.get("over")
-            if not over and not cond.check(g.get("require", ""), app.context(char, st, dt)):
+            if not over and (not cond.check(g.get("require", ""), app.context(char, st, dt))
+                             or self.place_why(g, cid, dt.timestamp())):     # 途中でほかの人が来た・外に出た
                 line = self._line(g, "interrupted", self._ctx(char, st, dt, game))
                 st["game"] = None
                 entry, job = self._record(cid, char, st, g, line, {}, "", "quit", "")

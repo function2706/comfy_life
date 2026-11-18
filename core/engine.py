@@ -4794,6 +4794,10 @@ class App:
                     raise ValueError("「%s」の kind は %s のどれかです" % (g.get("name", g["id"]), " / ".join(games.KINDS)))
                 for k in ("require", "when"):
                     cond.parse(g.get(k, ""))
+                if g.get("needs") not in (None, "", "none") and g["needs"] not in games.NEEDS:
+                    raise ValueError("「%s」の needs は none / %s のどれかです" % (g.get("name", g["id"]), " / ".join(games.NEEDS)))
+                if g.get("privacy") not in (None, "") and g["privacy"] not in games.PRIVACY:
+                    raise ValueError("「%s」の privacy は public / private のどちらかです" % g.get("name", g["id"]))
                 for ev, lines in (g.get("lines") or {}).items():
                     self._check_conds(lines, "「%s」の %s" % (g.get("name", g["id"]), ev))
                 if g["kind"] in games.STRIP_KINDS and not g.get("stages"):
