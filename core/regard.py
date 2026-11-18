@@ -79,6 +79,11 @@ ODD_MIN = 20.0                        # これより短い待ち (分) は, ふ�
 ODD_KEEP = 3 * 86400                  # 「いつもと違う」と気づいてから, これを過ぎたら聞かない
 ASK_GAP = 3 * 86400                   # 「何かあった？」と聞く間隔
 ASK_AFF = 40                          # これより好感度が低いと, 気づいても聞いてこない
+# 返信の速さを, あなたのふだんの速さに寄せる (engine.reply_delay)
+MATCH = {"tsundere": 0.6, "sadist": 0.6, "fushigi": 0.0, "tenshin": 0.0}    # 性格の係数 (張り合う人は大きく, 気にしない人は 0). ほかは MATCH_BASE
+MATCH_BASE = 0.25
+MATCH_CAP = 30 * 60                   # 寄せる幅 (秒) の上限
+MATCH_DEP = 0.6                       # 依存度 (attach.factor) がここまで上がると係数が 0 (合わせられず, すぐ返す). 0 以下では弱めない
 TEASE_KINDS = ("tease", "re_lol")
 TEASE_SHARE, TEASE_FAM, TEASE_BONUS = 0.3, 0.5, 4.0     # からかいが返しの 3 割以上で, 慣れていれば, からかいの点に足す
 
@@ -275,6 +280,28 @@ class Regard:
                       slot=name, share=round(share, 2), slow=slow, waited=None if waited is None else round(el, 1), fam=round(fam, 2),
                       ease=round(f, 2))
         return f
+
+    def match_coef(self, char, st):
+        """返信の速さを寄せる係数 (0〜1). 性格の traits に reply_match があればそちら. 依存度が高いほど 0 に近づく."""
+        tr = self.app.traits(char)
+        c = float(tr.get("reply_match", MATCH.get(char.get("persona_id") or "", MATCH_BASE)))
+        dep = self.app.attach.factor(char, st, "dependence")
+        return _clamp(c * (1.0 - _clamp(dep / MATCH_DEP, 0.0, 1.0)), 0.0, 1.0)
+
+    def match_shift(self, char, st, delay, now):
+        """相手の返信の待ち (秒) を, あなたのふだんの返す速さ (全体の記録) に寄せる分 (秒. ±MATCH_CAP).
+        まだ分からない (記録 HABIT_MIN 件未満・返した数 2 件未満) なら 0. 慣れが浅いうちは弱く. 乱数は使わない."""
+        b = self.habit(char, st)["all"]
+        if not b:
+            return 0.0
+        n, r, slow = self._faded(b, now)
+        if n < HABIT_MIN or r < 2 or slow <= 0:
+            return 0.0
+        fam = min(1.0, n / (HABIT_FULL * self.learn(char)))
+        c = self.match_coef(char, st) * fam
+        if c <= 0:
+            return 0.0
+        return max(-MATCH_CAP, min(MATCH_CAP, c * (slow * 60.0 - float(delay))))
 
     def note_reply(self, char, st, t_msg, now, waited=None, late=False):
         """相手から来たメッセージ 1 件を覚える. waited (分) = 返した / None = 返さなかった.

@@ -2306,6 +2306,14 @@ class App:
             self.attach.factor(char, st, "dependence"), p.get("affection", 50), p.get("mood", 50),
             self.earn.closeness(char["id"], st), many=bool(ctx.get("contacts_many")),
             fight=self.quarrel.active(st, now), lv=nori_mod.level(st, now))
+        # あなたのふだんの返す速さに, 性格しだいで少し寄せる (張り合う人はわざと待たせる. 覚えるまでは寄せない. core/regard.py)
+        sh = self.regard.match_shift(char, st, delay, now)
+        if sh:
+            nd = max(replyspeed_mod.MIN_S, min(replyspeed_mod.MAX_S, delay + sh))
+            self.trace.add("regard", "返信の速さを, あなたのふだんに寄せた", char.get("id"), now, base_min=round(delay / 60.0, 1),
+                           shift_min=round((nd - delay) / 60.0, 1))
+            delay = nd
+            hand = hand and delay <= replyspeed_mod.QUICK[1]
         return delay, False, hand
 
     def _nudge_seen(self, char, st, pend, now):
