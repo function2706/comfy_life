@@ -46,6 +46,7 @@ from . import react as react_mod
 from . import attach as attach_mod
 from . import regard as regard_mod
 from . import topics as topics_mod
+from . import hima as hima_mod
 from . import anniv as anniv_mod
 from . import quals as quals_mod
 from . import chores as chores_mod
@@ -1625,6 +1626,12 @@ class App:
             part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
             if part:
                 ctx["part"] = part
+            hima = None
+            if aid == "talk" and not apart:      # 「話したい」: 相手が乗ってくるか (メッセージ・電話と同じ判定. core/hima.py)
+                hima, hv = hima_mod.judge(self, char, st, now)
+                ctx["hima"] = hima
+                ctx["hima_close"] = hima_mod.close(self, char, st)
+                self.trace.add("talk", "話したい (会って): " + hima_mod.LABEL[hima], cid, now, **hv)
             r = self.pick_reaction(a, ctx)
             if part:
                 self.parting.settle(char, st, aid, part, now)
@@ -1686,6 +1693,11 @@ class App:
                 eff = {}
             for k, v in (opts.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
+            hima_said = None
+            if hima and not r.get("override") and not narrate:      # 断られた (機嫌が悪い) ときは, 結果の効き目もない
+                for k, v in hima_mod.EFFECT[hima].items():      # 話す力は判定に入っているので, ここでは掛けない
+                    eff[k] = eff.get(k, 0) + float(v)
+                hima_said = hima_mod.settle(self, char, st, hima, now)
             real_note = None
             item_note = None
             if uses and (not r.get("override") or r.get("taken")) and not narrate:     # 焦がしても食材は使う
@@ -1837,6 +1849,8 @@ class App:
             for k, v in extra.items():                     # 先に差し込む (中の {call} なども下で置換される)
                 text = text.replace("{%s}" % k, str(v))
             text = self.format_text(text, char, scene, dt)
+            if hima_said:                                  # 弾んで, 好き・苦手が口に出た
+                text += "\n「%s」" % hima_said
             if nursed:
                 text += "\n" + nursed
             # 出たときは「向かった」と移動の様子だけ. 行き先での反応・絵・費用は着いたときに
@@ -1982,7 +1996,7 @@ class App:
                 it["text"] = it["text"].replace("📱", "📞", 1)
             key = said[0].get("kind") if said else None
             lv = nori_mod.level(st, now) or 0.3
-            good = key and not any(w in key for w in ("_what", "_confused", "_cold", "_hurt", "_bad", "_off", "_jealous", "bored", "again", "refuse", "irritated", "enough"))
+            good = key and not any(w in key for w in ("_what", "_confused", "_cold", "_hurt", "_bad", "_off", "_jealous", "bored", "again", "refuse", "irritated", "enough", "_flat"))
             p = st["params"]
             mins = max(2, int(round((4 + 30 * lv) * (1.3 if good else 0.6) * random.uniform(0.7, 1.3))))
             how = "眠そうだった" if p.get("sleepiness", 0) >= 70 else "疲れていそうだった" if p.get("energy", 60) < 25 \
@@ -2239,6 +2253,9 @@ class App:
         meta.update(extra or {})                       # 振った話題 など
         if pend:
             pend["count"] = pend.get("count", 1) + 1
+            if pend.get("forgot_read") and pend.get("due", now) > now + 1800:
+                # 返し忘れていたところに, 次のメッセージが届いた: 通知で気づく (謝ってから返すのは同じ)
+                pend["due"] = now + random.uniform(5, 30) * 60
             if kind == "nudge":                        # 返事を待っている間の催促: 返信はもとのメッセージに. 急ぎの話なら多少許される
                 pend["nudge"] = "ok" if self.manners.nudge_urgent(char, st, pend, now) else "bad"
             elif kind:
@@ -2262,13 +2279,14 @@ class App:
             lv = nori_mod.level(st, now)
             delay, quick, hand = self.reply_delay(char, st, now, scene, ctx)
             reply = random.random() < pr
+            forgot = reply and not quick and self._forgot(char, st, kind)     # 読んで, 返したつもりになる (読んだときに. 下の _deliver_due)
             aff = p.get("affection", 50)
             # 嫌われていて返さないときは, 読みもしない (未読スルー) こともある. 既読はずっとあとで付く (付かないまま流れることも)
             unread = not reply and not quick and aff < 35 and random.random() < min(0.7, 0.2 + (35 - aff) / 50.0)
             st["msg_pending"] = {"aid": a["id"], "t": now, "due": now + delay, "reply": reply, "count": 1,
-                                 "kind": kind, "quick": quick, "meta": meta, "unread": unread}
+                                 "kind": kind, "quick": quick, "meta": meta, "unread": unread, "forgot": forgot}
             self.trace.add("msg", "送った: 返信の予定を決めた", cid, now, kind=kind, due_min=delay / 60.0, pr=pr,
-                           reply=st["msg_pending"]["reply"], quick=quick, hand=hand, unread=unread, nori=lv, too_often=ctx.get("too_often"),
+                           reply=st["msg_pending"]["reply"], forgot=forgot, quick=quick, hand=hand, unread=unread, nori=lv, too_often=ctx.get("too_often"),
                            contacts=ctx.get("contacts_24h"), mood=p.get("mood"), affection=p.get("affection"), stress=p.get("stress"),
                            scene=scene.get("label"), asleep=scene.get("asleep"), busy=scene.get("busy"), meta=meta)
         if pend:
@@ -2287,11 +2305,22 @@ class App:
         return {"entry": e, "job": None, "llm_error": None, "sent": True}
 
     def _reply_chance(self, st, ctx, kind, now):
-        """離れている相手が, メッセージに返事をする見込み (機嫌・好感度・ストレス・連絡の多さ)."""
+        """離れている相手が, メッセージに返事をする見込み (機嫌・好感度・ストレス・連絡の多さ).
+        返さない (既読だけ) のは, 相手が距離を置くとき (機嫌が悪い・好かれていない・余裕がない・送りすぎ) だけ.
+        何もないのに返さないことは無い (以前は誰にでも 1 割あった). うっかり返し忘れるのは別 (_forgot. 遅れて謝って返す)."""
         p = st["params"]
-        return 0.9 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
+        return 1.0 * (0.6 if p.get("mood", 50) < 30 else 1) * (0.7 if p.get("affection", 50) < 35 else 1) \
             * (0.7 if p.get("stress", 0) > 70 else 1) \
             * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
+
+    FORGET_RATE = 0.08       # 返し忘れの見込み (マメさ 0 のとき. テストでは 0: tools/testclock.py. 確かめるのは tools/test_hima.py)
+    FORGET_KINDS = ("stamp", "greet_morning", "greet_night", "otsukare", "smalltalk", "what_doing", "ask_how", "photo", "tease", "flirt")
+
+    def _forgot(self, char, st, kind):
+        """うっかり返し忘れるか (読んだが, 返したつもりになっていた). 急ぎでない軽い話だけ. マメな人ほど少ない (2〜8%)."""
+        if kind not in self.FORGET_KINDS or not self.FORGET_RATE:
+            return False
+        return random.random() < self.FORGET_RATE * (1 - 0.75 * react_mod.mame(self, char))
 
     def picked_up_phone(self, char, st, now):
         """相手があなたにメッセージを送った・返した直後は, しばらくスマホを見ている (すぐの返信の手がかり).
@@ -2358,6 +2387,10 @@ class App:
             rq = pend.get("_rq")                # 引用を付けるか (一度の読みで同じ. マメさしだい)
             if rq is None:
                 rq = random.random() < react_mod.quote_chance(self, char, st)
+            if pend.get("forgot") and not pend.get("_no_close") and                     self.manners.greet_stale(char, kind, pend.get("meta"), pend.get("kind_t") or pend.get("t"), now) != "skip":
+                # 返し忘れていた: 返事 (前の分への返事も) の前に, 一言謝る
+                self.chat.add(cid, "her", self.chat.line(char, "forgot", {}), kind="forgot",
+                              t=max(now - 2, float(pend.get("kind_t") or pend.get("t") or 0) + 0.0005))
             first = pend.get("apology_first")
             if first and kind != "apology":     # 先に送った謝罪に返してから, 新しい方に返す
                 self._chat_reply(char, st, {"kind": "apology", "t": first["t"], "meta": first["meta"], "_rq": rq, "_no_close": True}, now - 1)
@@ -2579,6 +2612,14 @@ class App:
                 self.save_state(cid)
                 if self.trace.every("defer:" + cid, 1800, now):
                     self.trace.add("deliver", "延期 (寝ている・手が離せない)", cid, now, scene=scene.get("label"), new_due=pend["due"])
+                continue
+            if pend.get("forgot") and not pend.get("forgot_read"):
+                # うっかり返し忘れ: 読んで (既読が付く), 返したつもりになる. 数時間後に気づいて, 謝ってから返す
+                pend["forgot_read"] = True
+                pend["due"] = now + random.uniform(3, 8) * 3600
+                self.chat.mark_read_by_her(cid, now)
+                self.save_state(cid)
+                self.trace.add("deliver", "読んだが, 返したつもりになった (返し忘れ)", cid, now, kind=pend.get("kind"), reply_at=pend["due"])
                 continue
             if pend.get("unread") and not pend.get("reply"):     # 未読スルー: いまは読まない. ずっとあとで既読だけ付く
                 pend["unread"] = False

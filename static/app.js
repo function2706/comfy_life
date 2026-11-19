@@ -2120,7 +2120,7 @@ async function phoneAct(cid, action) {
   finally { S.busy = false; await drawChat(); refresh(); }
 }
 // 電話 (A4): 話すことを選んでかける. 謝る・お礼・相談・話題は, もう一段選ぶ
-const CALL_TALK = [['smalltalk', '💬 雑談'], ['ask_how', '❓ 最近どう？'], ['consult', '🤔 相談する ▸'], ['thanks', '🙏 お礼を言う ▸'],
+const CALL_TALK = [['smalltalk', '💬 話したい'], ['ask_how', '❓ 最近どう？'], ['consult', '🤔 相談する ▸'], ['thanks', '🙏 お礼を言う ▸'],
   ['apology', '🙇 謝る ▸'], ['topic', '💬 話題を振る ▸'], ['flirt', '💕 甘える'], ['invite', '📅 会おうよ']];
 function callPicker(th) {
   const P = th.pick || {};

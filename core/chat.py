@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 
 from . import msgpick
+from . import hima
 from . import nori
 from . import react
 from . import store
@@ -26,7 +27,7 @@ KINDS = {
     "greet_night": ("おやすみ", "🌙", "（おやすみと送った）"),
     "thanks": ("ありがとう", "🙏", "（お礼を言った）"),
     "apology": ("ごめんね", "🙇", "（謝った）"),
-    "smalltalk": ("雑談", "💬", "（他愛ない話をした）"),
+    "smalltalk": ("話したい", "💬", "（暇だから話したいと送った）"),      # 判定は core/hima.py (会って話すときと同じ)
     "ask_how": ("最近どう？", "❓", "（近況を聞いた）"),
     "consult": ("相談する", "🤔", "（相談した）"),
     "tease": ("からかう", "😜", "（からかった）"),
@@ -47,7 +48,7 @@ KINDS = {
 }
 # 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
 GROUPS = [
-    ("chat", "💬", "雑談", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
+    ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
     ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
     ("invite", "📅", "誘う", ["invite", "ask_bday", "tell_bday"]),
     ("photo", "📷", "写真", ["photo", "ask_selfie"]),
@@ -60,7 +61,11 @@ LINES = {
     "chat.thanks": "📱『どういたしまして。そう言ってもらえるとうれしいです』",
     "chat.apology": "📱『……うん、もういいですよ。ちゃんと言ってくれて、ありがとうございます』",
     "chat.apology_confused": "📱『え、何がですか？ ……何かあったんですか？』",
-    "chat.smalltalk": "📱『ふふ、なんですかそれ。……でも、ちょっと元気出ました』",
+    "chat.smalltalk": "📱『いいですよ。{fp}もちょうど暇していました』",
+    "chat.smalltalk_hit": "📱『え、ちょうど{fp}も暇だったんです。聞いてくださいよ、この前……』",
+    "chat.smalltalk_flat": "📱『そうなんですね』",
+    "chat.smalltalk_flat_close": "📱『ごめん、今日はあんまり話す気分じゃないや』",
+    "chat.forgot": "📱『あっ、ごめんなさい。返したつもりになってました』",
     "chat.ask_how": "📱『最近ですか？ {news}』",
     # 「最近どう？」の {news} の中身 (一文のかけら. 性格ごとの言い方に差し替える). {tell} に出来事 (「友だちとケンカした」の形)
     "chat.ask_how_news": "{tell}んです。",
@@ -190,7 +195,10 @@ LINES = {
 # 何もないときの共通の言い方 (性格プリセットに chat.ask_how_nothing が無ければ, ここから選ぶ)
 NOTHING = ("特に変わりないですよ。", "相変わらずです。", "まあ、ぼちぼちです。")
 SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "thanks": "お礼", "apology": "謝罪 (理由を知っている)",
-               "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "雑談", "ask_how": "近況 ({news} に下の 2 つのどちらか)",
+               "apology_confused": "謝罪 (理由がわからない)", "smalltalk": "話したい (ふつうに乗ってくれた)", "smalltalk_hit": "話したい (弾んだ. 相手が話してくれる)",
+               "smalltalk_flat": "話したい (乗らない. 浅い仲: 取り繕った一言)",
+               "smalltalk_flat_close": "話したい (乗らない. 近い仲: はっきり断る)",
+               "forgot": "返し忘れていた (数時間後. 本来の返事の前に付く)", "ask_how": "近況 ({news} に下の 2 つのどちらか)",
                "ask_how_news": "近況の中身: 出来事があったとき ({tell} に出来事. 一文のかけら)",
                "ask_how_nothing": "近況の中身: 特に何もないとき (一文のかけら)",
                "consult": "相談", "tease": "からかい (笑ってくれた)", "tease_hurt": "からかい (傷ついた)", "flirt": "甘える (応えてくれた)",
@@ -434,6 +442,15 @@ class Chat:
             app.manners.favor(st, "consult", now)          # 相談にのってくれた (お礼の心当たり)
             if meta.get("consult") in msgpick.CONSULT_WORD:
                 return self.consult_reply(char, st, meta["consult"], now, extra)
+        if kind == "smalltalk":                 # 話したい: 乗ってくるか (会って話すときと同じ判定. core/hima.py)
+            res, vals = hima.judge(app, char, st, now)
+            said = hima.settle(app, char, st, res, now)
+            app.trace.add("msg", "話したい: " + hima.LABEL[res], cid, now, said=said, **vals)
+            key = "smalltalk" if res == "ok" else "smalltalk_" + res
+            if res == "flat" and hima.close(app, char, st):
+                key = "smalltalk_flat_close"
+            extra["said"] = said or ""
+            return key, dict(hima.EFFECT[res]), extra
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]
             if untold:
@@ -476,7 +493,7 @@ class Chat:
                 return "invite_yes", {"heart": 3, "mood": 3}, extra
             return "invite_no", {}, extra
         eff = {"greet_morning": {"loneliness": -3, "mood": 1}, "greet_night": {"loneliness": -3, "mood": 1},
-               "thanks": {"mood": 3, "trust": 1}, "smalltalk": {"boredom": -6, "loneliness": -5, "mood": 2},
+               "thanks": {"mood": 3, "trust": 1},
                "consult": {"trust": 2, "affection": 1}, "photo": {"mood": 2, "loneliness": -3},
                "stamp": {"loneliness": -2}}.get(kind, {})
         return kind, eff, extra
@@ -527,6 +544,8 @@ class Chat:
         if key == "too_often_mild":              # 好感度が下がらないだけで, 言うことは同じ
             key = "too_often"
         t = app.persona_text(char, "chat." + key) or LINES["chat." + key]
+        if key.startswith("smalltalk") and extra.get("said"):       # 話したい: 弾んで, 好き・苦手が口に出た
+            t = t[:-1] + " " + extra["said"] + "』" if t.endswith("』") else t + " " + extra["said"]
         fp, _, call = app.pronouns(char)
         for k, v in dict(extra, fp=fp, call=call, name=char.get("name", "")).items():
             t = t.replace("{%s}" % k, str(v))

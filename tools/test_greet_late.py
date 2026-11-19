@@ -110,7 +110,8 @@ def main():
         for seed in range(20):
             random.seed(seed)
             fresh()
-            st["msg_pending"] = {"aid": "message", "t": at(12, 0), "due": at(12, 20), "reply": True, "count": 3, "kind": "smalltalk",
+            # 最後は「最近どう？」(「話したい」は乗らないとノリが下がって切り上げることがある. それは束ねたせいではない)
+            st["msg_pending"] = {"aid": "message", "t": at(12, 0), "due": at(12, 20), "reply": True, "count": 3, "kind": "ask_how",
                                  "kind_t": at(12, 4), "meta": {}, "quick": False,
                                  "queue": [{"kind": "otsukare", "meta": {}, "t": at(12, 0)}, {"kind": "photo", "meta": {}, "t": at(12, 2)}]}
             app.deliver_due(at(12, 30))

@@ -357,45 +357,44 @@
  },
  {
   "id": "talk",
-  "name": "話しかける",
+  "name": "話したい",
   "icon": "💬",
   "category": "会話",
   "when": "free=true",
   "cooldown": 10,
-  "effects": {
-   "boredom": -10,
-   "loneliness": -8,
-   "mood": 3,
-   "affection": 1
-  },
+  "effects": {},
   "pos": "talking, looking at viewer, open mouth",
   "neg": "",
   "reactions": [
    {
     "text": "なんですか、{call}？ ふふ、お話しするの好きですよ。",
-    "when": "",
+    "when": "hima=ok",
     "pos": "smile",
-    "neg": ""
+    "neg": "",
+    "key": "default"
    },
    {
     "text": "今日はですね、ちょっといいことがあったんです。聞いてくれます？",
-    "when": "mood>=55",
+    "when": "hima!=flat, mood>=55",
     "pos": "smile, excited",
-    "neg": ""
+    "neg": "",
+    "key": "mood_ge_55"
    },
    {
     "text": "やっと構ってくれた！ ずっと暇だったんですよー。",
-    "when": "boredom>=70",
+    "when": "hima!=flat, boredom>=70",
     "priority": 1,
     "pos": "excited, leaning forward",
-    "neg": ""
+    "neg": "",
+    "key": "boredom_ge_70"
    },
    {
     "text": "ふぁ……すみません、ちょっと眠くて……",
-    "when": "sleepiness>=70",
+    "when": "hima!=hit, sleepiness>=70",
     "priority": 1,
     "pos": "yawning, rubbing eyes",
-    "neg": ""
+    "neg": "",
+    "key": "sleepiness_ge_70"
    },
    {
     "text": "……今はちょっと、そっとしておいてほしいです。",
@@ -410,44 +409,65 @@
    },
    {
     "text": "{call}と話してると、時間があっという間なんです。",
-    "when": "affection>=70",
+    "when": "hima!=flat, affection>=70",
     "pos": "smile, blush",
-    "neg": ""
+    "neg": "",
+    "key": "affection_ge_70"
    },
    {
     "text": "もう、さっきからお話ばっかりですね。……嫌じゃないですけど。",
-    "when": "repeat>=2",
+    "when": "hima!=flat, repeat>=2",
     "priority": 1,
     "pos": "smile, blush",
-    "neg": ""
+    "neg": "",
+    "key": "repeat_ge_2"
    },
    {
     "text": "（話が弾んで、気づけば一時間も話し込んでいた）",
-    "when": "sk_talk>=65, roll<35",
+    "when": "hima=hit, roll<50",
     "pos": "laughing, smile, looking at viewer",
     "neg": "",
     "priority": 1,
-    "effects": {
-     "mood": 4,
-     "affection": 1
-    }
+    "key": "sk_talk_ge_65__roll_lt_35"
    },
    {
     "text": "……（会話が続かず、微妙な沈黙が流れた）",
-    "when": "sk_talk<20, roll<35",
+    "when": "hima=flat, hima_close=false, roll<40",
     "pos": "awkward, looking away",
     "neg": "",
     "priority": 1,
-    "override": true,
-    "effects": {
-     "boredom": -3
-    }
+    "key": "sk_talk_lt_20__roll_lt_35"
    },
    {
     "text": "そういえば{call}、{player_like}が好きなんですよね。{fp}も、ちょっと気になってきました。",
-    "when": "player_likes>=1, roll<30",
+    "when": "hima!=flat, player_likes>=1, roll<30",
     "pos": "smile, curious, looking at viewer",
+    "neg": "",
+    "key": "player_likes_ge_1__roll_lt_30"
+   },
+   {
+    "key": "hit",
+    "text": "{call}も暇なんですか？ じゃあ聞いてください、この前ですね……（{name}の話は、なかなか止まらなかった）",
+    "when": "hima=hit",
+    "priority": 1,
+    "pos": "talking, smile, excited, leaning forward",
     "neg": ""
+   },
+   {
+    "key": "flat",
+    "text": "へえ……そうなんですね。（あまり話は続かなかった）",
+    "when": "hima=flat, hima_close=false",
+    "priority": 1,
+    "pos": "polite smile, looking away",
+    "neg": ""
+   },
+   {
+    "key": "flat_close",
+    "text": "ごめん、いまはあんまり話す気分じゃないかも。",
+    "when": "hima=flat, hima_close=true",
+    "priority": 1,
+    "pos": "tired, looking away",
+    "neg": "smile"
    }
   ],
   "reason_good": "{call}とたくさんおしゃべりした",

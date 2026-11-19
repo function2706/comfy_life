@@ -80,7 +80,10 @@ def main():
                                          "talk.affection_ge_70": ["テスト用のセリフ！"]})
         app.save_persona(p)
         char["persona_id"] = "genki"
+        from core import hima
+        j, hima.judge = hima.judge, lambda a, c, s, t: ("ok", {})      # 話したいの結果は「ふつう」で (弾む・乗らないは別のセリフ. tools/test_hima.py)
         assert app.act("talk")["entry"]["text"].startswith("テスト用のセリフ！")   # 繰り返しのうんざり (ナレーション) が付くことがある
+        hima.judge = j
         assert app.personas["genki"]["_custom"]
         app.reset_persona("genki")
         assert not app.personas["genki"]["_custom"]

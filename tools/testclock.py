@@ -44,6 +44,7 @@ def fix_noon(engine):
     real = places.open_state
     places.open_state_real = real
     places.open_state = offline.open_state = lambda pid, dt: real(pid, NOON)
+    App.FORGET_RATE_real, App.FORGET_RATE = App.FORGET_RATE, 0     # うっかり返し忘れはしない (返事が届くのを確かめるテストが揺れないように. 返し忘れは tools/test_hima.py)
     App._noon_fixed = True
 
 
