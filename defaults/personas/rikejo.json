@@ -2101,6 +2101,9 @@
   "chat.thanks_what": [
    "📱『何に対するお礼？ 該当する事象が見つからない』"
   ],
+  "chat.thanks_wrong": [
+   "📱『それをしたのは{fp}じゃない。相手を取り違えてるね』"
+  ],
   "chat.thanks_again": [
    "📱『それ、もう受信済み。何回言うの』"
   ],
@@ -2554,6 +2557,9 @@
   "chat.apology_unminded": [
    "📱『それは気にしてない。謝る必要はないよ』"
   ],
+  "chat.apology_wrong": [
+   "📱『その件に、{fp}は関わっていない。ほかの人の記憶と混ざってる』"
+  ],
   "chat.stamp_heart": [
    "📱『（ハートのスタンプが返ってきた）』"
   ],
@@ -2581,6 +2587,9 @@
   "apologize.apology_unminded": [
    "それは気にしてない。謝る必要はないよ"
   ],
+  "apologize.apology_wrong": [
+   "その件に、{fp}は関わっていない。ほかの人の記憶と混ざってる"
+  ],
   "thank.default": [
    "どういたしまして。合理的な判断だっただけ"
   ],
@@ -2592,6 +2601,9 @@
   ],
   "thank.thanks_what": [
    "何に対するお礼？ 該当する事象が見つからない"
+  ],
+  "thank.thanks_wrong": [
+   "それをしたのは{fp}じゃない。相手を取り違えてるね"
   ],
   "thank.thanks_not_yet": [
    "……まだ許したわけじゃない。検証中"

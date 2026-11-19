@@ -1955,6 +1955,9 @@
   "chat.thanks_what": [
    "📱『え、何がだ？』"
   ],
+  "chat.thanks_wrong": [
+   "📱『それをしたのは{fp}じゃない。礼を言う相手が違うぞ』"
+  ],
   "chat.thanks_again": [
    "📱『それ、もう聞いたぞ。何回言うんだ』"
   ],
@@ -2543,6 +2546,9 @@
   "chat.apology_unminded": [
    "📱『それは気にしてないぞ。謝らなくていい』"
   ],
+  "chat.apology_wrong": [
+   "📱『それは{fp}じゃないぞ。誰と間違えてるんだ』"
+  ],
   "chat.stamp_heart": [
    "📱『（ハートのスタンプが返ってきた）』"
   ],
@@ -2570,6 +2576,9 @@
   "apologize.apology_unminded": [
    "それは気にしてないぞ。謝らなくていい"
   ],
+  "apologize.apology_wrong": [
+   "それは{fp}じゃないぞ。誰と間違えてるんだ"
+  ],
   "thank.default": [
    "どういたしまして。そう言ってもらえるとうれしいよ"
   ],
@@ -2581,6 +2590,9 @@
   ],
   "thank.thanks_what": [
    "え、何がだ？"
+  ],
+  "thank.thanks_wrong": [
+   "それをしたのは{fp}じゃない。礼を言う相手が違うぞ"
   ],
   "thank.thanks_not_yet": [
    "……まだ、許したわけじゃないけど"
