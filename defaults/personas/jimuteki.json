@@ -37,6 +37,24 @@
   "reason": 1.25
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。そう言ってもらえると助かるわ』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『ええ。次からは確認するようにするわ』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そう。本当に気にしていないなら、いいけれど』"
+  ],
+  "chat.react_late_good": [
+   "📱『ええ、遅かったわね。次は気をつけるわ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめんなさい』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ったでしょう。繰り返さなくていいわ』"
+  ],
   "talk.hit": [
    "区切りがついたところよ。少し話しましょうか。この前ね……（{name}にしては珍しく、話が長く続いた）",
    "いいわ。{fp}も、話したいことがひとつあったの"

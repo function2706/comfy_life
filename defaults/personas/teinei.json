@@ -30,6 +30,24 @@
   "reason": 1.0
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとうございます。そう言ってもらえると、ほっとします』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『はい……次から気をつけますね』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……本当に気にしてないんですか？』"
+  ],
+  "chat.react_late_good": [
+   "📱『ふふ、ごめんなさいってば。次はすぐ返しますから』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……はい、すみません』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……だから、謝ったじゃないですか』"
+  ],
   "talk.hit": [
    "{fp}も暇だったんです。聞いてください、この前……（{name}は楽しそうに、いろいろなことを話してくれた）",
    "うれしいです。{fp}も、話したいことがあって"

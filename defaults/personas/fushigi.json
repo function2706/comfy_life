@@ -42,6 +42,24 @@
   "reason": 0.9
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。気持ちがふっと軽くなった』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『うん。次は、返したかどうか確かめるね』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ほんとうに？ 声が少し遠い気がする』"
+  ],
+  "chat.react_late_good": [
+   "📱『ふふ、ごめんね。時間がどこかに行っちゃってたの』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……うん、ごめんね』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そんなに言わなくても、わかってるよ』"
+  ],
   "talk.hit": [
    "いいよ。{fp}も、今日見つけたものの話をしたかったの。あのね……（{name}の話はあちこちに飛びながら、ずっと続いた）",
    "うん、話そ。さっきね、雲が変な形をしてたの"

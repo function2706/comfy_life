@@ -38,6 +38,24 @@
   "reason": 0.95
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ん、ありがと。そう言うと思った』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『知ってる。言われなくても』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ふーん。別にいいけど』"
+  ],
+  "chat.react_late_good": [
+   "📱『うるさいなぁ、ごめんってば。そっちもよくやるじゃん』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ったじゃん。しつこい』"
+  ],
   "talk.hit": [
    "暇なの？ {fp}も。じゃあ聞いてよ、この前さ……（{name}の話は、昔の話にまで広がった）",
    "あ、そうだ。商店街のあのお店、閉まっちゃったの知ってる？"

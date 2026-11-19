@@ -40,6 +40,24 @@
   "reason": 0.8
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがと！ よかったぁ』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そっか！ じゃあいいや』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……あれ、なんか冷たくない？』"
+  ],
+  "chat.react_late_good": [
+   "📱『ごめんごめん！ 返事したつもりで、もう寝てたの』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『うん、ごめんね』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そんなに言わなくてもいいじゃん』"
+  ],
   "talk.hit": [
    "話そ！ {fp}もね、話したいことがいっぱいあったの。えっとね……（{name}の話はあちこちに飛びながら、ずっと続いた）",
    "いいよ！ さっきね、おもしろいもの見つけたの"

@@ -36,6 +36,24 @@
   "reason": 1.2
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……ありがと。助かる』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『……次は気をつける』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そう。気にしてないなら、それでいい』"
+  ],
+  "chat.react_late_good": [
+   "📱『……悪かった。次は早く返す』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……謝った。それ以上は言わないで』"
+  ],
   "talk.hit": [
    "……暇だった。そういえば、この前……（{name}にしては珍しく、話が長く続いた）",
    "いいよ。……話したいこと、少しある"

@@ -35,6 +35,24 @@
   "reason": 1.1
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。助かるよ』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そうか。……ならいい』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そうか。ならいいが』"
+  ],
+  "chat.react_late_good": [
+   "📱『悪かった。次はすぐに返すよ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……すまない』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝っただろう。そう何度も言うな』"
+  ],
   "talk.hit": [
    "一段落したところだ。そういえば、この前……（{name}の話は思いのほか長く続いた）",
    "いいぞ。{fp}も話したいことがあった"

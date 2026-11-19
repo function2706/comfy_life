@@ -39,6 +39,24 @@
   "reason": 1.15
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……ふうん。優しいのね。ありがと』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そう。ならいいわ』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……つまらない反応ね』"
+  ],
+  "chat.react_late_good": [
+   "📱『あら、待ちわびてたの？ かわいいところあるじゃない』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……悪かったわ』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ったでしょ。しつこいわよ』"
+  ],
   "talk.hit": [
    "暇なの？ いいわ、{fp}の話に付き合わせてあげる。この前ね……（{name}は楽しそうに、長々と話し続けた）",
    "退屈してたのよ。聞きなさい"

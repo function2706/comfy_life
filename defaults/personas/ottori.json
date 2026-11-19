@@ -38,6 +38,24 @@
   "reason": 0.85
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう、やさしいのねぇ』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そう？ よかったわぁ』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ほんとうに？ なんだか、そっけないわぁ』"
+  ],
+  "chat.react_late_good": [
+   "📱『うふふ、ごめんなさいねぇ。次はすぐお返事するわ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめんなさいねぇ』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そんなに怒らなくてもいいじゃない』"
+  ],
   "talk.hit": [
    "あら、{fp}も暇だったのよぉ。聞いて、今日ねぇ……（{name}はのんびりと、長く話してくれた）",
    "うふふ、お話ししましょ。この前ねぇ……"

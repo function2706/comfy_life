@@ -36,6 +36,24 @@
   "reason": 1.15
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……そう。寛大なのね。ありがとう』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『……そう。ならいいわ』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……あっさりしているのね』"
+  ],
+  "chat.react_late_good": [
+   "📱『……わかっているわ。次は待たせない』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……悪かったわ』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ったでしょう。しつこいわね』"
+  ],
   "talk.hit": [
    "暇なのね。いいわ、{fp}の話を聞かせてあげる。この前ね……（{name}は思いのほか楽しそうに話し続けた）",
    "いいわ。昨日のお茶会の話、まだ誰にもしていないの"

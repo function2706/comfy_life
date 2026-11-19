@@ -43,6 +43,24 @@
   "reason": 1.0
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……ありがとうございます。怒られるかと思ってました……』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『はい……次は、気をつけます……』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……本当は、怒ってますよね……』"
+  ],
+  "chat.react_late_good": [
+   "📱『す、すみません……次は、すぐ返します……』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……はい、すみません……』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……やっぱり、怒ってるじゃないですか……』"
+  ],
   "talk.hit": [
    "{fp}と、ですか……？ じゃあ、あの……この前、ちょっとだけいいことがあって……（{name}はぽつぽつと、でも長く話してくれた）",
    "えっと……実は{fp}も、話したいことがあって……"

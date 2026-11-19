@@ -35,6 +35,24 @@
   "reason": 1.0
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……べ、別に。ありがと』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『……そ。ならいいけど』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ふーん。気にしてないんだ』"
+  ],
+  "chat.react_late_good": [
+   "📱『し、仕方ないでしょ、忘れてたんだから。次はすぐ返すわよ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……謝ったでしょ。何回も言わないで』"
+  ],
   "talk.hit": [
    "……暇なの？ 別に、{fp}も暇だっただけだから。……この前ね。（{name}は口ではそう言いながら、長く話し続けた）",
    "し、仕方ないわね。……昨日のドラマ、見た？"

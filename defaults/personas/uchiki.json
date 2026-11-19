@@ -39,6 +39,24 @@
   "reason": 1.0
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『……ありがとうございます。ほっとしました……』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『はい……次は、気をつけます……』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……本当に、気にしてませんか……？』"
+  ],
+  "chat.react_late_good": [
+   "📱『ご、ごめんなさい……次は、すぐ返します……』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……はい、ごめんなさい……』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……ごめんなさいって、言ったのに……』"
+  ],
   "talk.hit": [
    "あ、あの……{fp}も、暇で……。この前、ちょっといいことがあって……（{name}は少しずつ、たくさん話してくれた）",
    "うれしいです……。実は、話したいことがあって……"

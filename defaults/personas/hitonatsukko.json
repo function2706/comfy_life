@@ -37,6 +37,24 @@
   "reason": 0.9
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『よかったぁ、ありがと！ やさしいね』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そっか、うん』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……え、ほんとに？ なんかそっけない……』"
+  ],
+  "chat.react_late_good": [
+   "📱『ごめんってば〜。許して？』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『うん、ごめんね』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そんな言い方しなくてもいいじゃん』"
+  ],
   "talk.hit": [
    "話そ話そ！ {fp}も暇だったの。でね、今日さ……（{name}は身を寄せて、楽しそうに話し続けた）",
    "やった、{fp}も話したかった！ 聞いてよ、この前ね……"

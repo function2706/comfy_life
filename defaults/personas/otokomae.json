@@ -36,6 +36,24 @@
   "reason": 1.1
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。そう言ってもらえると助かる』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そうか。なら、いい』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そうか。それならいいんだが』"
+  ],
+  "chat.react_late_good": [
+   "📱『ははっ、すまない。次はすぐに返す』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……すまない』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝っただろう。それ以上言うな』"
+  ],
   "talk.hit": [
    "{fp}も手が空いていたところだ。そういえば、この前な……（{name}の話は思いのほか長く続いた）",
    "いいぞ。今朝走っていたら、川沿いで珍しい鳥を見たんだ"

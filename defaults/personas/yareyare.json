@@ -39,6 +39,24 @@
   "reason": 1.05
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『助かります。……ありがとうございます』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そうですか。ならいいです』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そうですか。まあ、いいですけど』"
+  ],
+  "chat.react_late_good": [
+   "📱『すみませんって。次は早めに返しますから』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……はい、すみません』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ったじゃないですか。しつこいですよ』"
+  ],
   "talk.hit": [
    "まあ、{fp}も暇でしたし。そういえば、この前……（{name}は面倒そうに言いながら、話は長く続いた）",
    "まあ、いいですけど。今日、課題がやっと終わったんですよ"

@@ -45,6 +45,24 @@
   "reason": 1.0
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう……やさしいね』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『うん……次は気をつけるね』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ほんとに、怒ってない……？』"
+  ],
+  "chat.react_late_good": [
+   "📱『ふふ、ごめんね。次は待たせないようにするね』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……うん、ごめんね』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……ごめんって、言ったのに……』"
+  ],
   "talk.hit": [
    "うれしいな、{fp}も誰かと話したかったの。あのね、今日窓から見ててね……（{name}は少しずつ、たくさん話してくれた）",
    "うん、話そう。今朝ね、窓のところに小さい鳥が来てたの"

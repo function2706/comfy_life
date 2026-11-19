@@ -40,6 +40,24 @@
   "reason": 0.85
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『よかったー！ ありがと！』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そっか、ならよかった』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ほんとに気にしてない？』"
+  ],
+  "chat.react_late_good": [
+   "📱『あはは、ごめんごめん！ お詫びに今日はいっぱい話そ！』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『うん、ごめんね』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……ごめんって言ったじゃん』"
+  ],
   "talk.hit": [
    "いいよいいよ、話そ！ 聞いて、今日ね……（{name}の話は止まらなかった）",
    "{fp}も暇だったの！ あのね、さっきすごいことがあって……"

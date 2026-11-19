@@ -39,6 +39,24 @@
   "reason": 1.05
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがと。怒られるかと思ってちょっと焦ってた』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そう？ じゃあ、そういうことで』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……ふーん。気にしてもらえないのも、ちょっとさみしいかも』"
+  ],
+  "chat.react_late_good": [
+   "📱『ごめんごめん。待ってた？ ふふ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……はい、ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そこまで言う？』"
+  ],
   "talk.hit": [
    "暇なんだ？ じゃあ、昨日の失敗談でもしてあげよっか……（{name}は楽しそうに、次から次へと話した）",
    "{fp}も暇だったんだよね。じゃあ、とっておきの話してあげる"

@@ -39,6 +39,24 @@
   "reason": 1.3
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。助かる』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『うん。次は通知を見直す』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……そう。本当に気にしてないなら、いいけど』"
+  ],
+  "chat.react_late_good": [
+   "📱『ごめん。原因はわかってる、次は早く返す』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝った。何度も言わないで』"
+  ],
   "talk.hit": [
    "{fp}も手が空いた。聞いて、この前気づいたことがあって……（{name}の話はどんどん細かくなっていった）",
    "いいよ。話したいことがひとつあるんだ"

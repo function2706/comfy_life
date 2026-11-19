@@ -36,6 +36,24 @@
   "reason": 0.95
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがとう。やさしいのね』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そう言ってもらえるなら、いいのだけど』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……本当に気にしていないの？ なんだか冷たいわ』"
+  ],
+  "chat.react_late_good": [
+   "📱『ふふ、ごめんなさい。次はすぐにお返事するわ』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ええ、ごめんなさい』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そんなに責めなくてもいいでしょう』"
+  ],
   "talk.hit": [
    "まあ、{fp}も退屈していたの。ねえ聞いて、今日ね……（{name}は楽しそうに、いろいろなことを話してくれた）",
    "まあ、うれしい。今日ね、お庭の薔薇が咲いたの"

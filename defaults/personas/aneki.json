@@ -35,6 +35,24 @@
   "reason": 1.1
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがと。そう言ってくれると助かるわ』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そう？ ならいいけど』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……あっさりしてるのね。少しは気にしてほしかったんだけど』"
+  ],
+  "chat.react_late_good": [
+   "📱『はいはい、悪かったわよ。次はすぐ返すから』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『……ええ、悪かったわ』"
+  ],
+  "chat.react_late_bad": [
+   "📱『謝ってるでしょ。そんなに言わなくてもいいじゃない』"
+  ],
   "talk.hit": [
    "暇なの？ じゃあ付き合って。今日スーパーで、レジの列がね……（{name}の話は、なかなか終わらなかった）",
    "いいわよ、付き合ってあげる。そういえばこの前ね……"

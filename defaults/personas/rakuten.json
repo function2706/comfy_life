@@ -43,6 +43,24 @@
   "reason": 0.85
  },
  "lines": {
+  "chat.react_nevermind_good": [
+   "📱『ありがと！ そう言ってくれると思ってた』"
+  ],
+  "chat.react_nevermind_neutral": [
+   "📱『そっか、ならいっか』"
+  ],
+  "chat.react_nevermind_bad": [
+   "📱『……あれ、ほんとに気にしてない？』"
+  ],
+  "chat.react_late_good": [
+   "📱『あはは、ごめん。ぼーっとしてた』"
+  ],
+  "chat.react_late_neutral": [
+   "📱『うん、ごめん』"
+  ],
+  "chat.react_late_bad": [
+   "📱『……そこまで言わなくても』"
+  ],
   "talk.hit": [
    "いいよー、{fp}も暇だった。聞いて、この前さ……（{name}は楽しそうに、とりとめなく話し続けた）",
    "話そ話そ。今日ね、道を聞かれて逆を教えちゃってさ"
