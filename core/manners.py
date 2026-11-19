@@ -41,7 +41,7 @@ GREET_WORD = {"greet_morning": "おはよう", "greet_night": "おやすみ"}
 THANKS_GRACE = FAVOR_SPAN  # 謝罪の返事のあと, 連絡が多いうちに数えないお礼の間 (お礼が効く「最近」と同じ 1 日)
 APOLOGY_EFF = {"quick": {"mood": 4, "trust": 1}, "half": {"mood": 1}, "deeds": {}, "refuse": {"mood": -1},
                "enough": {"mood": -2}, "irritated": {"mood": -4, "stress": 3, "affection": -1}, "confused": {"mood": -1},
-               "near": {"mood": 1}, "unminded": {"trust": 0.5}}
+               "near": {"mood": 1}, "unminded": {"trust": 0.5}, "wrong": {"mood": -3, "trust": -1}}
 
 
 def period(kind, dt):
@@ -74,37 +74,50 @@ class Manners:
         return [r for r in st.get("reasons") or [] if r["kind"] == "player" and r["mood"] == "bad"
                 and not r.get("resolved") and now - r["t"] <= FAULT_DAYS * 86400]
 
-    def happened(self, char, st, pick, now):
-        """選んだ理由にあたることが, 実際にあったか (相手は気にしていなくても): 機嫌の理由 (良い・悪い・済んだもの) /
-        送ったメッセージ (3 日のうち) / したコマンド (3 日のうち)."""
-        span = 3 * 86400
-        if any(msgpick.reason_item(r) == pick and now - r["t"] <= REPEAT_DAYS * 86400 for r in st.get("reasons") or []):
-            return True
-        if pick.startswith("msg:"):
-            return any(it.get("who") == "me" and it.get("kind") == pick[4:] and 0 <= now - it.get("t", 0) <= span
-                       for it in self.app.chat.load(char["id"])["items"])
-        if pick.startswith("cmd:"):
-            return any(e.get("action") == pick[4:] and 0 <= now - e.get("t", 0) <= span for e in self.app.log(char["id"]))
-        return False
+    def legacy_pick(self, st, pick, now):
+        """以前の形 (項目の id の文字列) で選んでいた謝罪 (更新の前に送って, まだ返事が来ていないメッセージ) を, 出来事の形に."""
+        if not isinstance(pick, str):
+            return pick
+        hit = [x for x in self._faults(st, now) if msgpick.reason_item(x) == pick]
+        return {"type": "fault", "rt": hit[0]["t"]} if hit else {"type": "shift", "of": "real"}
 
     def apology(self, char, st, now, face=False, pick=None):
         """謝った. 結果 {out, r, late} を決める (状態はまだ変えない. apply_apology で反映).
         out: quick / half / deeds / refuse / late / enough / irritated / none (謝ることが見当たらない).
-        pick: 謝る理由を選んだ (メッセージ. core/msgpick.py). そのときは理由で決まる:
-          相手が気にしていること → これまでどおりの許し方 / 近いこと → near (「それもだけど……」少し効く) /
-          あったが気にしていないこと → unminded (「気にしてない」) / 心当たりなし → none (気にしていることがあれば, ずれていて少し下がる: miss)."""
+        pick: 謝る理由を, 記憶の問いから選んだ出来事 (core/memquiz.py の entry). そのときは選んだものの種類で決まる:
+          相手が気にしていること (fault) → これまでどおりの許し方 / それの細部違い (shift of fault) → near (「それじゃなくて」少し効く) /
+          その相手に本当にしたが, 気にしていないこと (real) → unminded (「気にしてない」) / 他の人とのこと (other) → wrong
+          (「それ、私じゃないよね」. 重く, 嫉妬しやすい性格ほど) / なかったこと (shift) → none (気にしていることがあれば, ずれていて下がる: miss).
+          4 時間のうちに外すのが 3 回目なら, 何であれ苛立たれる (irritated)."""
         prev = [t for t in st.get("apologies") or [] if now - t < APOLOGY_SPAN]
         fs = self._faults(st, now)
         if pick is not None and not prev:
-            hit = [x for x in fs if msgpick.reason_item(x) == pick]
+            pick = self.legacy_pick(st, pick, now)
+            typ = pick.get("type")
+            hit = [x for x in fs if typ == "fault" and abs(x["t"] - pick.get("rt", -1)) < 1]
             if not hit:
-                nr = [x for x in fs if msgpick.reason_item(x) is None or msgpick.near(pick, msgpick.reason_item(x), self.app)]
-                out = "near" if nr else "unminded" if self.happened(char, st, pick, now) else "none"
-                self.app.trace.add("manners", "謝罪の判定 (理由を選んだ): %s" % out, char.get("id"), now, pick=pick,
-                                   faults=[msgpick.reason_item(x) for x in fs])
+                tries = [t for t in st.get("apology_tries") or [] if now - t < APOLOGY_SPAN]
+                blind = [x for x in fs if msgpick.reason_item(x) is None]        # 以前のセーブの, 印の無い理由 (当てようがない)
+                if len(tries) >= 2:
+                    out = "irritated"
+                elif typ == "other":
+                    out = "wrong"
+                elif blind and typ != "other":
+                    out = "near"
+                elif typ == "shift" and pick.get("of") == "fault" or typ == "fault":
+                    out = "near"
+                elif typ == "real":
+                    out = "unminded"
+                else:
+                    out = "none"
+                self.app.trace.add("manners", "謝罪の判定 (理由を選んだ): %s" % out, char.get("id"), now, pick=pick.get("label"),
+                                   type=typ, tries=len(tries), faults=[msgpick.reason_item(x) for x in fs])
                 if out == "near":
-                    return {"out": "near", "r": max(nr, key=lambda x: (abs(x.get("delta", 0)), x["t"]))}
-                return {"out": out, "r": None, "miss": bool(fs)}
+                    nr = [x for x in fs if pick.get("rt") is not None and abs(x["t"] - pick["rt"]) < 1] or blind or fs
+                    if nr:
+                        return {"out": "near", "r": max(nr, key=lambda x: (abs(x.get("delta", 0)), x["t"])), "picked": True}
+                    out = "none"
+                return {"out": out, "r": None, "miss": bool(fs), "picked": True}
             fs = hit
         if len(prev) >= 2 or prev or not fs:
             out = "irritated" if len(prev) >= 2 else "enough" if prev else "none"
@@ -133,6 +146,10 @@ class Manners:
         L = self.app.life
         r, out = v.get("r"), v["out"]
         st["apologies"] = [t for t in st.get("apologies") or [] if now - t < 86400]
+        if v.get("picked") and out in ("near", "unminded", "none", "wrong"):     # 選んで外した (4 時間のうち 3 回目は苛立たれる)
+            st["apology_tries"] = [t for t in st.get("apology_tries") or [] if now - t < APOLOGY_SPAN] + [now]
+        elif out in ("quick", "late", "half", "deeds", "refuse"):
+            st.pop("apology_tries", None)
         if out in COUNTED_APOLOGY:     # 「もういいって」と言えるのは, 許したあと (何のことかわからない・まだ許していないなら数えない)
             st["apologies"].append(now)
         if out in ("quick", "late"):
@@ -173,19 +190,27 @@ class Manners:
         st["favors"] = fs[-12:]
 
     def thanks_pick(self, st, now, pick, char=None):
-        """お礼の理由を選んだ (メッセージ. core/msgpick.py): 最近してくれて, まだお礼していないこと → 効く /
-        前のこと・もうお礼したこと → thanks_again / していないこと → thanks_what (「何のお礼？」)."""
+        """お礼の理由を, 記憶の問いから選んだ (core/memquiz.py の entry. 以前の形の文字列も読む):
+        してくれたこと (favor) → 最近でまだお礼していなければ効く / もうお礼した・前のこと → thanks_again /
+        許してくれた (forgave) → 謝罪の結果しだい / 細部違い・なかったこと (shift) → thanks_what (「何のお礼？」) /
+        他の人がしてくれたこと (other) → thanks_wrong (「それ、私じゃないよね」)."""
+        if isinstance(pick, str):
+            pick = {"type": "forgave"} if pick == "forgave" else {"type": "favor", "what": pick}
+        typ = pick.get("type")
         al = st.get("apology_last") or {}
-        if pick == "forgave":
+        if typ == "other":
+            return "thanks_wrong", self.wrong_eff(char, {"mood": -2, "trust": -0.5}, 0.5)
+        if typ == "forgave":
             if al and 0 <= now - al.get("t", 0) < FAVOR_SPAN and al.get("out"):
                 got = self._thanks_forgave(st, al, char)
                 if got:
                     return got
                 return "thanks_again", {"mood": 0.5}
             return "thanks_what", {}
-        fs = [f for f in st.get("favors") or [] if f["what"] == pick and now - f["t"] < FAVOR_SPAN * 2]
-        self.app.trace.add("manners", "お礼の判定 (理由を選んだ)", (char or {}).get("id"), now, pick=pick,
-                           favors=[f["what"] for f in st.get("favors") or []])
+        what = pick.get("what") if typ == "favor" else None
+        fs = [f for f in st.get("favors") or [] if what and f["what"] == what and now - f["t"] < FAVOR_SPAN * 2]
+        self.app.trace.add("manners", "お礼の判定 (理由を選んだ)", (char or {}).get("id"), now, pick=pick.get("label") or what,
+                           type=typ, favors=[f["what"] for f in st.get("favors") or []])
         if not fs:
             return "thanks_what", {}
         fresh = [f for f in fs if not f["thanked"] and now - f["t"] < FAVOR_SPAN]
@@ -194,6 +219,16 @@ class Manners:
         if fresh:
             return "thanks", {"mood": 3, "trust": 1, "affection": 0.5}
         return "thanks_again", {"mood": 0.5}
+
+    def wrong_eff(self, char, eff, k=1.0):
+        """人違い (他の人とのことを謝った・お礼を言った): 嫉妬しやすい性格ほど重い."""
+        eff = dict(eff)
+        if char:
+            j = self.app.bonds.jealousy(char)
+            if j > 1:
+                eff["mood"] = round(eff.get("mood", 0) - 3 * (j - 1) * k, 1)
+                eff["affection"] = round(eff.get("affection", 0) - (j - 1) * k, 1)
+        return eff
 
     def thanks(self, st, now, char=None):
         """お礼を言った: (場面, 効き目). 謝ったあと (1 日のうち) なら, 謝罪の結果しだい (forgave)."""
@@ -597,6 +632,8 @@ class Manners:
             if out == "late":
                 return "apology_late", ({"mood": 1, "trust": 0.5} if v.get("s", 0) >= 0.3 else {"mood": -1}), {}
             eff = dict(APOLOGY_EFF[out])
+            if out == "wrong":                           # 他の人とのことを謝った: 「それ、私じゃないよね」
+                eff = self.wrong_eff(char, eff)
             if out == "confused" and v.get("miss"):      # 気にしていることは別にある: ずれていて, 少し下がる
                 eff = {"mood": -2}
             return ("apology" if out == "quick" else "apology_" + out), eff, {}

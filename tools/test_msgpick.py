@@ -16,7 +16,7 @@ import time
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core import engine, msgpick, store  # noqa: E402
+from core import engine, memquiz, store  # noqa: E402
 
 
 def main():
@@ -42,51 +42,30 @@ def main():
             st.pop("apology_last", None)
             app.set_params({"mood": 55, "affection": 50, "trust": 50}, cid)
 
-        # ---- 1. 一覧: 謝る理由は分類せず 1 列 (状況 → メッセージ → コマンド). コマンドも入っている
-        ch = msgpick.apology_choices(app)
-        ids = [x["id"] for x in ch]
-        assert ids[0] == "no_reply" and "too_often" in ids and any(i.startswith("msg:") for i in ids) and any(i.startswith("cmd:") for i in ids)
-        assert len(ids) == len(set(ids)) and not any("group" in x for x in ch)
+        # ---- 1. 送る欄: 謝る・お礼は記憶の問い (別の窓. A20. 中身は tools/test_memquiz.py)
         th = C.thread(cid)
         assert [g["id"] for g in th["groups"]] == ["chat", "feel", "invite", "photo", "call"] and set(th["pick"]) == {"apology", "thanks", "consult", "stamp"}
+        assert th["pick"]["apology"] == "quiz" and th["pick"]["thanks"] == "quiz"
         grouped = {k for g in th["groups"] for k in g["kinds"]}
         from core import react      # 相手のメッセージへの返しは「返す」のまとまりにだけ (返していないメッセージがあるとき)
         assert grouped | {"stamp", "nudge"} | set(react.IDS) == set(k["id"] for k in th["kinds"]), set(k["id"] for k in th["kinds"]) - grouped
-        print("一覧: OK | 謝る理由 %d 件・分類 %d" % (len(ids), len(th["groups"])))
+        print("一覧: OK | 分類 %d" % len(th["groups"]))
 
-        # ---- 2. 謝る: 的中 / 近い / 気にしていない / 心当たりなし
+        # ---- 2. 謝る: 以前の形 (項目 id) で送ってあったもの: 的中ならこれまでの許し方 / 外れは「何のこと？」(気にしていることがあれば下がる)
         fresh()
         L.add_reason(st, "player", "bad", "連絡が多くて疲れた", now - 600, told=True, delta=-3.0, action="_too_often")
         key, eff, _ = reply("apology", reason="too_often")
         assert key in ("apology", "apology_half", "apology_deeds", "apology_refuse"), key
-        print("的中:", key)
-
         fresh()
         L.add_reason(st, "player", "bad", "連絡が多くて疲れた", now - 600, told=True, delta=-4.0, action="_too_often")
-        key, eff, _ = reply("apology", reason="late_night")
-        assert key == "apology_near" and eff == {"mood": 1}, (key, eff)
-        assert st["reasons"][-1]["delta"] == -3.0 and not st["reasons"][-1].get("resolved")      # 和らぐだけ
-        print("近い:", key)
-
-        fresh()
-        C.add(cid, "me", "（からかった）", kind="tease", t=now - 3600)
-        key, eff, _ = reply("apology", reason="msg:tease")
-        assert key == "apology_unminded", key
-        print("気にしていない:", key)
-
-        fresh()
-        key, eff, _ = reply("apology", reason="anniv_forgot")
-        assert key == "apology_confused" and eff == {"mood": -1}, (key, eff)
-        L.add_reason(st, "player", "bad", "約束に来なかった", now - 600, told=False, delta=-8.0, action="_appoint")
         key, eff, _ = reply("apology", reason="home")
-        assert key == "apology_confused" and eff == {"mood": -2}, (key, eff)      # 別のことで怒っている: ずれていて下がる
-        print("心当たりなし: OK")
-
-        # 選ばない (対面・以前の呼び方) はこれまでどおり
+        assert key == "apology_confused" and eff == {"mood": -2}, (key, eff)
+        # 選ばない (以前の呼び方) はこれまでどおり
         fresh()
         L.add_reason(st, "player", "bad", "連絡が多くて疲れた", now - 600, told=True, delta=-3.0, action="_too_often")
         key, _, _ = reply("apology")
         assert key.startswith("apology") and key not in ("apology_near", "apology_unminded"), key
+        print("謝る (以前の形): OK")
 
         # ---- 3. お礼
         fresh()
@@ -124,9 +103,10 @@ def main():
         # ---- 6. 送る: 要約に理由が残る. 違う理由は弾く
         fresh()
         st.pop("msg_pending", None)
-        C.send(cid, "apology", {"reason": "too_often"})
-        assert C.thread(cid)["items"][-1]["text"] == "（謝った: 連絡しすぎた）", C.thread(cid)["items"][-1]
-        assert st["msg_pending"]["meta"]["reason"] == "too_often"
+        q = memquiz.ask(app, cid, "apology", now)
+        C.send(cid, "apology", {"reason": q["choices"][0]["id"]})
+        assert C.thread(cid)["items"][-1]["text"] == "（謝った: %s）" % q["choices"][0]["label"], C.thread(cid)["items"][-1]
+        assert st["msg_pending"]["meta"]["reason"]["label"] == q["choices"][0]["label"]
         st.pop("msg_pending", None)
         C.send(cid, "stamp", {"stamp": "like"})
         assert C.thread(cid)["items"][-1]["text"] == "（👍 いいねのスタンプを送った）"

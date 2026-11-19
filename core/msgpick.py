@@ -1,9 +1,7 @@
 """メッセージで「何について」を選ぶ: 謝る理由・お礼の理由・相談の中身・スタンプの種類 (A1/A2).
 
-- 謝る理由 (apology_choices): あなたが相手にした・しなかったこと. 分類も「最近あったこと」も出さず, 決まった順に 1 列
-  (ちゃんと選ぶ手間も遊びのうち). 機嫌の理由 (life.add_reason) の action を, 選べる項目に当てる (reason_item).
-  「近い」は画面に出さない内部のまとまり (NEAR) で見る. コマンド・メッセージの種類が原因の理由は, その名前の項目に.
-- お礼の理由 (thanks_choices): 相手がしてくれたこと (manners.favor の what) と「許してくれた」.
+- 謝る・お礼の理由: 選ぶのは記憶の問い (core/memquiz.py. A20). ここは, 機嫌の理由 (life.add_reason) の action を
+  項目に当てる表 (reason_item. 問いの文の型と, 細部をずらすときの近いもの NEAR) と, してくれたことの文言 (FAVORS).
 - 相談の中身 (CONSULT): 一人でやること (仕事・勉強・家事 など) と, ほかの人との仲・将来・趣味. 合うかは性格しだい (chat.consult_reply).
 - スタンプ (STAMPS): よくある種類. 返事は manners.reply の stamp.
 """
@@ -103,20 +101,6 @@ STAMPS = [
 STAMP = {k: (i, w) for k, i, w in STAMPS}
 
 
-def apology_choices(app):
-    """謝る理由の一覧 [{id, label}] (決まった順. 分類しない)."""
-    from .chat import KINDS
-    out = [{"id": k, "label": w} for k, w in SITUATIONS]
-    out += [{"id": "msg:" + k, "label": "「%s」と送ったこと" % KINDS[k][0]} for k in MSG_KINDS if k in KINDS]
-    out += [{"id": "cmd:" + a["id"], "label": "「%s」をしたこと" % a.get("name", a["id"])}
-            for a in app.actions if a.get("category") != "system" and not a["id"].startswith("_")]
-    return out
-
-
-def thanks_choices():
-    return [{"id": k, "label": w} for k, w in FAVORS]
-
-
 def reason_item(r):
     """機嫌の理由 (あなたのせい) が, 謝る理由のどの項目にあたるか. 当てられなければ None (以前のセーブの, 印の無い理由)."""
     a = r.get("action") or ""
@@ -146,24 +130,19 @@ def near(a, b, app=None):
     return False
 
 
-def valid_apology(app, pid):
-    return any(x["id"] == pid for x in apology_choices(app))
-
-
-def check_extra(app, kind, extra):
-    """選んだ理由・中身を確かめて, トークに残す要約 (said) を付ける (メッセージ・電話で共通). 違えば ValueError."""
+def check_extra(app, kind, extra, cid=None):
+    """選んだ理由・中身を確かめて, トークに残す要約 (said) を付ける (メッセージ・電話で共通). 違えば ValueError.
+    謝る・お礼の理由は, 記憶の問い (core/memquiz.py) の札: 選んだ出来事に置きかえる (問いは捨てる)."""
     from .chat import KINDS
+    from . import memquiz
     extra = dict(extra or {})
     rs = extra.get("reason")
-    if kind == "apology" and rs:
-        item = next((x for x in apology_choices(app) if x["id"] == rs), None)
-        if not item:
-            raise ValueError("謝る理由が違います")
-        extra["said"] = "（謝った: %s）" % item["label"]
-    elif kind == "thanks" and rs:
-        if rs not in dict(FAVORS):
-            raise ValueError("お礼の理由が違います")
-        extra["said"] = "（お礼を言った: %s）" % dict(FAVORS)[rs]
+    if kind in ("apology", "thanks") and rs:
+        if cid is None or not isinstance(rs, str):
+            raise ValueError("謝る理由が違います" if kind == "apology" else "お礼の理由が違います")
+        e = memquiz.resolve(app, cid, kind, rs)
+        extra["reason"] = e
+        extra["said"] = ("（謝った: %s）" if kind == "apology" else "（お礼を言った: %s）") % e["label"]
     elif kind == "consult" and extra.get("consult"):
         if extra["consult"] not in CONSULT_WORD:
             raise ValueError("相談の中身が違います")

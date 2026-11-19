@@ -17,7 +17,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from core import comfy, engine, llm, store, update  # noqa: E402
+from core import comfy, engine, llm, memquiz, store, update  # noqa: E402
 from core.trace import brief_args  # noqa: E402
 
 STATIC = os.path.join(store.BASE, "static")
@@ -269,6 +269,9 @@ def route(method, path, q, body):
             return a.give_item(b["item"], cid)
         if path == "/api/shop/gift":              # 一緒にいる店で, その場で買って渡す
             return a.buy_for(b["item"], cid)
+        if path == "/api/quiz":                 # 謝る・お礼の理由を選ぶ問い (記憶で選ぶ. core/memquiz.py)
+            with a.lock:
+                return memquiz.ask(a, b["id"], b["kind"], time.time())
         if path == "/api/chat/send":
             return a.chat.send(b["id"], b["kind"], {k: b[k] for k in ("reason", "consult", "stamp") if b.get(k)} or None)
         if path == "/api/chat/seen":

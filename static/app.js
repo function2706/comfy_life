@@ -776,9 +776,14 @@ function placeTip(id) {
   return [(p.does || []).map((d) => (od.does || {})[d] || d).join('・'), p.hours && p.hours !== '24時間' ? `営業 ${p.hours}` : ''].filter(Boolean).join('\n');
 }
 // 行き先を選べるお出かけ (散歩・買い物・デートなど): 表の行き先から選んで誘う
-// 対面で, 何を謝る・何のお礼・何を相談するかを選ぶ (A5. メッセージと同じ一覧. 謝る理由は分類しない)
+// 対面で, 何を謝る・何のお礼・何を相談するかを選ぶ (A5). 謝る・お礼は記憶の問い (A20. quizDialog)
 function pickFace(a) {
   const key = a.pick || (a.mood_action === 'apologize' ? 'apology' : '');
+  if (key === 'apology' || key === 'thanks') {
+    const cid = tid();
+    if (cid) quizDialog(cid, key, `${a.icon || ''} ${a.name}`, (tok) => doAct(a.id, undefined, undefined, tok));
+    return;
+  }
   const list = ((S.view || {}).picks || {})[key] || [];
   const dlg = h('dialog', { class: 'modal', style: 'width:min(520px,94vw);height:auto;max-height:80vh;overflow:auto' });
   const close = () => { dlg.close(); dlg.remove(); };
@@ -786,6 +791,23 @@ function pickFace(a) {
     h('h3', {}, `${a.icon || ''} ${a.name}`), h('p', { class: 'muted small' }, PICK_TITLE[key] || ''),
     h('div', { class: 'chat-pick-list' }, ...list.map((o) => h('button', { class: 'chat-kind', onclick: () => { close(); doAct(a.id, undefined, undefined, o.id); } }, o.label))),
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  document.body.append(dlg);
+  dlg.showModal();
+}
+// 謝る・お礼の理由を, 記憶で選ぶ (A20): 問いはサーバーで作る (選択肢の文と札だけが来る. どれが正解かは画面では分からない).
+// 別の窓で開くので, 30 秒ごとの描き直しでは閉じない. 選ぶと onPick(札) で送る (メッセージ・電話・対面)
+async function quizDialog(cid, kind, title, onPick) {
+  let q;
+  try { q = await api('/api/quiz', { id: cid, kind }); } catch (e) { toast(e.message, 'err'); return; }
+  const dlg = h('dialog', { class: 'modal quiz-dlg', style: 'width:min(600px,94vw);height:auto;max-height:86vh;overflow:auto' });
+  const close = () => { dlg.close(); dlg.remove(); };
+  const list = q.choices || [];
+  dlg.append(h('div', { style: 'padding:16px' },
+    h('h3', {}, title || ''), h('p', { class: 'muted small' }, kind === 'apology' ? 'どのことを謝る？' : '何のお礼を言う？'),
+    list.length ? h('div', { class: 'quiz-list' }, ...list.map((o) => h('button', { class: 'quiz-choice', onclick: () => { close(); onPick(o.id); } }, o.label)))
+      : h('div', { class: 'muted small' }, kind === 'apology' ? '謝ることが思い浮かばない' : 'お礼を言うことが思い浮かばない'),
+    h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
+  dlg.addEventListener('cancel', () => dlg.remove());
   document.body.append(dlg);
   dlg.showModal();
 }
@@ -2133,7 +2155,8 @@ function callPicker(th) {
     h('div', { class: 'chat-pick-list' + (t === 'apology' ? ' long' : '') },
       ...(list ? [btn('← 戻る', () => { S.callTalk = null; drawChat(); }), ...(list.length ? list.map((o) => btn(o.label, () => callWith(th.id, t, { [key]: o.id })))
         : [h('span', { class: 'muted small' }, '話せる話題がまだない')])]
-        : CALL_TALK.map(([id, label]) => btn(label, () => (label.endsWith('▸') ? (S.callTalk = id, drawChat()) : callWith(th.id, id)))))));
+        : CALL_TALK.map(([id, label]) => btn(label, () => (P[id] === 'quiz' ? quizDialog(th.id, id, `📞 ${label.replace(' ▸', '')}`, (tok) => callWith(th.id, id, { reason: tok }))
+          : label.endsWith('▸') ? (S.callTalk = id, drawChat()) : callWith(th.id, id)))))));
 }
 async function callWith(cid, talk, extra) {
   if (S.busy) return;
@@ -2175,6 +2198,7 @@ function chatSendBox(th) {
     const k = KD[id];
     if (!k) return '';
     if (id === 'topic') return btn(`${k.icon} ${k.label}`, () => topicPicker(th.id, true));
+    if (P[id] === 'quiz') return btn(`${k.icon} ${k.label} ▸`, () => quizDialog(th.id, id, `${k.icon} ${k.label}`, (tok) => sendChat(th.id, id, { reason: tok })));
     if (P[id]) return btn(`${k.icon} ${k.label} ▸`, () => { S.chatPick = S.chatPick === id ? null : id; drawChat(); }, S.chatPick === id);
     return btn(`${k.icon} ${k.label}`, () => sendChat(th.id, id));
   };
@@ -2189,7 +2213,7 @@ function chatSendBox(th) {
   if (S.chatPick === 'call') return h('div', {}, h('div', { class: 'chat-tabs' },
     ...G.map((x) => h('button', { class: 'chat-tab' + (x.id === g.id ? ' on' : ''), onclick: () => { S.chatTab = x.id; S.chatPick = null; drawChat(); } }, `${x.icon} ${x.label}`))),
     h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...extra), callPicker(th));
-  const pk = S.chatPick && P[S.chatPick] ? S.chatPick : null;
+  const pk = S.chatPick && Array.isArray(P[S.chatPick]) ? S.chatPick : null;
   const kind = pk === 'stamp' ? 'stamp' : pk;
   return h('div', {},
     h('div', { class: 'chat-tabs' },

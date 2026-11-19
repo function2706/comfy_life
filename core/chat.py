@@ -100,6 +100,8 @@ LINES = {
     # 理由・中身を選んだメッセージ (core/msgpick.py)
     "chat.apology_near": "📱『……それもですけど。それだけじゃないです』",
     "chat.apology_unminded": "📱『え、それは気にしてないですよ。大丈夫です』",
+    "chat.apology_wrong": "📱『……それ、{fp}じゃないですよね。誰と間違えてるんですか』",
+    "chat.thanks_wrong": "📱『……それ、{fp}じゃないですよ。誰かと間違えてませんか』",
     "chat.stamp_heart": "📱『（ハートのスタンプが返ってきた）』",
     "chat.stamp_heart_cold": "📱『……え、ハートですか？』",
     "chat.stamp_sorry_bad": "📱『……スタンプで済ませるんですか』",
@@ -215,6 +217,7 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "greet_again": "あいさつ (同じ朝・夜の 2 回目)", "stamp_only": "メッセージにスタンプだけで返された",
                "stamp_spam": "スタンプを続けて送られた",
                "apology_near": "謝られた (近いことを。それもだけど)", "apology_unminded": "謝られた (気にしていないことを)",
+               "apology_wrong": "謝られた (ほかの人とのことを。人違い)", "thanks_wrong": "お礼 (ほかの人がしてくれたことを。人違い)",
                "stamp_heart": "ハートのスタンプ (うれしい)", "stamp_heart_cold": "ハートのスタンプ (浅い仲で、なれなれしい)",
                "stamp_sorry_bad": "ごめんのスタンプ (本当に怒っているとき)", "stamp_thanks": "ありがとうのスタンプ (心当たりあり)",
                "consult_good": "相談 (頼りになる返事。{topic} に中身)", "consult_off": "相談 (よくわからない。{topic} に中身)",
@@ -367,7 +370,7 @@ class Chat:
                 return self.app.answer_approach("reply", cid, choice=kind)     # 相手から来たメッセージへの返事 (以前の 4 択の代わり)
             if kind in react.IDS and not react.target(self.app, cid, st, time.time()):
                 raise ValueError("返す相手のメッセージがありません")
-        extra = msgpick.check_extra(self.app, kind, extra)
+        extra = msgpick.check_extra(self.app, kind, extra, cid)
         return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": {k: v for k, v in extra.items() if k != "said" or v != KINDS[kind][2]} or None})
 
     TALKING_MIN = 30          # 相手からのメッセージがこれ以内なら, やりとりの最中 (夜中でも「こんな時間に」とは言わない)
@@ -591,7 +594,7 @@ class Chat:
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
                 "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
                 "react": {"t": tg["t"]} if rg else None,     # 返していない相手のメッセージ (「返す」のまとまりを出す)
-                "pick": {"apology": msgpick.apology_choices(app), "thanks": msgpick.thanks_choices(),
+                "pick": {"apology": "quiz", "thanks": "quiz",          # 謝る・お礼は記憶の問い (別の窓. core/memquiz.py)
                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT],
                          "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS]},
                 "actions": self.phone_actions(cid)}

@@ -23,7 +23,7 @@ from datetime import datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
-from core import engine, geo as G, msgpick, places as P, solo as S, store  # noqa: E402
+from core import engine, geo as G, memquiz, msgpick, places as P, solo as S, store  # noqa: E402
 from testclock import NOON, fix_noon  # noqa: E402
 
 REAL_PHASE = engine.App.phase_at
@@ -53,13 +53,15 @@ INPUT_ONLY = ("読む本がない",)
 FORCE = {}                                  # 相手の予定の上書き (寝ている・出かけている)
 
 
-def opts_for(app, a):
-    """画面で押すときに添えるもの (static/app.js の cmdButton と同じ): 謝る中身などは一覧の 1 つめ, 行き先は開いているところの 1 つめ."""
+def opts_for(app, a, cid=None):
+    """画面で押すときに添えるもの (static/app.js の cmdButton と同じ): 謝る・お礼は記憶の問いの 1 つめ (A20), 相談は一覧の 1 つめ,
+    行き先は開いているところの 1 つめ."""
     o = {}
     if a.get("pick") and a.get("mood_action"):
-        picks = {"apology": msgpick.apology_choices(app), "thanks": msgpick.thanks_choices(),
-                 "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT]}
-        lst = picks.get(a["pick"]) or []
+        if a["pick"] in ("apology", "thanks") and cid:
+            lst = memquiz.ask(app, cid, a["pick"], time.time())["choices"]
+        else:
+            lst = [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT] if a["pick"] == "consult" else []
         if lst:
             o["pick"] = lst[0]["id"]
     if len(a.get("places") or []) > 1:
@@ -271,7 +273,7 @@ def person_probes(app, cid):
         ui = av[a["id"]]
 
         def run(app2, aid=a["id"], move_on=bool(ui.get("move_on"))):
-            o = opts_for(app2, app2.action(aid))
+            o = opts_for(app2, app2.action(aid), cid)
             if move_on:                       # 一緒にお出かけ中: 画面は /api/outing/move へ (応じるかは相手しだい)
                 return app2.outing_move(o.get("place"), None, aid)
             return app2.act(aid, cid, opts=o)

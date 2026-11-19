@@ -13,7 +13,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
-from core import engine, store  # noqa: E402
+from core import engine, memquiz, store  # noqa: E402
 from testclock import fix_noon  # noqa: E402
 
 fix_noon(engine)      # 流す時刻に左右されないように (平日の昼に流すと, ひなは大学の講義中で電話に出られなかった)
@@ -45,20 +45,25 @@ def main():
         # ---- 1. お礼を選んでかける: 受け答えはお礼の判定 (自撮りを送ってくれた → 効く)
         fresh()
         M.favor(st, "selfie", time.time() - 600)
-        r = app.phone_call(cid, "thanks", {"reason": "selfie"})
+        q = memquiz.ask(app, cid, "thanks", time.time())
+        k = next(k for k, e in st["quiz"]["thanks"]["items"].items() if e["type"] == "favor")
+        lb = st["quiz"]["thanks"]["items"][k]["label"]
+        r = app.phone_call(cid, "thanks", {"reason": k})
         assert r.get("call"), r
         items = C.load(cid)["items"]
         sysl = [it for it in items if it.get("who") == "sys" and it["text"].startswith("📞 電話で話した（")]
         assert sysl and "分ほど" in sysl[-1]["text"], [it["text"] for it in items[-5:]]
         mine = [it for it in items if it.get("who") == "me"]
-        assert mine[-1]["text"] == "（電話で: お礼を言った: 自撮りを送ってくれた）", mine[-1]
+        assert mine[-1]["text"] == "（電話で: お礼を言った: %s）" % lb and lb.endswith("自撮りを送ってくれた"), mine[-1]
         assert r["call"]["key"] == "thanks" and r["call"]["text"].startswith("📞"), r["call"]
         print("お礼:", sysl[-1]["text"], "|", r["call"]["text"])
 
         # ---- 2. 謝る (理由を選ぶ) / 相談 / 話題
         fresh()
         app.life.add_reason(st, "player", "bad", "連絡が多くて疲れた", time.time() - 600, told=True, delta=-3.0, action="_too_often")
-        r = app.phone_call(cid, "apology", {"reason": "late_night"})
+        memquiz.ask(app, cid, "apology", time.time())
+        k = next(k for k, e in st["quiz"]["apology"]["items"].items() if e["type"] == "shift" and e.get("of") == "fault")
+        r = app.phone_call(cid, "apology", {"reason": k})
         assert r["call"]["key"] == "apology_near", r["call"]
         fresh()
         r = app.phone_call(cid, "consult", {"consult": "health"})

@@ -41,6 +41,7 @@ from . import street as street_mod
 from . import offline as offline_mod
 from . import items as items_mod
 from . import msgpick as msgpick_mod
+from . import memquiz as memquiz_mod
 from . import nori as nori_mod
 from . import react as react_mod
 from . import attach as attach_mod
@@ -1607,15 +1608,15 @@ class App:
             self._apol = None
             ma0, pick = a.get("mood_action"), opts.get("pick")
             if ma0 == "apologize":       # その場で謝る: 許し方はメッセージと同じ判定 (反応の条件 apology). 理由を選んでいれば, それで
-                if pick is not None and not msgpick_mod.valid_apology(self, pick):
-                    raise ValueError("謝る理由が違います")
+                if pick is not None:
+                    pick = memquiz_mod.resolve(self, cid, "apology", pick)
                 self._apol = self.manners.apology(char, st, now, face=True, pick=pick)
                 ctx["apology"] = self._apol["out"]
                 ctx["apology_miss"] = bool(self._apol.get("miss"))
             elif ma0 == "thank":         # その場でお礼 (A5): 何のお礼かを選ぶ. 判定はメッセージと同じ (反応の条件 thanks)
-                if pick not in dict(msgpick_mod.FAVORS):
+                if not pick:
                     raise ValueError("何のお礼かを選んでください")
-                ctx["thanks"], _ = self.manners.thanks_pick(st, now, pick, char)
+                ctx["thanks"], _ = self.manners.thanks_pick(st, now, memquiz_mod.resolve(self, cid, "thanks", pick), char)
             elif ma0 == "consult_me":    # その場で相談する (A5): 中身を選ぶ. 判定はメッセージと同じ (反応の条件 consult)
                 if pick not in msgpick_mod.CONSULT_WORD:
                     raise ValueError("何を相談するかを選んでください")
@@ -1976,7 +1977,7 @@ class App:
         if talk == "topic":
             x = self.topics.find(extra.get("topic"))
             extra["topic_text"] = x["text"]
-        chk = msgpick_mod.check_extra(self, talk, extra)          # 選んだ理由・中身を確かめる (メッセージと同じ)
+        chk = msgpick_mod.check_extra(self, talk, extra, cid)          # 選んだ理由・中身を確かめる (メッセージと同じ)
         r = self.act("call", cid)
         if not r.get("call_ok"):
             return r
@@ -1988,7 +1989,7 @@ class App:
             if talk:
                 said_me = "%sをした" % extra["topic_text"] if talk == "topic" else chk["said"].strip("（）")
                 self.chat.add(cid, "me", "（電話で: %s）" % said_me, kind=talk, t=now + 0.01)
-            pend = {"kind": talk, "t": now, "kind_t": now, "meta": dict(extra, call=True), "reply": True}
+            pend = {"kind": talk, "t": now, "kind_t": now, "meta": dict(extra, reason=chk.get("reason"), call=True) if chk.get("reason") else dict(extra, call=True), "reply": True}
             self._chat_reply(char, st, pend, now + 0.02)
             d = self.chat.load(cid)
             said = [it for it in d["items"][n0:] if it.get("who") == "her"]
@@ -2760,6 +2761,14 @@ class App:
                 self.manners.apply_apology(char, st, v, now)
                 if v["out"] in regard_mod.APOLOGY_OUTS:
                     self.regard.sign(char, st, "apology", now)
+                if v["out"] == "wrong":     # 他の人とのことを謝った: 嫉妬しやすい性格ほど, 反応の効き目より重い
+                    ex = {k: x for k, x in self.manners.wrong_eff(char, {}).items() if x}
+                    if ex:
+                        self.apply_effects(st, self.trait_effects(char, ex))
+            elif ma == "thank" and r.get("key") == "thanks_wrong":
+                ex = {k: x for k, x in self.manners.wrong_eff(char, {}, 0.5).items() if x}
+                if ex:
+                    self.apply_effects(st, self.trait_effects(char, ex))
             return
         if a.get("request_answer") or a.get("category") == "system":
             return
@@ -3344,7 +3353,7 @@ class App:
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
-                "picks": {"apology": msgpick_mod.apology_choices(self), "thanks": msgpick_mod.thanks_choices(),
+                "picks": {"apology": "quiz", "thanks": "quiz",          # 謝る・お礼は記憶の問い (別の窓. core/memquiz.py)
                           "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
                 "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(),

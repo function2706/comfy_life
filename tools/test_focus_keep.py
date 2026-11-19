@@ -126,6 +126,17 @@ f.onload = () => setTimeout(async () => {
         pl = d.querySelector('dialog[open] .chat-pick-list');
         out.push('pickscroll' + (pl && want > 0 && Math.abs(pl.scrollTop - want) <= 1 ? ':OK' : ':NG(' + (pl ? pl.scrollTop : 'gone') + '/' + want + ')'));
       }
+      st.remove();
+      // 7. 謝る・お礼の理由を記憶で選ぶ窓 (A20): 描き直しで閉じない・選択肢 (並びも) が変わらない
+      for (const kind of ['apology', 'thanks']) {
+        await w.quizDialog(cid, kind, 'test', () => {});
+        const qd = d.querySelector('dialog.quiz-dlg[open]');
+        const before = qd ? qd.innerText : '';
+        await w.refresh(); await w.refresh(); await w.drawChat(true);
+        const qd2 = d.querySelector('dialog.quiz-dlg[open]');
+        out.push('quiz-' + kind + (qd && qd2 === qd && qd.innerText === before && qd.querySelectorAll('.quiz-choice').length >= 2 ? ':OK' : ':NG'));
+        if (qd) { qd.close(); qd.remove(); }
+      }
     }
   } catch (e) { out.push('ERR:' + e.message); }
   document.getElementById('out').textContent = 'RESULT:' + out.join(' ');
@@ -190,7 +201,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items), res
     print("ALL OK")
 
 

@@ -969,6 +969,16 @@
     }
    },
    {
+    "key": "apology_wrong",
+    "when": "apology=wrong",
+    "priority": 1,
+    "text": "……それ、私じゃないですよね。誰と間違えてるんですか。",
+    "effects": {
+     "mood": -5,
+     "trust": -2
+    }
+   },
+   {
     "key": "apology_miss",
     "when": "apology=none, apology_miss=true",
     "priority": 1,
@@ -1046,6 +1056,16 @@
     "effects": {
      "mood": -2,
      "affection": -0.5
+    }
+   },
+   {
+    "key": "thanks_wrong",
+    "when": "thanks=thanks_wrong",
+    "priority": 1,
+    "text": "……それ、私じゃないですよ。誰かと間違えてませんか。",
+    "effects": {
+     "mood": -3,
+     "trust": -1
     }
    }
   ]

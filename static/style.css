@@ -934,3 +934,7 @@ body.phone-only > header, body.phone-only > main, body.phone-only > .away-overla
 body.phone-only .chat-dlg { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
 body.phone-only .chat-close { display: none; }
 
+/* 謝る・お礼の理由を記憶で選ぶ (A20): 大きめの窓に, 1 行ずつ */
+.quiz-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.quiz-choice { text-align: left; border: 1px solid var(--line); background: #241f2c; color: inherit; border-radius: 10px; padding: 10px 12px; font-size: 14px; cursor: pointer; line-height: 1.5; }
+.quiz-choice:hover { border-color: var(--accent-d); }
