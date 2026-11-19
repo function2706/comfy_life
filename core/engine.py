@@ -2322,6 +2322,18 @@ class App:
             return False
         return random.random() < self.FORGET_RATE * (1 - 0.75 * react_mod.mame(self, char))
 
+    def _forgot_sorry(self, char, st, pend, now):
+        """返し忘れに気づいたとき, 謝ってから返すか. マメな人・まだ浅い仲・遅れが長いほど謝る. 近い仲で軽い話なら,
+        何も言わずにふつうに返すこともある (気にしない間柄)."""
+        late_h = max(0.0, (now - float(pend.get("t") or now)) / 3600.0)
+        close = hima_mod.close(self, char, st)
+        pr = 0.35 + 0.45 * react_mod.mame(self, char) + (-0.15 if close else 0.15) + min(0.2, 0.03 * late_h)
+        pr = max(0.1, min(0.95, pr))
+        ok = random.random() < pr
+        self.trace.add("reply", "返し忘れに気づいた: " + ("謝ってから返す" if ok else "何も言わずに返す"), char["id"], now,
+                       p=round(pr, 2), late_h=round(late_h, 1), close=close)
+        return ok
+
     def picked_up_phone(self, char, st, now):
         """相手があなたにメッセージを送った・返した直後は, しばらくスマホを見ている (すぐの返信の手がかり).
         どれくらい見ているかは揺らぎと性格 (話しかけてくる多さ) しだい."""
@@ -2387,8 +2399,12 @@ class App:
             rq = pend.get("_rq")                # 引用を付けるか (一度の読みで同じ. マメさしだい)
             if rq is None:
                 rq = random.random() < react_mod.quote_chance(self, char, st)
-            if pend.get("forgot") and not pend.get("_no_close") and                     self.manners.greet_stale(char, kind, pend.get("meta"), pend.get("kind_t") or pend.get("t"), now) != "skip":
-                # 返し忘れていた: 返事 (前の分への返事も) の前に, 一言謝る
+            sorry = False
+            if pend.get("forgot") and not pend.get("_no_close") \
+                    and self.manners.greet_stale(char, kind, pend.get("meta"), pend.get("kind_t") or pend.get("t"), now) != "skip" \
+                    and self._forgot_sorry(char, st, pend, now):
+                # 返し忘れていた: 返事 (前の分への返事も) の前に, 一言謝る. 謝った返事には印 (あなたが「気にしないで」と返せる. core/react.py)
+                sorry = True
                 self.chat.add(cid, "her", self.chat.line(char, "forgot", {}), kind="forgot",
                               t=max(now - 2, float(pend.get("kind_t") or pend.get("t") or 0) + 0.0005))
             first = pend.get("apology_first")
@@ -2451,7 +2467,8 @@ class App:
                 key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie,
-                          re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t"), rq))      # どのメッセージへの返事か (トークで引用)
+                          re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t"), rq),       # どのメッセージへの返事か (トークで引用)
+                          **({"sorry": True} if sorry else {}))
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)

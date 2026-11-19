@@ -30,6 +30,8 @@ REACTS = [
     ("re_sokka", "そっか", "💭", "（「そっか」と返した）", "curt"),
     ("re_ok", "了解", "👌", "（「了解」と返した）", "curt"),
     ("re_answer", "答える", "💬", "（聞かれたことに答えた）", "expand"),
+    ("re_nevermind", "気にしないで", "🙆", "（「気にしないで」と返した）", "cheerful"),      # 謝られたときだけ
+    ("re_late", "遅いよ", "😤", "（「遅いよ」と返した）", "tease"),                      # 返事が遅れて謝られたときだけ
 ]
 IDS = tuple(r[0] for r in REACTS)
 CAT = {r[0]: r[4] for r in REACTS}
@@ -40,7 +42,9 @@ GROUP = ("react", "↩", "返す")
 
 TONE_LABEL = {"happy": "うれしい話", "down": "疲れた・沈んだ話", "upset": "不満・傷ついた", "lonely": "寂しい", "bored": "退屈",
               "question": "問いかけ", "where": "今どこ？", "news": "話を聞かせてくれた", "advice": "相談への答え",
-              "notice": "予定・用件の連絡", "greet": "あいさつ", "close": "切り上げ", "plain": "ふつうの話"}
+              "notice": "予定・用件の連絡", "greet": "あいさつ", "close": "切り上げ", "plain": "ふつうの話",
+              "sorry": "謝られた", "sorry_late": "返事が遅れて謝られた"}
+SORRY = ("sorry", "sorry_late")
 # 返信の場面の鍵 → 向き (無ければ plain. 問いかけで終わる文面は question)
 _TONES = {
     "happy": ("invite_yes", "appoint_yes", "visit_now_yes", "appoint_change_glad", "flirt", "tease", "photo", "selfie_yes", "stamp_heart", "smalltalk",
@@ -54,7 +58,7 @@ _TONES = {
     "news": ("ask_how",),
     "advice": ("consult", "consult_good", "consult_off"),
     "notice": ("visit_now_no", "visit_now_out", "visit_now_busy", "visit_now_late", "visit_now_unwell", "visit_now_stale",
-               "appoint_busy", "appoint_no", "appoint_counter", "appoint_cancel", "appoint_sorry", "appoint_rearranged", "appoint_move_mine",
+               "appoint_busy", "appoint_no", "appoint_counter", "appoint_cancel", "appoint_rearranged", "appoint_move_mine",
                "appoint_change_fine", "appoint_change_keep_want", "appoint_change_keep_busy", "appoint_change_counter", "appoint_change_gone",
                "appoint_cancel_fine", "appoint_cancel_favor", "favor_ask_move", "favor_ask_offer", "favor_ask_when", "favor_ask_plants",
                "favor_yes", "favor_busy", "favor_counter", "favor_resched", "favor_cancel", "help_yes", "help_no", "help_busy", "help_counter",
@@ -62,15 +66,20 @@ _TONES = {
                "req_money_again", "selfie_no"),
     "greet": ("greet_morning", "greet_night", "greet_odd_morning", "greet_odd_night", "greet_again", "otsukare", "otsukare_odd"),
     "close": ("close_busy", "close_night", "close_cold"),
+    "sorry": ("appoint_sorry",),            # 約束をすっぽかしたあとで謝る. 返し忘れて謝った返事は, トークの印 sorry で sorry_late
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
 WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question"}
-AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy")   # 返事を待っている話 (遅れると響きにくい)
+AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy", "sorry", "sorry_late")   # 返事を待っている話 (遅れると響きにくい)
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)
 BASE = {"re_glad": 6, "re_hard": 4, "re_more": 6, "re_agree": 5, "re_really": 2, "re_lol": 1, "re_sokka": -5, "re_ok": -3, "re_answer": 3,
-        "tease": 0, "you_ok": 3}
+        "tease": 0, "you_ok": 3, "re_nevermind": 4, "re_late": -2}
+# 謝られたとき: 「気にしないで」がいちばん. 「了解」は可, 「そっか」は少し冷たい, 喜ぶ・笑う・掘り下げるのは外れ.
+# 「遅いよ」は, からかいと同じく仲しだい (judge)
+_FIT_SORRY = {"re_nevermind": 12, "re_ok": 2, "re_agree": -2, "re_sokka": -8, "re_glad": -12, "re_lol": -8, "re_more": -6,
+              "re_really": -10, "re_hard": -4, "you_ok": -4, "tease": -10, "re_answer": -6, "re_late": 0}
 FIT = {
     "happy": {"re_glad": 10, "re_more": 8, "re_agree": 4, "re_really": 4, "re_lol": 2, "re_hard": -14, "you_ok": -10, "re_sokka": -10,
               "re_ok": -10, "re_answer": -6},
@@ -93,6 +102,8 @@ FIT = {
     "greet": {"re_ok": 2, "re_glad": 2, "re_sokka": 0, "re_more": -2, "re_hard": -4, "re_answer": -6},
     "close": {"re_ok": 10, "re_sokka": 4, "re_glad": 0, "re_more": -12, "re_really": -6, "re_lol": -4, "re_answer": -6},
     "plain": {"re_sokka": -2, "re_answer": -6},
+    "sorry": _FIT_SORRY,
+    "sorry_late": _FIT_SORRY,
 }
 # 返さなくても自然な返し (話がそこで終わる): 相手が返事をしてくる割合を下げる
 QUIET = {"notice", "close", "greet", "advice", "upset"}
@@ -100,7 +111,8 @@ EFFECT = {"good": {"mood": 2.5, "loneliness": -4, "affection": 0.5}, "neutral": 
           "bad": {"mood": -3, "trust": -0.5}}
 BAD_TELL = {"re_glad": "{call}に、話を軽く流された", "re_hard": "{call}に、大げさに受け取られた", "re_more": "{call}に、しつこく聞かれた",
             "re_agree": "{call}に、分かったふうに言われた", "re_really": "{call}に、疑われた", "re_lol": "{call}に、笑われた",
-            "re_sokka": "{call}の返事が素っ気なかった", "re_ok": "{call}の返事が事務的だった", "re_answer": "{call}の答えがずれていた"}
+            "re_sokka": "{call}の返事が素っ気なかった", "re_ok": "{call}の返事が事務的だった", "re_answer": "{call}の答えがずれていた",
+            "re_nevermind": "{call}に、謝ったのを軽く流された", "re_late": "{call}に、遅いって責められた"}
 # 共通の返し (性格プリセットに無ければ). 鍵は chat.react_<返し方>_<結果>
 LINES = {
     "chat.react_glad_good": "📱『ありがとうございます。{call}にそう言ってもらえると、もっとうれしくなります』",
@@ -130,6 +142,12 @@ LINES = {
     "chat.react_answer_good": "📱『そうなんですね。教えてくれて、ありがとうございます』",
     "chat.react_answer_neutral": "📱『そうですか。わかりました』",
     "chat.react_answer_bad": "📱『……それ、答えになってないです』",
+    "chat.react_nevermind_good": "📱『ありがとうございます。そう言ってもらえると、ほっとします』",
+    "chat.react_nevermind_neutral": "📱『はい……次から気をつけますね』",
+    "chat.react_nevermind_bad": "📱『……本当に気にしてないんですか？』",
+    "chat.react_late_good": "📱『ふふ、ごめんなさいってば。次はすぐ返しますから』",
+    "chat.react_late_neutral": "📱『……はい、すみません』",
+    "chat.react_late_bad": "📱『……だから、謝ったじゃないですか』",
 }
 _RES_LABEL = {"good": "よく効いた", "neutral": "ふつう", "bad": "よくなかった"}
 SCENE_LABEL = {"react_%s_%s" % (r[0][3:], o): "相手のメッセージへの返し「%s」に %s" % (r[1], _RES_LABEL[o])
@@ -209,6 +227,8 @@ def tone_of(app, st, it):
             return AP_TONE.get(ap, "plain")
     if kind.startswith("react_"):
         return "plain"
+    if it.get("sorry"):                     # 返し忘れていて, 謝ってから返した返事
+        return "sorry_late"
     t = TONE_OF.get(kind)
     if t is None and kind.startswith("topic_"):
         t = "happy" if kind.endswith(("_good", "_like", "_yes")) else "plain"
@@ -234,8 +254,9 @@ def ap_tone(aid, why):
 
 
 def kinds_for(tone):
-    """「返す」に並べる種類 (「答える」は問いかけのときだけ)."""
-    return [k for k in IDS if k != "re_answer" or tone in ("question", "where")]
+    """「返す」に並べる種類 (「答える」は問いかけのときだけ. 「気にしないで」は謝られたときだけ, 「遅いよ」は返事が遅れて謝られたときだけ)."""
+    return [k for k in IDS if (k != "re_answer" or tone in ("question", "where")) and (k != "re_nevermind" or tone in SORRY)
+            and (k != "re_late" or tone == "sorry_late")]
 
 
 def group(app, cid, st, now):
@@ -259,13 +280,13 @@ def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0)
     skill = app.life.skill_mult("talk")
     score = BASE.get(kind, 0) + FIT.get(tone, FIT["plain"]).get(kind, 0) + 0.5 * taste.get(cat, 0) \
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill - 1.0) + rng.uniform(-noise, noise)
-    if kind in ("tease", "re_lol"):          # 冗談・からかいは, 仲が深いほど通じる
+    if kind in ("tease", "re_lol", "re_late"):     # 冗談・からかい (「遅いよ」も) は, 仲が深いほど通じる
         score += 0.3 * (p.get("affection", 45) - 60)
         if app.regard.teaser(char, st):      # よくからかう人だと分かっている (あなたの癖): 真に受けない
             score += regard_mod.TEASE_BONUS
     lv = nori.level(st, time.time())         # 会話のノリ: 乗っているほど軽い返し・冗談が通じ, 素っ気ない返しは冷や水になる
     if lv is not None:
-        if kind in ("tease", "re_lol", "re_agree", "re_really", "re_more", "re_glad"):
+        if kind in ("tease", "re_lol", "re_late", "re_agree", "re_really", "re_more", "re_glad"):
             score += 12 * (lv - 0.5)
         elif kind in ("re_sokka", "re_ok") and tone not in QUIET:
             score -= 8 * (lv - 0.5)
@@ -398,7 +419,7 @@ def ignore_tick(app, char, st, now):
     if aw and (not tg or abs(tg["t"] - aw["t_msg"]) > 1):
         st.pop("await_ignored", None)
         aw, changed = None, True
-    if tg and tg["kind"] != "approach" and tg["tone"] in ("question", "news") and tg["t"] >= since and seen >= tg["t"] \
+    if tg and tg["kind"] != "approach" and tg["tone"] in ("question", "news") + SORRY and tg["t"] >= since and seen >= tg["t"] \
             and now - tg["t"] > AWAIT_AFTER_H * 3600 and now - tg["t"] < IGNORE_SPAN_H * 3600:
         if not aw:
             aw = st["await_ignored"] = {"t_msg": tg["t"], "applied": 0.0, "tone": tg["tone"],
@@ -412,7 +433,8 @@ def ignore_tick(app, char, st, now):
             changed = True
             if want >= 1.5 and not aw.get("told"):
                 aw["told"] = True
-                tell = "%sに聞いたのに、返事がなかった" if tg["tone"] == "question" else "%sに話したのに、返事がなかった"
+                tell = "%sに聞いたのに、返事がなかった" if tg["tone"] == "question" else "%sに謝ったのに、返事がなかった" \
+                    if tg["tone"] in SORRY else "%sに話したのに、返事がなかった"
                 app.life.add_reason(st, "player", "bad", tell % call, now, told=False, delta=-want, action="_ap_await")
             app.trace.add("react", "問いかけ・話を既読のまま: 少し気にした", cid, now, applied=aw["applied"], tone=tg["tone"])
     return changed
