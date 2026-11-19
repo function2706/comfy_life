@@ -2928,6 +2928,30 @@
   ],
   "msgr.why.changed.bad": [
    "📱『……そう。言わないのなら、それでいいわ』"
+  ],
+  "chat.visit_now_yes": [
+   "📱『今から？ いいわ。待たせないでね』"
+  ],
+  "chat.visit_now_no": [
+   "📱『今日はだめよ。気が向かないの』"
+  ],
+  "chat.visit_now_out": [
+   "📱『残念ね、今は外にいるの』"
+  ],
+  "chat.visit_now_busy": [
+   "📱『今は手が離せないの。また今度ね』"
+  ],
+  "chat.visit_now_late": [
+   "📱『こんな時間に来る気？ 今日はやめておきなさい』"
+  ],
+  "chat.visit_now_unwell": [
+   "📱『今日は体調が悪いの。来ても相手できないわ』"
+  ],
+  "chat.visit_now_stale": [
+   "📱『今気づいたわ。今日はもう遅いわね』"
+  ],
+  "chat.visit_now_missed": [
+   "📱『……来ると言っておいて来ないなんて、いい度胸ね。待っていたのだけれど』"
   ]
  }
 }

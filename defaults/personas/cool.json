@@ -2960,6 +2960,30 @@
   ],
   "msgr.why.changed.bad": [
    "📱『……そう。気のせいならいい』"
+  ],
+  "chat.visit_now_yes": [
+   "📱『今から？ いいよ。待ってる』"
+  ],
+  "chat.visit_now_no": [
+   "📱『今日はやめておいて。部屋が片付いてない』"
+  ],
+  "chat.visit_now_out": [
+   "📱『今、外にいる。家にはいない』"
+  ],
+  "chat.visit_now_busy": [
+   "📱『今は手が離せない。ごめん』"
+  ],
+  "chat.visit_now_late": [
+   "📱『もう遅い。今日はやめておいて』"
+  ],
+  "chat.visit_now_unwell": [
+   "📱『今日は体調がよくない。また今度』"
+  ],
+  "chat.visit_now_stale": [
+   "📱『今気づいた。今日はもう無理』"
+  ],
+  "chat.visit_now_missed": [
+   "📱『……来るって言ってたよね。待ってたんだけど』"
   ]
  }
 }

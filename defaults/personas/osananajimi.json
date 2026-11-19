@@ -3266,6 +3266,30 @@
   ],
   "msgr.why.changed.bad": [
    "📱『……ふうん。まあ、言いたくなったら言いなよ』"
+  ],
+  "chat.visit_now_yes": [
+   "📱『今から？ いいよ、来なよ。鍵あけとく』"
+  ],
+  "chat.visit_now_no": [
+   "📱『ごめん、今日は部屋やばいからまた今度で』"
+  ],
+  "chat.visit_now_out": [
+   "📱『ごめん、今出かけてて家いないんだ』"
+  ],
+  "chat.visit_now_busy": [
+   "📱『ごめん、今ちょっと手離せない』"
+  ],
+  "chat.visit_now_late": [
+   "📱『もう遅いじゃん。今日はやめとこうよ』"
+  ],
+  "chat.visit_now_unwell": [
+   "📱『ごめん、今日ちょっと体調悪くてさ』"
+  ],
+  "chat.visit_now_stale": [
+   "📱『ごめん、今見た。今日はもう無理だわ』"
+  ],
+  "chat.visit_now_missed": [
+   "📱『……来るって言ってたじゃん。待ってたんだけど』"
   ]
  }
 }

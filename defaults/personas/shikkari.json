@@ -2911,6 +2911,30 @@
   ],
   "msgr.why.changed.bad": [
    "📱『……そうか。思い違いならいいんだ』"
+  ],
+  "chat.visit_now_yes": [
+   "📱『今から？ いいよ。気をつけて来て』"
+  ],
+  "chat.visit_now_no": [
+   "📱『悪い、今日は部屋が片付いてないんだ。また今度にしてくれ』"
+  ],
+  "chat.visit_now_out": [
+   "📱『悪い、今出かけてて家にいないんだ』"
+  ],
+  "chat.visit_now_busy": [
+   "📱『悪い、今ちょっと手が離せない』"
+  ],
+  "chat.visit_now_late": [
+   "📱『もう遅い。今日はやめておこう』"
+  ],
+  "chat.visit_now_unwell": [
+   "📱『悪い、今日は少し体調が悪くて』"
+  ],
+  "chat.visit_now_stale": [
+   "📱『悪い、今気づいた。今日はもう無理だ』"
+  ],
+  "chat.visit_now_missed": [
+   "📱『……来るって言ってたよな。待ってたんだけど、何かあったのか』"
   ]
  }
 }
