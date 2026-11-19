@@ -36,6 +36,35 @@
   "reason": 1.1
  },
  "lines": {
+  "talk.hit": [
+   "……ん。{fp}も、暇だった。……この前ね。（{name}にしては珍しく、ぽつぽつと話が続いた）",
+   "……話したいこと、ある"
+  ],
+  "talk.flat": [
+   "……ん。（それきり黙ってしまった）"
+  ],
+  "talk.flat_close": [
+   "……今は、いい。"
+  ],
+  "chat.smalltalk_hit": [
+   "📱『……{fp}も。聞いて。この前……』",
+   "📱『……話したいこと、あった』"
+  ],
+  "chat.smalltalk_flat": [
+   "📱『……ん』"
+  ],
+  "chat.smalltalk_flat_close": [
+   "📱『……今日は、いい』"
+  ],
+  "chat.forgot": [
+   "📱『……ごめん。返したと思ってた』"
+  ],
+  "hima.reveal_like": [
+   "……{genre}、好き。"
+  ],
+  "hima.reveal_dislike": [
+   "……{genre}は、苦手。"
+  ],
   "look.free_true": [
    "（{name}は{activity_label}。こちらに気づくと、胸の前で小さく手を振った）",
    "（{activity_label}の手を止めて、ちらりとこちらを見た。目だけで「なに」と聞いている）"
@@ -1817,7 +1846,8 @@
    "📱『……？ なに？』"
   ],
   "chat.smalltalk": [
-   "📱『……ふふ』"
+   "📱『……ん。いいよ』",
+   "📱『……暇だった』"
   ],
   "chat.ask_how": [
    "📱『……最近。{news}』"
