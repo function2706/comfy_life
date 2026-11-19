@@ -163,6 +163,8 @@ class Presence:
             if p["mode"] == "out" and p.get("place"):
                 doing = "%s（%s）" % (doing, self.app.places.label(p["place"]))
             out["solo"] = {"kind": sl["kind"], "skill": sl.get("skill"), "label": doing, "icon": k.get("icon", "")}
+            if sl.get("door"):
+                out["door"] = sl["door"]                      # 相手の家を訪ねて, 留守・出てこない・断られた (玄関先. 残件 F17)
             if sl.get("shop_done"):
                 out["shop"] = sl["shop_done"]                 # 店での買い物が済んだ (知らせる)
             elif sl.get("shop_need") and not p.get("travel"):           # 店に着いてから, 品を選ぶ

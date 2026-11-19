@@ -2151,6 +2151,12 @@ async function sendChat(cid, kind, extra) {
   try { await api('/api/chat/send', Object.assign({ id: cid, kind }, extra || {})); S.chatJump = true; S.chatPick = null; } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
+async function askVisitNow(cid) {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/appoint/now', { id: cid }); S.chatJump = true; } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
 // 送る欄 (A2): 分類のタブ → その分類の種類. 謝る・お礼・相談・スタンプは「何を」を選ぶ欄を開いてから送る (A1).
 // 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
 const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？' };
@@ -2173,7 +2179,10 @@ function chatSendBox(th) {
     return btn(`${k.icon} ${k.label}`, () => sendChat(th.id, id));
   };
   const g = G.find((x) => x.id === S.chatTab) || { kinds: [] };
-  const extra = g.id === 'invite' && (th.appoint_choices || []).length ? [btn('📅 約束する', () => { S.apForm = S.apForm ? null : {}; drawChat(); }, !!S.apForm)]
+  // 今から家に行っていい？ (A25): 家に行ける仲の離れている相手に. 返事は時間差. いいと言われたら「出かける」で向かう
+  const nowBtn = g.id === 'invite' && th.visit_now ? [h('button', { class: 'chat-kind', disabled: S.busy || !!th.visit_now.why, title: th.visit_now.why || '返事は時間差で来ます。いいと言われたら、トークの「出かける」で向かいます',
+    onclick: () => askVisitNow(th.id) }, '🚪 今から家に行っていい？' + (th.visit_now.why ? `（${th.visit_now.why}）` : ''))] : [];
+  const extra = g.id === 'invite' && (th.appoint_choices || []).length ? [btn('📅 約束する', () => { S.apForm = S.apForm ? null : {}; drawChat(); }, !!S.apForm), ...nowBtn]
     : g.id === 'call' ? (th.actions || []).map((a) => a.id === 'call'
       ? btn(`${a.icon} ${a.name} ▸`, () => { S.chatPick = S.chatPick === 'call' ? null : 'call'; S.callTalk = null; drawChat(); }, S.chatPick === 'call', !a.ok)
       : btn(`${a.icon} ${a.name}`, () => phoneAct(th.id, a.id), false, !a.ok)) : [];
@@ -2399,6 +2408,7 @@ function renderAway() {
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
       return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
     shopCard(p),
+    doorCard(p),
     streetCard() || '',
     joinCard() || '',
     ...(S.view.appoints || []).filter((x) => (x.status === 'set' || x.status === 'waiting') && x.remain < 6 * 3600 && x.remain > -2700)
@@ -2424,6 +2434,22 @@ function renderAway() {
         : '一人で過ごしています。このまま画面を閉じてもかまいません。', h('br'), '「' + a[2] + '」で戻ります。'),
     h('button', { class: 'btn primary', disabled: S.busy || (p.travel && p.travel.dir === 'home'), onclick: comeBack },
       p.travel && p.travel.dir === 'home' ? '家へ向かっている' : p.travel ? '引き返す' : a[2])));
+}
+
+// 相手の家を訪ねて, 留守・出てこない・断られた (F17): 玄関先にいることと, 相手のひとことを残す (閉じるまで). 次は 帰る・ほかへ・メッセージ
+const DOOR_LABEL = { absent: '留守だった', asleep: '出てこなかった', no_answer: '出てこなかった', refused: '今日は上がれなかった' };
+function doorCard(p) {
+  const d = p.door;
+  if (!d || p.mode !== 'out' || p.travel) return '';
+  if (d.seen) return h('div', { class: 'shop-card done small' }, `🚪 ${d.name}の家の前（${DOOR_LABEL[d.kind] || ''}）`);
+  return h('div', { class: 'shop-card done' },
+    h('div', { class: 'shop-head' }, h('b', {}, `🚪 ${d.name}の家の前（${DOOR_LABEL[d.kind] || ''}）`), h('span', { class: 'muted small' }, fmtTime(d.t))),
+    h('div', { class: 'small', style: 'white-space:pre-line' }, d.text),
+    h('div', { class: 'row', style: 'gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap' },
+      h('button', { class: 'btn small primary', disabled: S.busy, onclick: comeBack }, '帰る'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: openMap }, 'ほかへ行く'),
+      h('button', { class: 'btn small', disabled: S.busy, onclick: () => openChat(d.cid) }, `📱 ${d.name}にメッセージ`),
+      h('button', { class: 'btn small ghost', disabled: S.busy, onclick: async () => { await api('/api/door/ack', {}); await refresh(); } }, '閉じる（ここにいる）')));
 }
 
 // 店での買い物: 品を選んでいる間は「買い物中」, 済んだら目立つ知らせ (読んだら閉じる. 帰る・ほかの店へ)

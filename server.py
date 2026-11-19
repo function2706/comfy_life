@@ -223,6 +223,8 @@ def route(method, path, q, body):
                 return {"meal": a.body.eat(b["how"], b["id"])}
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
+        if path == "/api/door/ack":               # 相手の家の玄関先での知らせを閉じる (F17)
+            return a.solo.door_ack()
         if path == "/api/outing/move":            # 一緒に次の場所へ
             return a.outing_move(b.get("to"), b.get("how"), b.get("aid"))
         if path == "/api/timetable":
@@ -295,6 +297,8 @@ def route(method, path, q, body):
             return a.appoint.change(b["id"], b["t"], b.get("place"), b.get("do"))
         if path == "/api/appoint/cancel":     # 決まった約束を取りやめる
             return a.appoint.cancel(b["id"])
+        if path == "/api/appoint/now":       # 今から家に行っていい？ (A25. 返事は時間差)
+            return a.appoint.ask_now(b["id"])
         if path == "/api/appoint/go":
             return a.appoint.go(b["id"])
         if path == "/api/street/join":

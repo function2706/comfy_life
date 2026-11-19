@@ -166,6 +166,7 @@ def join_tags(chunks):
 
 MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
 MOVING_OK_IDS = ("hold_hands", "headpat", "photo", "water", "gift")     # 移動中でもできるふれあい・お世話 (歩きながら・乗りながら)
+HOME_BONDS = ("visit_start", "guest_start")    # 家に上がる / 招く (外で会っているときは, その家まで一緒に移動してから. 残件 F16)
 
 
 SIDE_JOB_STAMINA_H = 12         # 内職の体力 (1 時間あたり. 続けていなければ. 仕事は 9)
@@ -942,6 +943,7 @@ class App:
         if not (ov and ov.get("until", 0) > dt.timestamp()) and hasattr(self, "athome"):
             base = self.stay.scene(char, base, dt.timestamp()) \
                 or self.athome.host_scene(char, base, dt.timestamp())       # 泊まっている / 相手の家に来ているあいだは, 相手も家にいる
+            base = self.appoint.wait_scene(char, base, dt.timestamp())     # 「今から家においで」と言ったあとは, 着くまで家にいる (A25)
             base = self.care.sick_scene(char, st, base, dt.timestamp())     # 風邪: 予定の外出は休んで家で寝ている
         if ov and ov.get("until", 0) > dt.timestamp():
             s = self._norm_scene(ov, char, "override")
@@ -1110,7 +1112,7 @@ class App:
         if ov and ov.get("arrive") and ov.get("arr", now + 1) <= now:
             self._outing_arrived(char, st, ov, now)       # 一緒に移動して行き先に着いた: そこでの反応と絵
             changed = True
-        if ov and ov.get("until", 0) <= now:
+        if ov and ov.get("until", 0) <= now and st.get("override") is ov:      # 着いて置き換わった (来客) なら, そちらは残す
             st["override"] = None
             changed = True
         if self.athome.live(cid, now):          # 相手の家での手伝いの時間が来た
@@ -1653,6 +1655,16 @@ class App:
                 dpl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ovp.get("place")
                 dpl = dpl if dpl in places_mod.PLACES else places_mod.from_location(ovp.get("location"))
                 defer = self.geo.where(now) != dpl
+            # 外で会っていて「家に寄ってもいい？」「うちに寄っていく？」: その家まで一緒に移動してから上がる (残件 F16.
+            # 以前は移動なしで, その場で家にいることになっていた). 家での効き目・暮らしぶり・迎えの文は, 着いたときに (_outing_arrived)
+            hdest = None
+            if a.get("bond") in HOME_BONDS and not apart and not appt and not narrate and not r.get("override") \
+                    and not geo_mod.INSTANT and self.bonds.mode(cid) == "meet":
+                hdest = ("home:" + cid) if a["bond"] == "visit_start" else places_mod.HOME_ME
+                if self.geo.where(now) == hdest:
+                    hdest = None
+                else:
+                    defer = True
             if plan and plan.get("payer") == "her" and not r.get("override") and not defer:
                 self.attach.give(char, st, "her", 2, "払ってくれた")      # 断られた・まだ着いていないときは, 払っていない
             scale = float(a.get("repeat_scale", 0.5)) ** len(hist)
@@ -1721,8 +1733,18 @@ class App:
                         char, st, worn, now, outside=True, others=1, record=False) in ("refuse", "angry"):
                     st["dress"] = None            # 外では, 大胆な服は性格と場所しだいで嫌がる
                     dress_note = "（{name}は「%s」のまま出かけるのは嫌だと、着替えてから出かけた）" % worn["name"]
+            home_go = False
+            if hdest:                     # 一緒に家まで移動する (お出かけの移動と同じ形. 着いたら上がる)
+                prev = st.get("override") or {}
+                ov = {"outing": True, "activity": "outing", "label": "%sへ向かっている" % self.places.label(hdest),
+                      "location": self.places.label(hdest), "place": hdest, "until": now, "from_action": aid,
+                      "start": prev.get("start", now) if prev.get("outing") else now, "home_trip": a["bond"], "pos": "", "neg": ""}
+                travel_note = self._outing_travel(cid, ov, hdest, now, opts.get("how"))
+                if travel_note:
+                    st["override"] = ov
+                    home_go = True
             # 一緒に移動して向かうところ (次の場所へ / 同居相手と家から): 行き先での反応・絵・費用は, 着いたときに (tick → _outing_arrived)
-            trip = self.outing_trip(st, now) if a.get("override") and not r.get("override") else None
+            trip = self.outing_trip(st, now) if (a.get("override") or home_go) and not r.get("override") else None
             departing = bool(trip and trip["dir"] == "go")
             if defer and not departing:                 # 移動にならなかった (経路が無い など): その場で
                 if social and not narrate:
@@ -1733,7 +1755,7 @@ class App:
                 defer = False
             if meal_pl and not departing:
                 meal_note = self.body.eat_with(meal_pl, char, now)     # 払いは費用 (plan) で済んでいる
-            if a.get("end_override") and not r.get("override"):
+            if a.get("end_override") and not r.get("override") and not home_go:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
                 st["dress"] = {"id": dress, "t": now} if dress else None
@@ -1743,14 +1765,12 @@ class App:
             at_home = self.bonds.mode(cid) in ("home", "guest")
             if at_home and a.get("home_dirty") and (not r.get("override") or r.get("taken")):
                 self.home.add(**a["home_dirty"])          # 料理をすれば洗い物が出る (焦がしても)
-            if not r.get("override"):
+            if not r.get("override") and not home_go:       # 一緒に家へ向かうところ: 上がるのは着いてから (_outing_arrived)
                 self.bonds.apply(a, cid, now)
                 heff = {}
                 if a.get("bond") == "guest_start":         # 家に招いた: 来た相手が家の様子に反応する (性格しだい)
                     home_note, heff = self.home.on_guest(char, st, now)
-                    st["override"] = {"activity": "guest", "label": "あなたの家に遊びに来ている", "location": "あなたの家",
-                                      "until": (self.bonds.with_rec() or {}).get("until", now + 3 * 3600), "from_action": aid,
-                                      "pos": "indoors, apartment, living room", "neg": ""}
+                    st["override"] = self._guest_override(aid, now)
                 elif a.get("bond") == "visit_start":       # 相手の家に来た: 暮らしぶりが見える
                     home_note = places_mod.home_glimpse(self, char, st)
                 elif social and not narrate and self.bonds.mode(cid) == "home":
@@ -1823,10 +1843,15 @@ class App:
             if departing:
                 st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text,
                                             "plan": {k: plan[k] for k in ("p", "a", "payer", "note") if k in plan} if plan else None,
-                                            "meal": meal_pl}
+                                            "meal": meal_pl, "bond": a.get("bond") if home_go else None}
                 if defer:
                     st["override"]["arrive"].update(eff=eff, social=bool(social and not narrate), sk=[sk, 1.2 * scale] if sk else None)
-                text = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
+                went = "（%sと一緒に%sへ向かった）" % (char.get("name", ""), st["override"].get("location", ""))
+                if home_go:     # 家に寄る話: 返事はその場で (向かう前). 着いたら「着いた」と, 家の様子
+                    st["override"]["arrive"]["text"] = "（%sに着いた）" % st["override"].get("location", "")
+                    text = text + "\n" + went
+                else:
+                    text = went
             gen_ok = a.get("generate", True) and not departing
             selfie = False
             if not self.bonds.together(cid):
@@ -2418,6 +2443,9 @@ class App:
                 self.chat.add(cid, "sys", "📅 約束はもとのまま: %s" % extra["was"], kind="promise", t=now + 0.001)
             if key in ("appoint_yes", "appoint_rearranged"):
                 self.chat.add(cid, "sys", "📅 約束した: %s %s" % (extra["when"], extra["place"]), kind="promise", t=now + 0.001)
+            if key == "visit_now_yes":
+                self.chat.add(cid, "sys", "🚪 %sへ行くことになった（%sごろ着く見込み。「出かける」から向かう）" % (extra["place"], extra["when"]),
+                              kind="promise", t=now + 0.001)
             scene = self.scene_at(char, st, dt)
             act = {"id": "_chat", "name": "返信", "icon": "📱",
                    "pos": "selfie, holding smartphone, looking at viewer, upper body, smile" if selfie else "", "neg": ""}
@@ -2854,13 +2882,13 @@ class App:
             ctx = self.context(char, st, dt, scene, view=False)        # 本人がいまどうしているか
             name = char.get("name", "")
             p = st["params"]
-            key, eff = None, {}
+            key, eff, door = None, {}, None
             if scene["away"] or ctx["outing"]:
-                text = "（%sの家を訪ねたが、留守のようだった）" % name
+                text, door = "（%sの家を訪ねたが、留守のようだった）" % name, "absent"
             elif scene["asleep"]:
-                text = "（%sの家のインターホンを鳴らしたが、出てこなかった。寝ているのかもしれない）" % name
+                text, door = "（%sの家のインターホンを鳴らしたが、出てこなかった。寝ているのかもしれない）" % name, "asleep"
             elif scene["busy"] and random.random() < 0.6:
-                text = "（%sの家のインターホンを鳴らしたが、出てこなかった）" % name
+                text, door = "（%sの家のインターホンを鳴らしたが、出てこなかった）" % name, "no_answer"
             else:
                 ph = ctx.get("phase")
                 pw = 0.35 + (p.get("affection", 50) - 50) / 100.0 + (p.get("trust", 50) - 50) / 150.0 \
@@ -2870,7 +2898,7 @@ class App:
                 if random.random() < max(0.05, min(0.9, pw)):
                     key, eff = "drop.yes", {"loneliness": -8, "mood": 2, "affection": 1}
                 else:
-                    key, eff = "drop.no", {"mood": -2, "trust": -1}
+                    key, eff, door = "drop.no", {"mood": -2, "trust": -1}, "refused"
                     self.athome.refused(cid, ph in ("night", "midnight", "dawn"), now)
                 text = self.persona_text(char, key) or places_mod.LINES[key]
             if key:
@@ -2890,11 +2918,13 @@ class App:
                 self.presence.touch(now)
                 self.solo.note("visit", "%sの家を訪ねた" % name, now)
                 return {"started": "visit", "label": "%sの家" % name, "act": {"entry": e, "job": None, "llm_error": None}}
-            # 留守・出てこない・断られた: そのまま外にいる (近くをぶらぶら. 戻ると外出の結果)
+            # 留守・出てこない・断られた: 玄関先にいる (外出中). 結果は外出の画面に残す (閉じるまで. 残件 F17:
+            # 以前はトーストだけで「街」に置かれ, 見逃すと着いても何も起こらなかったように見えた). 次は 帰る・ほかへ・メッセージ
             self.presence.declare("out", now)
             pr = self.presence.rec()
-            pr["solo"] = {"kind": "out", "skill": None, "t": now}
-            pr["place"] = "town"
+            pr["solo"] = {"kind": "out", "skill": None, "t": now,
+                          "door": {"cid": cid, "name": name, "kind": door, "text": e["text"], "t": now, "seen": False}}
+            pr["place"] = "home:" + cid
             self.presence.save()
             self.solo.note("out", text.strip("（）"), now)
             return {"started": "out", "label": "外出中", "act": {"entry": e, "job": None, "llm_error": None}, "text": text}
@@ -3267,6 +3297,12 @@ class App:
             }
             return out
 
+    def _guest_override(self, aid, now):
+        """あなたの家に遊びに来ている間の, 相手の一時シーン (帰るまで)."""
+        return {"activity": "guest", "label": "あなたの家に遊びに来ている", "location": "あなたの家",
+                "until": (self.bonds.with_rec() or {}).get("until", now + 3 * 3600), "from_action": aid,
+                "pos": "indoors, apartment, living room", "neg": ""}
+
     def _outing_travel(self, cid, ov, pl, now, how=None):
         """お出かけの移動: いまいる場所から行き先まで (同居相手となら, 帰りの移動も一緒). お出かけの時間はその分のびる.
         移動中は ov["arr"] まで / ov["leave"] から. 運賃はあなたの分 (相手の分は相手の財布から). ナレーションを返す."""
@@ -3298,7 +3334,7 @@ class App:
             ov["trips"].append(self._trip(pl, places_mod.HOME_ME, back, ov["leave"], "home"))
         fare = go["fare"] + (back["fare"] if back else 0)
         if fare:
-            self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % places_mod.PLACES[pl]["label"])
+            self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % self.places.label(pl))
             hm = self.life.her_money(self.state(cid))
             hm["a"] = max(0, hm["a"] - fare)
         # あなたの疲れ: 一人の移動と同じ (歩いた・こいだ区間の分. 帰りの移動の分も, ここで)
@@ -3307,7 +3343,7 @@ class App:
                 ex, tired = self.geo.body_cost(lg, a, b)
                 self.body.add_exercise(ex)
                 self.life.tire(tired)
-        return "（%sまで%sで%d分ほど%s）" % (places_mod.PLACES[pl]["label"], geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),
+        return "（%sまで%sで%d分ほど%s）" % (self.places.label(pl), geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),
                                      "・%s円" % format(fare, ",") if fare else "")
 
     def _trip(self, frm, to, lg, t0, direction):
@@ -3510,6 +3546,18 @@ class App:
                 text += "\n" + self.format_text(real_note, char, scene, dt)
         if x.get("meal"):                                    # 食事は着いてから (出たときには, まだ食べていない)
             text += "\n" + self.body.eat_with(x["meal"], char, t)
+        if x.get("bond") in HOME_BONDS:                      # 一緒に家まで来た: ここで上がる (残件 F16)
+            self.bonds.apply(a, cid, t)
+            if x["bond"] == "visit_start":
+                text += "\n" + places_mod.home_glimpse(self, char, st)
+            else:
+                note, heff = self.home.on_guest(char, st, t)
+                st["override"] = self._guest_override(x["aid"], t)
+                if heff:
+                    for k, v in self.apply_effects(st, self.trait_effects(char, heff), t).items():
+                        deltas[k] = round(deltas.get(k, 0) + v, 2)
+                if note:
+                    text += "\n" + self.format_text(note, char, scene, dt)
         e = self._new_entry(cid, t, a, text, deltas, scene, dt, pos, neg, parts)
         e["arrived"] = True
         if skill and any(skill.values()):

@@ -43,17 +43,18 @@ TONE_LABEL = {"happy": "うれしい話", "down": "疲れた・沈んだ話", "u
               "notice": "予定・用件の連絡", "greet": "あいさつ", "close": "切り上げ", "plain": "ふつうの話"}
 # 返信の場面の鍵 → 向き (無ければ plain. 問いかけで終わる文面は question)
 _TONES = {
-    "happy": ("invite_yes", "appoint_yes", "appoint_change_glad", "flirt", "tease", "photo", "selfie_yes", "stamp_heart", "smalltalk",
+    "happy": ("invite_yes", "appoint_yes", "visit_now_yes", "appoint_change_glad", "flirt", "tease", "photo", "selfie_yes", "stamp_heart", "smalltalk",
               "after_call", "favor_plants_thanks", "thanks", "stamp_thanks"),
     "upset": ("tease_hurt", "appoint_change_sour", "appoint_change_sour_late", "appoint_change_sour_again", "appoint_cancel_sour",
               "appoint_cancel_sour_late", "appoint_cancel_sour_again", "appoint_cancel_hurt", "appoint_cancel_favor_sour",
-              "appoint_change_others", "appoint_missed", "favor_missed", "money_distrust", "want_space", "own_time", "too_often",
+              "appoint_change_others", "appoint_missed", "visit_now_missed", "favor_missed", "money_distrust", "want_space", "own_time", "too_often",
               "too_often_mild", "too_often_again", "late_night", "selfie_pester", "stamp_spam", "nudge_bad", "fight_cold", "apology_refuse",
               "apology_irritated", "stamp_sorry_bad", "stamp_only", "what_doing_much", "consult_jealous", "apology_not_yet"),
     "down": ("appoint_change_sad", "appoint_cancel_sad", "favor_plants_dead", "money_worry", "favor_lapsed"),
     "news": ("ask_how",),
     "advice": ("consult", "consult_good", "consult_off"),
-    "notice": ("appoint_busy", "appoint_no", "appoint_counter", "appoint_cancel", "appoint_sorry", "appoint_rearranged", "appoint_move_mine",
+    "notice": ("visit_now_no", "visit_now_out", "visit_now_busy", "visit_now_late", "visit_now_unwell", "visit_now_stale",
+               "appoint_busy", "appoint_no", "appoint_counter", "appoint_cancel", "appoint_sorry", "appoint_rearranged", "appoint_move_mine",
                "appoint_change_fine", "appoint_change_keep_want", "appoint_change_keep_busy", "appoint_change_counter", "appoint_change_gone",
                "appoint_cancel_fine", "appoint_cancel_favor", "favor_ask_move", "favor_ask_offer", "favor_ask_when", "favor_ask_plants",
                "favor_yes", "favor_busy", "favor_counter", "favor_resched", "favor_cancel", "help_yes", "help_no", "help_busy", "help_counter",

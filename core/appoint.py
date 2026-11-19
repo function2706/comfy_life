@@ -64,6 +64,12 @@ ALT_HOURS_WIDE = (9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21)
 RELIFE_SPAN = 120        # 予定を作り直したあとの点検: 約束の時刻からこれだけ (分) のあいだ, ふさがっていれば都合がつかない
 RELIFE_SOON = 3 * 3600   # 約束までこれを切っていれば, 打診はすぐ送る
 RELIFE_NEAR = 3600       # 約束までこれを切っていれば, 打診しない (そのまま来る)
+# スマホで「今から家に行っていい？」(残件 A25): 返事が来たら, あなたは相手の家へ向かう (着いたら訪問). 約束の形 (ask_now) に乗せる
+NOW_PREP = 10            # 着く見込みに足す, 出るまでの分
+NOW_STALE = 90 * 60      # 聞いてからこれより遅れて読んだら, もう「今から」ではない (断る)
+NOW_ASK_SPAN = 6 * 3600  # この間に断られた回数を数える (続けて聞くと, しつこい)
+NOW_LATE_ME = 20 * 60    # 着く見込みからこれより遅れると, 少し機嫌を損ねる (見込みなので, ふつうの約束より緩く)
+NOW_MISSED = {"mood": -5, "trust": -2, "affection": -1}     # いいと言われたのに来なかった (約束のすっぽかし −8/−4/−2 より軽い)
 
 
 def fmt_when(t, now=None):
@@ -292,6 +298,110 @@ class Appoint:
         self._send(x, now, "（%s、%sで「%s」に誘った）" % (fmt_when(t, now), app.places.label(place), a.get("name", do)))
         return dict(x, label=STATUS_LABEL[x["status"]])
 
+    # ------------------------------------------------------------------ 今から家に行っていい？ (A25)
+    def now_eta(self, cid, now):
+        """いまいる場所から相手の家に着く見込みの時刻 (出るまでの分を足す. 揺らぎなし)."""
+        app = self.app
+        try:
+            m = app.geo.leg(app.geo.where(now), "home:" + cid, None, now, rand=False)["min"]
+        except ValueError:
+            m = 30
+        return now + (m + NOW_PREP) * 60
+
+    def now_why(self, cid, now=None):
+        """スマホで「今から家に行っていい？」と聞けないなら, その理由 (聞けるなら None)."""
+        app = self.app
+        now = now or time.time()
+        stage = app.bonds.stage(cid)
+        if stage == "live":
+            return "一緒に暮らしています"
+        if stage != "visit":
+            return "家に行ける仲になってから"
+        if app.bonds.together(cid):
+            return "いまそばにいます"
+        for x in self.open_with(cid):
+            if x.get("ask_now") and x["status"] in ("asked", "set", "waiting"):
+                return "返事を待っています" if x["status"] == "asked" else "もう行くことになっています"
+            if abs(x["t"] - now) < 3 * 3600:
+                return "近くに約束（か返事待ち）があります"
+        return None
+
+    def ask_now(self, cid, now=None):
+        """スマホで「今から家に行っていい？」と聞く. 返事はいつものメッセージの時間差 (すぐのことも). 受けてもらえたら,
+        相手の家へ向かえば (トークの「出かける」) 着いたときに訪問になる. 聞いた時点では約束の形 (asked) で, t は着く見込み."""
+        app = self.app
+        now = now or time.time()
+        char = app.char(cid)
+        cid = char["id"]
+        why = self.now_why(cid, now)
+        if why:
+            raise ValueError(why)
+        x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": self.now_eta(cid, now), "place": "home:" + cid, "do": HOME_DO["visit"],
+             "by": "me", "status": "asked", "made": now, "now": True, "ask_now": True}
+        self.all().append(x)
+        self.save()
+        self._send(x, now, "（今から%sの家に行ってもいいか聞いた）" % char.get("name", ""))
+        app.trace.add("appoint", "今から家に行っていいか聞いた", cid, now, appoint=x["id"])
+        return dict(x, label=STATUS_LABEL[x["status"]])
+
+    def _now_reply(self, char, st, x, now, extra):
+        """「今から家に行っていい？」への返事. 読んだときの相手の都合 (留守・寝ていた・手が離せない・体調)・時間帯・機嫌・仲・
+        心の開きやすさ・家に上がる慣れ・続けて断った回数で決める. 回数を重ねれば通る作りにはしない (続けて聞くほど通りにくい).
+        断る理由は, 相手の知りうるもの (出先・忙しい・もう遅い・体調・部屋が散らかっている など. セリフで)."""
+        app = self.app
+        cid = char["id"]
+        p = st["params"]
+        dt = datetime.fromtimestamp(now)
+        scene = app.scene_at(char, st, dt)
+        ph = app.phase_at(dt).get("id")
+        asks = [t for t in st.get("now_refused") or [] if now - t < NOW_ASK_SPAN]
+        key, eff = None, {}
+        if now - x["made"] > NOW_STALE:
+            key = "visit_now_stale"                      # 読むのが遅れた: もう「今から」ではない
+        elif scene["away"] or scene.get("outing"):
+            key = "visit_now_out"
+        elif scene["asleep"] or ph in ("midnight", "dawn"):
+            key = "visit_now_late"
+        elif p.get("health", 90) < 50 or app.care.ill(st, now):
+            key = "visit_now_unwell"
+        elif scene["busy"] and random.random() < 0.7:
+            key = "visit_now_busy"
+        else:
+            pa = 0.45 + (p.get("affection", 50) - 50) / 100.0 + (p.get("trust", 50) - 50) / 150.0 \
+                + (p.get("mood", 50) - 50) / 120.0 + float(app.traits(char).get("caution", 0)) / 40.0 \
+                + app.athome.drop_bonus(cid, st, now) - (0.25 if ph == "night" else 0.0) - (0.2 if scene["busy"] else 0.0) \
+                - 0.15 * len(asks)
+            app.trace.add("appoint", "今から家に: 受ける見込み", cid, now, p=round(pa, 2), refused=len(asks))
+            if random.random() < max(0.05, min(0.9, pa)):
+                key = "visit_now_yes"
+            else:
+                key = "visit_now_no"
+                if asks:
+                    eff = {"mood": -1}                   # 続けて聞かれた (しつこい)
+        if key == "visit_now_yes":
+            x["status"] = "set"
+            x["t"] = self.now_eta(cid, now)              # 読んだ時点の, あなたのいる所から
+            x["plan"] = {"noshow": False, "late": 0, "cancel_checked": True, "move": False, "go": 0}
+            self._favor_set(st, x, now)
+            eff = {"heart": 1, "mood": 1}
+        else:
+            x["status"] = "declined"
+            if key != "visit_now_stale":
+                st["now_refused"] = asks + [now]
+        self.save()
+        return key, eff, dict(extra, when=datetime.fromtimestamp(x["t"]).strftime("%H:%M"))
+
+    def wait_scene(self, char, base, t):
+        """「今から家においで」と言ったあと, 着くまでは家にいる (予定では出かける時刻でも)."""
+        cid = char.get("id")
+        for x in self.all():
+            if x["cid"] == cid and x.get("ask_now") and x["status"] in ("set", "waiting") and x.get("made", 0) <= t <= x["t"] + GRACE:
+                if base.get("away") or base.get("outing"):
+                    return dict(base, activity="relax", label="家にいる", location="自宅", away=False, outing=False,
+                                pos="indoors, at home", neg="")
+                return base
+        return base
+
     def reply(self, char, st, pend, now, ctx):
         """誘いへの返事 (時間差で届いたとき). (セリフの場面, 効果, 置き換え) を返す."""
         app = self.app
@@ -300,11 +410,15 @@ class Appoint:
         except KeyError:
             return "appoint_no", {}, {"when": "", "place": ""}
         extra = {"when": fmt_when(x["t"], now), "place": app.places.label(x["place"])}
+        if x.get("ask_now") and x["status"] != "asked":         # 今から家に (A25): もう流れていた
+            return "visit_now_stale", {}, extra
         if x["status"] != "asked":
             return "appoint_no", {}, extra
         p = st["params"]
         if x.get("help"):                     # あなたが頼んだ手伝い (core/askhelp.py)
             return app.askhelp.reply(char, st, x, now, extra)
+        if x.get("ask_now"):                  # 今から家に行っていい？ (A25)
+            return self._now_reply(char, st, x, now, extra)
         if x.get("favor"):                    # 頼まれごとの日時: 頼んだ側なので, 予定が空いていればまず受ける
             extra["what"] = x.get("label", "")
             busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
@@ -1089,6 +1203,11 @@ class Appoint:
         at = self.here(x["place"], now)
         if now < x["t"] - NEAR:
             return False
+        if at and x.get("ask_now") and x["status"] in ("set", "waiting"):     # 今から家に (A25): 着いたら, すぐ迎えてくれる
+            x.setdefault("arrived", now)
+            r = self._meet(x, now, now - x["t"] > NOW_LATE_ME)
+            out.append((r.get("entry") or {}).get("text", "").split("\n")[0] or "%sの家に着いた" % char.get("name", ""))
+            return True
         if at and "arrived" not in x:
             x["arrived"] = now                    # 着いた時刻 (早く着いていれば, 約束の時刻より前)
             if now < x["t"]:                      # 早く着いた: 時刻になれば会える (それまで画面は変わらないので, 待つことを知らせる)
@@ -1129,15 +1248,17 @@ class Appoint:
             x["status"] = "missed"
             st = app.state(x["cid"])
             fav = bool(x.get("favor"))            # 頼まれごと: 当てにしていたので, 普段の約束より重い
+            nw = bool(x.get("ask_now"))           # 今から家に (A25): いいと言ったのに来なかった. 約束のすっぽかしより軽い
             with app.lock:
                 d = app.apply_effects(st, app.trait_effects(char, {"mood": -12, "trust": -8, "affection": -3} if fav
-                                                            else {"mood": -8, "trust": -4, "affection": -2}))
+                                                            else NOW_MISSED if nw else {"mood": -8, "trust": -4, "affection": -2}))
                 app.life.add_reason(st, "player", "bad", ("当てにしていたのに、%sが%sに来なかった" % (app.pronouns(char)[2], x.get("label", ""))
-                                                          if fav else "%sが約束をすっぽかした" % app.pronouns(char)[2]), now,
+                                                          if fav else "来ると言っていたのに、%sが来なかった" % app.pronouns(char)[2] if nw
+                                                          else "%sが約束をすっぽかした" % app.pronouns(char)[2]), now,
                                     told=True, delta=d.get("mood", 0), action="_appoint")
-                app.regard.sign(char, st, "missed_favor" if fav else "missed", now)
-                app.chat.add(x["cid"], "her", app.chat.line(char, "favor_missed" if fav else "appoint_missed", {"what": x.get("label", "")}),
-                             kind="favor_missed" if fav else "appoint_missed", t=x["t"] + GRACE)
+                app.regard.sign(char, st, "missed_favor" if fav else "missed", now, k=0.6 if nw else 1.0)
+                mk = "favor_missed" if fav else "visit_now_missed" if nw else "appoint_missed"
+                app.chat.add(x["cid"], "her", app.chat.line(char, mk, {"what": x.get("label", "")}), kind=mk, t=x["t"] + GRACE)
                 app.save_state(x["cid"])
                 self._favor_drop(x)
             out.append("%sとの約束（%s）に行かなかった" % (char.get("name", ""), fmt_when(x["t"], now)))
@@ -1266,7 +1387,9 @@ class Appoint:
                         self._relife_send(x, char, st, now, out)      # 送るのは, 相手が起きていて手が空いているとき
                         changed = True
                         continue
-            if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or now > x["t"]):
+            # 今から家に (A25) の返事待ちは, 着く見込みの時刻ではなく, 聞いてからの長さで流れる (返事は遅れて届くことがある)
+            if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or (now > x["t"] and not x.get("ask_now"))
+                                                        or (x.get("ask_now") and now - x["made"] > NOW_STALE + 3600)):
                 if contact_only:
                     continue
                 if x["status"] == "offered" and x.get("favor"):     # 頼まれごとの返事を放っておいた: ほかの人に頼んで済んでしまう

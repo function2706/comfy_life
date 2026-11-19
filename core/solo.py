@@ -327,6 +327,14 @@ class Solo:
             self.app.presence.save()
         return {"ok": True}
 
+    def door_ack(self):
+        """相手の家の玄関先での知らせ (留守・出てこない・断られた) を読んだ (閉じる. 残件 F17)."""
+        sl = self.app.presence.rec().get("solo") or {}
+        if sl.get("door"):
+            sl["door"]["seen"] = True
+            self.app.presence.save()
+        return {"ok": True}
+
     def move(self, place, now=None, how=None):
         """出かけている先・職場から, ほかの行き先へ (いまの外出・仕事の結果を出して, そのまま出かける. 場所どうしの距離の移動).
         向かう途中・帰る途中なら, いまの地点から (電車・バスに乗っていれば次の駅で降りて. core/geo.py の midway)."""
