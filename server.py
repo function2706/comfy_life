@@ -169,7 +169,7 @@ def route(method, path, q, body):
         if path == "/api/push/key":             # 通知: 送り主の公開鍵と, 受け取る端末の数 (core/push.py)
             return a.push.view()
         if path == "/api/phone/live":           # 通話中の速い問い合わせ (相手のひとこと・待つ残り秒. 進めるのもここ)
-            return {"call": a.call_view(), "ended": a.phonetalk.last_end()}
+            return {"call": a.call_view(), "ended": a.phonetalk.last_end(), "ring": a.ring_view()}
         if path == "/api/phone/news":           # 届いたものの控え (通知から開いたスマホが取りに来る. core/remote.py)
             return {"news": a.remote.news_since(_q(q, "since", 0)), "unread": a.chat.unread_total()}
         if path == "/api/calendar":
@@ -237,6 +237,10 @@ def route(method, path, q, body):
             return a.call_end()
         if path == "/api/phone/reply":            # 通話中, いまの切れ目に返す (A23. core/phonetalk.py)
             return a.call_reply(b.get("kind"))
+        if path == "/api/phone/answer":           # かかってきた電話に出る / 出ない (A23 段 2. core/ring.py)
+            return a.ring_answer(b.get("yes"))
+        if path == "/api/phone/ask":              # 「電話していい？」に答える
+            return a.ring_ask(b["id"], b.get("yes"))
         if path == "/api/phone/call":
             return a.phone_call(b["id"], b.get("talk"), {k: b[k] for k in ("reason", "consult", "topic") if b.get(k)})
         if path == "/api/travel/doing":

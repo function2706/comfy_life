@@ -79,6 +79,23 @@ LINES = {
     "phone.morning_glad": "📱『昨日、寝ちゃってましたよね。……つないだままにしてくれてたんですか？ ちょっとうれしかったです』",
     "phone.morning_shy": "📱『昨日、電話の途中で寝ちゃって……。寝息とか聞こえてませんでした？ 恥ずかしい……』",
     "phone.morning_awkward": "📱『昨日は電話の途中で寝ちゃって、すみませんでした』",
+    # 相手からかかってくる電話 (A23 段 2. core/ring.py): 出たときの最初のひとこと (理由ごと)
+    "phone.ring_bored": "もしもし。……暇だったので、かけちゃいました。いま大丈夫ですか？",
+    "phone.ring_tired": "もしもし……。今日ちょっと疲れちゃって。少しだけ、声が聞きたくて。",
+    "phone.ring_happy": "もしもし、{call}？ ちょっと聞いてほしいことがあって！",
+    "phone.ring_lonely": "もしもし。……なんとなく、{call}と話したくなって。",
+    "phone.ring_unsure": "もしもし。……最近、忙しいですか？ ちょっと気になって。",
+    "phone.ring_changed": "もしもし、{call}？ 何かありました？ いつもと少し違う気がして。",
+    "phone.ring_back": "もしもし。さっきは途中で切っちゃって、すみません。いま大丈夫ですか？",
+    "phone.ring_asked": "もしもし。いいって言ってくれて、ありがとうございます。",
+    "phone.ring_req": "もしもし、{call}？ ちょっと、お願いがあって……。",
+    "phone.ring_ask": "📱『{call}、いま電話してもいいですか？』",
+    "phone.ring_ask_no": "📱『わかりました。また今度』",
+    "phone.ring_missed_msg": "📱『さっき電話したんですけど……また時間のあるときに』",
+    "phone.ring_declined_msg": "📱『……忙しかったですか？ ごめんなさい、急にかけて』",
+    "phone.req_yes": "ほんとですか？ ありがとうございます、助かります。",
+    "phone.req_later": "あ、はい。じゃあ、わかったら教えてください。",
+    "phone.req_no": "……そうですか。ううん、急に言ったのはこっちなので。",
 }
 SCENE_LABEL = {
     "phone.topic_news": "電話 / 話を振る: 今日あったこと ({news} に出来事. 「〜た」で終わる)",
@@ -105,6 +122,22 @@ SCENE_LABEL = {
     "phone.morning_glad": "電話の翌朝 / 寝落ちをつないだままにしてくれた (うれしい. 📱 で包む)",
     "phone.morning_shy": "電話の翌朝 / 寝落ちをつないだままにしてくれた (照れる. 📱 で包む)",
     "phone.morning_awkward": "電話の翌朝 / 寝落ちしたことを気まずく謝る (📱 で包む)",
+    "phone.ring_bored": "かかってきた電話 / 出たときの最初のひとこと: 暇だった",
+    "phone.ring_tired": "かかってきた電話 / 出たときの最初のひとこと: 疲れている",
+    "phone.ring_happy": "かかってきた電話 / 出たときの最初のひとこと: いいことがあった",
+    "phone.ring_lonely": "かかってきた電話 / 出たときの最初のひとこと: 寂しい",
+    "phone.ring_unsure": "かかってきた電話 / 出たときの最初のひとこと: あなたの気持ちが気になる (探り)",
+    "phone.ring_changed": "かかってきた電話 / 出たときの最初のひとこと: あなたの返し方がいつもと違った",
+    "phone.ring_back": "かかってきた電話 / 出たときの最初のひとこと: さっき用事で切ったのを, かけ直した",
+    "phone.ring_asked": "かかってきた電話 / 出たときの最初のひとこと: 電話していい？に「いいよ」と返してもらった",
+    "phone.ring_req": "かかってきた電話 / 出たときの最初のひとこと: 頼みごとがある (このあと頼みごとを言う)",
+    "phone.ring_ask": "電話の前に / 電話していい？と聞く (📱 で包む)",
+    "phone.ring_ask_no": "電話の前に / いまはちょっと と返された (📱 で包む)",
+    "phone.ring_missed_msg": "かけた電話に出てもらえなかったあとのメッセージ (📱 で包む)",
+    "phone.ring_declined_msg": "かけた電話を切られた (拒否) あとのメッセージ (📱 で包む)",
+    "phone.req_yes": "電話での頼みごと / 受けてもらえた",
+    "phone.req_later": "電話での頼みごと / あとで返事すると言われた",
+    "phone.req_no": "電話での頼みごと / 断られた",
 }
 NARRATION = {"quiet": "（……少しの間、黙っている）", "asleep": "（すう……すう……。寝息だけが聞こえる）",
              "night": "（小さく「おやすみ」と言って、電話を切った）", "hang": "（そっと電話を切った）",
@@ -235,6 +268,39 @@ class PhoneTalk:
         c.pop("next", None)
         self._log(c, "her", text, t)
         app.trace.add("call", "電話の切れ目", char["id"], t, kind=kind, key=key, wait=round((due or t) - t, 1))
+
+    def req_beat(self, char, st, c, r, t):
+        """頼みごと (core/ring.py): 出たときのひとことのあとに切り出す. 受ける / あとで返事する / 断る から選ぶ (考える間は少し長め)."""
+        c["req"] = {"aid": r["req"], "kind": r.get("req_kind")}
+        self._new_beat(char, st, c, "req", None, r.get("req_text") or "……", t)
+        c["beat"]["due"] += 10.0
+
+    def _req_answer(self, char, st, c, kind, now):
+        """電話での頼みごとに, その場で答える. 約束の記録はいまのもの (appoint.answer). 断る・保留は, 直接言うぶん少し響く."""
+        app = self.app
+        rq = c.pop("req", None) or {}
+        aid = rq.get("aid")
+        self._log(c, "me", "（%s）" % {"yes": "受けた", "later": "あとで返事すると言った", "no": "断った"}[kind], now)
+        try:
+            if kind == "later":
+                app.appoint.post_offer(aid, now + 0.5)          # トークから, あとで答えられる
+            else:
+                app.appoint.answer(aid, kind == "yes", now)
+        except (ValueError, KeyError):                          # もう答えた・取り下げた約束
+            pass
+        if kind != "yes":
+            w = (1.5 if kind == "no" else 0.6) * random.uniform(0.7, 1.3) * (1.3 if rq.get("kind") == "care" else 1.0) \
+                * max(0.5, float(app.traits(char).get("absence", 1.0)))
+            app.apply_effects(st, {"mood": -round(w, 1)}, now)
+        self._log(c, "her", self.line(char, "phone.req_" + kind), now + 0.5)
+        app.trace.add("call", "電話での頼みごとに答えた", char["id"], now, kind=kind, req=rq.get("kind"), appoint=aid)
+        nori_mod.bump(app, st, now, {"yes": 8, "later": -2, "no": -10}[kind], "電話での頼みごと: " + kind)
+        c["turns"] = c.get("turns", 0) + 1
+        c.pop("beat", None)
+        c["next"] = now + self._gap(st, now)
+        app.save_state(char["id"])
+        app.presence.save()
+        return {"call": self.view(now)}
 
     def _pick_beat(self, char, st, c, t):
         """次の切れ目の種類と文."""
@@ -410,6 +476,10 @@ class PhoneTalk:
             if kind not in ("hang", "night", "keep"):
                 raise ValueError("寝息だけが聞こえる（切る・おやすみと言って切る・つないだまま から）")
             return {"ended": self._finish(char, st, c, now, "you", kind)}
+        if b["kind"] == "req":
+            if kind not in ("yes", "later", "no"):
+                raise ValueError("頼みごとに答えてください（受ける・あとで返事する・断る）")
+            return self._req_answer(char, st, c, kind, now)
         if kind not in BASE:
             raise ValueError("返し方を選んでください")
         self._log(c, "me", "（%s）" % SAID[kind], now)
@@ -517,6 +587,8 @@ class PhoneTalk:
             self._doze_after(char, st, c, t, why)
         if last:
             self._log(c, "her", last, t)
+        if c.get("req"):                                  # 頼みごとに答えないまま切れた: メッセージで届く (トークから答えられる)
+            app.appoint.post_offer(c.pop("req").get("aid"), t + 30)
         # 長く付き合ってくれた / 付き合った
         good_call = why not in ("silent", "cold") and c.get("turns", 0) >= 3 and avg >= -2
         if good_call:
@@ -628,7 +700,9 @@ class PhoneTalk:
             out["beat"] = {"id": b["id"] + ("h" if b.get("stage") else ""), "kind": b["kind"], "text": b.get("hello") if b.get("stage") else b["text"],
                            "left": None if b.get("due") is None else max(0, int(math.ceil(b["due"] - now))),
                            "stage": b.get("stage", 0)}
-            out["returns"] = [{"id": k, "label": l, "icon": i} for k, l, i in (ASLEEP_RETURNS if b["kind"] == "asleep" else RETURNS)]
+            from .ring import REQ_RETURNS
+            rs = ASLEEP_RETURNS if b["kind"] == "asleep" else REQ_RETURNS if b["kind"] == "req" else RETURNS
+            out["returns"] = [{"id": k, "label": l, "icon": i} for k, l, i in rs]
         else:
             out["talking"] = True                          # 話している (次に相手が話すまで)
         return out

@@ -820,6 +820,15 @@ a.btn { color: inherit; }
 .call-beat { font-size: 1.2em; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #33404f; }
 .call-beat.hello { background: #4a3a2a; }
 .call-returns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+/* 着信 (A23 段 2): 鳴っている間, 画面の上に出す */
+.ring-box { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: calc(100vw - 32px);
+  inset: 12px auto auto 50%; margin: 0; border: 0; padding: 0; background: transparent; overflow: visible; }
+.ring-card { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px;
+  background: #26303c; color: #dbe8f5; box-shadow: 0 4px 18px rgba(0,0,0,0.35); animation: ring-shake 1.2s ease-in-out infinite; }
+.ring-card .row { gap: 6px; }
+@keyframes ring-shake { 0%, 100% { transform: translateX(0); } 5%, 15% { transform: translateX(-3px); } 10%, 20% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { .ring-card { animation: none; } }
+.call-ask { gap: 6px; align-items: center; margin-bottom: 6px; }
 /* トップバー: ボタンが増えたので, 少し広い画面からラベルを省き, 札は縮める (ロゴが折り返さないように) */
 .brand { white-space: nowrap; flex: none; }
 .topbar .chip.home, .topbar .chip.weather { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }

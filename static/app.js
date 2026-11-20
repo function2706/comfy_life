@@ -327,6 +327,7 @@ async function refresh() {
     return;
   }
   const v = S.view;
+  drawRing();                       // 着信 (入力の途中でも出す: 画面の上に重ねるだけ)
   // ミニゲームの画面 (minigames.js) は S.view.games / S.view.name を見る: 「誰かと」の相手のもの
   v.games = (T() || {}).games || { list: [], current: null };
   v.name = (T() || {}).name || '';
@@ -2256,17 +2257,68 @@ async function callReply(kind) {
     if (!S.view || !S.view.on_call) { await refresh(); if (S.chatDlg && S.chatDlg.open) drawChat(true); }
   }
 }
-// 通話中は 1.5 秒おきに問い合わせる (相手のひとこと・待つ残り秒. 通話を進めるのもサーバのこの問い合わせ)
+// 着信 (A23 段 2. core/ring.py): 鳴っている間は画面の上に出し, 着信音をくり返す. 出る / 出ない. 鳴り終われば不在着信
+const RING = { id: null, left: null, at: 0 };
+function drawRing() {
+  let box = document.getElementById('ring-box');
+  if (!box) { box = document.createElement('div'); box.id = 'ring-box'; box.className = 'ring-box'; box.hidden = true; document.body.append(box); }
+  const r = (S.view || {}).ring;
+  const pop = (on) => {            // トークなどの窓 (モーダル) より上に出す: ポップオーバー (使えないブラウザでは, ふつうの固定表示)
+    try {
+      if (box.popover !== 'manual') box.popover = 'manual';
+      if (box.matches(':popover-open')) box.hidePopover();
+      if (on) box.showPopover();
+    } catch (e) { /* ポップオーバーが無い */ }
+  };
+  if (!r || PHONE) {
+    box.hidden = true; box.replaceChildren(); RING.left = null; pop(false);
+    if (RING.id) { stopRing(); RING.id = null; }
+    return;
+  }
+  const fresh = RING.id !== r.id;
+  if (fresh) { RING.id = r.id; startRing(); notifyCall('ring:' + r.id, `📞 ${r.name}から電話`, '', true, 'silent'); }
+  RING.left = r.left; RING.at = Date.now();
+  box.hidden = false;
+  if (fresh || document.querySelector('dialog[open]')) pop(true);       // 後から開いた窓の上にも
+  box.replaceChildren(h('div', { class: 'ring-card' }, avatar(r.face, r.name, 'small'),
+    h('div', {}, h('b', {}, `📞 ${r.name}から電話`), h('div', { class: 'muted small' }, '鳴っている: ', h('span', { class: 'ring-left' }, `${r.left}秒`))),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerRing(true) }, '出る'),
+      h('button', { class: 'btn', disabled: S.busy, onclick: () => answerRing(false) }, '出ない'))));
+}
+async function answerRing(yes) {
+  if (S.busy) return;
+  S.busy = true; stopRing();
+  try {
+    const r = await api('/api/phone/answer', { yes });
+    if (S.view) { S.view.ring = null; if (r.call) S.view.on_call = r.call; }
+    toast(yes ? '📞 つながった（返し方を選んで話す。黙っていると切れます）' : '📞 出なかった', yes ? 'ok' : 'err');
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; drawRing(); await refresh(); if (S.chatDlg && S.chatDlg.open) drawChat(true); }
+}
+async function answerAsk(cid, yes) {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/phone/ask', { id: cid, yes }); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
+// 通話中・着信中は 1.5 秒おきに問い合わせる (相手のひとこと・待つ残り秒. 通話を進めるのもサーバのこの問い合わせ)
 setInterval(async () => {
-  if (PHONE || !S.view || !S.view.on_call || S.busy || S.inactive) return;
+  if (PHONE || !S.view || !(S.view.on_call || S.view.ring) || S.busy || S.inactive) return;
   try {
     const r = await api('/api/phone/live');
+    const oldRing = S.view.ring;
+    S.view.ring = r.ring || null;
+    if (oldRing && !r.ring && !r.call) toast(`📞 ${oldRing.name}からの電話に出なかった（不在着信）`, 'err');
+    drawRing();
     const old = S.view.on_call || {};
     if (!r.call) {
-      S.view.on_call = null;
-      callEnded(r.ended);
-      await refresh();
-      if (S.chatDlg && S.chatDlg.open) drawChat(true);
+      if (S.view.on_call) {
+        S.view.on_call = null;
+        callEnded(r.ended);
+        await refresh();
+        if (S.chatDlg && S.chatDlg.open) drawChat(true);
+      }
       return;
     }
     S.view.on_call = r.call;
@@ -2277,10 +2329,15 @@ setInterval(async () => {
     }
   } catch (e) { /* 次の問い合わせで */ }
 }, 1500);
-setInterval(() => {         // 返事を待つ残り秒は手元で数える
-  if (CALL.left == null) return;
-  const n = Math.max(0, CALL.left - Math.floor((Date.now() - CALL.at) / 1000));
-  document.querySelectorAll('.call-left').forEach((el) => { el.textContent = `${n}秒`; });
+setInterval(() => {         // 返事を待つ残り秒・鳴っている残り秒は手元で数える
+  if (CALL.left != null) {
+    const n = Math.max(0, CALL.left - Math.floor((Date.now() - CALL.at) / 1000));
+    document.querySelectorAll('.call-left').forEach((el) => { el.textContent = `${n}秒`; });
+  }
+  if (RING.left != null) {
+    const n = Math.max(0, RING.left - Math.floor((Date.now() - RING.at) / 1000));
+    document.querySelectorAll('.ring-left').forEach((el) => { el.textContent = `${n}秒`; });
+  }
 }, 1000);
 async function hangUp() {
   if (S.busy) return;
@@ -2291,6 +2348,14 @@ async function hangUp() {
 function chatSendBox(th) {
   const onCall = callBar();
   if (onCall) return onCall;
+  const inner = chatSendBox0(th);
+  if (!th.call_ask) return inner;
+  // 電話していい？ (A23 段 2): いいよ → 少しして鳴る / いまはちょっと
+  return h('div', {}, h('div', { class: 'row call-ask' }, h('span', { class: 'muted small' }, '📞 電話していいか聞かれている'),
+    h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => answerAsk(th.id, true) }, 'いいよ'),
+    h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerAsk(th.id, false) }, 'いまはちょっと')), inner);
+}
+function chatSendBox0(th) {
   const G = th.groups || [];
   const KD = Object.fromEntries((th.kinds || []).map((k) => [k.id, k]));
   const P = th.pick || {};
@@ -2365,6 +2430,8 @@ function renderOffline() {
           if (!ap) return '';
           return h('button', { class: 'btn small primary', onclick: async () => { await close(); openChat(m.cid); } }, '📱 トークで返す');
         })())) : h('div', { class: 'muted small' }, 'なし')),
+    (rep.calls || []).length ? h('div', { class: 'pgroup' }, h('h4', {}, 'かかってきた電話'),
+      rep.calls.map((c) => h('div', { class: 'small' }, h('b', {}, c.name), h('span', { class: 'muted' }, ` ${t(c.t)}`), `　${c.label}`))) : '',
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary', onclick: close }, '閉じる'))));
   document.body.append(dlg);
   dlg.showModal();
@@ -2404,7 +2471,7 @@ function notifyCall(key, title, body, strong, kind) {
   NOTIFY.seen.add(key);
   NOTIFY.lastRemind = Date.now();
   toast(title, 'ok');
-  playSound(kind || (strong ? 'talk' : 'message'));
+  if (kind !== 'silent') playSound(kind || (strong ? 'talk' : 'message'));     // silent: 音は呼び出し側で (着信のくり返しなど)
   if (S.ui.vibrate !== false && navigator.vibrate) { try { navigator.vibrate(strong ? [120, 80, 120] : 90); } catch (e) { /* 振動できない端末 */ } }
   if (document.hidden || !document.hasFocus()) {
     blinkTitle(title);

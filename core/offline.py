@@ -445,7 +445,8 @@ class Offline:
         ps["stamina"] = round(stamina, 1)
         L.save_player()
         msgs = self._messages(t0, t1)
-        rep = {"from": t0, "to": t1, "works": works, "timeline": timeline, "pay": int(ps["money"]) - money0,
+        calls = app.ring.offline(t0, t1, timeline)          # かかってきた電話 (寝ていた・仕事中は不在着信. ほかは短く出たことに)
+        rep = {"from": t0, "to": t1, "works": works, "timeline": timeline, "pay": int(ps["money"]) - money0, "calls": calls,
                "wage": sum(int(w.get("pay") or 0) for w in works) + pt_pay,      # 給料・バイト代 (pay は使った分も引いた増減)
                "bought": [x for ent in timeline for x in ent.get("bought") or []],
                "stamina": [round(s0, 1), round(stamina, 1)], "meets": meets, "messages": msgs, "seen": False}
@@ -720,7 +721,7 @@ class Offline:
                 continue
             ts, ws = zip(*slots)
             sent = min(t1 - 60, random.choices(ts, ws)[0] + random.random() * 1800)
-            e = app.presence.fire(char, st, t1, ctx)
+            e = app.presence.fire(char, st, t1, ctx, phone=False)       # 閉じている間の電話は ring.offline で
             if not e:
                 continue
             e["t"] = sent
@@ -765,6 +766,8 @@ class Offline:
             parts.append("家で静かに過ごした")
         if rep["messages"]:
             parts.append("メッセージ %d 件" % len(rep["messages"]))
+        if rep.get("calls"):
+            parts.append("電話 %d 件" % len(rep["calls"]))
         return "画面を閉じていたあいだ: " + "／".join(parts)
 
     # ------------------------------------------------------------------ 以前の取りこぼし (起動時に一度だけ)

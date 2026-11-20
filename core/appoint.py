@@ -185,6 +185,9 @@ class Appoint:
         text = app.chat.line(char, line, extra)
         if app.bonds.together(cid):                  # そばにいる: 対面で頼まれる (記録にも残す)
             app.her_says(cid, text.replace("📱『", "「").replace("』", "」"), "頼まれごと", "🤝", now)
+        elif self._by_phone(char, st, x, "favor", "favor_ask", text, now):      # 電話で頼まれる (A23 段 2. core/ring.py)
+            app.save_state(cid)
+            return x
         app.chat.add(cid, "her", text, kind="favor_ask", t=now, appoint=x["id"])
         app.picked_up_phone(char, st, now)
         app.save_state(cid)
@@ -688,6 +691,24 @@ class Appoint:
             return self.app.places.label(pid)
         return a.get("name", "")
 
+    def _by_phone(self, char, st, x, kind, chat_kind, text, now):
+        """頼みごと (急な誘い・看病・頼まれごと) を電話で切り出すなら鳴らして True (メッセージは, 出なかったときに post_offer で)."""
+        x["offer_kind"] = chat_kind
+        if not self.app.ring.offer(char, st, x, kind, text, now):
+            x.pop("offer_kind", None)
+            return False
+        self.save()
+        return True
+
+    def post_offer(self, aid, t):
+        """電話で切り出すつもりだった頼みごとを, メッセージで届ける (出なかった / あとで返事する). まだ答えていなければ."""
+        x = next((y for y in self.all() if y.get("id") == aid), None)
+        if not x or x.get("status") != "offered" or not x.get("offer_text"):
+            return None
+        self.app.chat.add(x["cid"], "her", x.pop("offer_text"), kind=x.pop("offer_kind", "appoint_invite"), t=t, appoint=x["id"])
+        self.save()
+        return x
+
     def care_call(self, char, st, now, want):
         """看病に来てほしい (core/care.py): 急な誘いと同じ形の約束. 待ち合わせは 30〜45 分先 (買い物して来られるくらい)."""
         app = self.app
@@ -699,8 +720,9 @@ class Appoint:
         self.save()
         key = "care_call_want" if want else "care_call"
         text = app.chat.line(char, key, {"items": app.care.want_text(want)})
-        app.chat.add(cid, "her", text + "（看病・%sの家・%s）" % (char.get("name", ""), fmt_when(t, now)), kind="appoint_invite",
-                     t=now, appoint=x["id"])
+        if not self._by_phone(char, st, x, "care", "appoint_invite", text + "（看病・%sの家・%s）" % (char.get("name", ""), fmt_when(t, now)), now):
+            app.chat.add(cid, "her", text + "（看病・%sの家・%s）" % (char.get("name", ""), fmt_when(t, now)), kind="appoint_invite",
+                         t=now, appoint=x["id"])
         app.picked_up_phone(char, st, now)
         app.save_state(cid)
         app.trace.add("care", "看病に来てほしいと連絡してきた", cid, now, appoint=x["id"], want=want)
@@ -748,8 +770,9 @@ class Appoint:
         self.all().append(x)
         self.save()
         text = app.chat.line(char, self.invite_key(pid, now=True), {"when": fmt_when(t, now), "place": app.places.label(pid)})
-        app.chat.add(cid, "her", text + "（%s・%s）" % (self.invite_label(pid, a), fmt_when(t, now)), kind="appoint_invite", t=now,
-                     appoint=x["id"])
+        full = text + "（%s・%s）" % (self.invite_label(pid, a), fmt_when(t, now))
+        if not self._by_phone(char, st, x, "now", "appoint_invite", full, now):          # 急ぐので, 電話で来ることも (A23 段 2)
+            app.chat.add(cid, "her", full, kind="appoint_invite", t=now, appoint=x["id"])
         app.picked_up_phone(char, st, now)
         app.save_state(cid)
         app.trace.add("appoint", "急に誘ってきた", cid, now, appoint=x["id"], place=pid)

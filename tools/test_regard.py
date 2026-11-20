@@ -283,7 +283,7 @@ def main():
             ctx = app.context(char, st, datetime.now())
             random.random = lambda: 0.0
             try:
-                P.fire(char, st, time.time(), ctx)
+                P.fire(char, st, time.time(), ctx, phone=False)      # 乱数 0 だと必ず電話になる (core/ring.py): ここではメッセージの文面を見る
             finally:
                 random.random = real
             return (st.get("approach") or {}).get("why")

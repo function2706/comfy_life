@@ -593,6 +593,7 @@ class Chat:
                 "appoints": [x for x in app.appoint.view() if x["cid"] == cid],
                 "appoint_choices": app.appoint.choices(cid) if app.bonds.stage(cid) in ("contact", "visit") else [],
                 "visit_now": {"why": app.appoint.now_why(cid)} if app.bonds.stage(cid) == "visit" else None,     # 今から家に行っていい？ (A25)
+                "call_ask": app.ring.ask_view(st, time.time()),          # 電話していい？ (A23 段 2. core/ring.py)
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
                 "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
                 "react": {"t": tg["t"]} if rg else None,     # 返していない相手のメッセージ (「返す」のまとまりを出す)

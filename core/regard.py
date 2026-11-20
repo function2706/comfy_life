@@ -67,7 +67,10 @@ SIGNS = {
     "call_long": (1.0, "電話で長く付き合ってくれた"),
     "call_silent": (-1.5, "電話の途中で黙られた"),
     "call_cut": (-1.2, "かけた電話を早く切られた"),
+    "call_answered": (0.4, "かけた電話に出てくれた"),
+    "call_missed": (-1.0, "かけた電話に出てもらえなかった"),
 }
+CALL_UNKNOWN = 1.2                    # 電話に出る時間帯をまだ覚えていないうちの, 不在着信の重さの倍率 (覚える前は重く出る)
 # あなたの癖 (habit)
 HABIT_SLOTS = ((0, 5, "夜中"), (5, 10, "朝"), (10, 16, "昼"), (16, 19, "夕方"), (19, 24, "夜"))
 HABIT_MIN = 4.0                       # 枠の記録がこれより少ないうちは, その枠では判断しない (全体の記録で. それも少なければ, いままでと同じ)
@@ -213,7 +216,7 @@ class Regard:
         h = r.get("habit")
         if not isinstance(h, dict):
             h = r["habit"] = {}
-        for k in ("reply", "all", "tease", "start"):
+        for k in ("reply", "all", "tease", "start", "call"):
             if not isinstance(h.get(k), dict):
                 h[k] = {}
         return h
@@ -336,6 +339,41 @@ class Regard:
             k = max(0.0, 1 - (ez - 1) / ODD)
         self.sign(char, st, kind, now, k=k)
         self.note_reply(char, st, t_msg, now, waited=waited / 60.0)
+
+    # 電話に出る時間帯 (A23 段 2): habit["call"] = {枠: {n かけた数, r 出た数, t}, "all": {…}}. 返信の癖と同じ薄め方
+    def note_call(self, char, st, t_ring, answered):
+        """かけた電話に, あなたが出た / 出なかった を覚える."""
+        h = self.habit(char, st)["call"]
+        for key in (slot(t_ring), "all"):
+            b = h.setdefault(key, {})
+            n, r, _ = self._faded(b, t_ring)
+            n, r = n * HABIT_DECAY + 1, r * HABIT_DECAY + (1 if answered else 0)
+            b.update(n=round(n, 3), r=round(min(n, r), 3), t=t_ring)
+
+    def call_known(self, char, st, t):
+        """その時刻の枠で, あなたが電話に出る割合を覚えているか: (数, 出る割合, 慣れ 0〜1) / None (まだ覚えていない)."""
+        h = self.habit(char, st)["call"]
+        for key in (slot(t), "all"):
+            b = h.get(key)
+            if not b:
+                continue
+            n, r, _ = self._faded(b, t)
+            if n >= HABIT_MIN:
+                return n, r / n, min(1.0, n / (HABIT_FULL * self.learn(char)))
+        return None
+
+    def call_ease(self, char, st, t_ring, now):
+        """不在着信の受け取り方の倍率: ふだん出ない時間帯なら軽く (慣れているほど), ふだん出るのに出ないと重く. 覚える前は少し重い."""
+        k = self.call_known(char, st, t_ring)
+        if not k:
+            return CALL_UNKNOWN
+        _, share, fam = k
+        if share < 0.4:
+            dep = self.app.attach.factor(char, st, "dependence") > EASE_DEP
+            return 1 - EASE * fam * (0.5 if dep else 1.0)
+        if share >= 0.8:
+            return 1 + ODD * fam
+        return 1.0
 
     def note_kind(self, char, st, kind):
         """あなたの返しの種類 (からかいの多さ)."""

@@ -31,6 +31,7 @@ from . import care as care_mod
 from . import stay as stay_mod
 from . import parting as parting_mod
 from . import phonetalk as phonetalk_mod
+from . import ring as ring_mod
 from . import replyspeed as replyspeed_mod
 from . import saveedit as saveedit_mod
 from . import charmake as charmake_mod
@@ -244,6 +245,7 @@ class App:
         self.planner = planner_mod.Planner(self)
         self.manners = manners_mod.Manners(self)
         self.phonetalk = phonetalk_mod.PhoneTalk(self)
+        self.ring = ring_mod.Ring(self)                  # 相手からかかってくる電話 (A23 段 2)
         self.calview = calview_mod.CalView(self)
         self.debugdump = debugdump_mod.DebugDump(self)
         self.tasks = {}          # 内職の作業 (token -> {t0, kind, cid, puzzle}). ワールドの tasks.json にも書く (再起動しても続きから)
@@ -2078,6 +2080,20 @@ class App:
         with self.lock:
             return self.phonetalk.reply(kind, now)
 
+    def ring_answer(self, yes, now=None):
+        """かかってきた電話に出る / 出ない (core/ring.py)."""
+        with self.lock:
+            return self.ring.answer(bool(yes), now)
+
+    def ring_ask(self, cid, yes, now=None):
+        """「電話していい？」に答える (core/ring.py)."""
+        with self.lock:
+            return self.ring.ask_answer(cid, bool(yes), now)
+
+    def ring_view(self, now=None):
+        with self.lock:
+            return self.ring.view(now)
+
     def call_end(self, now=None):
         """電話を切る (話している途中で. 相手が寝ているなら, そっと切る)."""
         with self.lock:
@@ -3398,6 +3414,9 @@ class App:
                     ost = self.state(oid)
                     if self.presence.live(self.chars[oid], ost, now):
                         self.save_state(oid)
+                    if oid not in company and (ost.get("call_ask") or ost.get("call_back")):     # 電話していい？のあと・またかけるね (core/ring.py)
+                        self.ring.live(self.chars[oid], ost, now)
+                        self.save_state(oid)
                     if oid in company and self.posing.live(self.chars[oid], ost, now):
                         self.save_state(oid)
             company = self.bonds.company(now)
@@ -3418,7 +3437,7 @@ class App:
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "arrival": arrival, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
                 "side_job": self.task_ready(now), "task_active": self.task_active(),
-                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(), "on_call": self.call_view(now),
+                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(), "on_call": self.call_view(now), "ring": self.ring.view(now),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),

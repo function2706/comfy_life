@@ -286,7 +286,7 @@ class Presence:
             * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど送ってくる (言い争いのあとは来ない)
         return max(0.0, min(1.5, f))
 
-    def fire(self, char, st, now, ctx, force=None):
+    def fire(self, char, st, now, ctx, force=None, phone=True):
         cands = []
         apart = bool(ctx.get("apart"))
         for a in self.app.approaches:
@@ -329,6 +329,15 @@ class Presence:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
                                energy=st["params"].get("energy"), mood=st["params"].get("mood"), loneliness=st["params"].get("loneliness"))
+        if why and apart and not force and phone:
+            via = self.app.ring.want_call(char, st, why, now)      # メッセージでなく, 電話で (急に / 電話していい？. core/ring.py)
+            if via:
+                st.pop("approach", None)
+                if via == "sudden":
+                    self.app.ring.start(char, st, now, "sudden", why=why)
+                else:
+                    self.app.ring.ask(char, st, why, now)
+                return None
         e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else text0, {}, a,
                         gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
