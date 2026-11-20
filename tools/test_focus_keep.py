@@ -6,6 +6,7 @@
 - 地図の時刻を決めて調べる: プルダウン・時刻の欄にフォーカスを置いたまま描き直しても, フォーカスが残る
 - 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)・一人でタブのほかの欄・お金・ログ・関係性・
   持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
+- 設定の「表示」の知らせの音の欄 (A33)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -102,6 +103,9 @@ f.onload = () => setTimeout(async () => {
     await keepScrollAll(() => { closeModal(); w.showTab('solo'); S.planOpen = true; w.renderSoloTab(); }, '#tab-solo', 'scroll-plan');
     await keepScrollAll(() => { closeModal(); w.openMap(); S.mapSel = 'park'; w.renderMap(); }, 'dialog[open]', 'scroll-map');
     closeModal(); low.remove();
+    // 4c. 設定の「表示」: 知らせの音の欄 (A33. 種類ごとの音のプルダウン)
+    await keepAll(async () => { closeModal(); await w.openSettings('display'); }, '#sbody .sound-table', 'sound');
+    closeModal();
     // 5. トーク: 約束の欄 (日時・行き先)
     const cid = ((S.view.people || [])[0] || {}).id;
     if (cid) {
@@ -201,7 +205,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items), res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items, res
     print("ALL OK")
 
 

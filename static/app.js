@@ -318,6 +318,7 @@ async function refresh() {
     if (PHONE) {                      // スマホ用の入り口: 家の画面は描かない. 届いたものを知らせて, トークを描き直すだけ
       for (const m of v.appoint_events || []) toast(`📅 ${m}`, 'ok');
       for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
+      if ((v.replies || []).length) playSound('message'); else if ((v.appoint_events || []).length) playSound('appoint');
       if (S.chatDlg && S.chatDlg.open) drawChat(true);
       return;
     }
@@ -337,8 +338,12 @@ async function refresh() {
   if (v.arrival) { if (v.arrival.act) handleActResult(v.arrival.act); toast(`📍 ${v.arrival.text.replace(/^（|）$/g, '')}`, 'ok'); }
   for (const w of v.workplace || []) toast(`🏪 ${w}`, 'ok');
   noteMemos();
-  if (v.shop_done) { toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok'); if (S.ui.callSound !== false) chime(); }
+  if (v.shop_done) toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok');
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
+  // 音は一度の取り直しで 1 つだけ (重なると聞き分けられない): 返信 → 約束・予定 → 終わった の順. 話しかけ・声をかけられたは notifyCall で
+  if ((v.replies || []).length) playSound('message');
+  else if ((v.appoint_events || []).length) playSound('appoint');
+  else if (v.shop_done || v.arrival) playSound('done');
   // 入力の途中 (プルダウン・時刻・文字の欄にフォーカスがある) なら, 描き直さない. 描き直すと欄が作り直されて, フォーカスが外れる
   // (プルダウンが勝手に閉じる). 欄を離れたら描き直す (tools/test_focus_keep.py)
   if (editingForm()) { S.renderPending = true; return; }
@@ -2327,7 +2332,7 @@ function renderStreet() {
   const sp = S.view.street_pending;
   if (sp && sp.type === 'call') {
     // 声をかけられた: 名前を呼ばれれば気づくのと同じく, はっきり知らせる (見かけただけのときは控えめのまま)
-    notifyCall(`st:${sp.t}`, `💬 ${sp.where}で、${sp.name}に声をかけられた`, sp.text ? `「${sp.text}」` : '', true);
+    notifyCall(`st:${sp.t}`, `💬 ${sp.where}で、${sp.name}に声をかけられた`, sp.text ? `「${sp.text}」` : '', true, 'street');
   } else if (sp && document.hidden && !NOTIFY.blink) {
     document.title = '・Comfy LIFE';
   }
@@ -2335,13 +2340,13 @@ function renderStreet() {
 /* ---- 知らせ: 話しかけられた・メッセージが来て返事を待たれている・出先で声をかけられた. 見落とさないように,
    画面の知らせ・音・タブの題名の点滅・画面を見ていないときはブラウザの通知 (許可したときだけ)・スマホは振動で知らせる.
    返事をするまで, 2 分ごとに一度だけ音で知らせ直す (設定で切れる) */
-const NOTIFY = { seen: new Set(), blink: null, lastRemind: 0 };
-function notifyCall(key, title, body, strong) {
+const NOTIFY = { seen: new Set(), blink: null, lastRemind: 0, ring: null };
+function notifyCall(key, title, body, strong, kind) {
   if (NOTIFY.seen.has(key)) return;
   NOTIFY.seen.add(key);
   NOTIFY.lastRemind = Date.now();
   toast(title, 'ok');
-  if (S.ui.callSound !== false) chime(strong);
+  playSound(kind || (strong ? 'talk' : 'message'));
   if (S.ui.vibrate !== false && navigator.vibrate) { try { navigator.vibrate(strong ? [120, 80, 120] : 90); } catch (e) { /* 振動できない端末 */ } }
   if (document.hidden || !document.hasFocus()) {
     blinkTitle(title);
@@ -2371,27 +2376,81 @@ setInterval(() => {
   if (!S.view || S.ui.callRemind === false || !callPending()) return;
   if (Date.now() - NOTIFY.lastRemind < 120000) return;
   NOTIFY.lastRemind = Date.now();
-  if (S.ui.callSound !== false) chime(false);
+  playSound('remind');
   if (S.ui.vibrate !== false && navigator.vibrate) { try { navigator.vibrate(60); } catch (e) { /* 振動できない端末 */ } }
 }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) stopBlink(); });
 window.addEventListener('focus', () => stopBlink());
-// 知らせの音: 話しかけられた・声をかけられた (strong) は 3 音, 知らせ直し・ほかは控えめな 2 音
-function chime(strong) {
+/* ---- 知らせの音 (A33): 種類ごとに, 音・音量・鳴らさない を選べる (S.ui.sounds). 音はすべて WebAudio で作る (音声ファイルは使わない).
+   「音でも知らせる」(callSound) を切ると全部の種類が鳴らない (旧設定の callSound: false もそのまま「全部鳴らさない」).
+   着信 (ring) と通話中 (voice) は電話の対話 (A23) で使う: 鳴っている間は startRing / stopRing でくり返す */
+// 音: notes は [高さ Hz, 始まり 秒, 長さ 秒]. 波形が角ばるもの (square) は耳に強いので小さめに (gain)
+const SOUND_TONES = {
+  chime3: { label: 'チャイム 3 音（上がる）', wave: 'sine', notes: [[660, 0, 0.35], [880, 0.16, 0.35], [1046, 0.32, 0.35]] },
+  chime3d: { label: 'チャイム 3 音（下がる）', wave: 'sine', notes: [[1046, 0, 0.35], [880, 0.16, 0.35], [660, 0.32, 0.45]] },
+  chime2: { label: 'チャイム 2 音', wave: 'sine', notes: [[660, 0, 0.35], [880, 0.16, 0.35]] },
+  low2: { label: '低めの 2 音', wave: 'triangle', notes: [[523, 0, 0.4], [659, 0.18, 0.5]] },
+  ding: { label: 'ひと鳴り', wave: 'sine', notes: [[988, 0, 0.7]] },
+  bell: { label: 'ベル（余韻が長い）', wave: 'sine', notes: [[784, 0, 1.4], [1568, 0, 0.9], [2352, 0, 0.5]] },
+  pop: { label: '短い合図', wave: 'triangle', notes: [[1200, 0, 0.08], [1500, 0.1, 0.1]] },
+  knock: { label: 'コンコン（低い）', wave: 'sine', notes: [[260, 0, 0.12], [260, 0.2, 0.12]] },
+  ring: { label: '電話のベル', wave: 'square', gain: 0.35,
+    notes: [0, 1].flatMap((b) => Array.from({ length: 12 }, (_, i) => [i % 2 ? 1250 : 1000, b * 0.9 + i * 0.05, 0.05])) },
+};
+// 種類: [id, 設定に出す名前, 既定の音, 既定の音量 (0〜100)]. 既定は A33 より前の音に近いもの (強い 3 音 = 67, 控えめ 2 音 = 40)
+const SOUND_KINDS = [
+  ['talk', 'そばで話しかけられた', 'chime3', 67],
+  ['message', 'メッセージが来た・返信が来た', 'chime2', 40],
+  ['street', '出先でばったり・声をかけられた', 'chime3d', 67],
+  ['ring', '電話の着信（鳴っている間くり返す）', 'ring', 50],
+  ['voice', '通話中に相手が話した', 'pop', 40],
+  ['appoint', '約束・予定の時刻（着いた・会えた・誘いなど）', 'bell', 50],
+  ['done', '終わった（買い物・移動）', 'low2', 40],
+  ['remind', '返事をするまでの知らせ直し', 'chime2', 30],
+];
+function soundPick(kind) {
+  const def = SOUND_KINDS.find((k) => k[0] === kind) || SOUND_KINDS[0];
+  const x = (S.ui.sounds || {})[kind] || {};
+  const tone = x.tone === 'off' || SOUND_TONES[x.tone] ? x.tone : def[2];
+  const vol = Number.isFinite(x.vol) ? Math.max(0, Math.min(100, x.vol)) : def[3];
+  return { tone, vol };
+}
+// その種類の知らせの音を鳴らす. 「音でも知らせる」が切ってある・その種類が「鳴らさない」なら鳴らさない. 鳴らしたら true
+function playSound(kind) {
+  if (S.ui.callSound === false) return false;
+  const { tone, vol } = soundPick(kind);
+  if (tone === 'off' || vol <= 0) return false;
+  return playTone(tone, vol);
+}
+// 音を 1 つ鳴らす (試し聞きはこちらを直に: 「音でも知らせる」を切っていても聞ける)
+function playTone(tone, vol) {
+  const t = SOUND_TONES[tone];
+  if (!t) return false;
   try {
     const ac = S.audio || (S.audio = new (window.AudioContext || window.webkitAudioContext)());
     if (ac.state === 'suspended') ac.resume();
-    const vol = strong ? 0.2 : 0.12;
-    (strong ? [[660, 0], [880, 0.16], [1046, 0.32]] : [[660, 0], [880, 0.16]]).forEach(([f, d]) => {
+    const peak = Math.max(0.0002, 0.3 * (vol / 100) * (t.gain || 1));
+    const t0 = ac.currentTime + 0.01;
+    for (const [f, d, len] of t.notes) {
       const o = ac.createOscillator(), g = ac.createGain();
-      o.type = 'sine'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, ac.currentTime + d);
-      g.gain.exponentialRampToValueAtTime(vol, ac.currentTime + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + d + 0.35);
+      o.type = t.wave; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + d);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + d + Math.min(0.02, len / 3));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + len);
       o.connect(g).connect(ac.destination);
-      o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.4);
-    });
-  } catch (e) { /* 音が出せない環境でも, 画面の知らせはある */ }
+      o.start(t0 + d); o.stop(t0 + d + len + 0.05);
+    }
+    return true;
+  } catch (e) { return false; /* 音が出せない環境でも, 画面の知らせはある */ }
+}
+// 着信: 鳴っている間, 3 秒ごとにくり返す (止めるまで. 同時に鳴るのは 1 つだけ)
+function startRing() {
+  stopRing();
+  playSound('ring');
+  NOTIFY.ring = setInterval(() => playSound('ring'), 3000);
+}
+function stopRing() {
+  if (NOTIFY.ring) { clearInterval(NOTIFY.ring); NOTIFY.ring = null; }
 }
 // 約束: 自分でその場所へ出向く (行き先を約束の場所にした外出). 約束の場所にいる状態で時刻を迎えると会える
 const remainText = (sec) => (sec > 0 ? `あと${fmtDur(sec)}` : `${fmtDur(-sec)}過ぎ`);
@@ -2922,7 +2981,7 @@ function renderApproach() {
   box.classList.toggle('calling', true);
   for (const ap of aps) {          // 新しく話しかけられた・メッセージが来た: 知らせる (同じ働きかけは一度だけ)
     notifyCall(`ap:${ap.cid}:${ap.id}:${Math.round(ap.until)}`, `${ap.icon} ${ap.name}${ap.apart ? 'から' : 'が'}${ap.label}`,
-      ap.apart ? '' : 'そばで話しかけられています', !ap.apart);
+      ap.apart ? '' : 'そばで話しかけられています', !ap.apart, ap.apart ? 'message' : 'talk');
   }
   box.replaceChildren(...aps.map((ap) => {
     const rest = Math.max(0, Math.round(ap.until - Date.now() / 1000));
@@ -4745,6 +4804,49 @@ SEC.minigames = () => {
   ];
 };
 
+// 知らせの音の表 (設定の「表示」): 種類ごとに 音・音量・▶ 試し聞き. 変えるとすぐ保存し, 選んだ音をその場で鳴らす.
+// 描き直さない (欄を作り直すとプルダウンが閉じる): 音量の数字だけ書き換える
+function soundTable() {
+  const u = S.ui;
+  const setKind = (kind, patch) => {
+    u.sounds = Object.assign({}, u.sounds);
+    u.sounds[kind] = Object.assign(soundPick(kind), u.sounds[kind], patch);
+    saveUi();
+  };
+  const rows = SOUND_KINDS.map(([kind, label]) => {
+    const cur = soundPick(kind);
+    const out = h('span', { class: 'pval' }, cur.vol + '%');
+    const sel = h('select', { 'data-sound': kind, onchange: (ev) => {
+      setKind(kind, { tone: ev.target.value });
+      if (ev.target.value !== 'off') playTone(ev.target.value, soundPick(kind).vol);
+    } },
+      h('option', { value: 'off', selected: cur.tone === 'off' }, '鳴らさない'),
+      Object.entries(SOUND_TONES).map(([id, t]) => h('option', { value: id, selected: cur.tone === id }, t.label)));
+    const vol = h('input', { type: 'range', min: 0, max: 100, step: 5, value: cur.vol, style: 'width:110px',
+      oninput: (ev) => { out.textContent = ev.target.value + '%'; setKind(kind, { vol: +ev.target.value }); },
+      onchange: () => { const p = soundPick(kind); if (p.tone !== 'off') playTone(p.tone, p.vol); } });
+    const play = h('button', { class: 'btn small', title: 'この種類の音を試しに鳴らします',
+      onclick: () => { const p = soundPick(kind); if (p.tone === 'off' || !playTone(p.tone, p.vol)) toast(p.tone === 'off' ? '「鳴らさない」になっています' : '音を出せませんでした（ブラウザの音の設定を確かめてください）', 'err'); } }, '▶');
+    return h('div', { class: 'row sound-row', style: 'flex-wrap:wrap;gap:6px;align-items:center' },
+      h('span', { style: 'min-width:16em' }, label), sel, vol, out, play);
+  });
+  let demo = null;
+  const all = h('button', { class: 'btn small sound-demo', onclick: () => {    // 全部を順に: 聞き分けられるかを確かめる
+    if (demo) { clearTimeout(demo); demo = null; return; }
+    const seq = SOUND_KINDS.filter(([k]) => soundPick(k).tone !== 'off');
+    const next = (i) => {
+      if (i >= seq.length) { demo = null; return; }
+      const [k, label] = seq[i]; const p = soundPick(k);
+      playTone(p.tone, p.vol); toast(`🔔 ${label}`, 'ok');
+      demo = setTimeout(() => next(i + 1), 2200);
+    };
+    next(0);
+  } }, '🔔 全部を順に試す');
+  const reset = h('button', { class: 'btn small ghost', onclick: () => { u.sounds = {}; saveUi(); showSection('display'); } }, '音を既定に戻す');
+  return h('div', { class: 'sound-table' }, ...rows, h('div', { class: 'row', style: 'gap:6px;margin-top:4px' }, all, reset),
+    h('p', { class: 'hint' }, '音はこのブラウザで作る合成音です（音声ファイルは使いません）。着信と通話中の音は、電話で話せるようになったときに使います。ブラウザによっては、画面を一度クリックするまで音が出ません。'));
+}
+
 /* ---- 表示 (このブラウザだけの設定) */
 SEC.display = () => {
   const u = S.ui;
@@ -4771,9 +4873,10 @@ SEC.display = () => {
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!u.showApart, onchange: (ev) => set('showApart', ev.target.checked) }),
       '離れている相手の様子も見る（いまの場面・ステータス・表情・機嫌の理由）'),
     h('p', { class: 'hint' }, '既定では、一緒に暮らしていない・会っていない相手の様子は見えません（本人から聞いた機嫌の理由だけ）。'),
-    h('div', { class: 'sect' }, '知らせ（話しかけられた・メッセージが来た・出先で声をかけられた）'),
+    h('div', { class: 'sect' }, '知らせ（話しかけられた・メッセージが来た・出先で声をかけられた・約束の時刻など）'),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.callSound !== false, onchange: (ev) => set('callSound', ev.target.checked) }),
-      '音でも知らせる'),
+      '音でも知らせる（切ると、下の音は全部鳴りません。試し聞きはできます）'),
+    soundTable(),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.callRemind !== false, onchange: (ev) => set('callRemind', ev.target.checked) }),
       '返事をするまで、2 分ごとに一度知らせ直す'),
     h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: u.vibrate !== false, onchange: (ev) => set('vibrate', ev.target.checked) }),
