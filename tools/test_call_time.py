@@ -194,6 +194,8 @@ def main():
                 for bk in phonetalk.FIT:
                     c["beat"]["kind"] = bk
                     for k in phonetalk.BASE:
+                        if k in phonetalk.STANCE_KIND:        # 意見への返し (そうだね / それはちょっと) は stance.fit で. tools/test_stance.py
+                            continue
                         res = [PT.judge(char, st, c, k, time.time())[0] for _ in range(40)]
                         tally.setdefault((bk, k), []).extend(res)
         rate = {key: (res.count("good") / float(len(res)), res.count("bad") / float(len(res))) for key, res in tally.items()}

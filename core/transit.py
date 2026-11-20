@@ -12,13 +12,22 @@
 - 遅れ (A11 段 1): 路線・運行日ごとの出来事 (incidents. ワールド・路線・日から決まる乱数. 毎日違う. 朝夕に多い).
   出来事は {始まり s, 終わり e (分), 遅れ d (分), 方向}. s〜e のあいだにある駅を出る便は, そこから先が d 分遅れる.
   経路を調べるときは「その時点で始まっている出来事」だけを知っている (known = 時刻). 実際の移動は全部 (known = "all") で進む.
+- 路線を増やす (A11): 環状線 (放射の鉄道 2 本以上で. 交わる所が乗り換え駅) / 支線 (駅から遠い家・職場の方へ) /
+  快速 (行き先の駅・乗り換え駅だけ止まる. 昼だけ. 遅れは元の路線の出来事) / 深夜バス (あなたの家のそばの系統を, 終バスのあと駅前発だけ.
+  運賃 2 倍). 既存の駅・路線は同じ乱数の順で同じに作り, 新しいものは別の乱数で足す (駅の id は消えない).
+  バスは平日の朝夕に遅く, 深夜は速い. 平日の朝夕の電車・バスは混んでいて立つ (始発駅から乗れば座れる. 区間の crowd).
+- 道 (A11. core/roads.py): 川と橋・大通り・踏切. net.roads に覚える.
 """
 import bisect
 import math
 import random
 from datetime import datetime, timedelta
 
-NET_V = 3                            # 路線網の作り方の版 (変えたら, 作り直す)
+from . import roads as roads_mod
+
+NET_V = 4                            # 路線網の作り方の版 (変えたら, 作り直す)
+RAPID_KMH = 75.0                     # 快速の速さ
+BUS_JAM, BUS_NIGHT = 1.35, 0.85      # バスの所要の倍率: 平日朝夕 / 深夜
 WALK_KMH = 4.5
 ROAD = 1.3
 RAIL_KMH, BUS_KMH = 55.0, 18.0
@@ -64,17 +73,21 @@ class Transit:
         self._stops = {}
         self._inc = {}
         self._csa = {}
+        self.roads = roads_mod.Roads(self)
 
     # ------------------------------------------------------------------ 路線網
     def net(self):
         r = self.geo.rec()
-        if (r.get("net") or {}).get("v") != NET_V:
-            r["net"] = self._build()
+        old = r.get("net") or {}
+        if old.get("v") != NET_V:
+            # 版 3 の路線網があれば, それを土台に足す (A11): 作ったあとに場所 (遠い相手の家など) が増えていても, いまの駅・路線はそのまま
+            r["net"] = self._upgrade(old) if old.get("v") == 3 and old.get("stations") and old.get("lines") else self._build()
             self.geo.save()
             self._conn.clear()
             self._stops.clear()
             self._inc.clear()
             self._csa.clear()
+            self.roads.clear()
         return r["net"]
 
     def _build(self):
@@ -170,7 +183,147 @@ class Transit:
 
         make_lines(rail_t, "rail", 50, 4, 5.0, LINE_NAMES, 55)
         make_lines(bus_t, "bus", 40, 4, 1.2, BUS_NAMES, 70)
-        return {"v": NET_V, "stations": stations, "lines": lines}
+        self._extend(random.Random("net4:%s" % WORLD), stations, lines, names)        # A11: ここまでは NET_V 3 と同じ
+        roads = roads_mod.build(random.Random("roads:%s" % WORLD), stations, lines)
+        return {"v": NET_V, "stations": stations, "lines": lines, "roads": roads}
+
+    def _upgrade(self, old):
+        """版 3 の路線網に, 環状線・支線・快速・深夜バスと道を足す (いまの駅の id・名前・位置, 路線の時刻表はそのまま)."""
+        import copy
+        from .store import WORLD
+        stations = copy.deepcopy(old["stations"])
+        lines = copy.deepcopy(old["lines"])
+        for ln in lines:                           # 土休日の昼は平日より多く走らせない (_timetable_params と同じ)
+            tt = ln.get("tt") or {}
+            for dr in ("out", "in"):
+                if "hd_%s" % dr in tt and "wd_%s" % dr in tt:
+                    tt["hd_%s" % dr]["hw"]["day"] = max(tt["hd_%s" % dr]["hw"]["day"], tt["wd_%s" % dr]["hw"]["day"])
+        used = {v["name"].replace("駅", "").replace("住宅前", "") for v in stations.values()}
+        rnd = random.Random("net:%s" % WORLD)
+        names = iter([n for n in rnd.sample(STATION_NAMES, len(STATION_NAMES)) if n not in used])
+        self._extend(random.Random("net4:%s" % WORLD), stations, lines, names)
+        roads = roads_mod.build(random.Random("roads:%s" % WORLD), stations, lines)
+        return {"v": NET_V, "stations": stations, "lines": lines, "roads": roads}
+
+    def _extend(self, rnd, stations, lines, names):
+        """環状線・支線・快速・深夜バス (A11). 既存の駅・路線は変えずに足す (環状線との乗り換え駅だけ, 既存の路線の並びに差し込む)."""
+        from . import places as places_mod
+
+        def nm():
+            return next(names, None) or "%s%s" % (rnd.choice(STATION_NAMES), rnd.choice(("台", "原", "野", "坂")))
+
+        def dist(a, b):
+            return math.hypot(a[0] - b[0], a[1] - b[1])
+        radial = [ln for ln in lines if ln["kind"] == "rail"]
+        hubs = set()                                   # 乗り換え駅 (快速が止まる)
+        # 環状線: 放射の鉄道と交わる所を乗り換え駅に. 間は 2.5 km ほどごとに駅
+        if len(radial) >= 2:
+            R = rnd.uniform(3.0, 4.5)
+            ring = []
+            for ln in radial:
+                seq = ln["seq"]
+                for i in range(len(seq) - 1):
+                    pa, pb = stations[seq[i]]["xy"], stations[seq[i + 1]]["xy"]
+                    da, db = math.hypot(*pa), math.hypot(*pb)
+                    if da < R <= db:
+                        f = (R - da) / (db - da)
+                        q = [round(pa[0] + (pb[0] - pa[0]) * f, 3), round(pa[1] + (pb[1] - pa[1]) * f, 3)]
+                        near = min((seq[i], seq[i + 1]), key=lambda s: dist(stations[s]["xy"], q))
+                        if near != "station" and dist(stations[near]["xy"], q) <= 0.6:
+                            sid = near
+                        else:
+                            sid = "st:ring:%d" % len(ring)
+                            stations[sid] = {"name": nm() + "駅", "xy": q, "for": None}
+                            seq.insert(i + 1, sid)
+                        xy = stations[sid]["xy"]
+                        ring.append((math.atan2(xy[1], xy[0]), sid))
+                        break
+            if len(ring) >= 2:
+                ring.sort()
+                seq, m = [], 0
+                for k, (a0, s0) in enumerate(ring):
+                    a1 = ring[(k + 1) % len(ring)][0] + (2 * math.pi if k + 1 == len(ring) else 0)
+                    seq.append(s0)
+                    n = int(R * (a1 - a0) // 2.5)
+                    for j in range(1, n + 1):
+                        a = a0 + (a1 - a0) * j / (n + 1)
+                        sid = "st:ring:m%d" % m
+                        m += 1
+                        stations[sid] = {"name": nm() + "駅", "xy": [round(R * math.cos(a), 3), round(R * math.sin(a), 3)], "for": None}
+                        seq.append(sid)
+                seq.append(seq[0])
+                hubs.update(s for _, s in ring)
+                ln = self._timetable_params(rnd, "rail", "ring0", "環状線", seq)
+                ln["loop"] = True
+                lines.append(ln)
+        # 支線: 駅から 1.5 km より遠い家・職場があれば, いちばん遠いものの方へ. 無ければ, いちばん路線の無い向きへ
+        if radial:
+            rail_st = [s for ln in lines if ln["kind"] == "rail" for s in ln["seq"] if s != "station"]
+            pts = self.geo.rec()["pts"]
+            far = []
+            for pid, p in pts.items():
+                if not (places_mod.is_home(pid) or pid == "office") or math.hypot(*p["xy"]) < 2.0:
+                    continue
+                g = min(dist(p["xy"], v["xy"]) for v in stations.values())
+                if g > 1.5:
+                    far.append((g, pid, p["xy"]))
+            org = end = None
+            if far:
+                _, _, txy = max(far)
+                org = min(rail_st, key=lambda s: dist(stations[s]["xy"], txy))
+                oxy = stations[org]["xy"]
+                L = dist(oxy, txy)
+                if L >= 2.0:
+                    end = [txy[0] + (oxy[0] - txy[0]) * 0.3 / L, txy[1] + (oxy[1] - txy[1]) * 0.3 / L]
+            if end is None:
+                angs = sorted(math.atan2(stations[ln["seq"][-1]]["xy"][1], stations[ln["seq"][-1]]["xy"][0]) for ln in radial)
+                gaps = [((angs[(i + 1) % len(angs)] - a) % (2 * math.pi) or 2 * math.pi, a) for i, a in enumerate(angs)]
+                g, a = max(gaps)
+                d = a + g / 2
+                aim = [4.0 * math.cos(d), 4.0 * math.sin(d)]
+                org = min(rail_st, key=lambda s: dist(stations[s]["xy"], aim))
+                oxy = stations[org]["xy"]
+                L = rnd.uniform(4.0, 7.0)
+                ux, uy = aim[0] - oxy[0], aim[1] - oxy[1]
+                n0 = math.hypot(ux, uy) or 1.0
+                end = [oxy[0] + ux / n0 * L, oxy[1] + uy / n0 * L]
+            oxy = stations[org]["xy"]
+            L = dist(oxy, end)
+            n = max(1, int(L // 2.0))
+            seq = [org]
+            for j in range(1, n + 1):
+                f = j / float(n)
+                sid = "st:branch:0:%d" % j
+                stations[sid] = {"name": nm() + "駅", "xy": [round(oxy[0] + (end[0] - oxy[0]) * f, 3), round(oxy[1] + (end[1] - oxy[1]) * f, 3)], "for": None}
+                seq.append(sid)
+            parent = next(ln for ln in lines if ln["kind"] == "rail" and org in ln["seq"])
+            base = parent["name"][:-1] if parent["name"].endswith("線") else parent["name"]
+            ln = self._timetable_params(rnd, "rail", "branch0", base + "支線", seq)
+            for p in ln["tt"].values():
+                p["hw"] = {k: min(30, v * 2) for k, v in p["hw"].items()}
+            lines.append(ln)
+            hubs.add(org)
+        # 快速: 放射の鉄道 (駅 4 つ以上) に. 始発・終点・行き先の駅・乗り換え駅だけ止まる. 昼だけ
+        for k, ln in enumerate(radial):
+            seq = ln["seq"]
+            keep = [s for i, s in enumerate(seq) if i in (0, len(seq) - 1) or stations[s].get("for") or s in hubs]
+            if len(seq) < 4 or len(keep) >= len(seq):
+                continue
+            tt = {}
+            for dt in ("wd", "hd"):
+                for dr in ("out", "in"):
+                    a, b = (600, 960) if dt == "wd" else (540, 1080)
+                    h = rnd.choice((20, 30))
+                    tt["%s_%s" % (dt, dr)] = {"first": a + rnd.randint(0, 9), "last": b, "hw": {"rush": h, "day": h, "eve": h, "night": h}}
+            lines.append({"id": "rapid%d" % k, "kind": "rail", "of": ln["id"], "rapid": True, "name": ln["name"] + "（快速）", "seq": keep, "tt": tt})
+        # 深夜バス: あなたの家のそばを通る系統 (無ければいちばん長い系統) を, 終バスのあと駅前発だけ (平日)
+        buses = [ln for ln in lines if ln["kind"] == "bus" and not ln.get("of")]
+        if buses:
+            home_sid = "st:%s" % places_mod.HOME_ME
+            base = next((ln for ln in buses if home_sid in ln["seq"]), None) or max(buses, key=lambda x: len(x["seq"]))
+            h = rnd.choice((20, 30))
+            lines.append({"id": "night0", "kind": "bus", "of": base["id"], "night": True, "name": "深夜バス", "seq": list(base["seq"]),
+                          "fare": BUS_FARE * 2, "tt": {"wd_out": {"first": 1420, "last": 1490, "hw": {"rush": h, "day": h, "eve": h, "night": h}}}})
 
     @staticmethod
     def _timetable_params(rnd, kind, lid, name, seq):
@@ -189,6 +342,8 @@ class Transit:
                     hw = {"rush": rnd.choice((10, 12, 15)) if dt == "wd" else 20, "day": rnd.choice((15, 20, 20)),
                           "eve": rnd.choice((15, 20)), "night": rnd.choice((30, 40))}
                 tt["%s_%s" % (dt, dr)] = {"first": round(first), "last": round(last), "hw": hw}
+        for dr in ("out", "in"):                   # 土休日の昼は, 平日より多くは走らない (乱数は引かない: 路線網のほかの所が変わらないように)
+            tt["hd_%s" % dr]["hw"]["day"] = max(tt["hd_%s" % dr]["hw"]["day"], tt["wd_%s" % dr]["hw"]["day"])
         return {"id": lid, "kind": kind, "name": name, "seq": seq, "tt": tt}
 
     # ------------------------------------------------------------------ 時刻表
@@ -198,9 +353,39 @@ class Transit:
         out = []
         for a, b in zip(line["seq"], line["seq"][1:]):
             pa, pb = st[a]["xy"], st[b]["xy"]
-            km = math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * (1.1 if line["kind"] == "rail" else ROAD)
-            out.append(km / (RAIL_KMH if line["kind"] == "rail" else BUS_KMH) * 60 + (1.0 if line["kind"] == "rail" else 0.6))
+            if line["kind"] == "rail":
+                km = math.hypot(pb[0] - pa[0], pb[1] - pa[1]) * 1.1
+                out.append(km / (RAPID_KMH if line.get("rapid") else RAIL_KMH) * 60 + 1.0)
+            else:                                  # バスは道を走る (川は橋を渡る)
+                km = self.roads.path(pa, pb)["km"]
+                out.append(km / BUS_KMH * 60 + 0.6)
         return out
+
+    @staticmethod
+    def bus_factor(m, hol):
+        """バスの所要の倍率 (運行日の分 m に出る便): 平日の朝夕は道が混んで遅く, 深夜は速い."""
+        h = (m / 60.0) % 24
+        if roads_mod.Roads.jam(h, hol):
+            return BUS_JAM
+        if h >= 22 or h < 5:
+            return BUS_NIGHT
+        return 1.0
+
+    def crowded(self, lg):
+        """乗る区間が混んでいて立つか: 平日の朝夕 (7:00〜9:30・17:30〜19:30) の電車・バス. 始発駅から乗れば座れる. 深夜バスは座れる."""
+        if lg.get("kind") != "ride" or not lg.get("trip"):
+            return False
+        ln = self.line(lg["line"])
+        if ln.get("night") or holiday(service_day(lg["t0"])):
+            return False
+        d = datetime.fromtimestamp(lg["t0"])
+        h = d.hour + d.minute / 60.0
+        if not (7 <= h < 9.5 or 17.5 <= h < 19.5):
+            return False
+        try:
+            return self.trip_stops(lg["trip"], None)[0][0] != lg["from"]
+        except (KeyError, ValueError):
+            return True
 
     @staticmethod
     def _band(m):
@@ -215,7 +400,9 @@ class Transit:
 
     def departures(self, line, dt_key, dr):
         """始発駅を出る時刻の並び (運行日の 0 時からの分. 24 時を越えるのは翌 0 時台)."""
-        p = line["tt"]["%s_%s" % (dt_key, dr)]
+        p = line["tt"].get("%s_%s" % (dt_key, dr))
+        if not p:                                  # 走らない日・向き (深夜バスは平日の駅前発だけ)
+            return []
         out, m = [], float(p["first"])
         while m <= p["last"]:
             out.append(round(m))
@@ -238,6 +425,8 @@ class Transit:
         out = []
         if sc > 0:
             for ln in self.net()["lines"]:
+                if ln.get("of"):                   # 快速・深夜バスは, 元の路線の出来事で遅れる
+                    continue
                 rnd = random.Random("delay:%s:%s:%s" % (WORLD, ln["id"], day.isoformat()))
                 p = DELAY_DAY * sc
                 n = 0
@@ -291,18 +480,20 @@ class Transit:
 
     def trips(self, day, incs=()):
         """その運行日の全便: [(line_id, 方向, [(駅, 発・着の分)...])]. incs: 効かせる遅れの出来事."""
-        dt_key = "hd" if holiday(day) else "wd"
+        hol = holiday(day)
+        dt_key = "hd" if hol else "wd"
         out = []
         for ln in self.net()["lines"]:
             run = self.run_min(ln)
             for dr in ("out", "in"):
                 seq = ln["seq"] if dr == "out" else ln["seq"][::-1]
                 rr = run if dr == "out" else run[::-1]
-                mine = [x for x in incs if x["line"] == ln["id"] and dr in x["dirs"]]
+                mine = [x for x in incs if x["line"] in (ln["id"], ln.get("of")) and dr in x["dirs"]]
                 for d0 in self.departures(ln, dt_key, dr):
                     times, m = [d0], float(d0)
+                    f = self.bus_factor(d0, hol) if ln["kind"] == "bus" else 1.0
                     for r in rr:
-                        m += r
+                        m += r * f
                         times.append(round(m, 1))
                     if mine:                       # 出来事のあいだに出る駅から先が遅れる (いちど遅れたら, その先も)
                         late = 0
@@ -360,7 +551,8 @@ class Transit:
                 key = (lid, dr)
                 ent = next((x for x in out if x["key"] == key), None)
                 if not ent:
-                    ent = {"key": key, "line": lid, "name": ln["name"], "kind": ln["kind"], "dir_label": "%s方面" % to, "hours": {}, "times": []}
+                    lab = ("外回り" if dr == "out" else "内回り") if ln.get("loop") else "%s方面" % to
+                    ent = {"key": key, "line": lid, "name": ln["name"], "kind": ln["kind"], "dir_label": lab, "hours": {}, "times": []}
                     out.append(ent)
                 ent["times"].append(m)
                 h = int(m // 60)
@@ -374,7 +566,9 @@ class Transit:
     def map_view(self):
         net = self.net()
         return {"stations": {k: {"name": v["name"], "xy": v["xy"]} for k, v in net["stations"].items()},
-                "lines": [{"id": ln["id"], "kind": ln["kind"], "name": ln["name"], "seq": ln["seq"]} for ln in net["lines"]]}
+                "lines": [{"id": ln["id"], "kind": ln["kind"], "name": ln["name"], "seq": ln["seq"], "over": bool(ln.get("of"))}
+                          for ln in net["lines"]],
+                "roads": self.roads.view()}
 
     def station_of(self, pid):
         """行き先にあてた駅・停留所 (無ければ None)."""
@@ -443,6 +637,8 @@ class Transit:
         # 乗る前の待ち (駅に着いてから発車まで)
         out = []
         for lg in legs:
+            if lg["kind"] == "ride":
+                lg["crowd"] = self.crowded(lg)
             if lg["kind"] == "ride" and out and out[-1]["t1"] < lg["t0"] - 30:
                 out.append({"kind": "wait", "from": lg["from"], "to": lg["from"], "t0": out[-1]["t1"], "t1": lg["t0"]})
             out.append(lg)

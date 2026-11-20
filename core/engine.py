@@ -3587,6 +3587,7 @@ class App:
 
     TRIP_POS = {"walk": "walking together side by side, street, outdoors", "run": "walking together side by side, street, outdoors",
                 "wait": "waiting together at a train station platform", "ride": "sitting side by side on a train, train interior, window",
+                "stand": "standing close together in a crowded train, holding straps, train interior",
                 "bike": "riding bicycles together, street, outdoors", "car": "sitting in a car, passenger seat, car interior",
                 "taxi": "sitting in the back seat of a taxi, car interior"}
 

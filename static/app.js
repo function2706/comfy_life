@@ -707,7 +707,7 @@ S.how = 'auto';
 const HOW_NAME = { auto: 'おまかせ', walk: '🚶 歩く', transit: '🚃 電車・バス', bike: '🚲 自転車', car: '🚗 車', taxi: '🚕 タクシー' };
 const HOW_ICON = { walk: '🚶', run: '🏃', transit: '🚃', bike: '🚲', car: '🚗', taxi: '🚕' };
 // 移動の区間 (core/geo.py の segs): 駅まで歩く → 待つ → 乗る → 降りて歩く など. いまの区間を目立たせ, 済んだ区間は薄く
-const SEG_ICON = { walk: '🚶', wait: '⏳', ride: '🚃', bike: '🚲', run: '🏃', car: '🚗', taxi: '🚕' };
+const SEG_ICON = { walk: '🚶', wait: '⏳', ride: '🚃', stand: '🧍', bike: '🚲', run: '🏃', car: '🚗', taxi: '🚕' };
 function segAt(tv) {          // いまの区間と, その残り (秒). 画面の時計で (サーバの値は開いたときのもの)
   const segs = tv.segs || [];
   const tot = segs.reduce((x, g) => x + g.min, 0) || 1, span = Math.max(1, tv.arr - tv.t0);
@@ -2942,7 +2942,31 @@ function drawMap() {
   }
   // 路線 (鉄道は太い線, バスは点線) と駅・停留所 (押すと時刻表)
   const NET = od.net || { stations: {}, lines: [] };
+  // 道 (A11): 川と橋, 大通り (放射と環状). 路線の下に薄く
+  const RD = NET.roads;
+  if (RD) {
+    const O = xy([0, 0]), far = 60;
+    for (const a of RD.radials || []) {
+      const e = xy([far * Math.cos(a * Math.PI / 180), far * Math.sin(a * Math.PI / 180)]);
+      kids.push(mapEl('line', { x1: O[0], y1: O[1], x2: e[0], y2: e[1], stroke: '#b9a27a', 'stroke-width': 3, 'stroke-opacity': 0.35 }, mapEl('title', {}, '大通り')));
+    }
+    if (RD.ring) {
+      const ps = Array.from({ length: 73 }, (_, i) => xy([RD.ring * Math.cos(i * Math.PI / 36), RD.ring * Math.sin(i * Math.PI / 36)]));
+      kids.push(mapEl('polyline', { points: ps.map((q) => q.join(',')).join(' '), fill: 'none', stroke: '#b9a27a', 'stroke-width': 3, 'stroke-opacity': 0.35 }, mapEl('title', {}, '環状の大通り')));
+    }
+    if (RD.river) {
+      const [a, b] = RD.river;             // 全体の地図は遠くを縮めて描くので, 細かく区切って曲げる
+      const ps = Array.from({ length: 181 }, (_, i) => xy([a[0] + (b[0] - a[0]) * i / 180, a[1] + (b[1] - a[1]) * i / 180]));
+      kids.push(mapEl('polyline', { points: ps.map((q) => q.join(',')).join(' '), fill: 'none', stroke: '#7fb3e0', 'stroke-width': 8, 'stroke-opacity': 0.45 }, mapEl('title', {}, '川')));
+      for (const q0 of RD.bridges || []) {
+        const q = xy(q0);
+        if (q[0] < -20 || q[0] > MAP_W + 20 || q[1] < -20 || q[1] > MAP_H + 20) continue;
+        kids.push(mapEl('rect', { x: q[0] - 4, y: q[1] - 4, width: 8, height: 8, fill: '#fff', stroke: '#8a7a5a', 'stroke-width': 1.5 }, mapEl('title', {}, '橋')));
+      }
+    }
+  }
   for (const ln of NET.lines || []) {
+    if (ln.over) continue;                 // 快速・深夜バスは元の路線と同じ線路・道
     const ps = ln.seq.map((sid) => (NET.stations[sid] || {}).xy).filter(Boolean).map(xy);
     if (ps.length < 2) continue;
     kids.push(mapEl('polyline', { points: ps.map((q) => q.join(',')).join(' '), fill: 'none', stroke: ln.kind === 'rail' ? '#6b8fd6' : '#5aa874',
@@ -3030,7 +3054,7 @@ function routeList(routes, go) {
         r.note ? h('span', { class: 'muted small' }, r.note) : '', h('div', { class: 'spacer' }),
         go ? h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => go(r.key) }, 'この経路で行く') : ''),
       h('div', { class: 'tsteps' }, ...r.steps.map((x, i) => [i ? h('span', { class: 'muted' }, '→') : '',
-        h('span', { class: 'tstep' }, `${x.kind === 'ride' ? (x.line_kind === 'bus' ? '🚌' : '🚃') : SEG_ICON2[x.kind] || ''} ${x.kind === 'ride' ? hm(x.t0) + ' ' : ''}${x.label} ${x.min}分${x.late ? `（${x.late}分遅れ）` : ''}`)])))));
+        h('span', { class: 'tstep' }, `${x.kind === 'ride' ? (x.line_kind === 'bus' ? '🚌' : '🚃') : SEG_ICON2[x.kind] || ''} ${x.kind === 'ride' ? hm(x.t0) + ' ' : ''}${x.label} ${x.min}分${x.late ? `（${x.late}分遅れ）` : ''}${x.crowd ? '（混雑・立つ）' : ''}`)])))));
 }
 // 時刻を決めて調べる (出発 / 到着. 約束に間に合うかなど). 調べるだけ (出かけるのは上のボタンで, いまから)
 function routeSearchBox(to) {
