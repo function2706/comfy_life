@@ -3118,6 +3118,54 @@
   ],
   "phone.morning_awkward": [
    "📱『昨日は途中で寝た。ごめん』"
+  ],
+  "phone.ring_bored": [
+   "もしもし。暇だったから。いま平気？"
+  ],
+  "phone.ring_tired": [
+   "もしもし。……今日は疲れた。少し付き合って"
+  ],
+  "phone.ring_happy": [
+   "もしもし。{call}、ちょっと聞いてほしい話がある"
+  ],
+  "phone.ring_lonely": [
+   "もしもし。……別に用はない。話したくなっただけ"
+  ],
+  "phone.ring_unsure": [
+   "もしもし。最近、忙しい？"
+  ],
+  "phone.ring_changed": [
+   "もしもし。何かあった？ いつもと違う気がした"
+  ],
+  "phone.ring_back": [
+   "もしもし。さっきは途中で切って悪かった。いま大丈夫？"
+  ],
+  "phone.ring_asked": [
+   "もしもし。時間、ありがとう"
+  ],
+  "phone.ring_req": [
+   "もしもし。頼みたいことがある"
+  ],
+  "phone.ring_ask": [
+   "📱『いま、電話していい？』"
+  ],
+  "phone.ring_ask_no": [
+   "📱『わかった。また今度』"
+  ],
+  "phone.ring_missed_msg": [
+   "📱『さっき電話した。急ぎじゃない』"
+  ],
+  "phone.ring_declined_msg": [
+   "📱『忙しかったなら、いい』"
+  ],
+  "phone.req_yes": [
+   "……助かる。ありがとう"
+  ],
+  "phone.req_later": [
+   "わかった。決まったら教えて"
+  ],
+  "phone.req_no": [
+   "……そう。急だったし、仕方ない"
   ]
  }
 }

@@ -3080,6 +3080,54 @@
   ],
   "phone.morning_awkward": [
    "📱『昨日は途中で寝てごめん』"
+  ],
+  "phone.ring_bored": [
+   "もしもし。実験の待ち時間で暇になった。いま平気？"
+  ],
+  "phone.ring_tired": [
+   "もしもし。今日は疲れた。少しだけ話したい"
+  ],
+  "phone.ring_happy": [
+   "もしもし、{call}くん？ 聞いてほしいことがある"
+  ],
+  "phone.ring_lonely": [
+   "もしもし。……理由はない。話したくなっただけ"
+  ],
+  "phone.ring_unsure": [
+   "もしもし。最近、忙しい？ 連絡の間隔が空いてる気がして"
+  ],
+  "phone.ring_changed": [
+   "もしもし。何かあった？ いつもと反応が違った"
+  ],
+  "phone.ring_back": [
+   "もしもし。さっきは途中で切ってごめん。いま大丈夫？"
+  ],
+  "phone.ring_asked": [
+   "もしもし。時間、ありがとう"
+  ],
+  "phone.ring_req": [
+   "もしもし、{call}くん？ 頼みたいことがある"
+  ],
+  "phone.ring_ask": [
+   "📱『いま電話していい？』"
+  ],
+  "phone.ring_ask_no": [
+   "📱『了解。また今度』"
+  ],
+  "phone.ring_missed_msg": [
+   "📱『さっき電話した。急ぎではない』"
+  ],
+  "phone.ring_declined_msg": [
+   "📱『忙しかった？ ごめん』"
+  ],
+  "phone.req_yes": [
+   "ありがとう。助かる"
+  ],
+  "phone.req_later": [
+   "わかった。決まったら教えて"
+  ],
+  "phone.req_no": [
+   "……そう。急だったし、仕方ない"
   ]
  }
 }
