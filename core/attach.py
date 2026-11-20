@@ -138,7 +138,8 @@ class Attach:
         # 依存度: 会えた・紛れた / 長く会わなくても平気 / ほかの深い仲 / 傷つけられることが続いた
         gap = app.bonds.gap_days(st, t)
         if gap < 1 and p.get("loneliness", 50) < 45:
-            self.move(char, st, "dependence", 0.8, "一緒にいて寂しさが紛れた", t)
+            # 慣れて当たり前になるほど, 深まりにくい (新鮮さ. core/waves.py)
+            self.move(char, st, "dependence", 0.8 * app.waves.lean_gain(char, st), "一緒にいて寂しさが紛れた", t)
         elif gap >= 3 and p.get("mood", 50) >= 45 and p.get("loneliness", 50) < 60:
             self.move(char, st, "dependence", -0.6, "長く会わなくても平気で過ごせた", t)
         others = [o for o in app.chars if o != cid and app.relation(cid, o)["knows"] and app.relation(cid, o)["affinity"] >= 70]

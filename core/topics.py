@@ -277,6 +277,8 @@ class Topics:
     def told(self, char, st, x, res, now):
         """話した記録・飽き・覚え・ノリ."""
         cid = char["id"]
+        if cid not in x.get("told", {}) and res in ("hit", "ok"):      # 初めての話題に乗った: 新鮮さが戻ることがある (core/waves.py)
+            self.app.waves.novel(char, st, "topic", now, why=x.get("text", "")[:20])
         x.setdefault("told", {})[cid] = now
         hist = [h for h in st.get("topic_tags") or [] if now - h["t"] < 7 * 86400]
         hist += [{"tag": k, "t": now} for k in x["tags"]]

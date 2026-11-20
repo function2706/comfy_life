@@ -460,7 +460,7 @@ class Appoint:
         pa = 0.35 + (p.get("affection", 50) - 50) / 80.0 + (p.get("mood", 50) - 50) / 150.0 \
             - float(app.traits(char).get("caution", 0)) / 50.0 + (0.1 if app.bonds.stage(char["id"]) == "visit" else 0.0) \
             + (0.3 if promised else 0.0) - (0.3 if ctx.get("too_often") else 0.0) \
-            + 0.2 * app.attach.factor(char, st, "devotion")
+            + 0.2 * app.attach.factor(char, st, "devotion") + app.waves.accept_shift(char, st)       # 生活の波 (忙しい・人付き合い … core/waves.py)
         if places_mod.is_home(x["place"]) and app.bonds.stage(char["id"]) != "visit":
             pa = 0
         if random.random() < max(0.03, min(0.95, pa)):
@@ -477,7 +477,7 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)      # その日は気が乗らないけど, こっちなら
         x["status"] = "declined"
         self.save()
-        return "appoint_no", {}, extra
+        return app.waves.decline_key(char, st) or "appoint_no", {}, extra       # 忙しい・友達と約束 (時期しだい. core/waves.py)
 
     def _favor_set(self, st, x, now):
         """約束が決まった: お礼の心当たり. 約束してくれた / もとが相手からの誘いなら, 会おうと言ってくれた
@@ -632,7 +632,8 @@ class Appoint:
             return None
         rate = 0.02 * max(0.1, (p.get("affection", 50) - 35) / 30.0 + (p.get("loneliness", 30) - 40) / 80.0) \
             * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) \
-            * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0)      # 思われていないと感じる (core/regard.py)・所持金が苦しいと, 誘いを控える
+            * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) \
+            * app.waves.invite_factor(char, st)      # 思われていないと感じる (core/regard.py)・所持金が苦しいと, 誘いを控える・生活の波と慣れ (core/waves.py)
         if random.random() >= rate * h:
             return None
         dt0 = datetime.fromtimestamp(now)
@@ -741,7 +742,7 @@ class Appoint:
             return None
         want = max(0.0, (p.get("boredom", 30) - 40) / 40.0) + max(0.0, (p.get("loneliness", 30) - 40) / 50.0) \
             + max(0.0, (p.get("mood", 50) - 55) / 60.0)
-        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0)
+        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) * app.waves.invite_factor(char, st)
         if not rate or random.random() >= rate * h:
             return None
         dt = datetime.fromtimestamp(now)
@@ -817,6 +818,8 @@ class Appoint:
         """一緒に行った行き先の楽しさを覚える (次に誘うときに, 少しだけ選ばれやすく)."""
         st = self.app.state(cid)
         pf = st.setdefault("place_fun", {})
+        if place not in pf:              # 一緒に初めて行った所: 新鮮さが戻ることがある (core/waves.py)
+            self.app.waves.novel(self.app.chars[cid], st, "place", why=place)
         pf[place] = round(0.6 * float(pf.get(place, 0.0)) + 0.4 * float(mood_delta) * 3, 2)
 
     # ------------------------------------------------------------------ 誘いに「別の日時なら」

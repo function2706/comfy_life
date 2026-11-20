@@ -272,8 +272,8 @@ def run(args):
         app.bonds.set_stage = set_stage
         orig_offline = app.offline.simulate
 
-        def offline_sim(t0, t1):
-            rep = orig_offline(t0, t1)
+        def offline_sim(t0, t1, start=None):
+            rep = orig_offline(t0, t1, start=start)
             if rep:
                 S.n["offline_msgs"] += len(rep.get("messages") or [])
                 S.n["offline_meets"] += len(rep.get("meets") or [])

@@ -87,7 +87,8 @@ class Ring:
         if self.why_not(char, st, now):
             return None
         close = app.phonetalk.close_rel(char, st)
-        p = WANT_BASE * WHY_W.get(why, 1.0) * (1.6 if close else 0.8) * float(app.traits(char).get("approach", 1.0))
+        p = WANT_BASE * WHY_W.get(why, 1.0) * (1.6 if close else 0.8) * float(app.traits(char).get("approach", 1.0)) \
+            * app.waves.mult(char, st, "call")         # 忙しい時期は, 電話より短いメッセージ (core/waves.py)
         k = app.regard.call_known(char, st, now)
         if k:                                      # あなたが電話に出る時間を覚えていれば, ふだん出る時間にかける
             p *= 0.3 + 0.9 * k[1]

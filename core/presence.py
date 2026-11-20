@@ -266,6 +266,7 @@ class Presence:
         作業中と告げていれば遠慮する (ただし, とても寂しければ来る). いま構っている最中なら来にくい."""
         f = (0.3 + ctx.get("loneliness", 30) / 100.0 + ctx.get("boredom", 30) / 150.0 + (ctx.get("affection", 50) - 50) / 200.0) \
             * (1 + 0.4 * (ctx.get("dependence", 50) - 50) / 50.0) * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど構いに来る (言い争いのあとは来ない)
+        f *= float(ctx.get("wave_near", 1.0))      # 相手の生活の波と, あなたへの慣れ・新鮮さ (core/waves.py)
         if ctx.get("presence") == "busy":
             f *= 0.7 if ctx.get("loneliness", 0) >= 75 else 0.25
         elif ctx.get("outing"):
@@ -284,6 +285,7 @@ class Presence:
         drive = 0.6 + ctx.get("loneliness", 30) / 120.0 + ctx.get("boredom", 30) / 250.0 + (ctx.get("mood", 50) - 50) / 200.0
         f = interest * max(0.2, drive) * (1 + 0.6 * (ctx.get("dependence", 50) - 50) / 50.0) \
             * (0.2 if ctx.get("fight") else 1.0)       # 依存しているほど送ってくる (言い争いのあとは来ない)
+        f *= float(ctx.get("wave_apart", 1.0))     # 相手の生活の波 (忙しい・はまっている・暇 …) と, あなたへの慣れ・新鮮さ (core/waves.py)
         return max(0.0, min(1.5, f))
 
     def fire(self, char, st, now, ctx, force=None, phone=True):
@@ -341,7 +343,13 @@ class Presence:
         e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else text0, {}, a,
                         gen=a.get("generate", True) and not a.get("apart"))
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
-            self.app.chat.add(char["id"], "her", e["text"], kind="approach", t=now, ap=a["id"], why=why)    # 何の話か (返し方の合う・外す)
+            body = e["text"]
+            wk = self.app.waves.tell_key(char, st)          # 時期のあいだ, 一度だけ近況を添える (忙しい・はまっている … core/waves.py)
+            if wk:
+                said = self.app.chat.line(char, wk, {}).replace("📱", "").strip().strip("『』")
+                body = body[:-1] + " " + said + "』" if body.endswith("』") else body + " " + said
+                self.app.trace.add("waves", "近況を添えた: %s" % wk, char["id"], now)
+            self.app.chat.add(char["id"], "her", body, kind="approach", t=now, ap=a["id"], why=why, wave=wk)    # 何の話か (返し方の合う・外す)
             told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
             if told:
                 self.app.chat.add(char["id"], "sys", told, kind="sched", t=now + 0.0005)

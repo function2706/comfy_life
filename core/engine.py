@@ -48,6 +48,7 @@ from . import memquiz as memquiz_mod
 from . import nori as nori_mod
 from . import react as react_mod
 from . import attach as attach_mod
+from . import waves as waves_mod
 from . import regard as regard_mod
 from . import topics as topics_mod
 from . import hima as hima_mod
@@ -84,6 +85,7 @@ STEP_SEC = 300
 MAX_CATCHUP_SEC = 14 * 24 * 3600
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_JA = "月火水木金土日"
+WAVE_RATE = {"loneliness": "lonely", "boredom": "bored"}     # 生活の波で, たまる速さが変わるパラメータ (core/waves.py)
 FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_floor より下がらないパラメータ
 LOG_KEEP_IN_VIEW = 60
 SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
@@ -211,6 +213,7 @@ class App:
         self.anniv = anniv_mod.Anniv(self)            # 誕生日・記念日・カレンダーのメモ・予約
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
+        self.waves = waves_mod.Waves(self)          # 相手の生活の波 (時期) と, あなたへの慣れ・新鮮さ (画面には出さない)
         self.regard = regard_mod.Regard(self)        # 相手の中の「あなたの見立て」(思われている度と確かさ. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
@@ -1016,6 +1019,7 @@ class App:
         if ctx["apart"] and view:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence
+        ctx.update(self.waves.ctx(char, st))                   # wave / wave_apart / wave_near / fresh (core/waves.py)
         ctx["fight"] = self.quarrel.active(st, dt.timestamp())                            # 言い争いのあと (素っ気ない)
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
@@ -1074,11 +1078,15 @@ class App:
                 rate *= float(t_rate.get(pid, 1))
             elif rate > 0:      # 寂しがりの性格ほど・依存しているほど, 一人だと寂しくなりやすい (外で紛れる速さは性格によらない)
                 rate *= float(t_rate.get(pid, 1)) * (1 + 0.3 * self.attach.factor(char, st, "dependence"))
+            if rate > 0 and pid in WAVE_RATE:        # 生活の波: 忙しい・人付き合いが多い時期は寂しさがたまりにくい など (core/waves.py)
+                rate *= self.waves.mult(char, st, WAVE_RATE[pid])
             d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
                 target = float(dr.get("target", v)) + float(t_drift.get(pid, self.lonely_base(tr) if pid == "loneliness" else 0)) + sum(
                     float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
+                if pid == "mood":
+                    target += self.waves.mood_shift(char, st)       # 落ち込んでいる時期は, 機嫌の落ち着く先が下がる
                 d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
             if d < 0 and pid in FLOORED:
                 # 時間だけで冷める分 (寂しさが続く など) は, ご無沙汰で冷めるのと同じ下限に近づくほど鈍り, そこで止まる.
@@ -3853,7 +3861,7 @@ class App:
                 if dr:
                     target = float(dr.get("target", v)) + float((tr.get("drift") or {}).get(
                         p["id"], self.lonely_base(tr) if p["id"] == "loneliness" else 0)) + sum(
-                        float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
+                        float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))                         + (self.waves.mood_shift(char, st) if p["id"] == "mood" else 0)
                 params.append({"id": p["id"], "name": p.get("name", p["id"]), "v": round(v, 1),
                                "target": None if target is None else round(target, 1)})
             p = st["params"]
@@ -3907,7 +3915,7 @@ class App:
                                                          * (1.15 if st.get("call_ok_until", 0) > now else 1))) + "（寝ている・手が離せないときは別）",
                 },
                 "attach": dict({attach_mod.LABEL.get(k, k): round(v, 1) for k, v in self.attach.view(char, st).items()},
-                               **self.regard.debug(char, st)),
+                               **dict(self.regard.debug(char, st), **self.waves.debug(char, st, now))),
                 "traits": {k: v for k, v in sorted(tr.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)},
                 "reasons": [{"mood": r["mood"], "tell": r.get("tell") or "", "delta": r.get("delta", 0), "t": r["t"],
                              "told": bool(r.get("told")), "resolved": bool(r.get("resolved")), "kind": r.get("kind"),
