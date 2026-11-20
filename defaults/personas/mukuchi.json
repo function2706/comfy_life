@@ -3359,6 +3359,27 @@
   ],
   "msgr.why.ex.bad": [
    "📱『……忘れて』"
+  ],
+  "chat.ask_single_yes": [
+   "📱『……いる。最近から』"
+  ],
+  "ask_single.yes": [
+   "……いる。……言ってなかった。"
+  ],
+  "confront.default": [
+   "……ごめん。……もう会わない。"
+  ],
+  "confront.defiant": [
+   "……{fp}にも、会いたい人はいる。"
+  ],
+  "confront.leave": [
+   "……終わりにしよう。……そのほうがいい。"
+  ],
+  "circle.confess": [
+   "📱『……{call}。言う。ほかに、会ってる人がいる。黙ってて、ごめん』"
+  ],
+  "circle.move_out": [
+   "📱『……{call}。出ていく。……荷物は、持った』"
   ]
  }
 }
