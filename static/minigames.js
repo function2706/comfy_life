@@ -205,7 +205,7 @@ function renderBoard(cur) {
         }) : ''));
       }
     }
-    grid = h('div', {}, h('div', { class: 'c4-slots', style: `grid-template-columns:repeat(${b.w},1fr)` }, slots),
+    grid = h('div', { class: 'c4-wrap' }, h('div', { class: 'c4-slots', style: `grid-template-columns:repeat(${b.w},1fr)` }, slots),
       h('div', { class: 'c4', style: `grid-template-columns:repeat(${b.w},1fr)` }, cells));
   } else if (cur.kind === 'reversi') {
     legend = h('div', { class: 'legend' }, h('i', { class: 'disc black' }), `あなた ${b.me}　`, h('i', { class: 'disc white' }), `${name} ${b.her}`);

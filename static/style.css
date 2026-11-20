@@ -398,14 +398,14 @@ button.die:hover:not(:disabled) { transform: translateY(-2px); }
 .cardrow.tight { gap: 0; justify-content: flex-start; }
 .cardrow.tight > * { margin-right: -10px; }
 .cardrow.fan { flex-wrap: wrap; gap: 2px; }
-.pcard { width: 44px; height: 62px; border-radius: 6px; background: #fdfcf9; border: 1px solid #cfc8d6; color: #1d1a22;
+.pcard { --pw: 44px; width: var(--pw); height: calc(var(--pw) * 62 / 44); border-radius: 6px; background: #fdfcf9; border: 1px solid #cfc8d6; color: #1d1a22;
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; flex: none;
   box-shadow: 0 2px 0 #b9b1c3; font-weight: 700; transition: transform .1s; }
-.pcard .pc-r { font-size: 17px; line-height: 1; }
-.pcard .pc-s { font-size: 16px; line-height: 1; }
+.pcard .pc-r { font-size: calc(var(--pw) * .39); line-height: 1; }
+.pcard .pc-s { font-size: calc(var(--pw) * .36); line-height: 1; }
 .pcard.red { color: #c8304a; }
-.pcard.joker .pc-r { font-size: 20px; }
-.pcard.joker .pc-s { font-size: 8px; letter-spacing: .05em; color: #6b3fa0; }
+.pcard.joker .pc-r { font-size: calc(var(--pw) * .45); }
+.pcard.joker .pc-s { font-size: calc(var(--pw) * .18); letter-spacing: .05em; color: #6b3fa0; }
 .pcard.back { background: repeating-linear-gradient(45deg, #b85a76 0 6px, #a44a66 6px 12px); border-color: #8d3c57; box-shadow: 0 2px 0 #6f2e45; }
 button.pcard, .pcard.back[onclick], .pcard.back { cursor: default; }
 button.pcard { cursor: pointer; }
@@ -938,3 +938,46 @@ body.phone-only .chat-close { display: none; }
 .quiz-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .quiz-choice { text-align: left; border: 1px solid var(--line); background: #241f2c; color: inherit; border-radius: 10px; padding: 10px 12px; font-size: 14px; cursor: pointer; line-height: 1.5; }
 .quiz-choice:hover { border-color: var(--accent-d); }
+
+/* ---------- ゲームの途中 (S27 / A32): 盤を真ん中 (広い列) に, 相手の絵と会話欄を右の 400px に ---------- */
+/* 要素は動かさず, 並びだけ入れ替える (app.js の renderGamingMode が .layout に gaming を付ける) */
+.layout.gaming .side { grid-column: 1; grid-row: 1; border-left: none; border-right: 1px solid var(--line); background: var(--bg); }
+.layout.gaming .stage { grid-column: 2; grid-row: 1; }
+.layout.gaming #tabs, .layout.gaming #with-card, .layout.gaming #subtabs { display: none; }   /* ゲーム中はほかの操作ができないので, タブは隠す */
+.layout.gaming #tab-with { padding-top: 14px; }
+.layout.gaming #tab-games { max-width: 1040px; margin: 0 auto; }
+.layout.gaming .stage-top { top: 10px; left: 10px; right: 10px; flex-wrap: wrap; row-gap: 6px; }
+.layout.gaming .stage-top .chip.scene { white-space: normal; font-size: 12px; }
+.layout.gaming .gen-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-size: 12px; }
+/* 絵の上の道具 (🎲・⟳・📷・🧩・💬) は, 絵の右下に横一列で小さく (上は場面の札・生成の札に譲る) */
+.layout.gaming .stage-tools { flex-direction: row; top: auto; bottom: calc(var(--dlg-space, 170px) + 2px); right: 10px; gap: 6px; }
+.layout.gaming .stage.dlg-hidden .stage-tools { bottom: 10px; }
+.layout.gaming .stage-tools .btn.icon { width: 30px; height: 30px; font-size: 13px; }
+.layout.gaming .dialogue { padding: 20px 16px 10px; min-height: 0; }
+.layout.gaming .dtext { min-height: 0; max-height: 9em; overflow-y: auto; }
+/* 広くなった盤に合わせて, 牌・札・さいころを大きく (大きさは盤の幅から. 上の限りを広げる) */
+.layout.gaming .tile { --tw: clamp(26px, calc((100cqw - 24px) / 14.4), 64px); }
+.layout.gaming .tile.small { --tw: clamp(18px, calc((100cqw - 24px) / 20), 40px); }
+.layout.gaming .hcard { --cw: clamp(38px, calc((100cqw - 24px) / 8.6), 88px); }
+.layout.gaming .hcard.small { --cw: clamp(24px, calc((100cqw - 24px) / 16), 50px); }
+.layout.gaming .pcard:not(.small) { --pw: clamp(44px, calc((100cqw - 24px) / 11), 70px); }
+.layout.gaming .cc-grid .pcard, .layout.gaming .cc-slot { max-width: 70px; }
+.layout.gaming .die:not(.small) { width: 64px; height: 64px; padding: 10px; }
+.layout.gaming .nm-slot { width: 52px; height: 60px; font-size: 28px; }
+/* 正方形の盤 (リバーシ・四目・ヘックス) は, 画面の高さに収まる大きさまで */
+.layout.gaming .rv, .layout.gaming .c4-wrap { max-width: min(100%, calc(100vh - 250px)); margin-inline: auto; }
+.layout.gaming .hex { max-width: min(100%, calc((100vh - 250px) * 1.5)); margin-inline: auto; }
+@media (max-width: 980px) {
+  /* 狭い画面 (1 列): 上に相手の絵を低めに, その下に盤 */
+  .layout.gaming .side, .layout.gaming .stage { grid-column: auto; grid-row: auto; }
+  .layout.gaming .stage { order: -1; height: 32vh; min-height: 210px; }
+  .layout.gaming .side { border-right: none; border-top: 1px solid var(--line); }
+  .layout.gaming .stage.dlg-below .stage-img, .layout.gaming .stage.dlg-below .stage-empty { height: 100%; }   /* 低い枠では会話欄を絵に重ねる */
+  .layout.gaming .dialogue { padding: 14px 12px 6px; }
+  .layout.gaming .dtext { max-height: 4.2em; font-size: calc(var(--dlg-font, 17px) - 3px); line-height: 1.55; }
+  .layout.gaming .dmeta { display: none; }
+  .layout.gaming .stage-tools { top: 10px; bottom: auto; right: 10px; flex-direction: column; }   /* 低い枠: 会話欄が重なるので, 右上に縦 */
+  .layout.gaming .stage-top { right: 50px; }
+  .layout.gaming .rv, .layout.gaming .c4-wrap { max-width: 100%; }
+  .layout.gaming .hex { max-width: 100%; }
+}

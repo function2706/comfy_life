@@ -516,6 +516,17 @@ function renderStageMode() {
   const t = T();
   const sc = t && t.scene;
   $('#scene-chip').textContent = t ? `${sc.location ? '📍' + sc.location + '　' : ''}${t.name}: ${sc.label || ''}` : '';
+  renderGamingMode();
+}
+// ゲームの途中 (決着して「閉じる」を押すまで) は, 盤を真ん中に・相手の絵と会話欄を右の欄に入れ替える (.layout.gaming).
+// 入れ替えは CSS の並びだけ (盤の要素は作り直さない. スピードの問い合わせが二重に動いたり止まったりしないように)
+function renderGamingMode() {
+  const gaming = !!(T() && ((T().games || {}).current));
+  if (gaming) { S.tab = 'with'; S.sub = 'games'; }       // 盤が見える所に (このあとの renderTabs / renderWith が出し分ける)
+  if (gaming === !!S.gaming) return;
+  S.gaming = gaming;
+  $('.layout').classList.toggle('gaming', gaming);
+  applyUi();
 }
 function clearStage() {
   if (S.typing) { clearInterval(S.typing); S.typing = null; }
@@ -1307,8 +1318,8 @@ function saveUi() {
 }
 function applyUi() {
   const st = $('#stage');
-  st.classList.toggle('dlg-top', S.ui.pos === 'top');
-  st.classList.toggle('dlg-below', S.ui.pos === 'below');
+  st.classList.toggle('dlg-top', S.ui.pos === 'top' && !S.gaming);
+  st.classList.toggle('dlg-below', S.ui.pos === 'below' || !!S.gaming);    // ゲーム中の右の欄は, 絵の下に会話欄
   st.classList.toggle('dlg-compact', !!S.ui.compact);
   st.style.setProperty('--dlg-alpha', S.ui.alpha);
   st.style.setProperty('--dlg-font', S.ui.font + 'px');
