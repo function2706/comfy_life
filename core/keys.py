@@ -97,6 +97,9 @@ def all_keys(actions, minigames, approaches=()):
     from .nori import LINES as NORI_LINES, SCENE_LABEL as NORI_SCENES     # メッセージのやりとりのノリが下がって切り上げる
     for k, t in NORI_LINES.items():
         out[k] = {"scene": "メッセージの返信 / %s" % NORI_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
+    from .phonetalk import LINES as CALL_LINES, SCENE_LABEL as CALL_SCENES     # 電話の対話 (切れ目・黙った・切り上げ・寝落ち)
+    for k, t in CALL_LINES.items():
+        out[k] = {"scene": CALL_SCENES[k], "when": "", "text": t if isinstance(t, str) else t[0]}
     from .posing import LINES as PO_LINES, SCENE_LABEL as PO_SCENES     # 相手からのポーズ・見せて・持ちかけ・感想への返し
     for k, t in PO_LINES.items():
         out[k] = {"scene": "ポーズ・見せて / %s" % PO_SCENES[k], "when": "", "text": t}

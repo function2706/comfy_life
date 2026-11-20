@@ -2194,7 +2194,7 @@ async function callWith(cid, talk, extra) {
   S.busy = true;
   try {
     const r = await api('/api/phone/call', Object.assign({ id: cid, talk }, extra || {}));
-    toast(r.call ? `📞 ${r.call.mins}分ほど話す（${r.call.how}）` : (r.entry ? r.entry.text.replace(/\n.*/s, '') : '電話をかけた'), r.missed ? 'err' : 'ok');
+    toast(r.call ? `📞 ${r.call.name}とつながった（返し方を選んで話す。黙っていると切れます）` : (r.entry ? r.entry.text.replace(/\n.*/s, '') : '電話をかけた'), r.missed ? 'err' : 'ok');
     S.chatJump = true; S.chatPick = null; S.callTalk = null;
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
@@ -2215,19 +2215,77 @@ async function askVisitNow(cid) {
 // 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
 const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？' };
 const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp' };
-// 電話で話している途中 (S8): 話し終えるまで (または「電話を切る」まで), メッセージ・ほかの電話はできない
+// 電話の対話 (A23 段 1. core/phonetalk.py): 通話中は, 相手のひとことに返し方を選んで返す. 返さずにいると「もしもし？」, それでも黙っていると相手から切れる.
+// 画面を閉じたら電話を置いたのと同じ (閉じている間に会話は進まない). 相手が話すたびに音・振動・(見ていなければ) 通知で知らせる
+const CALL = { left: null, at: 0 };
 function callBar() {
   const c = (S.view || {}).on_call;
   if (!c) return null;
-  return h('div', { class: 'solo-now' },
-    h('span', {}, `📞 ${c.name}と電話中…`),
-    h('span', { class: 'muted small' }, `あと${c.left}分ほど（話している間は、ほかのことはできません）`),
-    h('button', { class: 'btn primary small', disabled: S.busy, onclick: hangUp }, '電話を切る'));
+  const b = c.beat;
+  CALL.left = b && b.left != null ? b.left : null; CALL.at = Date.now();
+  const past = (c.log || []).slice(-6).filter((x) => !b || x.text !== b.text || x.who !== 'her');
+  return h('div', { class: 'call-panel' },
+    h('div', { class: 'call-head' },
+      h('span', {}, `📞 ${c.name}と電話中（${c.mins}分）`),
+      c.doing ? h('span', { class: 'muted small' }, `${c.doing}をしながら`) : null,
+      h('button', { class: 'btn small', disabled: S.busy, onclick: hangUp }, b && b.kind === 'asleep' ? 'そっと切る' : '電話を切る')),
+    h('div', { class: 'call-log' }, ...past.slice(-4).map((x) => h('div', { class: 'call-line ' + x.who }, x.text))),
+    b ? h('div', { class: 'call-beat' + (b.stage ? ' hello' : '') }, b.text) : h('div', { class: 'muted small call-talking' }, '（話している……）'),
+    b && b.left != null ? h('div', { class: 'muted small' }, '返事を待っている: ', h('span', { class: 'call-left' }, `${b.left}秒`)) : null,
+    b ? h('div', { class: 'call-returns' }, ...(c.returns || []).map((r) =>
+      h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => callReply(r.id) }, `${r.icon} ${r.label}`))) : null);
 }
+function redrawCall() {
+  document.querySelectorAll('.call-panel').forEach((el) => { const n = callBar(); if (n) el.replaceWith(n); else el.remove(); });
+}
+function callEnded(e) {
+  if (!e || NOTIFY.seen.has('callend:' + e.id)) return;
+  NOTIFY.seen.add('callend:' + e.id);
+  toast(`📞 ${e.name}との電話が終わった（${e.mins}分ほど${e.note ? '。' + e.note : ''}）${e.last ? '「' + e.last + '」' : ''}`, e.why === 'silent' ? 'err' : 'ok');
+}
+async function callReply(kind) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/phone/reply', { kind });
+    if (r.ended) { callEnded(r.ended); if (S.view) S.view.on_call = null; } else if (S.view) S.view.on_call = r.call;
+  } catch (e) { toast(e.message, 'err'); }
+  finally {
+    S.busy = false;
+    redrawCall();
+    if (!S.view || !S.view.on_call) { await refresh(); if (S.chatDlg && S.chatDlg.open) drawChat(true); }
+  }
+}
+// 通話中は 1.5 秒おきに問い合わせる (相手のひとこと・待つ残り秒. 通話を進めるのもサーバのこの問い合わせ)
+setInterval(async () => {
+  if (PHONE || !S.view || !S.view.on_call || S.busy || S.inactive) return;
+  try {
+    const r = await api('/api/phone/live');
+    const old = S.view.on_call || {};
+    if (!r.call) {
+      S.view.on_call = null;
+      callEnded(r.ended);
+      await refresh();
+      if (S.chatDlg && S.chatDlg.open) drawChat(true);
+      return;
+    }
+    S.view.on_call = r.call;
+    const nb = r.call.beat, ob = old.beat;
+    if ((nb && nb.id) !== (ob && ob.id) || (r.call.log || []).length !== (old.log || []).length || r.call.mins !== old.mins) {
+      redrawCall();
+      if (nb && nb.id !== (ob && ob.id)) notifyCall('call:' + nb.id, `📞 ${r.call.name}「${nb.text.slice(0, 40)}」`, '', true, 'voice');
+    }
+  } catch (e) { /* 次の問い合わせで */ }
+}, 1500);
+setInterval(() => {         // 返事を待つ残り秒は手元で数える
+  if (CALL.left == null) return;
+  const n = Math.max(0, CALL.left - Math.floor((Date.now() - CALL.at) / 1000));
+  document.querySelectorAll('.call-left').forEach((el) => { el.textContent = `${n}秒`; });
+}, 1000);
 async function hangUp() {
   if (S.busy) return;
   S.busy = true;
-  try { const r = await api('/api/phone/hangup', {}); toast(`📞 ${r.mins}分ほどで切り上げた`, 'ok'); } catch (e) { toast(e.message, 'err'); }
+  try { callEnded(await api('/api/phone/hangup', {})); if (S.view) S.view.on_call = null; } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
 }
 function chatSendBox(th) {

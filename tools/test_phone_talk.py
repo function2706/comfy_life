@@ -51,6 +51,7 @@ def main():
         lb = st["quiz"]["thanks"]["items"][k]["label"]
         r = app.phone_call(cid, "thanks", {"reason": k})
         assert r.get("call"), r
+        app.call_end()                                     # 切ると, トークに通話の要約が残る
         items = C.load(cid)["items"]
         sysl = [it for it in items if it.get("who") == "sys" and it["text"].startswith("📞 電話で話した（")]
         assert sysl and "分ほど" in sysl[-1]["text"], [it["text"] for it in items[-5:]]
@@ -77,18 +78,20 @@ def main():
             any(it["text"] == "（電話で: 恋愛小説を読んだ話をした）" for it in C.load(cid)["items"]), r["call"]
         print("謝る・相談・話題: OK")
 
-        # ---- 3. 長さはノリしだい: ノリが高いほど長い
+        # ---- 3. 話していたい長さ (span) はノリしだい: ノリが高いほど長い (A23 段 1: 長さは最初に決めず, 切れ目ごとに決め直す. span はその目安)
         fresh()
         lo, hi = [], []
         for i in range(12):
             fresh()
             st["nori"] = {"v": 15.0, "t": time.time(), "turns": 0}
-            lo.append(app.phone_call(cid, "smalltalk")["call"]["mins"])
+            app.phone_call(cid, "smalltalk")
+            lo.append(app.phonetalk.rec()["span"])
             fresh()
             st["nori"] = {"v": 90.0, "t": time.time(), "turns": 0}
-            hi.append(app.phone_call(cid, "smalltalk")["call"]["mins"])
-        assert sum(hi) > sum(lo) * 1.5, (lo, hi)
-        print("通話の長さ: ノリ低 %s / 高 %s" % (sorted(lo), sorted(hi)))
+            app.phone_call(cid, "smalltalk")
+            hi.append(app.phonetalk.rec()["span"])
+        assert sum(hi) > sum(lo) * 1.3, (lo, hi)
+        print("話していたい長さ: ノリ低 %s / 高 %s" % (sorted(lo), sorted(hi)))
 
         # ---- 4. 楽しかった: あとで相手からひとこと (時間差の仕組みで届く)
         fresh()

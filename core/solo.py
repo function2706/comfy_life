@@ -131,6 +131,10 @@ class Solo:
         why = app.blocked("solo")
         if why and not (kind in OUT_WITH_OK and why == app.out_with()):
             raise ValueError(why)
+        if app.call_now():                  # 電話の途中: 手が空くこと (家事・休む・歩き / 電車) だけ, ながらでできる (core/phonetalk.py)
+            why = app.phonetalk.nagara_why("out" if kind in LEGACY else kind, how)
+            if why:
+                raise ValueError(why)
         if kind in ("out", "jog", "work") or kind in LEGACY:      # 家を出る (内職を一時停止したままなら, 先に終える)
             if app.stay_home():
                 raise ValueError(app.stay_home())
@@ -182,7 +186,7 @@ class Solo:
             return "家にあります"
         if app.presence.rec().get("mode") != "none" or app.geo.where(now) != places_mod.HOME_ME or app.geo.moving(now):
             return "家にいるときに取りに行けます"
-        why = app.blocked("solo") or app.stay_home()
+        why = app.blocked("solo") or app.stay_home() or (app.call_block() if app.call_now() else None)
         return why
 
     def fetch(self, vid, how=None, now=None):
@@ -505,10 +509,10 @@ class Solo:
         if not shop and sl.get("shop_need") and h * 60 >= sl["shop_need"]:
             # 品を選び終える時間は店にいた (心拍の間に済んでいた / 画面を閉じた時点で済んでいた): そこで買い物は済んでいる
             shop = self._shop_now(ll.get("place"), h, ll.get("back", time.time()))
-        return self.result(sl["kind"], h, ll.get("back", time.time()), sl.get("skill"), ll.get("place"),
+        return self.result(sl["kind"], h, ll.get("back", time.time()), sl.get("skill"), ll.get("place"), phone=bool(sl.get("phone")),
                            ate=bool(sl.get("ate")), shop=shop or "pending")
 
-    def result(self, kind, h, now, skill=None, place=None, ate=False, shop=None):
+    def result(self, kind, h, now, skill=None, place=None, ate=False, shop=None, phone=False):
         """shop: 店での買い物の済み具合 (画面を開いての外出から). None = その場で買う (行動パターン) / "pending" = 済む前に店を出た /
         辞書 = 店にいる間に済んだ結果 (shop_tick)."""
         """一人の時間を h 時間過ごした結果 (画面を開いての一人の時間と, オフラインの行動パターンの両方で使う)."""
@@ -535,7 +539,7 @@ class Solo:
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる
             part = skill if skill in PART_LABEL else None        # 一つだけ (洗い物・洗濯など) なら, そこだけ
-            how = app.home.chores(h, soap, jit * (0.85 + 0.35 * L.skill_soft("house")), part, now)   # 家が片付く (家事スキルで少しはかどる)
+            how = app.home.chores(h, soap, jit * (0.85 + 0.35 * L.skill_soft("house")) * (0.85 if phone else 1.0), part, now)   # 電話しながらだと, 少しはかどらない   # 家が片付く (家事スキルで少しはかどる)
             app.chores.did_mine(part, h, now)              # 同居の分担: あなたの担当を片付けた / 相手の担当を代わりにやった
             L.train("house", min(2.0, 0.8 * h)) if h >= 0.25 else 0
             text = "%s家事をした。%s（%s）" % (_dur(h), "部屋がすっきりした" if soap else "洗剤が切れていて、思うようにははかどらなかった", how)

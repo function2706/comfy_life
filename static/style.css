@@ -812,6 +812,14 @@ a.btn { color: inherit; }
 .peek { margin: 0 0 6px; }
 .solo-now { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: #2c3a2e; color: #c8f0cf; }
 .solo-now .btn { margin-left: auto; }
+.call-panel { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: #26303c; color: #dbe8f5; }
+.call-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.call-head .btn { margin-left: auto; }
+.call-log { margin: 6px 0; font-size: 0.85em; opacity: 0.75; }
+.call-line.me { text-align: right; }
+.call-beat { font-size: 1.2em; margin: 6px 0; padding: 8px 10px; border-radius: 8px; background: #33404f; }
+.call-beat.hello { background: #4a3a2a; }
+.call-returns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 /* トップバー: ボタンが増えたので, 少し広い画面からラベルを省き, 札は縮める (ロゴが折り返さないように) */
 .brand { white-space: nowrap; flex: none; }
 .topbar .chip.home, .topbar .chip.weather { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }

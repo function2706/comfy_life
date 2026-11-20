@@ -147,7 +147,7 @@ def main():
         char["persona_id"] = "teinei"
         for res in ("flat", "hit"):
             hima.judge = lambda a, c, s, t, _r=res: (_r, {})
-            hows = set()
+            hows = set()        # A23: 様子は最初のやりとりがよかったか (good) で見る. 通話の要約は終わったときに
             for _ in range(6):
                 st.pop("msg_pending", None)
                 st["contacts"] = []
@@ -157,13 +157,15 @@ def main():
                 st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "部屋", "until": time.time() + 9e6}
                 r = app.phone_call(cid, "smalltalk")
                 if r.get("call"):
-                    hows.add(r["call"]["how"])
+                    hows.add(r["call"]["good"])
                     assert r["call"]["key"] == ("smalltalk_hit" if res == "hit" else "smalltalk_flat"), r["call"]
             hima.judge = real_judge
             app.presence.rec().pop("call", None)
             assert hows, res
             if res == "flat":
-                assert "楽しそうだった" not in hows and "落ち着いて話してくれた" not in hows, hows
+                assert hows == {False}, hows
+            else:
+                assert hows == {True}, hows
         print("phone: OK")
 
         # ---- 6. 返事をしないのは, 関門のときだけ
@@ -242,7 +244,8 @@ def main():
         hi = sorry_rate("seijitsu", "contact", 7)
         lo = sorry_rate("tenshin", "visit", 3)
         assert hi > lo + 0.25 and lo > 0.05 and hi < 0.99, (hi, lo)
-        assert sorry_rate("teinei", "contact", 8) > sorry_rate("teinei", "contact", 3), "遅れが長いほど謝る"
+        # 遅れの差 (0.03 / 時間) は, 上限 0.95 に張り付かない近い仲で比べる (浅い仲のマメな人は, 前の段の状態しだいで上限に届く)
+        assert sorry_rate("teinei", "visit", 8, 2000) > sorry_rate("teinei", "visit", 1, 2000), "遅れが長いほど謝る"
         B.set_stage(cid, "contact")
         print("sorry rate: %.2f / %.2f OK" % (hi, lo))
 

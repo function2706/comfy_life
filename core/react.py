@@ -48,7 +48,7 @@ SORRY = ("sorry", "sorry_late")
 # 返信の場面の鍵 → 向き (無ければ plain. 問いかけで終わる文面は question)
 _TONES = {
     "happy": ("invite_yes", "appoint_yes", "visit_now_yes", "appoint_change_glad", "flirt", "tease", "photo", "selfie_yes", "stamp_heart", "smalltalk",
-              "after_call", "favor_plants_thanks", "thanks", "stamp_thanks"),
+              "after_call", "favor_plants_thanks", "thanks", "stamp_thanks", "call_morning"),
     "upset": ("tease_hurt", "appoint_change_sour", "appoint_change_sour_late", "appoint_change_sour_again", "appoint_cancel_sour",
               "appoint_cancel_sour_late", "appoint_cancel_sour_again", "appoint_cancel_hurt", "appoint_cancel_favor_sour",
               "appoint_change_others", "appoint_missed", "visit_now_missed", "favor_missed", "money_distrust", "want_space", "own_time", "too_often",
@@ -65,8 +65,8 @@ _TONES = {
                "help_iou_remind", "may_call_ok", "may_call_later", "invite_no", "invite_again", "care_call", "care_call_want", "repaid",
                "req_money_again", "selfie_no"),
     "greet": ("greet_morning", "greet_night", "greet_odd_morning", "greet_odd_night", "greet_again", "otsukare", "otsukare_odd"),
-    "close": ("close_busy", "close_night", "close_cold"),
-    "sorry": ("appoint_sorry",),            # 約束をすっぽかしたあとで謝る. 返し忘れて謝った返事は, トークの印 sorry で sorry_late
+    "close": ("close_busy", "close_night", "close_cold", "call_end"),
+    "sorry": ("appoint_sorry", "call_sorry"),         # call_sorry: 電話を用事で切り上げて謝った (core/phonetalk.py)            # 約束をすっぽかしたあとで謝る. 返し忘れて謝った返事は, トークの印 sorry で sorry_late
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
