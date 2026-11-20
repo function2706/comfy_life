@@ -13,6 +13,11 @@
   つないだまま を選べる. つないだままなら翌朝に反応 (call_doze).
 - ながら電話: 手が空く一人のこと (家事・休む・歩き / 電車バスの移動) は通話中もできる (NAGARA). 生活音で「何してるの？」と聞かれる
   ことがあり, 返しの効き目が少し下がる (家事の出来も少し下がる: solo.result).
+- 誰かといるときの通話 (A23 段 3): あなたのそばに人がいると (bonds.company), 電話の相手が声に気づいて「誰かいるの？」(who) と聞く.
+  正直に言う / ごまかす. 通話が終わると, そばにいた人がひとこと (長かった・恋敵・ごまかされた・言ってくれた).
+  相手の側の気配 (background): 相手のいまの場面から一緒にいる人を決めて st["with_log"] に残し (根拠が無ければ出さない), 後ろの話し声と
+  「誰といるの？」の返し方になる. あとでメッセージの「誰といたの？」(manners) で聞いても, 同じ記録から答える. 電車・職場は手短に (hush).
+  割り込みの着信 (core/ring.py の catch) で待たせると, いまの相手が「誰から？」と聞くことがある.
 記録は presence.rec()["call"] (docs/REMAINING の A23 段 1 か CHANGES 1.7.0beta にデータの形).
 """
 import math
@@ -52,6 +57,17 @@ LOG_MAX = 40
 NAGARA = ("chores", "rest", "out")      # 通話中もできる一人のこと (外出は歩き・電車・バスのとき. 運転・自転車はできない)
 NAGARA_HOW = ("walk", "transit", "taxi")
 NAGARA_LABEL = {"chores": "家事", "rest": "ひと休み", "out": "移動"}
+# 誰かといるときの通話 (A23 段 3)
+WHO_RETURNS = [("honest", "正直に言う", "🙋"), ("dodge", "ごまかす", "🙊")]
+WHO_ASK = ("who_ask", "誰といるの？と聞く", "🕵")
+NEAR_P = {"home": 0.55, "guest": 0.55, "meet": 0.4, "visit": 0.45}     # そばの人の声に, 電話の相手が気づく割合のもと (一緒にいる形)
+BG_P = {"coworker": 0.7, "friend_uni": 0.6, "friend_out": 0.3}           # 相手の場面から, 一緒にいる人がいる割合
+WHO_LABEL = {"coworker": "職場の人", "friend": "友達"}
+HUSH_SPAN = {"train": 0.5, "work": 0.6}                                    # 電車の中・職場: 話していたい長さを縮める
+WORK_ACTS = ("work", "parttime")
+WITH_KEEP = 3 * 86400                                                      # with_log を残す長さ
+ASK_SPAN = 12 * 3600                                                       # 「誰といるの / 誰といたの」の聞きすぎを数える長さ
+NEAR_LONG = 10                                                             # そばの人を放っておいたと感じる通話の分
 
 # 共通のセリフ (性格プリセットの phone.<場面> があればそちら. 「電話する」コマンドの反応 call.<キー> とは別). 📞 は付けない (通話画面とトークで付ける)
 LINES = {
@@ -96,6 +112,23 @@ LINES = {
     "phone.req_yes": "ほんとですか？ ありがとうございます、助かります。",
     "phone.req_later": "あ、はい。じゃあ、わかったら教えてください。",
     "phone.req_no": "……そうですか。ううん、急に言ったのはこっちなので。",
+    # 誰かといるときの通話 (A23 段 3)
+    "phone.who": "……あれ、そばに誰かいるんですか？",
+    "phone.catch_who": "……さっきの電話、誰からだったんですか？",
+    "phone.who_ok": "あ、そうなんですね。",
+    "phone.who_jealous": "……{other}さん、ですか。……ふうん。",
+    "phone.who_lie_ok": "そうですか。気のせいだったかな。",
+    "phone.who_lie_seen": "……そうですか。まあ、いいですけど。",
+    "phone.hush_train": "（小声で）ごめんなさい、いま電車の中で……少しだけなら。",
+    "phone.hush_work": "ごめんなさい、いま職場なので、手短にでもいいですか？",
+    "phone.whoask_tell": "いまですか？ {who}と一緒なんです。",
+    "phone.whoask_vague": "え？ ……ちょっと、知り合いと。",
+    "phone.whoask_much": "……なんでそんなに気にするんですか？",
+    "phone.near_ok": "電話、もういいんですか？",
+    "phone.near_long": "……長い電話でしたね。",
+    "phone.near_jealous": "……いまの、{other}さんですよね。",
+    "phone.near_hid": "……さっき、一人だって言ってましたよね。",
+    "phone.near_told": "……ちゃんと、一緒にいるって言ってくれたんですね。",
 }
 SCENE_LABEL = {
     "phone.topic_news": "電話 / 話を振る: 今日あったこと ({news} に出来事. 「〜た」で終わる)",
@@ -138,10 +171,27 @@ SCENE_LABEL = {
     "phone.req_yes": "電話での頼みごと / 受けてもらえた",
     "phone.req_later": "電話での頼みごと / あとで返事すると言われた",
     "phone.req_no": "電話での頼みごと / 断られた",
+    "phone.who": "誰かといるときの電話 / 相手が, あなたのそばの人の声に気づいた: 誰かいるの？",
+    "phone.catch_who": "誰かといるときの電話 / 割り込みの着信で待たされたあと: 誰からだったの？",
+    "phone.who_ok": "誰かといるときの電話 / 正直に言われた (気にしない)",
+    "phone.who_jealous": "誰かといるときの電話 / 正直に言われた, 相手がほかに親しい人だった ({other} に名前. やきもち)",
+    "phone.who_lie_ok": "誰かといるときの電話 / ごまかされたが, 気づかなかった",
+    "phone.who_lie_seen": "誰かといるときの電話 / ごまかされたのに気づいた (問い詰めない)",
+    "phone.hush_train": "電話 / 相手が電車の中にいる (小声で, 手短に)",
+    "phone.hush_work": "電話 / 相手が職場にいる (手短に)",
+    "phone.whoask_tell": "電話 / 誰といるの？と聞かれて, 正直に答える ({who} に 職場の人・友達・名前)",
+    "phone.whoask_vague": "電話 / 誰といるの？と聞かれて, はぐらかす",
+    "phone.whoask_much": "電話 / 誰といるの？を聞かれすぎた (束縛っぽい)",
+    "phone.near_ok": "あなたの電話のあと, そばにいた人のひとこと / ふつう",
+    "phone.near_long": "あなたの電話のあと, そばにいた人のひとこと / 長くて放っておかれた",
+    "phone.near_jealous": "あなたの電話のあと, そばにいた人のひとこと / 電話の相手がほかに親しい人だった ({other} に名前)",
+    "phone.near_hid": "あなたの電話のあと, そばにいた人のひとこと / 電話の相手に, 自分のことをごまかされた",
+    "phone.near_told": "あなたの電話のあと, そばにいた人のひとこと / 電話の相手に, 一緒にいると正直に言ってくれた",
 }
 NARRATION = {"quiet": "（……少しの間、黙っている）", "asleep": "（すう……すう……。寝息だけが聞こえる）",
              "night": "（小さく「おやすみ」と言って、電話を切った）", "hang": "（そっと電話を切った）",
-             "keep": "（つないだまま、寝息を聞いていた）"}
+             "keep": "（つないだまま、寝息を聞いていた）", "bg": "（後ろで誰かの話し声がする）",
+             "catch": "（キャッチが入って、少し待ってもらった）"}
 HOW = {"good": "楽しそうだった", "ok": "落ち着いて話してくれた", "flat": "少し気まずそうだった", "cold": "素っ気なかった"}
 
 
@@ -212,6 +262,8 @@ class PhoneTalk:
         if text.startswith("『") and text.endswith("』"):
             text = text[1:-1]
         self._new_beat(char, st, c, "reply", None, text or "……もしもし。", now)
+        self._company(char, st, c, now)
+        self._hush_bg(char, st, c, now)
         app.presence.rec()["call"] = c
         app.presence.save()
         return c
@@ -307,6 +359,12 @@ class PhoneTalk:
         app = self.app
         p = st["params"]
         lv = nori_mod.level(st, t) or 0.3
+        q = c.get("who_q")
+        if q and c.get("turns", 0) >= q.get("after", 0):
+            c.pop("who_q")
+            key = "phone.catch_who" if q.get("src") == "catch" else "phone.who"
+            c["who"] = {"about": q.get("about"), "src": q.get("src")}
+            return "who", key, self.line(char, key)
         if c.get("doing") and not c.get("asked_doing") and random.random() < 0.3 * self._nosy(char):
             c["asked_doing"] = True
             return "what", "phone.what", self.line(char, "phone.what")
@@ -480,6 +538,14 @@ class PhoneTalk:
             if kind not in ("yes", "later", "no"):
                 raise ValueError("頼みごとに答えてください（受ける・あとで返事する・断る）")
             return self._req_answer(char, st, c, kind, now)
+        if b["kind"] == "who":
+            if kind not in ("honest", "dodge"):
+                raise ValueError("正直に言うか、ごまかすか を選んでください")
+            return self._who_answer(char, st, c, kind, now)
+        if kind == "who_ask":
+            if not self._can_ask_bg(c):
+                raise ValueError("いまは聞けません")
+            return self._bg_ask(char, st, c, now)
         if kind not in BASE:
             raise ValueError("返し方を選んでください")
         self._log(c, "me", "（%s）" % SAID[kind], now)
@@ -526,6 +592,14 @@ class PhoneTalk:
         if b.get("kind") == "asleep":
             return self._finish(char, st, c, now, "you", "hang")
         return self._finish(char, st, c, now, "you", "hangup")
+
+    def switch(self, now):
+        """割り込みの着信に出るため, いまの電話を切る (core/ring.py)."""
+        c = self.rec()
+        if not c:
+            return None
+        app = self.app
+        return self._finish(app.char(c["cid"]), app.state(c["cid"]), c, now, "you", "switch")
 
     def _finish(self, char, st, c, t, who, why, res=None):
         """通話を終える: トークの要約・相手の最後のひとこと・機嫌・見立て・お礼の心当たり・寝落ちの翌朝・またかけるね."""
@@ -585,6 +659,13 @@ class PhoneTalk:
                     "keep": "%sが寝てしまい、つないだままにした"}[why] % char.get("name", "相手")
             self._log(c, "me", NARRATION[why], t)
             self._doze_after(char, st, c, t, why)
+        elif why == "switch":                             # 割り込みの着信に出るため, あなたから切った (core/ring.py)
+            note = "ほかの電話に出るため、あなたから切った"
+            w = random.uniform(0.7, 1.3) * (1.3 if b.get("mine") else 1.0) * (1 + 0.3 * max(0.0, app.attach.factor(char, st, "dependence")))
+            d = round(min(8.0, 3.5 * w), 1)
+            app.apply_effects(st, {"mood": -d}, t)
+            app.life.add_reason(st, "player", "bad", "話の途中で、{call}がほかの電話に出た", t, told=False, delta=-d, action="_call_switch")
+            app.regard.sign(char, st, "call_cut", t, k=0.8 * w)
         if last:
             self._log(c, "her", last, t)
         if c.get("req"):                                  # 頼みごとに答えないまま切れた: メッセージで届く (トークから答えられる)
@@ -614,10 +695,14 @@ class PhoneTalk:
             app.chat.add(cid, "sys", summary, kind="call", t=t)
         if last:
             app.chat.add(cid, "her", "📞『%s』" % last, kind="call_sorry" if sorry else "call_end", t=t + 0.001)
+        near = []
+        for oid in c.get("near") or []:                 # そばにいた人 (まだそばにいれば) のひとこと
+            if oid in app.chars and oid in app.bonds.company() and oid != cid:
+                near.append(self._near_react(oid, c, mins, t))
         app.presence.rec().pop("call", None)
         app.presence.save()
         app.trace.add("call", "電話が終わった", cid, t, who=who, why=why, mins=mins, turns=c.get("turns", 0), how=how,
-                      sorry=sorry, avg=round(avg, 1))
+                      sorry=sorry, avg=round(avg, 1), near=near)
         app.save_state(cid)
         out = {"mins": mins, "name": char.get("name", ""), "who": who, "why": why, "how": how, "last": last, "note": note,
                "turns": c.get("turns", 0), "cid": cid, "id": uuid.uuid4().hex[:8]}
@@ -687,6 +772,248 @@ class PhoneTalk:
         self.app.trace.add("call", "寝落ちした電話の翌朝", char["id"], now, mood=dz["mood"])
         return True
 
+    # ------------------------------------------------------------------ 誰かといるときの通話 (A23 段 3)
+    def _company(self, char, st, c, now):
+        """あなたのそばにいる人 (電話の相手を除く). 声に気づかれたら, 1〜2 つめの切れ目で「誰かいるの？」."""
+        app = self.app
+        near = [o for o in app.bonds.company() if o != char["id"] and o in app.chars]
+        if not near:
+            return
+        c["near"] = near
+        mode = app.bonds.mode(near[0]) or "meet"
+        p = NEAR_P.get(mode, 0.45) * self._nosy(char) * random.uniform(0.8, 1.2)
+        c["noticed"] = random.random() < min(0.9, p)
+        if c["noticed"]:
+            c["who_q"] = {"about": near[0], "src": "near", "after": 0 if random.random() < 0.6 else 1}
+        app.trace.add("call", "そばに人がいる通話", char["id"], now, near=near, mode=mode, p=round(p, 2), noticed=c["noticed"])
+
+    def _who_answer(self, char, st, c, kind, now):
+        """「誰かいるの？ / 誰から？」に, 正直に言う / ごまかす."""
+        app = self.app
+        w = c.get("who") or {}
+        about, src = w.get("about"), w.get("src")
+        other = (app.chars.get(about) or {}).get("name", "")
+        self._log(c, "me", "（正直に言った）" if kind == "honest" else "（ごまかした）", now)
+        w["ans"] = kind
+        c["who"] = w
+        close = self.close_rel(char, st)
+        if kind == "honest":
+            if about in app.chars and self._rival(char["id"], about, st, now):
+                app.bonds.notice(char, st, about, now, again=about in (st.get("jealous") or {}), k=0.6)
+                key, bump = "phone.who_jealous", -10
+            else:
+                key, bump = "phone.who_ok", 0
+        else:
+            mode = app.bonds.mode(about) if src == "near" and about in app.chars else None
+            p = 0.3 + (0.2 if close else 0) + 0.25 * (self._nosy(char) - 0.8) + (0.1 if mode in ("home", "guest") else 0)
+            seen = random.random() < max(0.1, min(0.9, p))
+            w["seen"] = seen
+            if seen:
+                k = random.uniform(0.7, 1.3) * (1.3 if close else 1.0)
+                d = round(4 * k, 1)
+                app.apply_effects(st, {"mood": -d, "trust": -round(3 * k, 1)}, now)
+                app.life.add_reason(st, "player", "bad", "電話で、{call}に何かをごまかされた", now, told=False, delta=-d,
+                                    action="_call_dodge")
+                app.regard.sign(char, st, "call_dodge", now, k=min(1.5, k))
+                key, bump = "phone.who_lie_seen", -12
+            else:
+                key, bump = "phone.who_lie_ok", -1
+        self._log(c, "her", self.line(char, key, other=other), now + 0.5)
+        app.trace.add("call", "誰かいるの？に答えた", char["id"], now, kind=kind, src=src, about=about, key=key)
+        nori_mod.bump(app, st, now, bump, "電話: 誰かいるの？ " + kind)
+        c["turns"] = c.get("turns", 0) + 1
+        c.pop("beat", None)
+        c["next"] = now + self._gap(st, now)
+        app.save_state(char["id"])
+        app.presence.save()
+        return {"call": self.view(now)}
+
+    def _rival(self, cid, other, st, now):
+        """cid から見て other が恋敵か (どちらもあなたと深い仲). 少し前に気づいたばかりなら重ねない."""
+        app = self.app
+        if not (app.bonds.deep(cid) and app.bonds.deep(other)):
+            return False
+        seen = (st.get("jealous") or {}).get(other)
+        return seen is None or now - seen >= float(app.bonds.cfg()["renotice_days"]) * 86400
+
+    def _near_react(self, oid, c, mins, t):
+        """通話が終わったとき, そばにいた人のひとこと (その場の記録に). ごまかされた・恋敵・長かった・言ってくれた・ふつう."""
+        app = self.app
+        och, ost = app.char(oid), app.state(oid)
+        partner = c["cid"]
+        pname = (app.chars.get(partner) or {}).get("name", "")
+        w = c.get("who") or {}
+        mine = w.get("about") == oid and w.get("src") == "near"
+        eff, key = {}, None
+        if mine and w.get("ans") == "dodge":
+            k = random.uniform(0.7, 1.3) * (1.4 if app.bonds.deep(oid) else 1.0) * max(0.5, float(app.traits(och).get("absence", 1.0)))
+            eff = {"mood": -round(5 * k, 1), "trust": -round(3 * k, 1)}
+            app.life.add_reason(ost, "player", "bad", "電話の相手に、{call}がそばにいる人のことをごまかしていた", t, told=False,
+                                delta=eff["mood"], action="_call_hid")
+            key = "phone.near_hid"
+        elif self._rival(oid, partner, ost, t) and random.random() < 0.5 + 0.3 * (app.bonds.jealousy(och) - 1.0):
+            app.bonds.notice(och, ost, partner, t, again=partner in (ost.get("jealous") or {}), k=0.6)
+            key = "phone.near_jealous"
+        elif mins >= NEAR_LONG:
+            d = round(min(5.0, 0.25 * (mins - NEAR_LONG + 4)) * random.uniform(0.7, 1.3) * float(app.traits(och).get("absence", 1.0)), 1)
+            eff = {"mood": -d, "loneliness": d}
+            key = "phone.near_long"
+        elif mine and w.get("ans") == "honest":
+            eff, _ = app.bonds.realize(och, ost, {"trust": 1.0, "mood": 1.0}, "_call_told", t)
+            key = "phone.near_told"
+        elif random.random() < 0.5:
+            key = "phone.near_ok"
+        if eff:
+            app.apply_effects(ost, eff, t)
+        if not key:
+            return None
+        text = self.line(och, key, other=pname)
+        dt = datetime.fromtimestamp(t)
+        scene = app.scene_at(och, ost, dt)
+        act = {"id": "_call_near", "name": "電話のあと", "icon": "📞", "pos": "looking at viewer", "neg": ""}
+        pos, neg, parts = app.build_prompt(och, ost, dt, act)
+        app._new_entry(oid, t, act, text, eff, scene, dt, pos, neg, parts)
+        app.save_log(oid)
+        app.trace.add("call", "そばにいた人の反応", oid, t, key=key, partner=partner, mins=mins, eff=eff)
+        app.save_state(oid)
+        return key
+
+    def background(self, char, st, t, make=True):
+        """相手の時刻 t の場面から, 一緒にいる人 (st["with_log"] の 1 件) を決める. 同じ場面のあいだは決め直さない.
+        家にいる・寝ている (外にいない) ときは決めない (None). who: None (一人) / coworker / friend / char (cid に登録キャラ)."""
+        app = self.app
+        log = [x for x in st.get("with_log") or [] if t - x.get("t1", x["t0"]) < WITH_KEEP]
+        st["with_log"] = log
+        for x in reversed(log):
+            if x["t0"] - 60 <= t <= x["t1"] + 60:
+                return x
+        if not make:
+            return None
+        dt = datetime.fromtimestamp(t)
+        sc = app.scene_at(char, st, dt)
+        if not sc.get("away") or sc.get("asleep"):
+            return None
+        act, loc = sc.get("activity"), sc.get("location") or ""
+        who, ocid, hush = None, None, None
+        if act in ("commute", "moving"):
+            hush = "train"
+        else:
+            if act in WORK_ACTS:
+                hush = "work"
+            for oid, och in app.chars.items():          # ほかの登録キャラが, 同じ時刻に同じ所にいる
+                if oid == char["id"] or app.bonds.together(oid) or not loc or loc in ("移動中", "行き道", "街"):
+                    continue
+                osc = app.scene_at(och, app.state(oid), dt)
+                if osc.get("away") and not osc.get("asleep") and osc.get("location") == loc \
+                        and osc.get("activity") not in ("commute", "moving"):
+                    who, ocid = "char", oid
+                    break
+            if not who:
+                kind = "coworker" if act in WORK_ACTS or (act == "lunch" and loc != "大学") else \
+                    "friend_uni" if act == "class" or loc == "大学" else "friend_out" if act == "errand" else None
+                if kind and random.random() < BG_P[kind]:
+                    who = "coworker" if kind == "coworker" else "friend"
+        t1 = t
+        while t1 - t < 4 * 3600:                         # 同じ場面が続くあいだ
+            s2 = app.scene_at(char, st, datetime.fromtimestamp(t1 + 600))
+            if s2.get("label") != sc.get("label") or s2.get("location") != loc:
+                break
+            t1 += 600
+        x = {"t0": t, "t1": t1, "who": who, "cid": ocid, "label": sc.get("label", ""), "loc": loc, "hush": hush}
+        st["with_log"] = (log + [x])[-20:]
+        app.trace.add("call", "相手の側の気配を決めた", char["id"], t, who=who, other=ocid, label=x["label"], hush=hush)
+        return x
+
+    def with_recent(self, char, st, t):
+        """「誰といたの？」の答えのもと: 24 時間のうちの with_log の最後 (いま外にいれば, いまの場面で決める)."""
+        x = self.background(char, st, t)
+        if x:
+            return x
+        log = [x for x in st.get("with_log") or [] if x["t0"] <= t and t - x.get("t1", x["t0"]) < 86400]
+        return log[-1] if log else None
+
+    def who_label(self, x):
+        if not x or not x.get("who"):
+            return ""
+        if x["who"] == "char":
+            return (self.app.chars.get(x.get("cid")) or {}).get("name", "知り合い")
+        return WHO_LABEL.get(x["who"], "知り合い")
+
+    def answer_mode(self, char, st, x):
+        """「誰といるの / 誰といたの」に正直に言うか (honest / vague). 同じ場面について一度決めたら変えない."""
+        if x.get("ans"):
+            return x["ans"]
+        app = self.app
+        p = 0.7 + (0.15 if self.close_rel(char, st) else 0) - 0.08 * max(0.0, float(app.traits(char).get("modesty", 0)) - 2)
+        if x.get("who") == "char" and x.get("cid") in app.chars and app.bonds.deep(x["cid"]):
+            p -= 0.25                                    # あなたとも親しい人と一緒: 言いにくい
+        x["ans"] = "honest" if random.random() < max(0.2, min(0.95, p)) else "vague"
+        return x["ans"]
+
+    def ask_count(self, st, now):
+        """「誰といるの / 誰といたの」を聞いた回数 (12 時間の). 聞いたことを記録する."""
+        asks = [x for x in st.get("whoask") or [] if now - x < ASK_SPAN]
+        st["whoask"] = asks + [now]
+        return len(asks)
+
+    def _hush_bg(self, char, st, c, now):
+        """相手の側: 電車・職場なら手短に (小声で). 一緒にいる人がいれば, 後ろの話し声 (誰といるの？ と聞ける)."""
+        x = self.background(char, st, now)
+        if not x:
+            return
+        if x.get("hush"):
+            c["hush"] = x["hush"]
+            c["span"] = round(max(3.0, c["span"] * HUSH_SPAN[x["hush"]]), 1)
+            self._log(c, "her", self.line(char, "phone.hush_" + x["hush"]), now + 0.2)
+        if x.get("who"):
+            c["bg"] = {"t0": x["t0"]}
+            self._log(c, "her", NARRATION["bg"], now + 0.3)
+
+    def _can_ask_bg(self, c):
+        b = c.get("beat") or {}
+        return bool(c.get("bg")) and not c.get("bg_asked") and b.get("kind") not in ("asleep", "sleepy", "req", "who")
+
+    def _bg_ask(self, char, st, c, now):
+        """「誰といるの？」: 正直に (誰と) / はぐらかす. 聞きすぎは嫌がられる (今何してる？ と同じ)."""
+        app = self.app
+        c["bg_asked"] = True
+        self._log(c, "me", "（誰といるのか聞いた）", now)
+        x = self.background(char, st, now, make=False) or {}
+        n = self.ask_count(st, now)
+        if n >= 2:
+            app.life.add_reason(st, "player", "bad", "%sに何度も、誰といるのか聞かれた" % app.pronouns(char)[2], now, told=True,
+                                delta=-2.0, action="_what_doing")
+            app.apply_effects(st, {"mood": -3, "trust": -1, "affection": -1}, now)
+            key, bump = "phone.whoask_much", -12
+        else:
+            mode = self.answer_mode(char, st, x) if x.get("who") else "honest"
+            key, bump = ("phone.whoask_tell" if mode == "honest" else "phone.whoask_vague"), (0 if self.close_rel(char, st) else -3)
+        self._log(c, "her", self.line(char, key, who=self.who_label(x)), now + 0.5)
+        app.trace.add("call", "誰といるの？と聞いた", char["id"], now, key=key, who=x.get("who"), n=n)
+        nori_mod.bump(app, st, now, bump, "電話: 誰といるの？")
+        c["turns"] = c.get("turns", 0) + 1
+        c.pop("beat", None)
+        c["next"] = now + self._gap(st, now)
+        app.save_state(char["id"])
+        app.presence.save()
+        return {"call": self.view(now)}
+
+    def catch_wait(self, caller, now):
+        """割り込みの着信で, いまの相手を少し待たせた (core/ring.py). 詮索しがちな人ほど, 次に「誰から？」."""
+        c = self.rec()
+        if not c:
+            return
+        app = self.app
+        char, st = app.char(c["cid"]), app.state(c["cid"])
+        self._log(c, "me", NARRATION["catch"], now)
+        nori_mod.bump(app, st, now, -3, "電話: 待たされた")
+        if not c.get("who_q") and random.random() < 0.5 * self._nosy(char):
+            c["who_q"] = {"about": caller, "src": "catch", "after": 0}
+        b = c.get("beat")
+        if b and b.get("due"):
+            b["due"] += 15.0                            # 待たせていた間は, 返事を待つ
+        app.presence.save()
+
     # ------------------------------------------------------------------ 画面
     def view(self, now=None):
         now = now or time.time()
@@ -701,7 +1028,7 @@ class PhoneTalk:
                            "left": None if b.get("due") is None else max(0, int(math.ceil(b["due"] - now))),
                            "stage": b.get("stage", 0)}
             from .ring import REQ_RETURNS
-            rs = ASLEEP_RETURNS if b["kind"] == "asleep" else REQ_RETURNS if b["kind"] == "req" else RETURNS
+            rs = ASLEEP_RETURNS if b["kind"] == "asleep" else REQ_RETURNS if b["kind"] == "req" else WHO_RETURNS if b["kind"] == "who"                 else RETURNS + ([WHO_ASK] if self._can_ask_bg(c) else [])
             out["returns"] = [{"id": k, "label": l, "icon": i} for k, l, i in rs]
         else:
             out["talking"] = True                          # 話している (次に相手が話すまで)

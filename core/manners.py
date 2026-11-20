@@ -608,6 +608,9 @@ class Manners:
             ws = [t for t in st.get("whatdo") or [] if now - t < 12 * 3600]
             meta["asked"] = len(ws)
             st["whatdo"] = ws + [now]
+        if kind == "who_with":                  # 誰といたの？ (電話の「誰といるの？」と同じ数え方. core/phonetalk.py)
+            meta["asked"] = app.phonetalk.ask_count(st, now)
+            meta["sent"] = now
         return meta
 
     def nudge_urgent(self, char, st, pend, now):
@@ -703,6 +706,18 @@ class Manners:
             if e and random.random() < 0.6:
                 app.knowsched.learn(char["id"], e, "message", now)
             return "what_doing", {"loneliness": -3, "boredom": -2}, {"doing": sc.get("label") or "のんびり"}
+        if kind == "who_with":
+            if meta.get("asked", 0) >= 2:
+                L.add_reason(st, "player", "bad", "%sに何度も、誰といたのか聞かれた" % app.pronouns(char)[2], now, told=True,
+                             delta=-2.0, action="_what_doing")
+                return "what_doing_much", {"mood": -3, "trust": -1, "affection": -1}, {}
+            x = app.phonetalk.with_recent(char, st, meta.get("sent") or now)
+            if not x or not x.get("who"):
+                return "who_with_none", {}, {}
+            mode = app.phonetalk.answer_mode(char, st, x)
+            if mode == "honest":
+                return "who_with", {"loneliness": -1}, {"who": app.phonetalk.who_label(x), "where": x.get("label") or ""}
+            return "who_with_vague", {"mood": -0.5}, {}
         if kind == "nudge":         # 返事を待たせていない (もう返した・何も来ていない) のに催促
             return "nudge_huh", {"mood": -2, "trust": -0.5}, {}
         return None

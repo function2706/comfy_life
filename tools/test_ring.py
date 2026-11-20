@@ -189,11 +189,14 @@ def main():
         assert n_lo < n_hi, (n_lo, n_hi)
         print("出る時間帯の癖: 不在着信の重さ 出ない枠 %.2f / 出る枠 %.2f, 電話にする数 出ない枠 %d / 出る枠 %d" % (lo, hi, n_lo, n_hi))
 
-        # ---- 7. 話し中 (ほかの人と通話中)・寝ると告げている → 鳴らずに不在着信 (軽め)
+        # ---- 7. ほかの人と通話中 → 割り込みで鳴り, 鳴り終われば話し中 (軽め. 詳しくは test_call_company)・寝ると告げている → 鳴らずに不在着信
         now += 3 * 3600
         fresh(now)
-        P.rec()["call"] = {"cid": "someone", "beat": None, "next": now + 999, "t": now}
-        assert R.start(char, st, now, "sudden", why="bored") is None and "話し中" in last("missed_call")[-1]["text"]
+        P.rec()["call"] = {"cid": "someone", "beat": None, "next": now + 9999, "t": now}
+        r = R.start(char, st, now, "sudden", why="bored")
+        assert r and r.get("catch") == "someone", r
+        R.tick(now + 60)
+        assert not R.rec() and "話し中" in last("missed_call")[-1]["text"], last("missed_call")[-1]
         P.rec().pop("call", None)
         now += 3 * 3600
         fresh(now)
@@ -213,7 +216,9 @@ def main():
         print("頻度の上限: OK")
 
         # ---- 9. 閉じている間: 寝ていた・仕事中 → 不在着信 / それ以外 → 短く出たことに
-        now += 3 * 3600
+        # 閉じていた窓は毎回 9 時から (夜中 1〜7 時は相手からかけてこない. 流した時刻で窓が夜中にかかると落ちていた)
+        from datetime import datetime as _dt, timedelta as _td
+        now = (_dt.fromtimestamp(now) + _td(days=1)).replace(hour=9, minute=0, second=0, microsecond=0).timestamp()
         for do, res in (("sleep", "missed"), ("work", "missed"), ("rest", "auto"), ("out", "auto")):
             fresh(now)
             st["call_back"] = {"t": now, "why": "x", "due": now + 60}
@@ -221,7 +226,7 @@ def main():
             out = R.offline(now, now + 6 * 3600, tl)
             assert out and out[0]["res"] == res and out[0]["via"] == "back", (do, out)
             assert "call_back" not in st
-            now += 7 * 3600
+            now += 24 * 3600
         print("閉じている間の着信: 寝ていた・仕事 → 不在着信 / 休む・外出 → 短く出た")
 
         # ---- 10. 心拍から: 電話していい？のいいよ → state_view で鳴る

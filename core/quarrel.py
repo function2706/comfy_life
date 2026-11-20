@@ -14,7 +14,7 @@ from datetime import datetime
 
 CHOICES = {"push": "押す（自分の行き先で）", "yield": "譲る（相手の行き先で）", "compromise": "折衷案を出す", "dodge": "話をそらす（今回はやめる）"}
 SORRY = {"forgive": "許す", "not_yet": "まだ許さない"}
-COLD_KINDS = ("smalltalk", "what_doing", "ask_how", "stamp", "tease", "flirt", "photo", "otsukare", "greet_morning", "greet_night")
+COLD_KINDS = ("smalltalk", "what_doing", "who_with", "ask_how", "stamp", "tease", "flirt", "photo", "otsukare", "greet_morning", "greet_night")
 LINES = {
     "fight.disagree": "えー、そこですか？ {place}のほうがよくないですか？",
     "fight.push_unhappy": "……わかりました。そっちでいいですよ",

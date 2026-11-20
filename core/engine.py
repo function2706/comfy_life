@@ -2021,6 +2021,7 @@ class App:
             self.chat.save(cid, d)
             # 話している間は, 切れ目ごとに返していく (core/phonetalk.py. 時計は実時間. 終わり方は相手のノリと切り上げしだい)
             self.phonetalk.begin(char, st, said[-1]["text"] if said else "", good, now, by="me", sys_t=(sys_it or {}).get("t"))
+            st.pop("call_promise", None)                # 「あとでかけ直す」と伝えていた: かけたので済み (core/ring.py)
             self.trace.add("msg", "電話がつながった", cid, now, talk=talk, key=key, good=good)
             self.save_state(cid)
             r["call"] = dict(self.phonetalk.view(now), key=key, good=good, text=said[0]["text"] if said else "")
@@ -2080,10 +2081,10 @@ class App:
         with self.lock:
             return self.phonetalk.reply(kind, now)
 
-    def ring_answer(self, yes, now=None):
-        """かかってきた電話に出る / 出ない (core/ring.py)."""
+    def ring_answer(self, yes, now=None, how=None):
+        """かかってきた電話に出る / 出ない (core/ring.py). 通話中の割り込みは how (back / switch / no)."""
         with self.lock:
-            return self.ring.answer(bool(yes), now)
+            return self.ring.answer(bool(yes), now, how=how)
 
     def ring_ask(self, cid, yes, now=None):
         """「電話していい？」に答える (core/ring.py)."""
@@ -2398,7 +2399,7 @@ class App:
             * (0.6 if ctx.get("too_often") and not (kind == "thanks" and self.manners.thanks_grace(st, now)) else 1)
 
     FORGET_RATE = 0.08       # 返し忘れの見込み (マメさ 0 のとき. テストでは 0: tools/testclock.py. 確かめるのは tools/test_hima.py)
-    FORGET_KINDS = ("stamp", "greet_morning", "greet_night", "otsukare", "smalltalk", "what_doing", "ask_how", "photo", "tease", "flirt")
+    FORGET_KINDS = ("stamp", "greet_morning", "greet_night", "otsukare", "smalltalk", "what_doing", "who_with", "ask_how", "photo", "tease", "flirt")
 
     def _forgot(self, char, st, kind):
         """うっかり返し忘れるか (読んだが, 返したつもりになっていた). 急ぎでない軽い話だけ. マメな人ほど少ない (2〜8%)."""
@@ -3414,7 +3415,7 @@ class App:
                     ost = self.state(oid)
                     if self.presence.live(self.chars[oid], ost, now):
                         self.save_state(oid)
-                    if oid not in company and (ost.get("call_ask") or ost.get("call_back")):     # 電話していい？のあと・またかけるね (core/ring.py)
+                    if oid not in company and (ost.get("call_ask") or ost.get("call_back") or ost.get("call_promise")):     # 電話していい？のあと・またかけるね (core/ring.py)
                         self.ring.live(self.chars[oid], ost, now)
                         self.save_state(oid)
                     if oid in company and self.posing.live(self.chars[oid], ost, now):

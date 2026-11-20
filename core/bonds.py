@@ -529,10 +529,11 @@ class Bonds:
                 continue
             self.notice(char, st, o, t, again=o in known)
 
-    def notice(self, char, st, other, t, again=False):
+    def notice(self, char, st, other, t, again=False, k=1.0):
+        """char が, あなたと other の親しさに気づく. k: 気づき方の重さ (電話越しに知った など, 軽め)."""
         cid = char["id"]
         j = self.jealousy(char)
-        k = j * (1.5 if self.stage(cid) == "live" else 1) * (0.5 if again else 1)
+        k = k * j * (1.5 if self.stage(cid) == "live" else 1) * (0.5 if again else 1)
         eff = {"mood": -8 * k, "trust": -6 * k, "affection": -3 * k}
         deltas = self.app.apply_effects(st, self.app.trait_effects(char, eff))
         st.setdefault("jealous", {})[other] = t

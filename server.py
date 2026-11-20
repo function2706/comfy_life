@@ -238,7 +238,7 @@ def route(method, path, q, body):
         if path == "/api/phone/reply":            # 通話中, いまの切れ目に返す (A23. core/phonetalk.py)
             return a.call_reply(b.get("kind"))
         if path == "/api/phone/answer":           # かかってきた電話に出る / 出ない (A23 段 2. core/ring.py)
-            return a.ring_answer(b.get("yes"))
+            return a.ring_answer(b.get("yes"), how=b.get("how"))
         if path == "/api/phone/ask":              # 「電話していい？」に答える
             return a.ring_ask(b["id"], b.get("yes"))
         if path == "/api/phone/call":

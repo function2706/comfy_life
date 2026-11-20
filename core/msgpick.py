@@ -53,7 +53,7 @@ NEAR = [
 ]
 # 謝る理由に並べるメッセージの種類 (あいさつ・お礼など, 謝ることになりにくいものも混ぜる. 選ぶ手間のうち)
 MSG_KINDS = ("greet_morning", "greet_night", "smalltalk", "ask_how", "consult", "tease", "flirt", "invite", "photo", "ask_selfie",
-             "stamp", "may_call", "what_doing", "nudge", "topic", "otsukare", "you_ok")
+             "stamp", "may_call", "what_doing", "who_with", "nudge", "topic", "otsukare", "you_ok")
 
 # お礼の理由: manners.favor の what と「許してくれた」
 FAVORS = [

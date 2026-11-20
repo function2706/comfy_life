@@ -2281,18 +2281,23 @@ function drawRing() {
   box.hidden = false;
   if (fresh || document.querySelector('dialog[open]')) pop(true);       // 後から開いた窓の上にも
   box.replaceChildren(h('div', { class: 'ring-card' }, avatar(r.face, r.name, 'small'),
-    h('div', {}, h('b', {}, `📞 ${r.name}から電話`), h('div', { class: 'muted small' }, '鳴っている: ', h('span', { class: 'ring-left' }, `${r.left}秒`))),
-    h('div', { class: 'row' },
-      h('button', { class: 'btn primary', disabled: S.busy, onclick: () => answerRing(true) }, '出る'),
-      h('button', { class: 'btn', disabled: S.busy, onclick: () => answerRing(false) }, '出ない'))));
+    h('div', {}, h('b', {}, `📞 ${r.name}から電話`),
+      r.catch ? h('div', { class: 'muted small' }, `（${r.catch}と話している途中の、割り込みの着信）`) : null,
+      h('div', { class: 'muted small' }, '鳴っている: ', h('span', { class: 'ring-left' }, `${r.left}秒`))),
+    h('div', { class: 'row' }, ...(r.opts || [{ id: 'yes', label: '出る' }, { id: 'no', label: '出ない' }]).map((o, i) =>
+      h('button', { class: 'btn' + (i === 0 ? ' primary' : ''), disabled: S.busy, onclick: () => answerRing(o.id) }, o.label)))));
 }
-async function answerRing(yes) {
+// how: yes / no / back (割り込み: 少し出て、かけ直すと伝える) / switch (割り込み: 今の電話を切って出る)
+async function answerRing(how) {
   if (S.busy) return;
+  if (how === true) how = 'yes'; else if (how === false) how = 'no';
   S.busy = true; stopRing();
   try {
-    const r = await api('/api/phone/answer', { yes });
+    const r = await api('/api/phone/answer', { yes: how === 'yes' || how === 'switch', how });
     if (S.view) { S.view.ring = null; if (r.call) S.view.on_call = r.call; }
-    toast(yes ? '📞 つながった（返し方を選んで話す。黙っていると切れます）' : '📞 出なかった', yes ? 'ok' : 'err');
+    const msg = { yes: '📞 つながった（返し方を選んで話す。黙っていると切れます）', switch: '📞 今の電話を切って、出た（返し方を選んで話す）',
+      back: '📞 あとでかけ直すと伝えて、もとの電話に戻った', no: '📞 出なかった' }[how];
+    toast(msg, how === 'no' ? 'err' : 'ok');
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; drawRing(); await refresh(); if (S.chatDlg && S.chatDlg.open) drawChat(true); }
 }

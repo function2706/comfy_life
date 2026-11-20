@@ -9,7 +9,10 @@
            電話で切り出す (offer). 約束の記録はいままでどおり (phone: True の印). 出れば最初のひとことが頼みごとで, 受ける / あとで返事する /
            断る から選ぶ (phonetalk の req の切れ目). 出なければ, いままでどおりメッセージで届く.
 鳴っている間 (RING_SEC) に出なければ不在着信 (missed). 「出ない」を押すと拒否 (declined: 見ていたのが伝わるので重い).
-ほかの人と通話中なら話し中 (busy: 軽い). 寝ると告げている間は出られない (asleep: 軽い).
+寝ると告げている間は出られない (asleep: 軽い).
+割り込み (catch. A23 段 3): ほかの人と通話中でも鳴る (rec の catch = いまの通話の相手). 出ない・鳴り終わる → 話し中 (busy: 軽い) /
+少し出て, かけ直すと伝える (back: 軽く. st["call_promise"]. PROMISE_H のうちにあなたからかければ済み, かけなければ心当たりに.
+いまの相手は少し待たされ, 詮索しがちなら「誰から？」) / いまの電話を切って出る (switch: いまの相手は phonetalk の why=switch).
 不在着信の重さは, あなたが電話に出る時間帯を相手が覚えているか (regard.call_ease) で揺れる: ふだん出ない時間なら軽く, ふだん出るのに
 出ないと重い. 覚える前は少し重い. 覚えた枠に合わせて, ふだん出る時間にかけてくる (want_call).
 頻度: 働きかけの抽せんと同じ枠 (メッセージの代わり) で, そのうえ着信どうしは GAP_H あけ, 1 日 DAY_MAX まで (かけ直し・頼みごとは別).
@@ -38,6 +41,9 @@ OFFLINE_EFF = {"loneliness": -3, "boredom": -2, "mood": 0.5}
 HOW_LABEL = {"missed": "出なかった", "declined": "出なかった（切った）", "busy": "話し中だった", "asleep": "寝ていて出られなかった",
              "offline": "出られなかった"}
 REQ_RETURNS = [("yes", "受ける", "🙆"), ("later", "あとで返事する", "⏳"), ("no", "断る", "🙅")]
+ANSWERS = [("yes", "出る"), ("no", "出ない")]
+CATCH_ANSWERS = [("back", "少し出て、かけ直すと伝える"), ("switch", "今の電話を切って出る"), ("no", "出ない")]
+PROMISE_H = 3.0                  # 「あとでかけ直す」と伝えてから, あなたからかけるまでの猶予 (時間)
 
 
 class Ring:
@@ -110,9 +116,8 @@ class Ring:
             self._missed(char, st, r, now, "asleep")
             return None
         c = app.phonetalk.rec()
-        if c:                                      # ほかの人と話している: 話し中
-            self._missed(char, st, r, now, "busy")
-            return None
+        if c:                                      # ほかの人と話している: 割り込みで鳴る (出なければ話し中)
+            r["catch"] = c.get("cid")
         app.presence.rec()["ring"] = r
         app.presence.save()
         app.save_state(char["id"])
@@ -133,24 +138,38 @@ class Ring:
             return None
         app.presence.rec().pop("ring", None)
         char, st = app.char(r["cid"]), app.state(r["cid"])
-        self._missed(char, st, r, r["until"], "missed")
+        self._missed(char, st, r, r["until"], "busy" if self._catching(r) else "missed")
         app.presence.save()
         return r
 
+    def _catching(self, r):
+        """割り込みの着信か (いまも, その通話が続いている)."""
+        c = self.app.phonetalk.rec()
+        return bool(r.get("catch")) and bool(c) and c.get("cid") == r["catch"]
+
     # ------------------------------------------------------------------ 出る / 出ない
-    def answer(self, yes, now=None):
+    def answer(self, yes, now=None, how=None):
+        """出る (yes) / 出ない. 割り込みの着信は how: back (少し出て, かけ直すと伝える) / switch (いまの電話を切って出る) / no."""
         now = now or time.time()
         app = self.app
         self.tick(now)
         r = self.rec()
         if not r:
             raise ValueError("いまは電話が鳴っていません")
+        catching = self._catching(r)
+        how = how or ("yes" if yes else "no")
+        if how not in [k for k, _ in (CATCH_ANSWERS if catching else ANSWERS)]:
+            raise ValueError("出る・出ない を選んでください" if not catching else "ほかの人と話している途中です（出ない・かけ直すと伝える・今の電話を切って出る から）")
         app.presence.rec().pop("ring", None)
         char, st = app.char(r["cid"]), app.state(r["cid"])
-        if not yes:
-            self._missed(char, st, r, now, "declined")
+        if how == "no":
+            self._missed(char, st, r, now, "busy" if catching else "declined")
             app.presence.save()
             return {"declined": True}
+        if how == "back":
+            return self._promise(char, st, r, now)
+        if how == "switch":
+            app.phonetalk.switch(now)
         if app.phonetalk.rec():
             app.presence.save()
             raise ValueError(app.call_block())
@@ -168,6 +187,7 @@ class Ring:
         if r.get("req"):                           # 頼みごと: 最初のひとことのあとに切り出す
             app.phonetalk.req_beat(char, st, c, r, now + 0.5)
         st.pop("call_back", None)
+        st.pop("call_promise", None)
         app.trace.add("call", "かかってきた電話に出た", r["cid"], now, via=r.get("via"), why=r.get("why"), req=r.get("req_kind"))
         app.save_state(r["cid"])
         app.presence.save()
@@ -200,6 +220,41 @@ class Ring:
         app.trace.add("call", "不在着信 (%s)" % how, cid, t, via=r.get("via"), why=r.get("why"), req=r.get("req_kind"),
                       ease=round(ease, 2), mood=-d)
         app.save_state(cid)
+
+    def _promise(self, char, st, r, now):
+        """割り込みの着信に少し出て, あとでかけ直すと伝えた. いまの通話の相手は少し待たされる."""
+        app = self.app
+        cid = char["id"]
+        w = random.uniform(0.6, 1.2) * (1.3 if r.get("why") in ("lonely", "tired") or r.get("req") else 1.0)
+        app.apply_effects(st, {"mood": -round(0.8 * w, 1)}, now)
+        st["call_promise"] = {"t": now, "until": now + PROMISE_H * 3600}
+        st.pop("call_back", None)
+        app.regard.note_call(char, st, r["t"], True)
+        app.chat.add(cid, "sys", "📞 電話がかかってきた（話し中だったので、あとでかけ直すと伝えた）", kind="missed_call", t=now)
+        if r.get("req"):                            # 頼みごとは, メッセージで (トークから答えられる)
+            app.appoint.post_offer(r["req"], now + 30)
+        app.phonetalk.catch_wait(cid, now)
+        app.trace.add("call", "割り込みの着信: かけ直すと伝えた", cid, now, via=r.get("via"), why=r.get("why"))
+        app.save_state(cid)
+        app.presence.save()
+        return {"promised": True, "call": app.phonetalk.view(now)}
+
+    def promise_check(self, char, st, now):
+        """「あとでかけ直す」と伝えたのに, かけないまま猶予を過ぎた: 軽く機嫌を下げ, 心当たりに."""
+        pr = st.get("call_promise")
+        if not pr or now < pr.get("until", 0):
+            return False
+        app = self.app
+        st.pop("call_promise", None)
+        w = random.uniform(0.7, 1.3) * max(0.5, float(app.traits(char).get("absence", 1.0))) \
+            * (1 + 0.3 * max(0.0, app.attach.factor(char, st, "dependence")))
+        d = round(min(5.0, 2.5 * w), 1)
+        app.apply_effects(st, {"mood": -d}, pr["until"])
+        app.life.add_reason(st, "player", "bad", "かけ直すと言ったのに、{call}からかかってこなかった", pr["until"], told=False,
+                            delta=-d, action="_call_promise")
+        app.regard.sign(char, st, "call_missed", pr["until"], k=0.8)
+        app.trace.add("call", "かけ直すと言ったのに, かけなかった", char["id"], now, mood=-d)
+        return True
 
     def _closed(self, char, st, r, t, doing):
         """家の画面を閉じている間の着信: 寝ていた・仕事中 → 出ない / それ以外 → 短く無難に出たことに (やりとりはせず, 弱め)."""
@@ -262,8 +317,9 @@ class Ring:
 
     # ------------------------------------------------------------------ 画面を開いている間 (state_view の心拍)
     def live(self, char, st, now):
-        """電話していい？ の期限・いいよのあとの着信・またかけるね のかけ直し."""
+        """電話していい？ の期限・いいよのあとの着信・またかけるね のかけ直し・かけ直すと伝えた約束の期限."""
         app = self.app
+        self.promise_check(char, st, now)
         a = st.get("call_ask")
         if a:
             if a.get("ok") and now >= a.get("ring_at", 0):
@@ -366,5 +422,8 @@ class Ring:
         r = self.rec()
         if not r:
             return None
+        catching = self._catching(r)
         return {"id": r["id"], "cid": r["cid"], "name": r.get("name", ""), "left": max(0, int(r["until"] - now)),
-                "face": self.app.chat.face(r["cid"])}
+                "face": self.app.chat.face(r["cid"]),
+                "catch": (self.app.chars.get(r["catch"]) or {}).get("name", "") if catching else None,
+                "opts": [{"id": k, "label": l} for k, l in (CATCH_ANSWERS if catching else ANSWERS)]}
