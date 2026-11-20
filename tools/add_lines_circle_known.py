@@ -11,6 +11,7 @@ import glob
 import io
 import json
 import os
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KEYS = ("chat.circle_told", "chat.circle_told_uneasy", "ap.msg_chat.call_grumble", "msgr.why.grumble.bad",
@@ -339,5 +340,38 @@ def main():
     print("ok", n, "行")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--face" not in sys.argv:
     main()
+
+
+# 会って「付き合ってる人いるの？」(コマンド ask_single の反応. 言うことはメッセージと同じ場面なので, 各性格の行から 📱 と『』を外す)
+FACE = (("ask_single.default", 4), ("ask_single.vague", 5), ("ask_single.bad", 6), ("ask_single.much", 7))
+
+
+def face_lines(pid):
+    return [(k, LINES[pid][i].replace("📱", "").strip().strip("『』") + ("" if LINES[pid][i].rstrip("』").endswith(("？", "…", "。")) else "。"))
+            for k, i in FACE]
+
+
+def main_face():
+    files = sorted(glob.glob(os.path.join(ROOT, "defaults", "personas", "*.json")))
+    n = 0
+    for f in files:
+        src = io.open(f, encoding="utf-8", newline="").read()
+        p = json.loads(src)
+        add = [(k, t) for k, t in face_lines(p["id"]) if k not in p["lines"]]
+        if not add:
+            continue
+        tail = "\n }\n}"
+        at = src.rindex(tail)
+        ins = "".join(',\n  %s: [\n   %s\n  ]' % (json.dumps(k), json.dumps(t, ensure_ascii=False)) for k, t in add)
+        out = src[:at] + ins + src[at:]
+        q = json.loads(out)
+        assert all(q["lines"][k] == [t] for k, t in add)
+        io.open(f, "w", encoding="utf-8", newline="").write(out)
+        n += len(add)
+    print("ok 会って", n, "行")
+
+
+if __name__ == "__main__" and "--face" in sys.argv:
+    main_face()

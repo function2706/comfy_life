@@ -3335,6 +3335,18 @@
   ],
   "enc.spot_hi_uneasy": [
    "……{call}。いま{who}と一緒。……助かった。"
+  ],
+  "ask_single.default": [
+   "……いない。なんで？"
+  ],
+  "ask_single.vague": [
+   "……さあ。"
+  ],
+  "ask_single.bad": [
+   "……それ、急に聞くこと？"
+  ],
+  "ask_single.much": [
+   "……前も、聞いた。"
   ]
  }
 }

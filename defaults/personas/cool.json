@@ -3323,6 +3323,18 @@
   ],
   "enc.spot_hi_uneasy": [
    "……{call}。いま{who}と一緒。……声かけてくれて、助かった。"
+  ],
+  "ask_single.default": [
+   "いない。急に何。"
+  ],
+  "ask_single.vague": [
+   "さあ。答える必要ある？"
+  ],
+  "ask_single.bad": [
+   "……そういうこと、いきなり聞かないで。"
+  ],
+  "ask_single.much": [
+   "前も聞いたよね。なんでそんなに気にするの。"
   ]
  }
 }
