@@ -3178,6 +3178,63 @@
   ],
   "phone.req_no": [
    "……そう。……いい"
+  ],
+  "phone.who": [
+   "……誰か、いる？"
+  ],
+  "phone.catch_who": [
+   "……さっきの電話、誰？"
+  ],
+  "phone.who_ok": [
+   "……そう。じゃあ、また今度"
+  ],
+  "phone.who_jealous": [
+   "……{other}と。……そう"
+  ],
+  "phone.who_lie_ok": [
+   "……そう。気のせい"
+  ],
+  "phone.who_lie_seen": [
+   "……そう"
+  ],
+  "phone.hush_train": [
+   "（小声で）……電車。少しだけ"
+  ],
+  "phone.hush_work": [
+   "……職場。少しだけ"
+  ],
+  "phone.whoask_tell": [
+   "……{who}と、一緒"
+  ],
+  "phone.whoask_vague": [
+   "……知り合いと"
+  ],
+  "phone.whoask_much": [
+   "……そんなに、聞かないで"
+  ],
+  "phone.near_ok": [
+   "……終わった？"
+  ],
+  "phone.near_long": [
+   "……長かった"
+  ],
+  "phone.near_jealous": [
+   "……いまの、{other}"
+  ],
+  "phone.near_hid": [
+   "……一人って、言ってた。……{fp}、いるのに"
+  ],
+  "phone.near_told": [
+   "……{fp}といるって、言ってくれた"
+  ],
+  "chat.who_with": [
+   "📱『……{where}のとき。{who}と一緒』"
+  ],
+  "chat.who_with_vague": [
+   "📱『……知り合いと』"
+  ],
+  "chat.who_with_none": [
+   "📱『……一人だった』"
   ]
  }
 }

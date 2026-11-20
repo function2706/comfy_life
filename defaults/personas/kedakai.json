@@ -3164,6 +3164,63 @@
   ],
   "phone.req_no": [
    "……そう。いいの、急だったもの"
+  ],
+  "phone.who": [
+   "……あら、そちらに誰かいらっしゃるの？"
+  ],
+  "phone.catch_who": [
+   "さっきの電話、どなたからだったの？"
+  ],
+  "phone.who_ok": [
+   "そう。それなら、長くは引き止めないわ"
+  ],
+  "phone.who_jealous": [
+   "……{other}とご一緒なのね。……そう"
+  ],
+  "phone.who_lie_ok": [
+   "そう。{fp}の聞き違いね"
+  ],
+  "phone.who_lie_seen": [
+   "……そう。それで通すおつもりなのね"
+  ],
+  "phone.hush_train": [
+   "（小声で）いま電車の中なの。少しだけにしてちょうだい"
+  ],
+  "phone.hush_work": [
+   "いま職場なの。少しの間だけよ"
+  ],
+  "phone.whoask_tell": [
+   "いま？ {who}と一緒よ"
+  ],
+  "phone.whoask_vague": [
+   "……知り合いと、とだけ言っておくわ"
+  ],
+  "phone.whoask_much": [
+   "そこまで詮索されるのは、好きではないわ"
+  ],
+  "phone.near_ok": [
+   "お電話、済んだのかしら"
+  ],
+  "phone.near_long": [
+   "……ずいぶん長いお電話だったわね"
+  ],
+  "phone.near_jealous": [
+   "……いまの、{other}でしょう。……そう"
+  ],
+  "phone.near_hid": [
+   "……先ほど、一人だとおっしゃっていたわね。{fp}、ここにいるのだけれど"
+  ],
+  "phone.near_told": [
+   "……{fp}と一緒だと、ちゃんと言ったのね。……悪い気はしないわ"
+  ],
+  "chat.who_with": [
+   "📱『{where}のとき？ {who}と一緒だったわ』"
+  ],
+  "chat.who_with_vague": [
+   "📱『知り合いと、よ。それで十分でしょう』"
+  ],
+  "chat.who_with_none": [
+   "📱『どなたとも。一人だったわ』"
   ]
  }
 }
