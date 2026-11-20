@@ -724,7 +724,8 @@ a.btn { color: inherit; }
   gap: 4px; font-size: 13px; color: var(--text); pointer-events: none; background: rgba(19, 17, 23, .78); border-radius: 12px; }
 .sp-speed-count b { font-size: 26px; color: var(--accent); }
 .sp-pile { position: relative; }
-.sp-pile.flip .pcard { animation: spFlip .6s ease-out; box-shadow: 0 0 0 3px var(--accent2); }
+.sp-pile.flipped .pcard { box-shadow: 0 0 0 3px var(--accent2); }
+.sp-pile.flip .pcard { animation: spFlip .6s ease-out; }
 @keyframes spFlip { 0% { transform: translateY(-46px) scale(.8); opacity: 0; } 100% { transform: none; opacity: 1; } }
 .sp-from { position: absolute; left: 50%; bottom: -16px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--accent2); }
 .sp-count { text-align: center; font-size: 22px; margin: 26px 0; color: var(--accent); }

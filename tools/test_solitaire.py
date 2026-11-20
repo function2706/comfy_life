@@ -68,7 +68,47 @@ def freecell():
     p = P.new("freecell", "easy", random.Random(1))
     p["found"] = [13, 13, 0, 0]
     assert abs(P.progress(p) - 0.5) < 1e-9 and 0 < P.pay(p, 100) < P.pay(dict(p, found=[13] * 4), 100)
-    print("フリーセル: 手・自動の行き先・元に戻す・詰み・稼ぎ OK")
+    # 組札から戻す (A22): いちばん上を, 重ねられる列・空き列・空きセルへ. 戻した直後は自動で上げ直さない (次の手からはふつうに)
+    def st5():
+        return {"cols": [[card("4H")], [card("KS"), card("5D")], [], [card("9C")], [card("8C")], [card("7C")], [card("6C")], [card("TC")]],
+                "cells": [None, None, None, card("QC")], "found": [3, 2, 2, 2], "hist": [], "miss": 0, "moves": 0}
+    s = st5()
+    SO.fc_move(s, {"from": {"t": "found", "i": 0}, "to": {"t": "col", "i": 0}})                 # 3♠ を 4♥ へ
+    assert [SO.name(c) for c in s["cols"][0]] == ["4H", "3S"] and s["found"] == [2, 2, 2, 2], (s["cols"][0], s["found"])
+    assert SO.fc_safe_auto(s["found"], card("3S")), "見送らなければ上がってしまう形で確かめる"
+    SO.fc_move(s, {"from": {"t": "col", "i": 3}, "to": {"t": "cell", "i": 0}})                    # 次の手: 3♠ はふつうに上がる
+    assert s["found"][0] == 3 and s["cols"][0] == [card("4H")], (s["found"], s["cols"][0])
+    SO.fc_move(s, {"undo": True})                                                                  # 戻す手も「戻す」で取り消せる
+    SO.fc_move(s, {"undo": True})
+    assert s == dict(st5(), hist=[], moves=2), s
+    s = st5()
+    SO.fc_move(s, {"from": {"t": "found", "i": 1}, "to": {"t": "cell", "i": 1}})                 # 2♥ をセルへ
+    assert s["cells"][1] == card("2H") and s["found"][1] == 1
+    SO.fc_move(s, {"from": {"t": "found", "i": 2}, "to": {"t": "col", "i": 2}})                  # 2♦ を空き列へ
+    assert s["cols"][2] == [card("2D")] and s["found"][2] == 1
+    for bad, why in (({"t": "found", "i": 0}, {"t": "found"}), "行き先が違います"), \
+                    (({"t": "found", "i": 0}, {"t": "col", "i": 1}), "色違いで"), \
+                    (({"t": "found", "i": 3}, {"t": "cell", "i": 3}), "セルには一枚だけ"):
+        try:
+            SO.fc_move(s, {"from": bad[0], "to": bad[1]})
+            raise AssertionError("できないはずの手: %s" % (bad,))
+        except ValueError as e:
+            assert why in str(e), (bad, e)
+    s["found"][0] = 0
+    try:
+        SO.fc_move(s, {"from": {"t": "found", "i": 0}, "to": {"t": "cell", "i": 0}})
+        raise AssertionError("空の組札から戻せた")
+    except ValueError as e:
+        assert "組札がありません" in str(e)
+    # クリックの行き先 (組札から): 重ねられる列 → 空き列 → 空きセル. 組札へは戻さない
+    s = st5()
+    assert SO.fc_auto_dst(s, {"t": "found", "i": 0}) == {"t": "col", "i": 0}                    # 3♠ → 4♥
+    assert SO.fc_auto_dst(s, {"t": "found", "i": 3}) == {"t": "col", "i": 2}                    # 2♣ → 空き列
+    s["cols"][2] = [card("JH")]
+    assert SO.fc_auto_dst(s, {"t": "found", "i": 3}) == {"t": "cell", "i": 0}                   # 空き列が無ければセル
+    r = SO.fc_move(s, {"from": {"t": "found", "i": 3}, "auto": True})
+    assert r["to"] == {"t": "cell", "i": 0} and s["cells"][0] == card("2C") and r["auto_up"] == 0, r
+    print("フリーセル: 手・自動の行き先・元に戻す・詰み・稼ぎ・組札から戻す OK")
 
 
 def spider():

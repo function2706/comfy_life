@@ -66,20 +66,20 @@ def fc_safe_auto(found, c):
     return all(found[o] >= r - 1 for o in opp)
 
 
-def fc_autoplay(st):
-    """安全に上げられるカードを組札へ (上げた枚数)."""
+def fc_autoplay(st, skip=None):
+    """安全に上げられるカードを組札へ (上げた枚数). skip: 組札から戻したばかりのカード (この一手では上げ直さない)."""
     n = 0
     moved = True
     while moved:
         moved = False
         for i, col in enumerate(st["cols"]):
-            if col and fc_safe_auto(st["found"], col[-1]):
+            if col and col[-1] != skip and fc_safe_auto(st["found"], col[-1]):
                 st["found"][suit(col[-1])] += 1
                 col.pop()
                 n += 1
                 moved = True
         for i, c in enumerate(st["cells"]):
-            if c is not None and fc_safe_auto(st["found"], c):
+            if c is not None and c != skip and fc_safe_auto(st["found"], c):
                 st["found"][suit(c)] += 1
                 st["cells"][i] = None
                 n += 1
@@ -249,10 +249,17 @@ def fc_try(st, src, dst):
         if c is None:
             raise ValueError("そのセルは空です")
         run, n = [c], 1
+    elif src.get("t") == "found":              # 組札のいちばん上を, 場の列・空きセルへ戻す (A22)
+        s = int(src["i"])
+        if not 0 <= s < 4 or not found[s]:
+            raise ValueError("組札がありません")
+        run, n = [s * 13 + found[s] - 1], 1
     else:
         raise ValueError("動かすカードが違います")
     t = dst.get("t")
     if t == "found":
+        if src.get("t") == "found":
+            raise ValueError("行き先が違います")
         if n != 1 or found[suit(run[0])] != rank(run[0]) - 1:
             raise ValueError("組札には A から順に、同じスートで一枚ずつ")
         found[suit(run[0])] += 1
@@ -275,6 +282,8 @@ def fc_try(st, src, dst):
         raise ValueError("行き先が違います")
     if src.get("t") == "col":
         del cols[int(src["i"])][-n:]
+    elif src.get("t") == "found":
+        found[int(src["i"])] -= 1
     else:
         cells[int(src["i"])] = None
 
@@ -285,16 +294,19 @@ def fc_auto_dst(st, src):
         col = st["cols"][int(src["i"])]
         n = max(1, int(src.get("n") or 1))
         c = col[-n] if n <= len(col) else None
+    elif src.get("t") == "found":                # 組札から戻す: 重ねられる列 → 空き列 → 空きセル
+        s = int(src["i"])
+        c = s * 13 + st["found"][s] - 1 if 0 <= s < 4 and st["found"][s] else None
     else:
         c = st["cells"][int(src["i"])]
     if c is None:
         return None
     cands = []
-    if (src.get("n") or 1) == 1:
+    if (src.get("n") or 1) == 1 and src.get("t") != "found":
         cands.append({"t": "found"})
     cands += [{"t": "col", "i": j} for j, col in enumerate(st["cols"]) if col and fc_can_stack(col[-1], c)]
     cands += [{"t": "col", "i": j} for j, col in enumerate(st["cols"]) if not col and not (src.get("t") == "col" and len(st["cols"][int(src["i"])]) == (src.get("n") or 1))]
-    if (src.get("n") or 1) == 1 and src.get("t") == "col":
+    if (src.get("n") or 1) == 1 and src.get("t") in ("col", "found"):
         cands += [{"t": "cell", "i": j} for j, x in enumerate(st["cells"]) if x is None][:1]
     for d in cands:
         trial = _snap(st, ("cols", "cells", "found"))
@@ -321,10 +333,12 @@ def fc_move(st, mv):
     if not dst:
         raise ValueError("動かせる行き先がありません")
     before = _snap(st, ("cols", "cells", "found"))
+    back = st["found"][int(src["i"])] - 1 + 13 * int(src["i"]) if src.get("t") == "found" and 0 <= int(src.get("i", -1)) < 4 \
+        and st["found"][int(src["i"])] else None
     fc_try(st, src, dst)
     st["hist"] = (st["hist"] + [before])[-300:]
     st["moves"] += 1
-    up = fc_autoplay(st)
+    up = fc_autoplay(st, skip=back)           # 組札から戻した札は, この一手では上げ直さない (次の手からは, ふつうに)
     return {"to": dst, "auto_up": up}
 
 

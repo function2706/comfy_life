@@ -107,6 +107,40 @@ f.onload = () => setTimeout(async () => {
       for (let i = 0; i < 3; i++) await w.refresh();
       await sleep(400);
       ok('speed-timer', !!t0 && S.spTimer === t0 && lay.classList.contains('gaming'), t0 + '/' + S.spTimer);
+      // F10: 場札を押さえている間は描き直さない (以前は 0.3 秒ごとに盤を作り直して, 押してから離すまでの手が消えていた).
+      // 返事待ちの間に出した手は捨てずに送る. 何も変わらない問い合わせでは描き直さない
+      const cur = S.view.games.current;
+      if (cur && cur.speed) cur.speed.start_in = 0;
+      await sleep(2600);                                   // 「せーの」のあと
+      const sent = [], api0 = w.api, rg0 = w.renderGames;
+      let renders = 0;
+      w.api = async (u, b) => { if (b && b.act === 'play') sent.push(b.i); return api0(u, b); };
+      w.renderGames = (...a) => { renders++; return rg0(...a); };
+      try {
+        const card = d.querySelector('.sp-mine');
+        if (!card) out.push('speed-hold:NONE');
+        else {
+          const rc = card.getBoundingClientRect(), opt = { bubbles: true, clientX: rc.x + 5, clientY: rc.y + 5, pointerId: 1 };
+          card.dispatchEvent(new w.PointerEvent('pointerdown', opt));
+          const r0 = renders;
+          await sleep(1300);                              // 問い合わせが 4 回ほど入る
+          ok('speed-hold', renders === r0 && d.contains(card), renders - r0);
+          card.parentElement.dispatchEvent(new w.PointerEvent('pointerup', opt));
+          await sleep(700);
+          ok('speed-hold-sent', sent.length === 1, JSON.stringify(sent));
+          S.spBusy = true; w.spSend({ act: 'play', i: 2 }); const q = !!S.spQueue; S.spBusy = false;
+          ok('speed-queue', q, q);
+          await w.spSend({ act: 'tick' });
+          ok('speed-queue-sent', sent.includes(2) && !S.spQueue, JSON.stringify(sent));
+        }
+        const v = (S.view.games.current || {}).speed;
+        if (v && !v.over) {
+          const r1 = renders, k1 = w.spKey(v);
+          await sleep(1000);
+          const k2 = w.spKey((S.view.games.current || {}).speed);
+          ok('speed-idle', k1 !== k2 || renders === r1, (renders - r1) + ' renders');
+        }
+      } finally { w.api = api0; w.renderGames = rg0; }
       await w.gameAct('/api/game/quit', {}); await w.refresh();
       await sleep(700);
       ok('speed-stop', !S.spTimer && !lay.classList.contains('gaming'), S.spTimer);

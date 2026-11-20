@@ -250,7 +250,10 @@ function renderNumeron(cur) {
 }
 
 /* ---- スピード: 二人で同時に出す. キャラの動きはサーバの時刻で進むので, 0.3 秒ごとに様子を問い合わせる (spPoll).
-   場札をクリックすると出せる台札へ, ドラッグすると離したところの台札へ. 出すのも問い合わせも, 盤だけを描き直す (gameAct は使わない) */
+   場札をクリックすると出せる台札へ, ドラッグすると離したところの台札へ. 出すのも問い合わせも, 盤だけを描き直す (gameAct は使わない).
+   描き直すのは, 見た目が変わったときだけ (spKey). 場札を押さえている間 (クリック・ドラッグの途中) は描き直さず, 離してから
+   (以前は問い合わせのたびに盤を作り直していたので, 押してから離すまでの間に作り直されると, その手が消えていた. F10).
+   問い合わせの返事を待っている間に出した手は, 捨てずに返事のあとで送る (spQueue) */
 function spPoll() {
   if (S.spTimer) return;
   S.spTimer = setInterval(() => {
@@ -261,10 +264,27 @@ function spPoll() {
     spSend({ act: 'tick' });
   }, 300);
 }
+// 見た目が変わったか (残り時間は秒の切り上げで. 山から出した直後の光りは, 出したかどうかだけ)
+function spKey(v) {
+  if (!v) return '';
+  return JSON.stringify([v.center, v.mine, v.hers, v.my_stock, v.her_stock, v.left, v.speeds, v.over, v.stuck,
+    Math.ceil(v.speed_in || 0), Math.ceil(v.start_in || 0), v.flip_ago != null && v.flip_ago < 1.6, S.gameHint || '']);
+}
+function spDraw() {
+  if (S.spHold) { S.spDirty = true; return; }          // 場札を押さえている途中: 離してから
+  S.spDirty = false;
+  renderGames();
+}
 async function spSend(body) {
-  if (S.spBusy) return;
+  if (S.spBusy) {                                   // 返事待ち: 出す手は覚えておいて, あとで送る (問い合わせは次の回で)
+    if (body.act !== 'tick') S.spQueue = body;
+    return;
+  }
   S.spBusy = true;
+  let next = null;
   try {
+    const cur0 = S.view.games.current;
+    const k0 = spKey(cur0 && cur0.speed);
     const r = await api('/api/game/move', typeof withT === 'function' ? withT(body) : body);
     const cur = S.view.games.current;
     if (cur && r.speed) cur.speed = r.speed;
@@ -275,17 +295,25 @@ async function spSend(body) {
       if (r.entry && typeof handleActResult === 'function') handleActResult(r);
       if (r.view) S.view = r.view;
       else if (typeof refresh === 'function') await refresh();
-    }
-    renderGames();
+      S.spQueue = null;
+      renderGames();
+    } else if (body.act !== 'tick' || spKey(cur && cur.speed) !== k0) spDraw();
   } catch (e) { if (body.act !== 'tick') toast(e.message, 'err'); }
-  finally { S.spBusy = false; }
+  finally {
+    S.spBusy = false;
+    next = S.spQueue;
+    S.spQueue = null;
+  }
+  if (next) await spSend(next);
 }
 function renderSpeed(cur) {
   const v = cur.speed, name = S.view.name;
   const card = (c, attrs = {}) => c ? pcardEl(c) : h('div', Object.assign({ class: 'pcard sp-empty' }, attrs));
   const flipped = v.flip_ago != null && v.flip_ago < 1.6;          // 山から台札へ出した直後: 台札を光らせる
+  const anim = flipped && S.spFlipAnim !== v.speeds;              // 札が降りてくる動きは, 出したときの 1 回だけ (描き直すたびに頭からやり直さない)
+  if (anim) S.spFlipAnim = v.speeds;
   const center = h('div', { class: 'sp-center' + (v.speed_in > 0 ? ' counting' : '') },
-    v.center.map((c, j) => h('div', { class: 'sp-pile' + (flipped ? ' flip' : ''), 'data-j': j }, pcardEl(c),
+    v.center.map((c, j) => h('div', { class: 'sp-pile' + (flipped ? ' flipped' : '') + (anim ? ' flip' : ''), 'data-j': j }, pcardEl(c),
       flipped ? h('div', { class: 'sp-from' }, j === 0 ? 'あなたの山から' : `${name}の山から`) : '')),
     v.speed_in > 0 ? h('div', { class: 'sp-speed-count' }, h('div', {}, 'どちらも出せません'), h('b', {}, `スピード！まで ${Math.ceil(v.speed_in)}`)) : '');
   const mine = h('div', { class: 'sp-field' }, v.mine.map((c, i) => {
@@ -312,6 +340,7 @@ function spDrag(field) {
     if (!el) return;
     ev.preventDefault();
     st = { el, i: +el.dataset.i, x: ev.clientX, y: ev.clientY, drag: false };
+    S.spHold = true;                                   // 離すまで描き直さない
     field.setPointerCapture(ev.pointerId);
   });
   field.addEventListener('pointermove', (ev) => {
@@ -326,14 +355,19 @@ function spDrag(field) {
     if (!st) return;
     const s = st;
     st = null;
+    S.spHold = false;
     s.el.style.transform = '';
-    if (ev.type !== 'pointerup') return;
-    if (!s.drag) { spSend({ act: 'play', i: s.i }); return; }
-    s.el.style.visibility = 'hidden';
-    const pile = document.elementFromPoint(ev.clientX, ev.clientY);
-    s.el.style.visibility = '';
-    const p = pile && pile.closest('.sp-pile');
-    if (p) spSend({ act: 'play', i: s.i, j: +p.dataset.j });
+    let mv = null;
+    if (ev.type === 'pointerup' && !s.drag) mv = { act: 'play', i: s.i };
+    else if (ev.type === 'pointerup') {
+      s.el.style.visibility = 'hidden';
+      const pile = document.elementFromPoint(ev.clientX, ev.clientY);
+      s.el.style.visibility = '';
+      const p = pile && pile.closest('.sp-pile');
+      if (p) mv = { act: 'play', i: s.i, j: +p.dataset.j };
+    }
+    if (mv) spSend(mv);
+    else if (S.spDirty) spDraw();                      // 押さえている間に来た変化を描く
   };
   field.addEventListener('pointerup', end);
   field.addEventListener('pointercancel', end);
