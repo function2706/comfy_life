@@ -9,6 +9,9 @@
 - 経路探索 (route): 出発→行き先を, 歩く・自転車・車・タクシーと鉄道・バスの組み合わせで探す (connection scan).
   乗り物 (自転車・車) は置いてある場所からしか乗れず, 駅に置けば駅に残る (駐輪・駐車代). タクシーはどこからでも.
   候補: おまかせ (タクシーを使わない早い経路) / 乗り換え少なめ / タクシーを使う (いちばん早い). 乗り継ぎの区間 (legs) を返す.
+- 遅れ (A11 段 1): 路線・運行日ごとの出来事 (incidents. ワールド・路線・日から決まる乱数. 毎日違う. 朝夕に多い).
+  出来事は {始まり s, 終わり e (分), 遅れ d (分), 方向}. s〜e のあいだにある駅を出る便は, そこから先が d 分遅れる.
+  経路を調べるときは「その時点で始まっている出来事」だけを知っている (known = 時刻). 実際の移動は全部 (known = "all") で進む.
 """
 import bisect
 import math
@@ -26,6 +29,9 @@ BOARD_BUF, TRANSFER_BUF = 1.0, 3.0   # 乗るまでの余裕・乗り換え (分
 ACCESS_WALK_MAX = 40.0               # 駅・停留所まで歩くのはここまで (分)
 BIKE_PARK, CAR_PARK = 150, 600       # 駅に置く代金 (円. 駅前はただの駐輪場はない)
 BUS_FARE = 220
+DELAY_DAY = 0.3                      # 1 路線・1 日に遅れの出来事が起きる見込み (geo.EV_DELAY / 0.04 を掛ける. 0 なら遅れなし)
+DELAY_CAUSE = {"rail": ("車両点検", "信号の故障", "線路内への立ち入り", "急病人の救護", "混雑"),
+               "bus": ("道路の混雑", "事故渋滞", "工事")}
 LINE_NAMES = ["湾岸線", "山手線", "北部線", "南部線"]
 BUS_NAMES = ["市内バス 1 系統", "市内バス 2 系統", "市内バス 3 系統", "市内バス 4 系統"]
 STATION_NAMES = ["本町", "桜町", "緑ヶ丘", "東町", "旭", "若葉", "中島", "新田", "青葉台", "松原", "宮前", "柳町", "大川",
@@ -55,6 +61,8 @@ class Transit:
     def __init__(self, geo):
         self.geo = geo
         self._conn = {}
+        self._stops = {}
+        self._inc = {}
         self._csa = {}
 
     # ------------------------------------------------------------------ 路線網
@@ -64,6 +72,8 @@ class Transit:
             r["net"] = self._build()
             self.geo.save()
             self._conn.clear()
+            self._stops.clear()
+            self._inc.clear()
             self._csa.clear()
         return r["net"]
 
@@ -212,8 +222,75 @@ class Transit:
             m += p["hw"][self._band(m)]
         return out
 
-    def trips(self, day):
-        """その運行日の全便: [(line_id, 方向, [(駅, 発・着の分)...])]."""
+    # ------------------------------------------------------------------ 遅れ (A11 段 1)
+    @staticmethod
+    def _scale():
+        from . import geo as geo_mod          # 遅れの起きやすさの倍率 (テストで geo.EV_DELAY を 0 にすれば遅れない)
+        return geo_mod.EV_DELAY / 0.04
+
+    def incidents(self, day):
+        """その運行日の遅れの出来事: [{id, line, s, e, d, dirs, cause}] (s・e は運行日の 0 時からの分). ワールド・路線・日で決まる."""
+        from .store import WORLD
+        sc = self._scale()
+        key = (day, sc)
+        if key in self._inc:
+            return self._inc[key]
+        out = []
+        if sc > 0:
+            for ln in self.net()["lines"]:
+                rnd = random.Random("delay:%s:%s:%s" % (WORLD, ln["id"], day.isoformat()))
+                p = DELAY_DAY * sc
+                n = 0
+                while n < 3 and rnd.random() < min(0.95, p):
+                    n += 1
+                    p *= 0.35
+                    u = rnd.random()
+                    h = rnd.uniform(6.8, 9.3) if u < 0.3 else rnd.uniform(17.0, 20.0) if u < 0.55 else rnd.uniform(6.0, 22.5)
+                    s = h * 60
+                    rail = ln["kind"] == "rail"
+                    out.append({"id": "%s:%d" % (ln["id"], n), "line": ln["id"], "s": round(s, 1), "e": round(s + rnd.uniform(20, 90), 1),
+                                "d": round(rnd.uniform(5, 30) if rail else rnd.uniform(5, 20)),
+                                "dirs": rnd.choice((("out", "in"), ("out",), ("in",))), "cause": rnd.choice(DELAY_CAUSE[ln["kind"]])})
+        if len(self._inc) > 12:
+            self._inc.clear()
+        self._inc[key] = out
+        return out
+
+    @staticmethod
+    def day_base(day):
+        return datetime(day.year, day.month, day.day).timestamp()
+
+    def known(self, day, known):
+        """その運行日の出来事のうち, 分かっているもの. known: None (時刻表どおり) / "all" (全部) / 時刻 (それまでに始まったもの)."""
+        if known is None:
+            return []
+        incs = self.incidents(day)
+        if known == "all":
+            return incs
+        base = self.day_base(day)
+        return [x for x in incs if base + x["s"] * 60 <= known]
+
+    def known_sig(self, t, known):
+        """経路のキャッシュの鍵に: t の運行日と次の日で分かっている出来事の id."""
+        day = service_day(t)
+        return tuple(x["id"] for d in (day, day + timedelta(days=1)) for x in self.known(d, known))
+
+    def delays_now(self, t):
+        """いま遅れている路線 (経路を調べる画面に出す): [{line, name, kind, d, cause}]."""
+        out = []
+        day = service_day(t)
+        for d in (day - timedelta(days=1), day):
+            base = self.day_base(d)
+            for x in self.known(d, t):
+                if t <= base + (x["e"] + x["d"]) * 60:
+                    ln = self.line(x["line"])
+                    if not any(o["line"] == x["line"] and o["d"] >= x["d"] for o in out):
+                        out = [o for o in out if o["line"] != x["line"]]
+                        out.append({"line": x["line"], "name": ln["name"], "kind": ln["kind"], "d": x["d"], "cause": x["cause"]})
+        return out
+
+    def trips(self, day, incs=()):
+        """その運行日の全便: [(line_id, 方向, [(駅, 発・着の分)...])]. incs: 効かせる遅れの出来事."""
         dt_key = "hd" if holiday(day) else "wd"
         out = []
         for ln in self.net()["lines"]:
@@ -221,29 +298,48 @@ class Transit:
             for dr in ("out", "in"):
                 seq = ln["seq"] if dr == "out" else ln["seq"][::-1]
                 rr = run if dr == "out" else run[::-1]
+                mine = [x for x in incs if x["line"] == ln["id"] and dr in x["dirs"]]
                 for d0 in self.departures(ln, dt_key, dr):
                     times, m = [d0], float(d0)
                     for r in rr:
                         m += r
                         times.append(round(m, 1))
+                    if mine:                       # 出来事のあいだに出る駅から先が遅れる (いちど遅れたら, その先も)
+                        late = 0
+                        for i, m in enumerate(times):
+                            late = max([late] + [x["d"] for x in mine if x["s"] <= m <= x["e"]])
+                            times[i] = round(m + late, 1)
                     out.append((ln["id"], dr, list(zip(seq, times))))
         return out
 
-    def connections(self, day):
-        """運行日の接続 (connection scan 用): 発時刻の順に [(発 t, 着 t, 発駅, 着駅, 便, 路線)]."""
-        if day in self._conn:
-            return self._conn[day]
-        base = datetime(day.year, day.month, day.day).timestamp()
+    def connections(self, day, known=None):
+        """運行日の接続 (connection scan 用): 発時刻の順に [(発 t, 着 t, 発駅, 着駅, 便, 路線)]. known: 効かせる遅れ (known() と同じ)."""
+        incs = self.known(day, known)
+        key = (day, tuple(x["id"] for x in incs), self._scale() if incs else 0)
+        if key in self._conn:
+            return self._conn[key]
+        base = self.day_base(day)
         out = []
-        for ti, (lid, dr, stops) in enumerate(self.trips(day)):
+        stops_of = {}
+        for ti, (lid, dr, stops) in enumerate(self.trips(day, incs)):
             trip = "%s:%s:%s:%d" % (day.isoformat(), lid, dr, ti)
+            stops_of[trip] = [(s, base + m * 60) for s, m in stops]
             for (a, ta), (b, tb) in zip(stops, stops[1:]):
                 out.append((base + ta * 60, base + tb * 60, a, b, trip, lid))
         out.sort()
-        if len(self._conn) > 6:
+        if len(self._conn) > 12:
             self._conn.clear()
-        self._conn[day] = out
+            self._stops.clear()
+        self._conn[key] = out
+        self._stops[key] = stops_of
         return out
+
+    def trip_stops(self, trip, known=None):
+        """便の駅と時刻 [(駅, t)] (known の遅れを効かせて)."""
+        day = datetime.strptime(trip.split(":")[0], "%Y-%m-%d").date()
+        self.connections(day, known)
+        incs = self.known(day, known)
+        return self._stops[(day, tuple(x["id"] for x in incs), self._scale() if incs else 0)][trip]
 
     def line(self, lid):
         return next(ln for ln in self.net()["lines"] if ln["id"] == lid)
@@ -292,7 +388,7 @@ class Transit:
     def fare_rail(self, km):
         return int(min(1500, 150 + 20 * km) / 10) * 10
 
-    def scan(self, origin_xy, t, access, transfer=TRANSFER_BUF, horizon=8 * 3600):
+    def scan(self, origin_xy, t, access, transfer=TRANSFER_BUF, horizon=8 * 3600, known=None):
         """connection scan: access {駅: (着く時刻, 区間)} から, 各駅に着くいちばん早い時刻と, そこまでの乗り方 (日をまたいでもよい).
         返す: (着 {駅: t}, 来かた {駅: ("ride", 乗った接続, 降りた接続) / ("access", 区間)},
                電車・バスで着く時刻 {駅: t}, その来かた {駅: ("ride", ...)}).
@@ -304,7 +400,7 @@ class Transit:
         rarr, rhow = {}, {}
         trip_in = {}
         day = service_day(t)
-        conns = self.connections(day) + self.connections(day + timedelta(days=1))
+        conns = self.connections(day, known) + self.connections(day + timedelta(days=1), known)
         conns.sort()
         i = bisect.bisect_left(conns, (t,))
         end = t + horizon

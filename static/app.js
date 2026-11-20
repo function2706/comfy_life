@@ -3023,14 +3023,14 @@ async function mapGo(id, how) {
 const SEG_ICON2 = { walk: '🚶', wait: '⏳', bike: '🚲', car: '🚗', taxi: '🚕' };
 function routeList(routes, go) {
   const hm = (t) => new Date(t * 1000).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  return h('div', { style: 'margin-top:6px' }, h('div', { class: 'muted small' }, '電車・バスの経路（時刻表どおり）'),
+  return h('div', { style: 'margin-top:6px' }, h('div', { class: 'muted small' }, '電車・バスの経路（時刻表と、いま分かっている遅れから）'),
     ...routes.map((r) => h('div', { class: 'route-card' },
       h('div', { class: 'row', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
         h('b', { class: 'small' }, r.label), h('span', { class: 'small' }, `${hm(r.dep)}→${hm(r.arr)}着（${r.min}分・${r.fare}円${r.transfers ? `・乗り換え${r.transfers}回` : ''}）`),
         r.note ? h('span', { class: 'muted small' }, r.note) : '', h('div', { class: 'spacer' }),
         go ? h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => go(r.key) }, 'この経路で行く') : ''),
       h('div', { class: 'tsteps' }, ...r.steps.map((x, i) => [i ? h('span', { class: 'muted' }, '→') : '',
-        h('span', { class: 'tstep' }, `${x.kind === 'ride' ? (x.line_kind === 'bus' ? '🚌' : '🚃') : SEG_ICON2[x.kind] || ''} ${x.kind === 'ride' ? hm(x.t0) + ' ' : ''}${x.label} ${x.min}分`)])))));
+        h('span', { class: 'tstep' }, `${x.kind === 'ride' ? (x.line_kind === 'bus' ? '🚌' : '🚃') : SEG_ICON2[x.kind] || ''} ${x.kind === 'ride' ? hm(x.t0) + ' ' : ''}${x.label} ${x.min}分${x.late ? `（${x.late}分遅れ）` : ''}`)])))));
 }
 // 時刻を決めて調べる (出発 / 到着. 約束に間に合うかなど). 調べるだけ (出かけるのは上のボタンで, いまから)
 function routeSearchBox(to) {
@@ -3056,7 +3056,9 @@ function routeSearchBox(to) {
   return h('div', { style: 'margin-top:6px' },
     h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted' }, '経路を調べる:'), tm, by,
       h('button', { class: 'btn small', onclick: run }, '🔍 調べる')),
-    f.res ? [f.res.note ? h('div', { class: 'small' }, f.res.note) : '', f.res.routes.length ? routeList(f.res.routes, null) : h('div', { class: 'muted small' }, '経路が見つかりません')] : '');
+    f.res ? [(f.res.delays || []).length ? h('div', { class: 'small', style: 'color:var(--warn, #c60)' },
+      '⚠ ' + f.res.delays.map((x) => `${x.name} ${x.d}分遅れ（${x.cause}）`).join('・')) : '',
+    f.res.note ? h('div', { class: 'small' }, f.res.note) : '', f.res.routes.length ? routeList(f.res.routes, null) : h('div', { class: 'muted small' }, '経路が見つかりません')] : '');
 }
 // 駅・停留所: その日の時刻表 (路線・方面ごと. 時: 分 分 分). 始発と終電がわかる
 function stationBox(sid) {

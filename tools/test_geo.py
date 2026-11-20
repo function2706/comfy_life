@@ -178,7 +178,16 @@ def main():
 
         # ---- 9. 段階 3: 途中の出来事 (遅延・パンク). 地図の点
         G.EV_DELAY, G.EV_FLAT = 1.0, 1.0
-        lg = geo.leg(home, "beach", "transit", noon)
+        T = geo.transit                          # 電車・バスの遅れは路線ごとの出来事 (A11 段 1. 詳しくは test_transit). ここでは一日じゅう遅れている
+        T.incidents = lambda d: [{"id": "g:%s" % ln["id"], "line": ln["id"], "s": 0, "e": 27 * 60, "d": 15, "dirs": ("out", "in"),
+                                  "cause": "テスト"} for ln in T.net()["lines"]]
+        try:
+            lg = geo.leg(home, "beach", "transit", noon)
+        finally:
+            del T.incidents
+            T._conn.clear()
+            T._stops.clear()
+            T._csa.clear()
         assert "遅れた" in lg["note"], lg
         lg = geo.leg(home, "riverside", "bike", noon)
         assert "パンク" in lg["note"] and lg["fare"] == G.FLAT_FIX, lg
