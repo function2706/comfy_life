@@ -169,7 +169,8 @@ def route(method, path, q, body):
         if path == "/api/push/key":             # 通知: 送り主の公開鍵と, 受け取る端末の数 (core/push.py)
             return a.push.view()
         if path == "/api/phone/live":           # 通話中の速い問い合わせ (相手のひとこと・待つ残り秒. 進めるのもここ)
-            return {"call": a.call_view(), "ended": a.phonetalk.last_end(), "ring": a.ring_view()}
+            return {"call": a.call_view(), "ended": a.phonetalk.last_end(), "ring": a.ring_view(),
+                    "face": a.face_view(), "face_ended": a.facetalk.last_end()}
         if path == "/api/phone/news":           # 届いたものの控え (通知から開いたスマホが取りに来る. core/remote.py)
             return {"news": a.remote.news_since(_q(q, "since", 0)), "unread": a.chat.unread_total()}
         if path == "/api/calendar":
@@ -187,7 +188,7 @@ def route(method, path, q, body):
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")
         if path == "/api/game/start":
-            return a.games.start(b["game"], cid)
+            return a.face_after(a.games.start(b["game"], cid))
         if path == "/api/game/move":
             return a.games.move(cid, b)
         if path == "/api/game/quit":
@@ -216,7 +217,7 @@ def route(method, path, q, body):
         if path == "/api/approach":
             return a.answer_approach(b["answer"], cid, b.get("choice"))
         if path == "/api/solo/start":
-            return a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid, how=b.get("how"))
+            return a.face_after(a.solo.start(b["kind"], b.get("skill"), b.get("place"), cid, how=b.get("how")))
         if path == "/api/medicine":
             with a.lock:
                 return a.body.medicine()
@@ -235,6 +236,10 @@ def route(method, path, q, body):
             return a.geo.route_search(b["to"], b.get("at"), b.get("by", "depart"), b.get("from"))
         if path == "/api/phone/hangup":           # 電話を切る (S8. A23: 相手が寝ていれば, そっと)
             return a.call_end()
+        if path == "/api/face/reply":             # 会って話している途中, いまの切れ目に返す (A23 段 4. core/facetalk.py)
+            return a.face_reply(b.get("kind"))
+        if path == "/api/face/end":               # 話を切り上げる
+            return {"ended": a.face_end()}
         if path == "/api/phone/reply":            # 通話中, いまの切れ目に返す (A23. core/phonetalk.py)
             return a.call_reply(b.get("kind"))
         if path == "/api/phone/answer":           # かかってきた電話に出る / 出ない (A23 段 2. core/ring.py)

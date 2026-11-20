@@ -100,6 +100,9 @@ def all_keys(actions, minigames, approaches=()):
     from .phonetalk import LINES as CALL_LINES, SCENE_LABEL as CALL_SCENES     # 電話の対話 (切れ目・黙った・切り上げ・寝落ち)
     for k, t in CALL_LINES.items():
         out[k] = {"scene": CALL_SCENES[k], "when": "", "text": t if isinstance(t, str) else t[0]}
+    from .facetalk import LINES as FACE_LINES, SCENE_LABEL as FACE_SCENES     # 対面の会話 (上の空・うたた寝・切り上げ. 無い場面は電話のセリフ)
+    for k, t in FACE_LINES.items():
+        out[k] = {"scene": FACE_SCENES[k], "when": "", "text": t if isinstance(t, str) else t[0]}
     from .posing import LINES as PO_LINES, SCENE_LABEL as PO_SCENES     # 相手からのポーズ・見せて・持ちかけ・感想への返し
     for k, t in PO_LINES.items():
         out[k] = {"scene": "ポーズ・見せて / %s" % PO_SCENES[k], "when": "", "text": t}

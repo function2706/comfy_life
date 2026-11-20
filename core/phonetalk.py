@@ -200,12 +200,14 @@ def rng():
 
 
 class PhoneTalk:
+    KEY = "call"                                 # presence.rec() の記録の置き場 (対面の会話 core/facetalk.py は "face")
+
     def __init__(self, app):
         self.app = app
 
     # ------------------------------------------------------------------ 道具
     def rec(self):
-        return self.app.presence.rec().get("call")
+        return self.app.presence.rec().get(self.KEY)
 
     def line(self, char, key, **kw):
         app = self.app
@@ -264,7 +266,7 @@ class PhoneTalk:
         self._new_beat(char, st, c, "reply", None, text or "……もしもし。", now)
         self._company(char, st, c, now)
         self._hush_bg(char, st, c, now)
-        app.presence.rec()["call"] = c
+        app.presence.rec()[self.KEY] = c
         app.presence.save()
         return c
 
@@ -425,6 +427,15 @@ class PhoneTalk:
         lv = nori_mod.level(st, t) or 0.3
         return (GAP[0] + (GAP[1] - GAP[0]) * (1 - lv)) * random.uniform(0.7, 1.3)
 
+    def _late_guess(self, char, st, b):
+        """返事が無いのを「寝ちゃった？」と受け取るか (近い仲の夜更け)."""
+        return self.close_rel(char, st) and (nori_mod.hour_at(b["due"]) >= 23 or nori_mod.hour_at(b["due"]) < 4) \
+            and random.random() < 0.6
+
+    def _doze_ok(self, char, st):
+        """眠くなったとき, 寝落ちに向かうか (近い仲だけ. 浅い仲は眠いと言って切る)."""
+        return self.close_rel(char, st)
+
     def _sleepy(self, char, st, t):
         """寝落ちに向かうか: 眠気が高い / 寝る時刻を過ぎた (近い仲だけ. 浅い仲は眠いと言って切る)."""
         sc = self.app.scene_at(char, st, datetime.fromtimestamp(t))
@@ -439,12 +450,12 @@ class PhoneTalk:
         if not c:
             return None
         if "beat" not in c and "next" not in c:          # 以前の形 (決め打ちの until): その通話は終わったことに (遡及)
-            app.presence.rec().pop("call", None)
+            app.presence.rec().pop(self.KEY, None)
             app.presence.save()
             return None
         cid = c["cid"]
         if cid not in app.chars:
-            app.presence.rec().pop("call", None)
+            app.presence.rec().pop(self.KEY, None)
             app.presence.save()
             return None
         char, st = app.char(cid), app.state(cid)
@@ -458,8 +469,7 @@ class PhoneTalk:
                 if now < b["due"]:
                     return None
                 if b["stage"] == 0:                       # もしもし？
-                    late = self.close_rel(char, st) and (nori_mod.hour_at(b["due"]) >= 23 or nori_mod.hour_at(b["due"]) < 4) \
-                        and random.random() < 0.6
+                    late = self._late_guess(char, st, b)
                     key = "phone.hello_asleep" if late else "phone.hello"
                     text = self.line(char, key)
                     b.update(stage=1, t0=b["t"], t=b["due"], due=b["due"] + random.uniform(*HELLO_WAIT), asleep_guess=late,
@@ -478,7 +488,7 @@ class PhoneTalk:
             if c.get("lim") and t >= c["lim"]:
                 return self._finish(char, st, c, c["lim"], "you" if c.get("mine_cut") else "her", "limit")
             if c.get("doze", 0) >= 1 or self._sleepy(char, st, t):
-                if self.close_rel(char, st):
+                if self._doze_ok(char, st):
                     c["doze"] = c.get("doze", 0) + 1
                     if c["doze"] >= 2:
                         self._new_beat(char, st, c, "asleep", None, NARRATION["asleep"], t)
@@ -699,7 +709,7 @@ class PhoneTalk:
         for oid in c.get("near") or []:                 # そばにいた人 (まだそばにいれば) のひとこと
             if oid in app.chars and oid in app.bonds.company() and oid != cid:
                 near.append(self._near_react(oid, c, mins, t))
-        app.presence.rec().pop("call", None)
+        app.presence.rec().pop(self.KEY, None)
         app.presence.save()
         app.trace.add("call", "電話が終わった", cid, t, who=who, why=why, mins=mins, turns=c.get("turns", 0), how=how,
                       sorry=sorry, avg=round(avg, 1), near=near)

@@ -248,6 +248,21 @@ def _at(h):
     return deco
 
 
+def _face(app, cid):              # 会って話している途中 (A23 段 4. core/facetalk.py): 何も止めない. 押せば話は終わる
+    app.facetalk.begin(app.char(cid), app.state(cid), "うん、いいですよ。", None, time.time())
+    app.save_state(cid)
+
+
+def s_face_guest(app, cid):       # 家に来てもらって, 話している途中
+    s_guest(app, cid)
+    _face(app, cid)
+
+
+def s_face_meet(app, cid):        # 外で会って, 話している途中
+    s_meet(app, cid)
+    _face(app, cid)
+
+
 s_night_home = _at(22)(s_live_home)       # 夜 22 時, 同居相手と家に
 s_morning_home = _at(7)(s_live_home)      # 朝 7 時, 同居相手と家に
 s_night_alone = _at(22)(s_alone)          # 夜 22 時, 一人で家に
@@ -257,9 +272,10 @@ STATES = [("alone", s_alone), ("live_home", s_live_home), ("guest", s_guest), ("
           ("outing_moving", s_outing_moving), ("outing_there", s_outing_there), ("outing_home", s_outing_home),
           ("solo_out", s_solo_out), ("live_busy", s_live_busy), ("asleep", s_asleep), ("live_away", s_live_away),
           ("helping", s_helping), ("sick", s_sick), ("fight", s_fight), ("appt_wait", s_appt_wait),
-          ("night_home", s_night_home), ("morning_home", s_morning_home), ("night_alone", s_night_alone), ("night_guest", s_night_guest)]
+          ("night_home", s_night_home), ("morning_home", s_morning_home), ("night_alone", s_night_alone), ("night_guest", s_night_guest),
+          ("face_guest", s_face_guest), ("face_meet", s_face_meet)]
 APART = ("alone", "solo_out", "live_away", "appt_wait", "night_alone")
-OUTING = ("meet", "outing_moving", "outing_there", "outing_home")
+OUTING = ("meet", "outing_moving", "outing_there", "outing_home", "face_meet")
 MOVING = ("outing_moving", "outing_home")
 
 

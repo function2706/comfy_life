@@ -170,6 +170,7 @@ class Ring:
             return self._promise(char, st, r, now)
         if how == "switch":
             app.phonetalk.switch(now)
+        app.facetalk.interrupt(now, "phone")            # 会って話している途中なら, 話は終わる (core/facetalk.py)
         if app.phonetalk.rec():
             app.presence.save()
             raise ValueError(app.call_block())

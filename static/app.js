@@ -1041,6 +1041,8 @@ function renderCommands() {
   const out = [];
   const why = (S.view.blocked || {}).social;
   if (why) out.push(h('div', { class: 'blocked-note' }, `⏸ ${why}`));
+  const face = facePanel();
+  if (face) out.push(face);
   if (t.visit) out.push(visitCard(t.visit));
   if (t.stay && (t.stay.staying || t.stay.offered || t.stay.can_ask)) out.push(stayCard(t.stay));
   if (t.askhelp) out.push(askHelpCard(t.askhelp));
@@ -1304,6 +1306,7 @@ function handleActResult(r) {
     return;
   }
   showEntry(r.entry, true);
+  if (r.face && S.view) { S.view.on_face = r.face; FACE.entry = r.face.entry; FACE.beat = r.face.beat && r.face.beat.id; redrawFace(); }   // 話が続く (A23 段 4)
 }
 
 /* ---------------------------------------------------------------- stage */
@@ -2257,6 +2260,69 @@ async function callReply(kind) {
     if (!S.view || !S.view.on_call) { await refresh(); if (S.chatDlg && S.chatDlg.open) drawChat(true); }
   }
 }
+// 会って話している途中 (A23 段 4. core/facetalk.py): 電話と同じく, 相手のひとことに返し方を選んで返す. 返さずにいると「聞いてる？」,
+// それでも黙っていると上の空で話が終わる. ほかのコマンドを押せば, 話は自然に終わる. 絵は様子が変わったときだけ新しくなる (生成中は前の絵のまま)
+const FACE = { left: null, at: 0, entry: null, beat: null };
+function facePanel() {
+  const c = (S.view || {}).on_face;
+  if (!c) return null;
+  const b = c.beat;
+  FACE.left = b && b.left != null ? b.left : null; FACE.at = Date.now();
+  const past = (c.log || []).slice(-6).filter((x) => !b || x.text !== b.text || x.who !== 'her');
+  return h('div', { class: 'call-panel face-panel' },
+    h('div', { class: 'call-head' },
+      h('span', {}, `💬 ${c.name}と話している（${c.mins}分）`),
+      b && b.kind === 'asleep' ? null : h('button', { class: 'btn small', disabled: S.busy, onclick: faceEnd }, '話を切り上げる')),
+    h('div', { class: 'call-log' }, ...past.slice(-4).map((x) => h('div', { class: 'call-line ' + x.who }, x.text))),
+    b ? h('div', { class: 'call-beat' + (b.stage ? ' hello' : '') }, b.text) : h('div', { class: 'muted small call-talking' }, '（話している……）'),
+    b && b.left != null ? h('div', { class: 'muted small' }, '返事を待っている: ', h('span', { class: 'face-left' }, `${b.left}秒`)) : null,
+    b ? h('div', { class: 'call-returns' }, ...(c.returns || []).map((r) =>
+      h('button', { class: 'chat-kind', disabled: S.busy, onclick: () => faceReply(r.id) }, `${r.icon} ${r.label}`))) : null);
+}
+function redrawFace() {
+  const n = facePanel();
+  const old = document.querySelector('.face-panel');
+  if (old && n) old.replaceWith(n); else if (old) old.remove(); else if (n) renderCommands();
+}
+function faceEnded(e) {
+  if (!e || NOTIFY.seen.has('faceend:' + e.id)) return;
+  NOTIFY.seen.add('faceend:' + e.id);
+  toast(`💬 ${e.name}との話が終わった（${e.mins}分ほど${e.note ? '。' + e.note : ''}）${e.last ? '「' + e.last + '」' : ''}`, e.why === 'silent' ? 'err' : 'ok');
+}
+async function faceReply(kind) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const r = await api('/api/face/reply', { kind });
+    if (r.ended) { faceEnded(r.ended); if (S.view) S.view.on_face = null; } else if (S.view) S.view.on_face = r.face;
+  } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await faceSync(true); }
+}
+async function faceEnd() {
+  if (S.busy) return;
+  S.busy = true;
+  try { const r = await api('/api/face/end', {}); faceEnded(r.ended); if (S.view) S.view.on_face = null; } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await faceSync(true); }
+}
+// 相手のひとこと (新しい切れ目) は会話欄に, 新しい絵の記録はステージに (生成中なら前の絵のまま. できたら trackJob が差し替える)
+async function faceSync(force) {
+  const c = (S.view || {}).on_face;
+  const b = c && c.beat;
+  const bid = b ? b.id : null;
+  if (c && c.entry && c.entry !== FACE.entry) {
+    const first = FACE.entry == null;
+    FACE.entry = c.entry;
+    if (!first || force) {
+      await refresh();
+      const e = (S.view.log || []).find((x) => x.id === FACE.entry);
+      if (e) { showEntry(e, false); if (e.job) trackJob(e.job); }
+    }
+  }
+  if (bid && bid !== FACE.beat) { FACE.beat = bid; setDialogue(b.text, true, c.name); notifyCall('face:' + bid, `💬 ${c.name}「${b.text.slice(0, 40)}」`, '', false, 'voice'); }
+  if (!c) { FACE.entry = null; FACE.beat = null; if (force) await refresh(); }
+  const key = c ? [bid, (b || {}).stage, (c.log || []).length, c.mins].join('/') : '';
+  if (force || key !== FACE.key || !c !== !document.querySelector('.face-panel')) { FACE.key = key; redrawFace(); }   // 変わったときだけ描き直す
+}
 // 着信 (A23 段 2. core/ring.py): 鳴っている間は画面の上に出し, 着信音をくり返す. 出る / 出ない. 鳴り終われば不在着信
 const RING = { id: null, left: null, at: 0 };
 function drawRing() {
@@ -2309,9 +2375,13 @@ async function answerAsk(cid, yes) {
 }
 // 通話中・着信中は 1.5 秒おきに問い合わせる (相手のひとこと・待つ残り秒. 通話を進めるのもサーバのこの問い合わせ)
 setInterval(async () => {
-  if (PHONE || !S.view || !(S.view.on_call || S.view.ring) || S.busy || S.inactive) return;
+  if (PHONE || !S.view || !(S.view.on_call || S.view.ring || S.view.on_face) || S.busy || S.inactive) return;
   try {
     const r = await api('/api/phone/live');
+    const hadFace = !!S.view.on_face;
+    S.view.on_face = r.face || null;
+    if (hadFace && !r.face) faceEnded(r.face_ended);
+    if (hadFace || r.face) await faceSync(hadFace && !r.face);
     const oldRing = S.view.ring;
     S.view.ring = r.ring || null;
     if (oldRing && !r.ring && !r.call) toast(`📞 ${oldRing.name}からの電話に出なかった（不在着信）`, 'err');
@@ -2338,6 +2408,10 @@ setInterval(() => {         // 返事を待つ残り秒・鳴っている残り�
   if (CALL.left != null) {
     const n = Math.max(0, CALL.left - Math.floor((Date.now() - CALL.at) / 1000));
     document.querySelectorAll('.call-left').forEach((el) => { el.textContent = `${n}秒`; });
+  }
+  if (FACE.left != null) {
+    const n = Math.max(0, FACE.left - Math.floor((Date.now() - FACE.at) / 1000));
+    document.querySelectorAll('.face-left').forEach((el) => { el.textContent = `${n}秒`; });
   }
   if (RING.left != null) {
     const n = Math.max(0, RING.left - Math.floor((Date.now() - RING.at) / 1000));

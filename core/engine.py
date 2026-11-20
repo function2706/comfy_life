@@ -31,6 +31,7 @@ from . import care as care_mod
 from . import stay as stay_mod
 from . import parting as parting_mod
 from . import phonetalk as phonetalk_mod
+from . import facetalk as facetalk_mod
 from . import ring as ring_mod
 from . import replyspeed as replyspeed_mod
 from . import saveedit as saveedit_mod
@@ -245,6 +246,7 @@ class App:
         self.planner = planner_mod.Planner(self)
         self.manners = manners_mod.Manners(self)
         self.phonetalk = phonetalk_mod.PhoneTalk(self)
+        self.facetalk = facetalk_mod.FaceTalk(self)      # 会って話している途中 (A23 段 4)
         self.ring = ring_mod.Ring(self)                  # 相手からかかってくる電話 (A23 段 2)
         self.calview = calview_mod.CalView(self)
         self.debugdump = debugdump_mod.DebugDump(self)
@@ -1641,6 +1643,9 @@ class App:
             part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
             if part:
                 ctx["part"] = part
+            if a.get("category") != "system" and not opts.get("deliver") and not opts.get("approach") \
+                    and not opts.get("appointment") and not opts.get("auto_weak") and not self.from_phone():
+                self.facetalk.interrupt(now, "other")       # 会って話している途中に, ほかのことを始めた: 話は終わる (core/facetalk.py)
             hima = None
             if aid == "talk" and not apart:      # 「話したい」: 相手が乗ってくるか (メッセージ・電話と同じ判定. core/hima.py)
                 hima, hv = hima_mod.judge(self, char, st, now)
@@ -1971,6 +1976,12 @@ class App:
             self.chat.add(cid, "sys", "📞 電話で話した", kind="call", t=now)
             self.chat.add(cid, "her", text, kind="call", t=now + 0.001)
         out = {"entry": entry, "job": job, "llm_error": llm_error}
+        if hima in ("hit", "ok") and entry and not apart and not (r or {}).get("override") and not narrate \
+                and self.bonds.together(cid):                 # 弾んだ / ふつう: そのまま話が続く (A23 段 4. core/facetalk.py)
+            with self.lock:
+                self.facetalk.begin(char, st, text.split("\n")[0], entry, now)
+                self.save_state(cid)
+                out["face"] = self.facetalk.view(now)
         if called:
             out["call_key"] = (r or {}).get("key")
             out["call_ok"] = bool(entry) and (r or {}).get("key") not in ("cold", "later") and not (r or {}).get("override") \
@@ -1995,6 +2006,7 @@ class App:
         why = self.phonetalk.start_why(time.time())                    # 研鑽・読書の途中 / 運転中 は, かけられない
         if why and not self.call_now():
             raise ValueError(why)
+        self.facetalk.interrupt(time.time(), "phone")                  # 会って話している途中なら, 話は終わる
         r = self.act("call", cid)
         if not r.get("call_ok"):
             return r
@@ -2094,6 +2106,26 @@ class App:
     def ring_view(self, now=None):
         with self.lock:
             return self.ring.view(now)
+
+    def face_view(self, now=None):
+        """会って話している途中なら, その様子 (core/facetalk.py). 見るたびに now まで進める."""
+        with self.lock:
+            self.facetalk.tick(now)
+            return self.facetalk.view(now)
+
+    def face_reply(self, kind, now=None):
+        with self.lock:
+            return self.facetalk.reply(kind, now)
+
+    def face_after(self, result):
+        """ミニゲーム・一人のことを始められた: 会って話している途中なら, 話は終わる. result はそのまま返す."""
+        with self.lock:
+            self.facetalk.interrupt(time.time(), "other")
+        return result
+
+    def face_end(self, now=None):
+        with self.lock:
+            return self.facetalk.end(now)
 
     def call_end(self, now=None):
         """電話を切る (話している途中で. 相手が寝ているなら, そっと切る)."""
@@ -2695,6 +2727,8 @@ class App:
             now = real_now
             st = self.state(cid)
             if st.get("call_doze") and self.phonetalk.morning(self.chars[cid], st, now):     # 寝落ちした電話の翌朝 (core/phonetalk.py)
+                self.save_state(cid)
+            if st.get("face_doze") and self.facetalk.wake(self.chars[cid], st, now):         # うたた寝から起きた (core/facetalk.py)
                 self.save_state(cid)
             pend = st.get("msg_pending")
             if not pend or now < pend.get("due", 0):
@@ -3438,7 +3472,7 @@ class App:
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "arrival": arrival, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
                 "side_job": self.task_ready(now), "task_active": self.task_active(),
-                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(), "on_call": self.call_view(now), "ring": self.ring.view(now),
+                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(), "on_call": self.call_view(now), "on_face": self.face_view(now), "ring": self.ring.view(now),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),

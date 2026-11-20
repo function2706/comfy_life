@@ -52,6 +52,8 @@ FAULT_BODY = {
     "jealous": "ほかの人と親しくしているところを見られた",
     "call_silent": "電話の途中で、返事をしなくなった",
     "call_cut": "かけてきてくれた電話を、すぐ切った",
+    "face_silent": "話している途中で、上の空になった",
+    "face_cut": "話の途中で、ほかのことを始めた",
 }
 # 送ったメッセージが元になる理由 (元のメッセージを探して, その文で出す)
 FROM_MSG = {"late_night": None, "too_often": None, "stamp_spam": "stamp", "selfie_pester": "ask_selfie"}
