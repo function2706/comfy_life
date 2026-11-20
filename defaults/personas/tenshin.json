@@ -3228,6 +3228,51 @@
   "phone.near_told": [
    "{fp}といるって言ってくれた！ うれしい"
   ],
+  "face.topic_plain": [
+   "今日はなーんにもなかった！ でも空がきれいだったよ"
+  ],
+  "face.lull": [
+   "ねえ、こうやって話すの楽しいね"
+  ],
+  "face.sleepy": [
+   "ふぁ……眠くなってきちゃった……"
+  ],
+  "face.hello": [
+   "ねえ、{call}！ 聞いてる？"
+  ],
+  "face.silent_cut": [
+   "……もう！ 聞いてないでしょ"
+  ],
+  "face.silent_awkward": [
+   "あれ、{fp}ばっかり話してた！ ごめんね"
+  ],
+  "face.end_sleepy": [
+   "ごめん、眠い……。ちょっとだけ寝ていい？"
+  ],
+  "face.end_cold": [
+   "……おしまい！"
+  ],
+  "face.end_enough": [
+   "いっぱい話した！ 楽しかった！"
+  ],
+  "face.bye_ok": [
+   "うん、また話そうね！"
+  ],
+  "face.bye_early": [
+   "えー、もう？ ……わかった"
+  ],
+  "face.doze_glad": [
+   "寝ちゃってた！ ずっといてくれたの？ ありがと！"
+  ],
+  "face.doze_shy": [
+   "寝てたー。寝顔見た？ ちょっと恥ずかしい"
+  ],
+  "face.doze_awkward": [
+   "話してる途中で寝ちゃってごめんね"
+  ],
+  "face.woke": [
+   "ん……あ、夢見かけてた！"
+  ],
   "chat.who_with": [
    "📱『{where}のとき？ {who}と一緒だったよ！』"
   ],

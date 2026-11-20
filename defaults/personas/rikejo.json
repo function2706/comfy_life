@@ -3177,6 +3177,51 @@
   "phone.near_told": [
    "……{fp}といるって、ちゃんと言ったね。……悪くない"
   ],
+  "face.topic_plain": [
+   "今日は特に変化なし。そういう日のデータも大事"
+  ],
+  "face.lull": [
+   "こうやって話してると、思考がまとまる"
+  ],
+  "face.sleepy": [
+   "……ごめん、集中力が落ちてきた。眠いみたい"
+  ],
+  "face.hello": [
+   "{call}？ 聞いてる？"
+  ],
+  "face.silent_cut": [
+   "反応がないから、話すのやめる"
+  ],
+  "face.silent_awkward": [
+   "あ、{fp}ばかり話してた。ごめん"
+  ],
+  "face.end_sleepy": [
+   "ごめん、眠い。少しだけ休ませて"
+  ],
+  "face.end_cold": [
+   "……結論はそんなところ"
+  ],
+  "face.end_enough": [
+   "今日はたくさん話せた。楽しかった"
+  ],
+  "face.bye_ok": [
+   "了解。また"
+  ],
+  "face.bye_early": [
+   "……もう？ まあ、いいけど"
+  ],
+  "face.doze_glad": [
+   "途中で寝てたよね。起こさなかったんだ。……悪くない気分だった"
+  ],
+  "face.doze_shy": [
+   "寝てた？ 寝顔、記録してないよね？"
+  ],
+  "face.doze_awkward": [
+   "話の途中で寝てごめん"
+  ],
+  "face.woke": [
+   "ん……ごめん、寝かけてた"
+  ],
   "chat.who_with": [
    "📱『{where}のとき？ {who}と一緒だったよ』"
   ],
