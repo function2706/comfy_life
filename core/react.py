@@ -70,7 +70,8 @@ _TONES = {
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
-WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question", "grumble": "down"}
+WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question", "grumble": "down",
+            "pester": "down", "ex": "down"}
 AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy", "sorry", "sorry_late")   # 返事を待っている話 (遅れると響きにくい)
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)

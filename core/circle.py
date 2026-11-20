@@ -35,14 +35,33 @@
 - 愚痴 (grumble): 苦手な人と会ったあと, 「話そう」の理由が grumble になることがある (返し方で聞けば, 相手のストレスが下がる).
 - 誰といるの / いたの (answer_mode の補正 hide_shift): 元恋人・言い寄る人・傾き (pull) の高い人ほどはぐらかす (段 3・4 で効く).
 - ばったり (spot_here): あなたが外にいて, 相手が同じ行き先で予定の最中なら, 相手とその人を見かける (core/street.py).
+
+段 3: 負の出来事と人の移り (step と daily. 効き目は bonds.realize を通さない: あなたとの交流ではない).
+- 元恋人 (ex)・言い寄る人 (suitor) も人に入る (いたりいなかったり. くじ). この人たちとは予定を作らない (会うのは段 4).
+  遡及: v1 の記録 (段 1・2) には, 一度だけ決まった形のくじ (circle3:<cid>) で足す (v: 2).
+- 人どうしの仲 (_after: 予定が終わるたび): close が揺らぎ, まれに喧嘩 (親しい・ふつう → こじれる. ストレス・機嫌に一度だけ),
+  こじれた人とは会ううち / 日がたつうちに和解する (→ ふつう). 親しさで warm ⇔ plain も移る.
+  友達・学校の友達とは, COOL_AFTER 日会わないと少しずつ親しさが下がる.
+- 人の移り (daily): 新しい人が加わる (JOIN_P. 生活の型で 職場 / 学校 / 友達. 上限 PEOPLE_MAX). 疎遠になった友達 (親しさ FADE_CLOSE 未満で
+  FADE_DAYS 会っていない) は抜ける (gone. 消さずに印だけ: あなたが知っている人は, 関係性タブにそのまま残る. 抜けたことは見せない).
+- 言い寄る人 (suitor): flags.interest (相手への好意)・persist (しつこさ). 日ごとのくじで誘い・連絡が来て (pester), 相手のストレスになる.
+  相手が応じないので interest は下がっていき, 25 を切ると諦めて抜ける. 新しい言い寄る人も, まれに現れる (SUITOR_NEW_P).
+- 元恋人 (ex): flags.interest (相手への未練. 連絡の来やすさ). ときどき連絡が来る (ex). こじれた別れなら迷惑 (ストレス),
+  そうでなければ気持ちが揺れる (寂しさ・機嫌. 未練 warm なら pull が少し育つ: 段 4 の下地).
+- 相談 (confide): 出来事のあと 1 日のうちに, 「話そう」の理由・電話 / 対面の会話の切れ目が pester / ex になることがある
+  (出来事のときに一度だけくじ: 言い寄られている 0.55・元恋人がこじれて迷惑 0.45・気持ちが揺れている 0.2. 好感度が低ければ 0.3 倍).
+  名前は言わない (「何度も誘ってくる人」「前に付き合ってた人」). 聞けば愚痴と同じくストレスが下がる.
+- 機嫌の時間平均は, 出来事が無い場合との差 ±2 以内 (tools/check_circle.py).
 """
 import hashlib
 import random
 import time
 from datetime import datetime, timedelta
 
-KINDS = {"friend": "友達", "classmate": "学校の友達", "coworker": "職場の人", "boss": "上司", "family": "家族"}
-WHO = {"friend": "friend", "classmate": "friend", "coworker": "coworker", "boss": "coworker", "family": "family"}
+KINDS = {"friend": "友達", "classmate": "学校の友達", "coworker": "職場の人", "boss": "上司", "family": "家族",
+         "ex": "元恋人", "suitor": "言い寄る人"}
+WHO = {"friend": "friend", "classmate": "friend", "coworker": "coworker", "boss": "coworker", "family": "family",
+       "ex": "friend", "suitor": "friend"}
 TONES = ("warm", "plain", "uneasy", "strained")
 
 SURNAMES = ("佐藤", "鈴木", "高橋", "田中", "伊藤", "渡辺", "山本", "中村", "小林", "加藤", "吉田", "山田", "佐々木", "山口", "松本",
@@ -55,6 +74,7 @@ WEEK_RATE = 1.2             # 予定の多さの基準 (週あたり. 性格・�
 DAY_W = {True: 1.6, False: 0.76}        # 本人の休み (昼に予定が無い日) / 仕事・学校のある日. 週の重みの和で割って, 週の合計をそろえる
 WAVE_W = {"normal": 1.0, "busy": 0.4, "hooked": 0.7, "social": 2.6, "down": 0.5, "free": 1.3}
 CONTACT_IN = 0.5            # 予定の最中に, 離れて自分から連絡してくる度合い
+FILL_RELIEF = {"loneliness": 4.0, "boredom": 2.5}   # 予定の 1 時間で紛れる分 ÷ ふだんのたまる速さ (fill_f のならし)
 TRY = 8                     # 1 日の予定の時刻を探す回数
 
 # 予定の種類: 行き先の候補・長さ (時間)・ラベル
@@ -86,6 +106,33 @@ GRUMBLE_SPAN = 4 * 3600                 # 苦手な人と会ってから, 愚痴
 GRUMBLE_P = 0.5
 HIDE_SHIFT = {"ex": 0.45, "suitor": 0.35}   # 誰といるの？ を はぐらかす方へずらす量 (段 3・4)
 
+# 段 3: 負の出来事と人の移り
+V = 2                                   # 記録の版 (1: 段 1・2 / 2: 元恋人・言い寄る人を足した)
+PEOPLE_MAX = 9                          # 抜けていない人の上限
+EX_P = (0.15, 0.45)                     # 元恋人がいる (20 歳未満 / 以上)
+EX_TONE = {"warm": 0.2, "plain": 0.4, "strained": 0.4}    # 未練がある / ふつう / こじれた別れ
+SUITOR_P = 0.12                         # 最初から言い寄る人がいる (× 性格の approach)
+SUITOR_NEW_P = 1 / 700.0                # 新しい言い寄る人が現れる (日あたり × 性格の approach. 一人いるあいだは現れない. 2 年に 1 人ほど)
+SUITOR_QUIT = 25                        # 好意がこれを切ると諦める
+SUITOR_COOL = 0.4                       # 好意が日ごとに冷める分 (連絡して応じてもらえないと, さらに冷める. 数週間〜3 か月で諦める)
+JOIN_P = 1 / 50.0                       # 新しい知り合いが加わる (日あたり. 人が多いほど加わりにくい: JOIN_W)
+JOIN_W = {3: 2.0, 4: 1.5, 5: 1.0, 6: 0.7, 7: 0.4, 8: 0.15}
+FADE_CLOSE, FADE_DAYS = 25, 60          # 疎遠になって抜ける (友達・学校の友達)
+COOL_AFTER, COOL_RATE = 21, 0.15        # 会わない日がこれだけ続くと, 日に COOL_RATE ずつ親しさが下がる
+MOVE_P = 1 / 600.0                      # 職場の人が異動・退職でいなくなる (日あたり. 上司は替わらない)
+QUARREL_P = {"warm": 0.012, "plain": 0.02}      # 会ったときに喧嘩してこじれる
+MEND_P, MEND_DAY_P = 0.25, 1 / 90.0     # こじれた人と会ったときの和解 / 会わずに日がたっての和解
+QUARREL_FX = {"stress": 8, "mood": -6}
+MEND_FX = {"stress": -4, "mood": 4}
+PESTER_RATE = 0.3                       # 言い寄る人からの連絡 (日あたり × persist × interest / 100)
+EX_RATE = 1 / 60.0                      # 元恋人からの連絡 (日あたり × interest / 40)
+TROUBLE_FX = {"pester": {"stress": 4, "mood": -2},          # + 5 × persist のストレス
+              "ex_strained": {"stress": 6, "mood": -3},
+              "ex": {"loneliness": 6, "mood": -2}}
+CONFIDE_P = {"pester": 0.55, "ex_strained": 0.45, "ex": 0.2}
+CONFIDE_SPAN = 24 * 3600
+CONFIDE = ("grumble", "pester", "ex")   # 相談・愚痴の「話そう」の理由 (電話にしない. 聞けばストレスが下がる)
+
 
 def _wave_mean():
     from .waves import SHARE
@@ -100,22 +147,72 @@ def _day(t):
 
 
 class Circle:
+    events_on = True            # 段 3 の出来事 (仲の動き・人の移り・言い寄る人・元恋人). check_circle が「無い場合」と比べるときに切る
+
     def __init__(self, app):
         self.app = app
 
     # ------------------------------------------------------------------ 記録
     def rec(self, char, st, now=None):
         r = st.get("circle")
-        if r and r.get("v") == 1:
+        if r and r.get("v") == V:
             return r
         now = now or time.time()
-        r = {"v": 1, "people": self._make_people(char, now), "plans": [], "partner": None, "made_to": _day(now)}
-        st["circle"] = r
         trace = getattr(self.app, "trace", None)
+        if r and r.get("v") == 1:               # 段 1・2 の記録: 元恋人・言い寄る人を一度だけ足す (遡及)
+            r["v"] = V
+            add = self._extra_people(char, r["people"], now)
+            r["people"] += add
+            if trace:
+                trace.add("circle", "段 3 の人を足した (遡及)", char.get("id"), now, people=["%s(%s)" % (p["name"], p["kind"]) for p in add])
+            return r
+        people = self._make_people(char, now)
+        people += self._extra_people(char, people, now)
+        r = {"v": V, "people": people, "plans": [], "partner": None, "made_to": _day(now)}
+        st["circle"] = r
         if trace:
             trace.add("circle", "知り合いを初めて決めた", char.get("id"), now,
                       people=["%s(%s/%s)" % (p["name"], p["kind"], p["tone"]) for p in r["people"]])
         return r
+
+    def _extra_people(self, char, people, now):
+        """元恋人・言い寄る人 (いたりいなかったり. 決まった形のくじ circle3:<cid>)."""
+        rnd = random.Random("circle3:%s" % char.get("id"))
+        out = []
+        used = {p["name"] for p in people}
+        n = max([int(p["pid"][1:]) for p in people if p["pid"][1:].isdigit()] or [0])
+        if rnd.random() < EX_P[0 if self._minor(char) else 1]:
+            tone = rnd.choices(list(EX_TONE), list(EX_TONE.values()))[0]
+            pull = rnd.uniform(15, 35) if tone == "warm" else rnd.uniform(0, 12)
+            out.append(self._new(rnd, n + len(out) + 1, "ex", tone, rnd.uniform(15, 45), now, used,
+                                 {"interest": round(rnd.uniform(15, 60), 1), "pull": round(pull, 1)}))
+        approach = float(self.app.traits(char).get("approach", 1))
+        if rnd.random() < SUITOR_P * max(0.5, min(1.5, approach)):
+            out.append(self._new_suitor(rnd, n + len(out) + 1, now, used))
+        return out
+
+    def _new(self, rnd, i, kind, tone, close, now, used, flags=None):
+        free = [x for x in SURNAMES if x not in used] or list(SURNAMES)
+        name = rnd.choice(free)
+        used.add(name)
+        kp = KIND_PLANS.get(kind, KIND_PLANS["friend"])
+        haunt = sorted({p for pk in kp for p in PLAN_KINDS[pk]["places"] if rnd.random() < 0.6}) or list(PLAN_KINDS[kp[0]]["places"][:2])
+        p = {"pid": "p%d" % i, "name": name, "kind": kind, "tone": tone, "close": round(close, 1), "since": now, "haunt": haunt}
+        if flags:
+            p["flags"] = flags
+        return p
+
+    def _new_suitor(self, rnd, i, now, used):
+        return self._new(rnd, i, "suitor", rnd.choice(("plain", "uneasy", "uneasy")), rnd.uniform(10, 35), now, used,
+                         {"interest": round(rnd.uniform(55, 85), 1), "persist": round(rnd.uniform(0.2, 0.9), 2),
+                          "pull": round(rnd.uniform(0, 10), 1)})
+
+    def alive(self, r):
+        """抜けていない人."""
+        return [p for p in r["people"] if not p.get("gone")]
+
+    def _next_i(self, r):
+        return max([int(p["pid"][1:]) for p in r["people"] if p["pid"][1:].isdigit()] or [0]) + 1
 
     def _make_people(self, char, now):
         rnd = random.Random("circle:%s" % char.get("id"))
@@ -219,6 +316,9 @@ class Circle:
                 continue
             r["made_to"] = key
             self._make_day(char, st, r, day, t)
+        if self.events_on and r.get("d3", "") < _day(t):        # 段 3 の日締めは日に一度 (開き直し・追いつきで二重にしない)
+            r["d3"] = _day(t)
+            self._daily3(char, st, r, t)
 
     def day_off(self, char, day):
         """本人の休みの日か (10〜18 時に外の予定・手の離せない予定が無い). 休みが平日の人 (シフト・接客) もいる."""
@@ -239,9 +339,9 @@ class Circle:
         return min(0.9, WEEK_RATE * approach * wave * DAY_W[self.day_off(char, day)] / tot)
 
     def _make_day(self, char, st, r, day, now):
-        if not r["people"] or random.random() >= self.rate(char, st, day):
+        ppl = [p for p in self.alive(r) if p["kind"] in KIND_PLANS]     # 元恋人・言い寄る人とは会わない (段 4)
+        if not ppl or random.random() >= self.rate(char, st, day):
             return None
-        ppl = r["people"]
         weekend = self.day_off(char, day)          # 休みの日 (職場の人とは会いにくい. 仕事帰りは無い)
         w = []
         for p in ppl:
@@ -383,6 +483,15 @@ class Circle:
             return CONTACT_IN
         return round((1 - sh * CONTACT_IN) / (1 - sh), 4)
 
+    def fill_f(self, char, st, t, pid):
+        """寂しさ・退屈のたまる速さへの倍率: 予定の最中は 1 (紛れる分は場面の効き目), ほかの時間は予定にいる割合でわずかに上げる.
+        予定で寂しさ・退屈が紛れて, 機嫌の落ち着く先の下げ (寂しさ 60 以上 −15・退屈 70 以上 −10) に掛からなくなる分で,
+        予定の多い人の機嫌の時間平均が +3 ほど上に偏っていた (段 1 から. tools/check_circle.py を 3 回の平均にして分かった)."""
+        if pid not in FILL_RELIEF or self.plan_at(char, st, t):
+            return 1.0
+        sh = self.in_share(char, st)
+        return round(1 + sh / (1 - sh) * FILL_RELIEF[pid], 4)
+
     def who_word(self, char, st, x):
         """誘いを予定で断るときの, 予定の相手の言い方 (名前入り). 断ったときに appoint が learn(via=decline) する."""
         return self.who_label(char, st, x["pid"])
@@ -495,9 +604,200 @@ class Circle:
             return x
         return None
 
+    # ------------------------------------------------------------------ 段 3: 負の出来事と人の移り
+    def _fx(self, char, st, fx, now, why):
+        self.app.apply_effects(st, fx, now)
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("circle", why, char.get("id"), now, fx=fx)
+
+    def step(self, char, st, t0, t1):
+        """5 分ごと (life.step): 終わった予定のあとの仲の動き (_after) と, 今日の出来事 (言い寄る人・元恋人からの連絡)."""
+        r = st.get("circle")
+        if not r or not self.events_on or r.get("v") != V:
+            return
+        for x in r["plans"]:
+            if not x.get("done") and x["t1"] <= t1:
+                x["done"] = True
+                self._after(char, st, r, x, t1)
+        evs = r.get("events") or []
+        due = [e for e in evs if e["t"] <= t1]
+        if due:
+            r["events"] = [e for e in evs if e["t"] > t1]
+            for e in due:
+                self._event(char, st, r, e, t1)
+
+    def _after(self, char, st, r, x, now):
+        """予定が終わった: 会った人との仲が揺らぐ. まれに喧嘩, こじれた人とは和解することも. 効き目 (機嫌・ストレス) は
+        終わってすぐのときだけ (閉じていた間の古い予定は, 仲だけ動かす)."""
+        p = self.person(char, st, x["pid"])
+        if not p or p.get("gone"):
+            return
+        fresh = now - x["t1"] < 3600
+        fl = p.setdefault("flags", {})
+        fl["last"] = x["t1"]
+        tone = p["tone"]
+        if tone in QUARREL_P and random.random() < QUARREL_P[tone]:
+            p["tone"] = "strained"
+            p["close"] = round(max(5.0, p["close"] - random.uniform(10, 20)), 1)
+            fl["quarrel"] = x["t1"]
+            if fresh:
+                self._fx(char, st, QUARREL_FX, now, "喧嘩した: %s" % p["name"])
+            return
+        if tone == "strained":
+            if random.random() < MEND_P:
+                self._mend(char, st, p, now, fresh)
+            return
+        d = random.uniform(-2.0, 3.0) if tone in ("warm", "plain") else random.uniform(-3.0, 2.0)
+        p["close"] = round(max(0.0, min(100.0, p["close"] + d)), 1)
+        if tone == "plain" and p["close"] >= 65 and random.random() < 0.2:
+            p["tone"] = "warm"
+        elif tone == "warm" and p["close"] < 45:
+            p["tone"] = "plain"
+        elif tone == "uneasy" and p["close"] >= 45 and random.random() < 0.15:
+            p["tone"] = "plain"
+
+    def _mend(self, char, st, p, now, fresh):
+        p["tone"] = "plain"
+        p["close"] = round(min(100.0, p["close"] + random.uniform(5, 15)), 1)
+        p.setdefault("flags", {})["mend"] = now
+        if fresh:
+            self._fx(char, st, MEND_FX, now, "和解した: %s" % p["name"])
+
+    def _days_apart(self, p, t):
+        return (t - float((p.get("flags") or {}).get("last") or p.get("since") or t)) / 86400.0
+
+    def _daily3(self, char, st, r, t):
+        """日締め: 会わない人の親しさ・和解・疎遠で抜ける・新しい人・言い寄る人が諦める / 現れる・今日の出来事の時刻."""
+        trace = getattr(self.app, "trace", None)
+        for p in self.alive(r):
+            apart = self._days_apart(p, t)
+            if p["kind"] in ("friend", "classmate") and apart > COOL_AFTER:
+                p["close"] = round(max(0.0, p["close"] - COOL_RATE), 1)
+                if p["tone"] == "warm" and p["close"] < 45:
+                    p["tone"] = "plain"
+            if p["tone"] == "strained" and p["kind"] not in HIDE_KINDS and random.random() < MEND_DAY_P:
+                self._mend(char, st, p, t, False)
+            if p["kind"] in ("friend", "classmate") and p["close"] < FADE_CLOSE and apart > FADE_DAYS:
+                self._leave(char, st, r, p, t, "疎遠になった")
+            elif p["kind"] == "coworker" and random.random() < MOVE_P:
+                self._leave(char, st, r, p, t, "異動・退職")
+            elif p["kind"] == "suitor":
+                fl = p.setdefault("flags", {})
+                fl["interest"] = round(float(fl.get("interest", 0)) - SUITOR_COOL, 2)     # 応じてもらえないまま, 日がたつと冷める
+                if fl["interest"] < SUITOR_QUIT:
+                    self._leave(char, st, r, p, t, "諦めた")
+        n = len(self.alive(r))
+        if n < PEOPLE_MAX and random.random() < JOIN_P * JOIN_W.get(n, 2.0 if n < 3 else 0.0):
+            self._join(char, st, r, t)
+        approach = max(0.5, min(1.5, float(self.app.traits(char).get("approach", 1))))
+        if not any(p["kind"] == "suitor" for p in self.alive(r)) and len(self.alive(r)) < PEOPLE_MAX \
+                and random.random() < SUITOR_NEW_P * approach:
+            p = self._new_suitor(random.Random(), self._next_i(r), t, {q["name"] for q in r["people"]})
+            r["people"].append(p)
+            if trace:
+                trace.add("circle", "言い寄る人が現れた: %s" % p["name"], char.get("id"), t, flags=p["flags"])
+        # 今日の出来事 (起きている時間のどこか. 時刻は 10〜22 時)
+        evs = r.setdefault("events", [])
+        d0 = datetime.fromtimestamp(t).replace(hour=0, minute=0, second=0, microsecond=0)
+        for p in self.alive(r):
+            fl = p.get("flags") or {}
+            if p["kind"] == "suitor":
+                rate = PESTER_RATE * float(fl.get("persist", 0.5)) * float(fl.get("interest", 0)) / 100.0
+                kind = "pester"
+            elif p["kind"] == "ex":
+                rate = EX_RATE * float(fl.get("interest", 0)) / 40.0
+                kind = "ex"
+            else:
+                continue
+            if random.random() < rate:
+                at = (d0 + timedelta(hours=random.uniform(10, 22))).timestamp()
+                if at > t and not any(e["pid"] == p["pid"] for e in evs):
+                    evs.append({"t": at, "kind": kind, "pid": p["pid"]})
+        # 抜けて久しく, あなたも知らない人は消す (記録を太らせない)
+        kn = r.get("known") or {}
+        live = {x["pid"] for x in r["plans"]}
+        r["people"] = [p for p in r["people"] if not (p.get("gone") and t - p["gone"] > 120 * 86400 and p["pid"] not in kn
+                                                       and p["pid"] not in live)]
+
+    def _leave(self, char, st, r, p, t, why):
+        p["gone"] = t
+        for x in [x for x in r["plans"] if x["pid"] == p["pid"] and x["t0"] > t]:
+            r["plans"].remove(x)
+        r["events"] = [e for e in r.get("events") or [] if e["pid"] != p["pid"]]
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("circle", "%s: %s(%s)" % (why, p["name"], p["kind"]), char.get("id"), t)
+
+    def _join(self, char, st, r, t):
+        life = (char.get("life") or {}).get("type", "")
+        if life == "student":
+            kinds = ("classmate", "classmate", "friend")
+        elif life in ("office", "service", "shift", "night"):
+            kinds = ("coworker", "coworker", "friend")
+        else:
+            kinds = ("friend",)
+        rnd = random.Random()
+        kind = rnd.choice(kinds)
+        tone = rnd.choices(("warm", "plain", "uneasy"), (0.25, 0.65, 0.1))[0]
+        close = {"warm": (45, 60), "plain": (25, 45), "uneasy": (15, 30)}[tone]
+        p = self._new(rnd, self._next_i(r), kind, tone, rnd.uniform(*close), t, {q["name"] for q in r["people"]})
+        r["people"].append(p)
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("circle", "新しい知り合い: %s(%s/%s)" % (p["name"], kind, tone), char.get("id"), t)
+        return p
+
+    def _event(self, char, st, r, e, now):
+        """言い寄る人・元恋人からの連絡. 相手のストレス・気持ちに効き, あとで話すかを一度だけくじで決める."""
+        p = self.person(char, st, e["pid"])
+        if not p or p.get("gone"):
+            return
+        fl = p.setdefault("flags", {})
+        fresh = now - e["t"] < 3600
+        if e["kind"] == "pester":
+            persist = float(fl.get("persist", 0.5))
+            fx = dict(TROUBLE_FX["pester"], stress=TROUBLE_FX["pester"]["stress"] + 5 * persist)
+            # 応じないので, 好意は少しずつ冷める (しつこい人ほどゆっくり)
+            fl["interest"] = round(float(fl.get("interest", 0)) - random.uniform(1.5, 5.0) * (1.2 - persist), 1)
+            ck = "pester"
+        else:
+            ck = "ex_strained" if p["tone"] == "strained" else "ex"
+            fx = dict(TROUBLE_FX[ck])
+            fl["interest"] = round(max(0.0, float(fl.get("interest", 0)) - random.uniform(3, 8)), 1)
+            if p["tone"] == "warm":                 # 未練がある: 気持ちが少し傾く (段 4 の下地. 必ずではない・上限あり)
+                fl["pull"] = round(min(60.0, float(fl.get("pull", 0)) + random.uniform(0, 4)), 1)
+        fl["contact"] = now
+        if fresh:
+            self._fx(char, st, fx, now, "連絡が来た (%s): %s" % (ck, p["name"]))
+        aff = float(st["params"].get("affection", 50))
+        if fresh and random.random() < CONFIDE_P[ck] * (0.3 if aff < 35 else 1.0):
+            r["talk"] = {"why": "pester" if ck == "pester" else "ex", "t": now, "pid": p["pid"]}
+
+    def confide(self, char, st, now):
+        """「話そう」の理由・会話の切れ目にする相談 / 愚痴: (理由, 言い方) か None.
+        苦手な人と会ったあとの愚痴 (grumble) が先. 次に, 言い寄る人・元恋人からの連絡のあと 1 日のうちの相談 (一度だけ)."""
+        who = self.grumble(char, st, now)
+        if who:
+            return "grumble", who
+        r = st.get("circle") or {}
+        tk = r.get("talk")
+        if not tk:
+            return None
+        r.pop("talk")
+        if now - tk["t"] > CONFIDE_SPAN:
+            return None
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("circle", "相談した: %s" % tk["why"], char.get("id"), now, pid=tk["pid"])
+        return tk["why"], ""
+
     def debug(self, char, st, now):
         r = self.rec(char, st, now)
-        return {"知り合い": ["%s（%s・%s・%s）" % (p["name"], KINDS[p["kind"]], p["tone"], p["close"]) for p in r["people"]],
+        return {"知り合い": ["%s（%s・%s・%s%s%s）" % (p["name"], KINDS[p["kind"]], p["tone"], p["close"],
+                                                 "".join("・%s %s" % (k, v) for k, v in sorted((p.get("flags") or {}).items())
+                                                         if k in ("interest", "persist", "pull")),
+                                                 "・抜けた" if p.get("gone") else "") for p in r["people"]],
                 "予定": ["%s〜%s %sと%s（%s）" % (datetime.fromtimestamp(x["t0"]).strftime("%m/%d %H:%M"),
                                               datetime.fromtimestamp(x["t1"]).strftime("%H:%M"),
                                               (self.person(char, st, x["pid"]) or {}).get("name", "?"), x["kind"], x["place"])

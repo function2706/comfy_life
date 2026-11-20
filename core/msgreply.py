@@ -15,7 +15,8 @@ import random
 WHY_AIDS = ("msg_chat",)
 WHY_LABEL = {"bored": "退屈", "tired": "疲れている", "happy": "いいことがあった", "lonely": "寂しい",
              "unsure": "あなたの気持ちが気になる (探り)", "changed": "あなたの返し方がいつもと違った (何かあった？)",
-             "grumble": "苦手な人と会ったあとの愚痴 ({who} に 上司の佐藤さん など)"}
+             "grumble": "苦手な人と会ったあとの愚痴 ({who} に 上司の佐藤さん など)",
+             "pester": "しつこく言い寄られている相談 (core/circle.py 段 3)", "ex": "元恋人から連絡が来た相談 (core/circle.py 段 3)"}
 WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理由> があればそちら)
     "bored": "📱『{call}、暇すぎて……。いま何してます？』",
     "tired": "📱『今日ちょっと疲れちゃって。……少しだけ話せます？』",
@@ -27,7 +28,11 @@ WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理
     "changed": "📱『{call}、何かありました？ いつもと少し違う気がして』",
     # 愚痴 (core/circle.py): 苦手な人・こじれた人と会ったあと. pick_why では選ばれない (presence.fire が決める). {who} にその人
     "grumble": "📱『{call}、ちょっと聞いてもらえます？ さっきまで{who}と一緒だったんですけど、なんだか疲れてしまって』",
+    # 相談 (core/circle.py 段 3): 言い寄る人・元恋人から連絡が来たあと. これも presence.fire が決める. 名前は言わない
+    "pester": "📱『{call}、ちょっと聞いてもらえます？ 何度も誘ってくる人がいて、今日もまた連絡が来て……断ってるんですけど、困ってしまって』",
+    "ex": "📱『{call}、少しいいですか。前に付き合ってた人から、急に連絡が来て……なんだか落ち着かなくて』",
 }
+CONFIDE = ("grumble", "pester", "ex")      # 愚痴・相談: 電話にしない・近況を添えない・聞けばストレスが下がる (GRUMBLE_EASE)
 WHY_OPTIONS = {
     "bored": [("cheerful", "「いいよ、話そう」と返す"), ("expand", "「何して暇つぶしてたの？」と聞き返す"),
               ("tease", "「暇人だなぁ」とからかう"), ("curt", "「ちょっと忙しい」とだけ返す")],
@@ -43,6 +48,10 @@ WHY_OPTIONS = {
                 ("tease", "「心配性だなぁ」とからかう"), ("curt", "「別に」とだけ返す")],
     "grumble": [("worry", "「お疲れさま。何があったの？」と聞く"), ("expand", "「うん、聞くよ」と返す"),
                 ("cheerful", "「まあまあ、気にしない気にしない」と流す"), ("curt", "「そっか」とだけ返す")],
+    "pester": [("worry", "「大丈夫？ 困ってるなら話して」と返す"), ("expand", "「どんなふうに誘われてるの？」と聞く"),
+               ("cheerful", "「モテるんだね」と流す"), ("curt", "「そっか」とだけ返す")],
+    "ex": [("expand", "「何て言ってきたの？」と聞く"), ("worry", "「大丈夫？ 無理しないでね」と返す"),
+           ("cheerful", "「昔のことだし、気にしなくていいんじゃない」と流す"), ("curt", "「ふーん」とだけ返す")],
 }
 WHY_FIT = {"bored": {"cheerful": 6, "expand": 6, "tease": 4, "curt": -12},
            "tired": {"worry": 10, "cheerful": 2, "tease": -20, "curt": -6},
@@ -50,7 +59,9 @@ WHY_FIT = {"bored": {"cheerful": 6, "expand": 6, "tease": 4, "curt": -12},
            "lonely": {"cheerful": 8, "worry": 6, "expand": 6, "curt": -16, "tease": -6},
            "unsure": {"expand": 10, "cheerful": 6, "worry": 2, "curt": -16, "tease": -10},
            "changed": {"expand": 10, "cheerful": 6, "tease": -8, "curt": -16},
-           "grumble": {"worry": 10, "expand": 8, "cheerful": -4, "curt": -16, "tease": -16}}
+           "grumble": {"worry": 10, "expand": 8, "cheerful": -4, "curt": -16, "tease": -16},
+           "pester": {"worry": 10, "expand": 6, "cheerful": -10, "curt": -16, "tease": -18},
+           "ex": {"expand": 8, "worry": 8, "cheerful": -4, "curt": -16, "tease": -18}}
 GRUMBLE_EASE = {"good": 8, "neutral": 3}     # 愚痴を聞いてもらえた: 相手のストレスが下がる (流されたら下がらない)
 # よくなかったときの返し: 理由をにじませる (次から読めるように. 性格プリセットの msgr.why.<理由>.bad があればそちら)
 WHY_BAD = {"bored": "📱『……そんなに忙しいなら、いいです』",
@@ -59,7 +70,9 @@ WHY_BAD = {"bored": "📱『……そんなに忙しいなら、いいです』"
            "lonely": "📱『……そっか。ごめんなさい、急に』",
            "unsure": "📱『……そうですか。なら、いいんです』",
            "changed": "📱『……そうですか。何もないなら、いいんですけど』",
-           "grumble": "📱『……そうですよね。愚痴なんて聞きたくないですよね。もういいです』"}
+           "grumble": "📱『……そうですよね。愚痴なんて聞きたくないですよね。もういいです』",
+           "pester": "📱『……そうですよね。こんな話されても困りますよね。もういいです』",
+           "ex": "📱『……話すことじゃなかったですね。忘れてください』"}
 
 
 def pick_why(char, st):

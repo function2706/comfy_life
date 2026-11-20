@@ -323,10 +323,11 @@ class Presence:
                 st["approach"]["place_label"] = (act.get("override") or {}).get("location") or act.get("name", "")
                 text0 = text0.replace("{place}", st["approach"]["place_label"])
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
-        gr = self.app.circle.grumble(char, st, now) if why and apart and not force else None
-        if gr:
-            why = "grumble"                # 苦手な人と会ったあと: 愚痴を聞いてほしい (core/circle.py. 聞けばストレスが下がる)
-            st["approach"]["who"] = gr
+        cf = self.app.circle.confide(char, st, now) if why and apart and not force else None
+        if cf:
+            # 苦手な人と会ったあとの愚痴 / 言い寄る人・元恋人から連絡が来たあとの相談 (core/circle.py. 聞けばストレスが下がる)
+            why = cf[0]
+            st["approach"]["who"] = cf[1]
         elif why and apart and not force and self.app.regard.probe(char, st, now):
             why = "unsure"                 # 好きなのに, 思われていない気がする: 探りを入れる (core/regard.py)
         elif why and apart and not force and self.app.regard.ask_changed(char, st, now):
@@ -335,7 +336,7 @@ class Presence:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
                                energy=st["params"].get("energy"), mood=st["params"].get("mood"), loneliness=st["params"].get("loneliness"))
-        if why and why != "grumble" and apart and not force and phone:
+        if why and why not in msgreply.CONFIDE and apart and not force and phone:
             via = self.app.ring.want_call(char, st, why, now)      # メッセージでなく, 電話で (急に / 電話していい？. core/ring.py)
             if via:
                 st.pop("approach", None)
@@ -355,7 +356,7 @@ class Presence:
                 said = self.app.chat.line(char, wk, {}).replace("📱", "").strip().strip("『』")
                 body = body[:-1] + " " + said + "』" if body.endswith("』") else body + " " + said
                 self.app.trace.add("waves", "近況を添えた: %s" % wk, char["id"], now)
-            elif why != "grumble":
+            elif why not in msgreply.CONFIDE:
                 told = self.app.circle.tell(char, st, now, "message")     # 知り合いと会ったあと: 「昨日〇〇とご飯に行った」(core/circle.py)
                 if told:
                     said = self.app.chat.line(char, told[0], told[1]).replace("📱", "").strip().strip("『』")
@@ -618,7 +619,7 @@ class Presence:
                    for k, v in (out.get("effects") or {}).items()}
         else:
             eff = dict(msgreply.EFFECT[res])
-        if why == "grumble" and res in msgreply.GRUMBLE_EASE:     # 愚痴を聞いてもらえた: ストレスが下がる (流されたら下がらない)
+        if why in msgreply.CONFIDE and res in msgreply.GRUMBLE_EASE:     # 愚痴・相談を聞いてもらえた: ストレスが下がる (流されたら下がらない)
             eff["stress"] = eff.get("stress", 0) - msgreply.GRUMBLE_EASE[res]
         if auto:                                     # 自動の返事 (画面を閉じていた間): 効き目を弱く
             eff = {k: v * 0.5 for k, v in eff.items()}

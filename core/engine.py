@@ -1093,6 +1093,8 @@ class App:
                 rate *= float(t_rate.get(pid, 1)) * (1 + 0.3 * self.attach.factor(char, st, "dependence"))
             if rate > 0 and pid in WAVE_RATE:        # 生活の波: 忙しい・人付き合いが多い時期は寂しさがたまりにくい など (core/waves.py)
                 rate *= self.waves.mult(char, st, WAVE_RATE[pid])
+                if st.get("circle"):                 # 知り合いと会う予定で紛れる分を, ほかの時間でならす (core/circle.py fill_f)
+                    rate *= self.circle.fill_f(char, st, t, pid)
             d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:

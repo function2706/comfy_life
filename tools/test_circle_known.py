@@ -196,6 +196,8 @@ def main():
         cur = {"kind": "out", "place": "cafe", "with": None}
         r["known"] = {}
         r["plans"] = [plan("p5", now - 1800, now + 3600)]
+        own = app.own_scene                     # 夜中に流すと寝ている時間で, 予定の場面にならない: 起きている前提にする
+        app.own_scene = lambda c, d: dict(own(c, d), away=False, busy=False, asleep=False)
         assert app.scene_at(char, st, engine.datetime.fromtimestamp(now))["activity"] == "circle"
         assert not app.street.around(cid, now)                                 # 予定の最中: ふつうのばったりでは会わない
         spot = Counter()
@@ -240,6 +242,7 @@ def main():
             app.street.happen(cur, now)
         res = app.street.resolve("talk", auto=True, weak=True)
         assert r["known"]["p5"]["via"] == "spot" and res["auto"]
+        app.own_scene = own
         print("ばったり: OK | 同じ行き先で %d/60 回見かけた" % spot["spot"])
 
         # ---- 8b. 会って: 「付き合ってる人いるの？」(コマンド. メッセージと同じ判定・同じ数え方) と, 話の中の愚痴 (相づち・掘り下げるで聞く)
