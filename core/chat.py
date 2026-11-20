@@ -41,6 +41,7 @@ KINDS = {
     "you_ok": ("大丈夫？", "🩹", "（大丈夫？と気づかった）"),
     "what_doing": ("今何してる？", "👀", "（今何してるか聞いた）"),
     "who_with": ("誰といたの？", "🕵", "（誰といたのか聞いた）"),
+    "ask_single": ("付き合ってる人いるの？", "💭", "（付き合っている人がいるのか聞いた）"),      # 判定は manners (core/circle.py の段 2)
     "nudge": ("返事まだ？", "⏳", "（返事を催促した）"),
     "topic": ("話題を振る", "💬", "（話題を振った）"),          # どの話題かは選ぶ (topics.send)
     "ask_bday": ("誕生日いつ？", "🎂", "（誕生日を聞いた）"),
@@ -49,7 +50,7 @@ KINDS = {
 }
 # 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
 GROUPS = [
-    ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
+    ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "ask_single", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
     ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
     ("invite", "📅", "誘う", ["invite", "ask_bday", "tell_bday"]),
     ("photo", "📷", "写真", ["photo", "ask_selfie"]),
@@ -143,6 +144,14 @@ LINES = {
     "chat.wave_social": "📱『最近、友達と出かけることが多くて。毎週何かある感じです』",
     "chat.wave_down": "📱『……最近ちょっと、気分が上がらなくて。たいしたことじゃないんですけど』",
     "chat.wave_free": "📱『最近けっこう暇なんです。何かいいことないかなって』",
+    # 知り合いと会ったあとの話 (core/circle.py. メッセージに添える / 対面の話に足すときは 📱 と『』を外す)
+    "chat.circle_told": "📱『そういえば{when}、{who}と{did}んです。楽しかったですよ』",
+    "chat.circle_told_uneasy": "📱『そういえば{when}、{who}と{did}んですけど……ちょっと気疲れしました』",
+    # 付き合ってる人いるの？ (core/manners.py. 答えは画面に事実として出さない: 言ったことだけ)
+    "chat.ask_single_no": "📱『え、いませんよ？ ……急にどうしたんですか』",
+    "chat.ask_single_vague": "📱『さあ、どうでしょう。……それ、聞きます？』",
+    "chat.ask_single_bad": "📱『……そういうこと、いきなり聞くものじゃないと思います』",
+    "chat.ask_single_much": "📱『……前にも聞きましたよね。なんでそんなに気にするんですか』",
     "chat.appoint_invite": "📱『{call}、{when}、{place}に行きませんか？』",
     "chat.appoint_invite_myhome": "📱『{call}、{when}、うちに遊びに来ませんか？』",
     "chat.appoint_invite_yourhome": "📱『{call}、{when}、そっちに遊びに行ってもいいですか？』",
@@ -255,12 +264,16 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "appoint_busy": "約束の誘い (その時間は予定がある)",
                "appoint_no_busy": "約束の誘い (断った. 忙しい時期で, やることが詰まっている)",
                "appoint_no_friends": "約束の誘い (断った. その日に知り合いと会う予定がある. 時期しだいで言う)",
-               "appoint_plan": "約束の誘い (その時間に知り合いと会う予定がある. {who} は 友達 / 職場の人 / 上司 / 家族)",
+               "appoint_plan": "約束の誘い (その時間に知り合いと会う予定がある. {who} は 友達の佐藤さん / 職場の佐藤さん / 上司の佐藤さん / 母 など)",
                "wave_busy": "相手から送るメッセージに添える近況 (忙しい時期. 文頭の 📱 と『』は外して添える)",
                "wave_hooked": "相手から送るメッセージに添える近況 (何かにはまっている時期)",
                "wave_social": "相手から送るメッセージに添える近況 (人付き合いが多い時期)",
                "wave_down": "相手から送るメッセージに添える近況 (落ち込んでいる時期)",
-               "wave_free": "相手から送るメッセージに添える近況 (暇な時期)", "appoint_invite": "相手から約束に誘う ({when} {place})",
+               "wave_free": "相手から送るメッセージに添える近況 (暇な時期)",
+               "circle_told": "知り合いと会ったことを話す (親しい・ふつうの人. {when} 昨日 / 今日 / さっき, {who} 友達の佐藤さん など, {did} ご飯に行った など. 文頭の 📱 と『』は外して添える)",
+               "circle_told_uneasy": "知り合いと会ったことを話す (苦手な人. 置き換えは circle_told と同じ)",
+               "ask_single_no": "付き合ってる人いるの？ (いない. 正直に)", "ask_single_vague": "付き合ってる人いるの？ (はぐらかす)",
+               "ask_single_bad": "付き合ってる人いるの？ (聞き方・仲で気分を害した)", "ask_single_much": "付き合ってる人いるの？ (何度も聞かれた)", "appoint_invite": "相手から約束に誘う ({when} {place})",
                "appoint_invite_myhome": "相手から自分の家に呼ぶ ({when})", "appoint_invite_yourhome": "相手からあなたの家に行きたいと誘う ({when})",
                "appoint_invite_now": "相手から急に誘う (これから {place})", "appoint_invite_now_myhome": "相手から急に自分の家に呼ぶ (これから)",
                "appoint_invite_now_yourhome": "相手から急にあなたの家に寄りたいと言う (近くにいる)",

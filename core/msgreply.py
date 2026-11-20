@@ -14,7 +14,8 @@ import random
 # 以前は理由が書かれておらず, どれが効くかは画面に出ない性格の好みと揺らぎで決まって, 当てもののようになっていた.
 WHY_AIDS = ("msg_chat",)
 WHY_LABEL = {"bored": "退屈", "tired": "疲れている", "happy": "いいことがあった", "lonely": "寂しい",
-             "unsure": "あなたの気持ちが気になる (探り)", "changed": "あなたの返し方がいつもと違った (何かあった？)"}
+             "unsure": "あなたの気持ちが気になる (探り)", "changed": "あなたの返し方がいつもと違った (何かあった？)",
+             "grumble": "苦手な人と会ったあとの愚痴 ({who} に 上司の佐藤さん など)"}
 WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理由> があればそちら)
     "bored": "📱『{call}、暇すぎて……。いま何してます？』",
     "tired": "📱『今日ちょっと疲れちゃって。……少しだけ話せます？』",
@@ -24,6 +25,8 @@ WHY_TEXT = {      # 誘いの文 (性格プリセットの ap.msg_chat.call_<理
     "unsure": "📱『{call}、最近忙しいですか？』",
     # あなたの癖 (core/regard.py): ふだんはよく返す時間帯に返ってこなかった・ふだんよりずっと遅かったあと. これも presence.fire が決める
     "changed": "📱『{call}、何かありました？ いつもと少し違う気がして』",
+    # 愚痴 (core/circle.py): 苦手な人・こじれた人と会ったあと. pick_why では選ばれない (presence.fire が決める). {who} にその人
+    "grumble": "📱『{call}、ちょっと聞いてもらえます？ さっきまで{who}と一緒だったんですけど、なんだか疲れてしまって』",
 }
 WHY_OPTIONS = {
     "bored": [("cheerful", "「いいよ、話そう」と返す"), ("expand", "「何して暇つぶしてたの？」と聞き返す"),
@@ -38,20 +41,25 @@ WHY_OPTIONS = {
                ("worry", "「どうしたの？ 何かあった？」と返す"), ("curt", "「まあね」とだけ返す")],
     "changed": [("expand", "「ちょっと立て込んでて。心配かけてごめん」と返す"), ("cheerful", "「大丈夫、元気だよ」と返す"),
                 ("tease", "「心配性だなぁ」とからかう"), ("curt", "「別に」とだけ返す")],
+    "grumble": [("worry", "「お疲れさま。何があったの？」と聞く"), ("expand", "「うん、聞くよ」と返す"),
+                ("cheerful", "「まあまあ、気にしない気にしない」と流す"), ("curt", "「そっか」とだけ返す")],
 }
 WHY_FIT = {"bored": {"cheerful": 6, "expand": 6, "tease": 4, "curt": -12},
            "tired": {"worry": 10, "cheerful": 2, "tease": -20, "curt": -6},
            "happy": {"expand": 10, "cheerful": 6, "tease": -20, "curt": -10},
            "lonely": {"cheerful": 8, "worry": 6, "expand": 6, "curt": -16, "tease": -6},
            "unsure": {"expand": 10, "cheerful": 6, "worry": 2, "curt": -16, "tease": -10},
-           "changed": {"expand": 10, "cheerful": 6, "tease": -8, "curt": -16}}
+           "changed": {"expand": 10, "cheerful": 6, "tease": -8, "curt": -16},
+           "grumble": {"worry": 10, "expand": 8, "cheerful": -4, "curt": -16, "tease": -16}}
+GRUMBLE_EASE = {"good": 8, "neutral": 3}     # 愚痴を聞いてもらえた: 相手のストレスが下がる (流されたら下がらない)
 # よくなかったときの返し: 理由をにじませる (次から読めるように. 性格プリセットの msgr.why.<理由>.bad があればそちら)
 WHY_BAD = {"bored": "📱『……そんなに忙しいなら、いいです』",
            "tired": "📱『……今日はちょっと、そういう気分じゃなくて。疲れてて』",
            "happy": "📱『……せっかく話したかったのに』",
            "lonely": "📱『……そっか。ごめんなさい、急に』",
            "unsure": "📱『……そうですか。なら、いいんです』",
-           "changed": "📱『……そうですか。何もないなら、いいんですけど』"}
+           "changed": "📱『……そうですか。何もないなら、いいんですけど』",
+           "grumble": "📱『……そうですよね。愚痴なんて聞きたくないですよね。もういいです』"}
 
 
 def pick_why(char, st):

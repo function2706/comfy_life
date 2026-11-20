@@ -70,7 +70,7 @@ _TONES = {
 }
 TONE_OF = {k: t for t, ks in _TONES.items() for k in ks}
 AP_TONE = {"msg_miss": "lonely", "msg_today": "news", "msg_where": "where", "msg_chat": "bored"}
-WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question"}
+WHY_TONE = {"bored": "bored", "tired": "down", "happy": "happy", "lonely": "lonely", "unsure": "question", "changed": "question", "grumble": "down"}
 AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy", "sorry", "sorry_late")   # 返事を待っている話 (遅れると響きにくい)
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)
@@ -246,7 +246,7 @@ def target(app, cid, st, now):
     it = items[-1]
     tg = {"t": it["t"], "kind": it.get("kind"), "tone": tone_of(app, st, it), "ap": it.get("ap")}
     if it.get("kind") == "approach":      # 「話そう」の文面が問いかけ (「いま何してます？」): 「答える」も並べる (kinds_for)
-        tg["asks"] = text_question(it.get("text"))
+        tg["asks"] = bool(it["asks"]) if "asks" in it else text_question(it.get("text"))     # 印 (添えた近況で文面の終わりが変わっても) / 以前の記録は文面から
     return tg
 
 

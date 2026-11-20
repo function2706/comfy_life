@@ -1950,6 +1950,9 @@ class App:
             rumor_note = self.rumors.from_talk(char, st, now)        # 会社や店の噂 (会話・気配りのスキルで頻度と確かさ)
             if rumor_note:
                 text += "\n" + rumor_note
+            told = self.circle.tell(char, st, now, "talk")           # 知り合いと会ったあと: 「昨日〇〇とご飯に行った」(core/circle.py)
+            if told:
+                text += "\n" + self.chat.line(char, told[0], told[1]).replace("📱", "").strip().strip("『』")
         if home_note:
             text += "\n" + self.format_text(home_note, char, scene, dt)
         if dress_note:
@@ -2709,6 +2712,7 @@ class App:
                         "last_contact": st.get("last_contact"), "last_touch": st.get("last_touch"),
                         "known": list(reversed([k for k in st.get("known") or [] if k.get("kind") != "schedule"]))[:12],
                         "sched": list(reversed(self.knowsched.view(c, st, now))),
+                        "circle": self.circle.known_view(c, st),          # あなたが知っている, 相手の知り合い (core/circle.py)
                         "owed": int((ps.get("loans") or {}).get(cid, 0)),
                         "living_policy": c.get("living_policy") or "split" if b["stage"] == "live" else None,
                         "pay_policy": c.get("pay_policy") or "auto",

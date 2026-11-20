@@ -9,7 +9,7 @@ import collections
 import sys
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import engine, store, waves as W  # noqa: E402
@@ -205,12 +205,14 @@ def main():
 
         # ---- 7. 誘いの断り方: 忙しい・人付き合いの時期は理由を言うことがある. ふつうは言わない
         # 「友達と約束がある」は, 誘われた日に本当に知り合いと会う予定があるときだけ (core/circle.py. 作り事にしない)
-        def keys(wv, n=300, plan=False):
+        noon = (datetime.fromtimestamp(now) + timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0).timestamp()
+
+        def keys(wv, n=300, plan=False):        # 明日の正午の予定と, 同じ日の 15 時の誘い (夜に流しても日をまたがない)
             V.rec(char, st).update(p=wv)
             cr = app.circle.rec(char, st, now)
-            cr["plans"] = [{"t0": now + 86400, "t1": now + 86400 + 7200, "pid": cr["people"][0]["pid"], "place": "cafe",
+            cr["plans"] = [{"t0": noon, "t1": noon + 7200, "pid": cr["people"][0]["pid"], "place": "cafe",
                             "kind": "meal"}] if plan else []
-            return {V.decline_key(char, st, now + 86400 + 3 * 3600) for _ in range(n)}
+            return {V.decline_key(char, st, noon + 3 * 3600) for _ in range(n)}
         assert keys("busy") == {None, "appoint_no_busy"} and keys("social") == {None}
         assert keys("social", plan=True) == {None, "appoint_no_friends"} and keys("normal", plan=True) == {None, "appoint_no_friends"}
         assert keys("normal") == {None} and keys("free") == {None}
@@ -270,12 +272,13 @@ def main():
         free = app.scheduled_scene
         app.scheduled_scene = lambda c, d: dict(free(c, d), away=False, busy=False, asleep=False)
         V.rec(char, st).update(p="social")
-        cr = app.circle.rec(char, st, now)          # その日の夜に知り合いと会う予定がある (誘いの時刻とは重ならない)
-        cr["plans"] = [{"t0": now + 2 * 86400 + 4 * 3600, "t1": now + 2 * 86400 + 6 * 3600, "pid": cr["people"][0]["pid"],
+        cr = app.circle.rec(char, st, now)          # その日の夜に知り合いと会う予定がある (誘いの時刻とは重ならない. 夜に流しても日をまたがない)
+        day2 = noon + 86400 - 2 * 3600               # あさっての 10 時の誘い・14〜16 時の予定
+        cr["plans"] = [{"t0": day2 + 4 * 3600, "t1": day2 + 6 * 3600, "pid": cr["people"][0]["pid"],
                         "place": "cafe", "kind": "meal"}]
         got = Counter()
         for i in range(120):
-            x = {"id": "w%d" % i, "cid": cid, "t": now + 2 * 86400, "place": "riverside", "do": "walk", "by": "me",
+            x = {"id": "w%d" % i, "cid": cid, "t": day2, "place": "riverside", "do": "walk", "by": "me",
                  "status": "asked", "made": now, "rounds": 9}
             app.appoint.all().append(x)
             p.update(affection=35, mood=35)

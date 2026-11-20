@@ -2523,7 +2523,8 @@ function streetCard() {
   if (!sp) return null;
   return h('div', { class: 'street-card' + (sp.type === 'call' ? ' calling' : '') },
     h('div', { class: 'row', style: 'align-items:center;gap:8px;flex-wrap:nowrap' }, avatar(sp.face, sp.name, 'small'),
-      h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた` : `👀 ${sp.where}で、${sp.name}を見かけた`)),
+      h('div', {}, sp.type === 'call' ? `💬 ${sp.where}で、${sp.name}に声をかけられた`
+        : sp.type === 'spot' ? `👀 ${sp.where}で、${sp.name}が誰かと一緒にいるのを見かけた` : `👀 ${sp.where}で、${sp.name}を見かけた`)),
     sp.text ? h('div', { class: 'muted' }, `「${sp.text}」`) : '',
     h('div', { class: 'row' }, sp.options.map((o) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerStreet(o.id) }, o.label))));
 }
@@ -3686,12 +3687,15 @@ function ago(t) {
   return d <= 0 ? `今日 ${hhmm(t)}` : d === 1 ? '昨日' : `${d}日前（${dt.getMonth() + 1}/${dt.getDate()}）`;
 }
 const SCHED_VIA = { talk: '本人から', secondhand: '人づてに', workplace: '職場で見かけた', message: 'メッセージで' };
+// 相手の知り合い (core/circle.py): どうやって知ったか・話しぶりから分かった向き
+const CIRCLE_VIA = { phone: '電話で', message: 'メッセージで', talk: '話で', decline: '誘いを断られたときに', spot: '出先で紹介された', grumble: '愚痴で' };
+const CIRCLE_FEEL = { warm: '仲がよさそう', uneasy: '苦手そう' };
 function renderPeople() {
   const ps = S.view.people || [];
   const box = $('#tab-people');
   const mode = statMode();
   box.replaceChildren(
-    h('p', { class: 'hint' }, '知っている人との関係です。見た目の印象は、そばにいる人だけ分かります（離れている人は「？」）。好きなもの・聞いた話・予定は、渡してみた・部屋で見た・本人や人づてに聞いた・見かけたものだけです（予定は変わることもあります）。'),
+    h('p', { class: 'hint' }, '知っている人との関係です。見た目の印象は、そばにいる人だけ分かります（離れている人は「？」）。好きなもの・聞いた話・予定・知り合いは、渡してみた・部屋で見た・本人や人づてに聞いた・見かけたものだけです（予定は変わることもあります）。'),
     ...ps.map((p) => {
       const near = !!p.mode;
       const see = near || S.ui.showApart;
@@ -3721,6 +3725,8 @@ function renderPeople() {
           row('好きなもの', likes.length ? likes.map((k) => `${KNOWN_LABEL[k.kind]}: ${k.text}`).join('・') : '？（まだ知らない）'),
           heard.length ? row('聞いた話', heard.slice(0, 4).map((k) => h('div', {}, `${ago(k.t)}　${k.text}`))) : '',
           stock.length ? row('株の噂', stock.slice(0, 3).map((k) => h('div', {}, `${ago(k.t)}　${k.text}（${k.about ? `${k.about}のことを人づてに` : k.via === 'message' ? 'メッセージで' : '本人から'}）`))) : '',
+          (p.circle || []).length ? row('知っている知り合い', p.circle.slice(0, 7).map((k) => h('div', {},
+            `${k.label}${k.feel ? `（${CIRCLE_FEEL[k.feel] || ''}）` : ''}　${CIRCLE_VIA[k.via] || '聞いた'}・${ago(k.t)}`))) : '',
           (p.sched || []).length ? row('予定について', p.sched.slice(0, 6).map((k) => h('div', { class: k.stale || k.old ? 'muted' : '' },
             `${k.text}（${SCHED_VIA[k.via] || '聞いた'}・${ago(k.t)}）`, k.stale ? h('span', { class: 'tag', style: 'margin-left:4px' }, 'もう違うかも') : k.old ? h('span', { class: 'tag', style: 'margin-left:4px' }, '前に聞いた話') : ''))) : '',
           p.owed ? row('貸し借り', h('span', { class: 'down' }, `あなたが ${yen(p.owed)} 借りている`)) : '',

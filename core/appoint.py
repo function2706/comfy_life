@@ -461,6 +461,8 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)        # その時間は無理だけど, この時間なら
             x["status"] = "declined"
             self.save()
+            if plan:                                   # 名前を言って断った: あなたがその人を知る (core/circle.py)
+                app.circle.learn(char, st, plan["pid"], "decline", now)
             return ("appoint_plan" if plan else "appoint_busy"), {}, extra
         promised = st.get("date_promise", 0) > now or bool(x.get("counter"))        # 自分から誘った話の続き
         pa = 0.35 + (p.get("affection", 50) - 50) / 80.0 + (p.get("mood", 50) - 50) / 150.0 \

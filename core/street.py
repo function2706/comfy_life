@@ -25,7 +25,9 @@ CALL_P = [0.08, 0.2, 0.45, 0.6, 0.6]          # 段階ごとの, 相手から声
 TIMEOUT = 150                                 # 返事を選ばずにこれだけ過ぎたら, 無難な対応に落ち着く (秒)
 NEW_FACE_W = 1.0
 OPTIONS = {"call": [("chat", "応じて立ち話する"), ("nod", "軽く会釈する"), ("decline", "急いでいると断る")],
-           "sight": [("talk", "声をかける"), ("nod", "会釈する"), ("pass", "そのまま通り過ぎる")]}
+           "sight": [("talk", "声をかける"), ("nod", "会釈する"), ("pass", "そのまま通り過ぎる")],
+           # 登録キャラが, 知り合いと会っている最中 (core/circle.py の予定) に同じ行き先にいた
+           "spot": [("talk", "声をかける"), ("nod", "目が合ったら会釈だけする"), ("pass", "見なかったことにする")]}
 HAUNT_PLACES = ["park", "shopping_street", "riverside", "station", "cafe", "mall"]
 HAUNT_PHASES = ["morning", "noon", "evening", "night"]
 # 共通のセリフ (性格プリセットに無ければ). {call} は知り合いのときだけ
@@ -36,7 +38,13 @@ LINES = {"enc.call.first": "あの……すみません、これ、落としま�
          "enc.decline": "あ、ごめんなさい。お急ぎでしたね。",
          "enc.join.invite": "あの、{call}。よかったら、このまま少し一緒にいませんか？",
          "enc.join.yes": "いいですよ。じゃあ、少しだけ一緒に。",
-         "enc.join.no": "ごめんなさい、このあと用事があって……また今度。"}
+         "enc.join.no": "ごめんなさい、このあと用事があって……また今度。",
+         # 知り合いと一緒のところで, あなたが声をかけた ({who} に 友達の佐藤さん など)
+         "enc.spot_hi": "あれ、{call}？ 偶然ですね。こちら、{who}です。",
+         "enc.spot_hi_uneasy": "あ、{call}……。いま{who}と一緒で。……声をかけてもらえて、ちょっとほっとしました。"}
+SPOT_FX = {"warm": {"mood": 1, "loneliness": -2}, "plain": {"mood": 1, "loneliness": -2},
+           "uneasy": {"mood": 2, "stress": -3}, "strained": {"mood": 2, "stress": -3}}     # 声をかけられた相手の効き目 (苦手な人といたら, 少し救われる)
+SPOT_P = 0.7            # 同じ行き先で相手が知り合いと会っている最中なら, 出会いの機会のうち二人を見かける割合 (core/circle.py)
 JOIN_WAIT = 600         # 立ち話のあと, 一緒に過ごすか決めるまで (秒)
 
 
@@ -85,8 +93,8 @@ class Street:
         app = self.app
         char = app.chars[cid]
         sc = app.scene_at(char, app.state(cid), datetime.fromtimestamp(now or time.time()))
-        if sc.get("asleep"):
-            return False
+        if sc.get("asleep") or sc.get("circle"):
+            return False                    # 知り合いと会っている最中は, ほかの所にいる (同じ行き先なら spot. 下の happen)
         return not (sc.get("away") and sc.get("activity") in WORK_ACTS + ("class",))
 
     def happen(self, cur, now=None):
@@ -98,6 +106,12 @@ class Street:
         from .outdoor import PLACES
         phase = app.phase_at(datetime.fromtimestamp(now)).get("id", "noon")
         place, work, with_cid = cur["place"], cur["kind"] == "work", cur.get("with")
+        if not work:                        # 登録キャラが同じ行き先で, 知り合いと会っている最中 (core/circle.py): 二人を見かける
+            spots = [(cid, x) for cid, x in ((cid, app.circle.spot_here(c, app.state(cid), place, now)) for cid, c in app.chars.items()
+                                             if cid != with_cid and not app.bonds.together(cid)) if x]
+            if spots and random.random() < SPOT_P:
+                cid, x = random.choice(spots)
+                return self._spot(cid, x, place, with_cid, now)
         live = app.bonds.living()
         pool = []
         for cid, c in app.chars.items():
@@ -183,6 +197,57 @@ class Street:
         app.outdoor.note(msg, now)
         return {"kind": typ, "name": name, "where": where, "text": "（%s）" % msg}
 
+    def _spot(self, cid, x, place, with_cid, now):
+        """登録キャラと, その知り合いを見かけた (声をかける / 会釈だけ / 見なかったことにする)."""
+        app = self.app
+        c = app.chars[cid]
+        where = (PLACES.get(place) or PLACES["town"])["label"]
+        pend = {"kind": "circle", "who": cid, "pid": x["pid"], "type": "spot", "t": now, "until": now + TIMEOUT, "where": where,
+                "with": with_cid, "name": c.get("name", ""), "text": "", "stage": 4, "place": place}
+        self.rec()["street_pending"] = pend
+        app.presence.save()
+        msg = "%sで、%sが誰かと一緒にいるのを見かけた" % (where, c.get("name", ""))
+        app.outdoor.note(msg, now)
+        app.trace.add("circle", "知り合いと一緒のところを見かけた", cid, now, pid=x["pid"], place=place)
+        return {"kind": "spot", "name": c.get("name", ""), "where": where, "text": "（%s）" % msg}
+
+    def _resolve_spot(self, pend, choice, talk, auto, now):
+        """見かけたあと: 声をかければ, 一緒の人を紹介される (あなたがその人を知る). 会釈だけ・見なかったことにするなら, 誰かは分からない."""
+        app = self.app
+        cid = pend["who"]
+        if cid not in app.chars:
+            return {"text": "（その人は、もういなかった）"}
+        char = app.char(cid)
+        name = char.get("name", "")
+        with app.lock:
+            app.tick(cid)
+            st = app.state(cid)
+            p = app.circle.person(char, st, pend.get("pid")) or {}
+            deltas, line = {}, ""
+            if talk:
+                who = app.circle.who_label(char, st, p.get("pid"))
+                app.circle.learn(char, st, p.get("pid"), "spot", now)
+                key = "enc.spot_hi_uneasy" if p.get("tone") in ("uneasy", "strained") else "enc.spot_hi"
+                line = self._line(char, key, pend["where"]).replace("{who}", who)
+                eff = dict(SPOT_FX.get(p.get("tone"), SPOT_FX["plain"]))
+                if getattr(self, "_weak", False):
+                    eff = {k: v * 0.5 for k, v in eff.items()}
+                eff, _ = app.bonds.realize(char, st, eff, "_encounter", now)
+                deltas = app.apply_effects(st, app.trait_effects(char, eff))
+                app.bonds.touch(st, now)
+                text = "（%sで、%sに声をかけた。%sと一緒だった）" % (pend["where"], name, who)
+            elif choice == "nod":
+                text = ("（%sで、%sと目が合って、会釈だけした。誰かと一緒だった）" if not auto else
+                        "（%sで、%sが誰かと一緒にいるのを見かけた。会釈だけした）") % (pend["where"], name)
+            else:
+                text = "（%sで、%sが誰かと一緒にいるのを見かけたが、%s）" % (pend["where"], name, "気づかずに通り過ぎた" if auto else "見なかったことにした")
+            if line:
+                text += "\n" + line
+            if talk or choice == "nod":
+                app.encounters._entry(cid, now, "ばったり", "✨", text, deltas)
+            app.save_state(cid)
+        return {"text": text}
+
     def _line(self, c, key, where):
         app = self.app
         t = app.persona_text(c, key) or LINES[key]
@@ -218,6 +283,8 @@ class Street:
         self._weak = weak                     # 自動の応答 (予定の欄の方針): 効き目を弱く
         if pend["kind"] == "char":
             out = self._resolve_char(pend, choice, talk, auto, now)
+        elif pend["kind"] == "circle":
+            out = self._resolve_spot(pend, choice, talk, auto, now)
         else:
             out = self._resolve_person(pend, choice, talk, auto, now)
         app.outdoor.note(out["text"].split("\n")[0].strip("（）"), now)
@@ -427,7 +494,7 @@ class Street:
     def face(self, pend):
         """出先で会った人の顔 (アイコンがあれば. 登録済みならキャラの顔)."""
         app = self.app
-        if pend["kind"] == "char":
+        if pend["kind"] in ("char", "circle"):
             return app.chat.face(pend["who"]) if pend["who"] in app.chars else None
         pr = self.people().get(pend["who"]) or {}
         if pr.get("cid") in app.chars:

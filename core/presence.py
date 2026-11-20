@@ -323,7 +323,11 @@ class Presence:
                 st["approach"]["place_label"] = (act.get("override") or {}).get("location") or act.get("name", "")
                 text0 = text0.replace("{place}", st["approach"]["place_label"])
         why = msgreply.pick_why(char, st) if a["id"] in msgreply.WHY_AIDS else None      # 「話そう」の理由: 誘いの文に出す
-        if why and apart and not force and self.app.regard.probe(char, st, now):
+        gr = self.app.circle.grumble(char, st, now) if why and apart and not force else None
+        if gr:
+            why = "grumble"                # 苦手な人と会ったあと: 愚痴を聞いてほしい (core/circle.py. 聞けばストレスが下がる)
+            st["approach"]["who"] = gr
+        elif why and apart and not force and self.app.regard.probe(char, st, now):
             why = "unsure"                 # 好きなのに, 思われていない気がする: 探りを入れる (core/regard.py)
         elif why and apart and not force and self.app.regard.ask_changed(char, st, now):
             why = "changed"                # あなたの返し方が, いつもと違った: 「何かあった？」(core/regard.py あなたの癖)
@@ -331,7 +335,7 @@ class Presence:
             st["approach"]["why"] = why
             self.app.trace.add("approach", "話そうの理由: %s" % why, char["id"], now, boredom=st["params"].get("boredom"),
                                energy=st["params"].get("energy"), mood=st["params"].get("mood"), loneliness=st["params"].get("loneliness"))
-        if why and apart and not force and phone:
+        if why and why != "grumble" and apart and not force and phone:
             via = self.app.ring.want_call(char, st, why, now)      # メッセージでなく, 電話で (急に / 電話していい？. core/ring.py)
             if via:
                 st.pop("approach", None)
@@ -351,7 +355,14 @@ class Presence:
                 said = self.app.chat.line(char, wk, {}).replace("📱", "").strip().strip("『』")
                 body = body[:-1] + " " + said + "』" if body.endswith("』") else body + " " + said
                 self.app.trace.add("waves", "近況を添えた: %s" % wk, char["id"], now)
-            self.app.chat.add(char["id"], "her", body, kind="approach", t=now, ap=a["id"], why=why, wave=wk)    # 何の話か (返し方の合う・外す)
+            elif why != "grumble":
+                told = self.app.circle.tell(char, st, now, "message")     # 知り合いと会ったあと: 「昨日〇〇とご飯に行った」(core/circle.py)
+                if told:
+                    said = self.app.chat.line(char, told[0], told[1]).replace("📱", "").strip().strip("『』")
+                    body = body[:-1] + " " + said + "』" if body.endswith("』") else body + " " + said
+            # 何の話か (返し方の合う・外す). asks: 近況・会ったことを後ろに添えても, 問いかけだった印は残す (react.target は文面より印を見る)
+            self.app.chat.add(char["id"], "her", body, kind="approach", t=now, ap=a["id"], why=why, wave=wk,
+                              **({"asks": st["approach"]["asks"]} if why else {}))
             told = self.app.knowsched.from_message(char, st, now)      # 今日のことが添えられることがある
             if told:
                 self.app.chat.add(char["id"], "sys", told, kind="sched", t=now + 0.0005)
@@ -393,6 +404,7 @@ class Presence:
         d = datetime.fromtimestamp(now)
         text = app.persona_text(char, "ap.%s.%s" % (a["id"], ev)) or text
         text = text.replace("{place}", (st.get("approach") or {}).get("place_label", ""))     # 「次, あそこ」の行き先 (性格のセリフにも)
+        text = text.replace("{who}", (st.get("approach") or {}).get("who", "知り合い"))       # 愚痴の相手 (core/circle.py)
         scene = app.scene_at(char, st, d)
         text = app.format_text(text, char, scene, d)
         act = {"id": "_ap_" + a["id"], "name": a.get("label", a["id"]), "icon": a.get("icon", "💬"),
@@ -606,6 +618,8 @@ class Presence:
                    for k, v in (out.get("effects") or {}).items()}
         else:
             eff = dict(msgreply.EFFECT[res])
+        if why == "grumble" and res in msgreply.GRUMBLE_EASE:     # 愚痴を聞いてもらえた: ストレスが下がる (流されたら下がらない)
+            eff["stress"] = eff.get("stress", 0) - msgreply.GRUMBLE_EASE[res]
         if auto:                                     # 自動の返事 (画面を閉じていた間): 効き目を弱く
             eff = {k: v * 0.5 for k, v in eff.items()}
         eff, _ = self.app.bonds.realize(char, st, eff, "_ap_" + a["id"], now)        # 揺らぎ・鈍り・繰り返し

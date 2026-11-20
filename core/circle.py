@@ -24,7 +24,19 @@
   割合で, それ以外の時間をわずかに上げる (負の偏りを作らない. tools/check_circle.py).
 - あなたの誘いがその時間に重なると, 相手は予定がふさがっている (appoint の busy) ので断る (理由は appoint_plan).
   献身的なら予定のほうをずらして合わせてくれることがある (drop).
+
+段 2: あなたに知られる経路. どれも裏の予定 (事実) からだけ出す.
+- 言い方 (who_label): 「友達の佐藤さん」「職場の佐藤さん」「上司の佐藤さん」. 家族は名前でなく続柄 (母・姉 … 名前から決まった形で).
+  元恋人・言い寄る人 (段 3・4 の HIDE_KINDS) は名前を言わず「知り合い」.
+- 知ったこと (known): st["circle"]["known"][pid] = {t0 (初めて知った), t (最後に聞いた), via, feel}. st["known"] は 30 件で
+  古いものから消えるので, 人はこちらに残す. via: phone / message / talk / decline / spot / grumble.
+  feel は話しぶりから分かった向き (warm 仲がよさそう / uneasy 苦手そう). 関係性タブに「知っている知り合い」として出る.
+- 話の中で (tell): 会ったあと 30 時間のうちに, メッセージ・対面の話で「昨日〇〇とご飯に行った」. 予定ごとに一度だけくじを引く.
+- 愚痴 (grumble): 苦手な人と会ったあと, 「話そう」の理由が grumble になることがある (返し方で聞けば, 相手のストレスが下がる).
+- 誰といるの / いたの (answer_mode の補正 hide_shift): 元恋人・言い寄る人・傾き (pull) の高い人ほどはぐらかす (段 3・4 で効く).
+- ばったり (spot_here): あなたが外にいて, 相手が同じ行き先で予定の最中なら, 相手とその人を見かける (core/street.py).
 """
+import hashlib
 import random
 import time
 from datetime import datetime, timedelta
@@ -62,6 +74,17 @@ TONE_FX = {"warm": {"loneliness": -5, "boredom": -6, "mood": 2, "stress": -2},
            "strained": {"boredom": -1, "stress": 6, "mood": -3}}
 MEAL_FX = {"satiety": 25, "hydration": 15}
 WORK_ACTS = ("work", "parttime")
+
+# 段 2: 知られる経路
+HIDE_KINDS = ("ex", "suitor")           # 名前を言いたがらない間柄 (段 3・4 で人に加わる)
+REL_WORD = {"friend": "友達", "classmate": "友達", "coworker": "職場", "boss": "上司"}
+FAMILY_ROLES = ("母", "父", "姉", "兄", "妹", "弟", "いとこ")
+DID = {"meal": "ご飯に行った", "hang": "出かけた", "drink": "飲みに行った", "work_after": "仕事帰りにご飯に行った"}
+TELL_SPAN = 30 * 3600                   # 会ってからこれだけのうちなら, 話に出ることがある
+TELL_P = {"message": 0.35, "talk": 0.5}     # 予定ごとに一度だけのくじ (最初に話す機会で)
+GRUMBLE_SPAN = 4 * 3600                 # 苦手な人と会ってから, 愚痴になりうる長さ (「さっきまで一緒だった」と言える間)
+GRUMBLE_P = 0.5
+HIDE_SHIFT = {"ex": 0.45, "suitor": 0.35}   # 誰といるの？ を はぐらかす方へずらす量 (段 3・4)
 
 
 def _wave_mean():
@@ -361,9 +384,116 @@ class Circle:
         return round((1 - sh * CONTACT_IN) / (1 - sh), 4)
 
     def who_word(self, char, st, x):
-        """予定の相手を, あなたに言うときの言い方 (段 1 は間柄だけ. 名前は段 2)."""
-        p = self.person(char, st, x["pid"]) or {}
-        return KINDS.get(p.get("kind"), "知り合い") if p.get("kind") != "classmate" else "友達"
+        """誘いを予定で断るときの, 予定の相手の言い方 (名前入り). 断ったときに appoint が learn(via=decline) する."""
+        return self.who_label(char, st, x["pid"])
+
+    # ------------------------------------------------------------------ 段 2: 知られる経路
+    def family_role(self, char, p):
+        """家族の続柄 (名前から決まった形で. 記録には持たない: 段 1 のセーブにもそのまま効く)."""
+        h = int(hashlib.md5(("%s|%s|%s" % (char.get("id"), p["pid"], p["name"])).encode("utf-8")).hexdigest()[:6], 16)
+        return FAMILY_ROLES[h % len(FAMILY_ROLES)]
+
+    def who_label(self, char, st, pid):
+        """あなたに言うときの言い方: 友達の佐藤さん / 職場の佐藤さん / 上司の佐藤さん / 母. 言いたがらない間柄は「知り合い」."""
+        p = self.person(char, st, pid)
+        if not p or p["kind"] in HIDE_KINDS:
+            return "知り合い"
+        if p["kind"] == "family":
+            return self.family_role(char, p)
+        return "%sの%sさん" % (REL_WORD.get(p["kind"], "知り合い"), p["name"])
+
+    def learn(self, char, st, pid, via, now=None, feel=None):
+        """あなたがその人を知った (名前と間柄). 言いたがらない間柄は名前を言わないので, 知ったことにならない."""
+        p = self.person(char, st, pid)
+        if not p or p["kind"] in HIDE_KINDS:
+            return None
+        now = now or time.time()
+        kn = self.rec(char, st).setdefault("known", {})
+        k = kn.get(pid)
+        if not k:
+            k = kn[pid] = {"t0": now, "via": via}
+            trace = getattr(self.app, "trace", None)
+            if trace:
+                trace.add("circle", "あなたが知り合いを知った: %s" % p["name"], char.get("id"), now, via=via, kind=p["kind"])
+        k["t"] = now
+        if feel:
+            k["feel"] = feel
+        return k
+
+    def known_view(self, char, st):
+        """関係性タブの「知っている知り合い」(新しく聞いた順)."""
+        r = st.get("circle") or {}
+        out = []
+        for pid, k in (r.get("known") or {}).items():
+            p = self.person(char, st, pid)
+            if not p or p["kind"] in HIDE_KINDS:
+                continue
+            out.append({"pid": pid, "label": self.who_label(char, st, pid), "feel": k.get("feel"), "via": k.get("via"),
+                        "t": k.get("t", k.get("t0"))})
+        out.sort(key=lambda x: -(x["t"] or 0))
+        return out
+
+    def _when(self, t1, now):
+        a, b = datetime.fromtimestamp(t1).date(), datetime.fromtimestamp(now).date()
+        if a == b:
+            return "さっき" if now - t1 < 3 * 3600 else "今日"
+        return "昨日" if (b - a).days == 1 else "この前"
+
+    def tell(self, char, st, now, via):
+        """会ったあとの話: 「昨日, 〇〇とご飯に行った」. 30 時間のうちに終わった予定の, 最後の 1 つについて, 一度だけくじを引く.
+        (セリフのキー, 置き換え) か None. キーは circle_told (親しい・ふつう) / circle_told_uneasy (苦手・こじれた)."""
+        r = st.get("circle")
+        if not r:
+            return None
+        cands = [x for x in r["plans"] if now - TELL_SPAN <= x["t1"] <= now and not x.get("told")]
+        if not cands:
+            return None
+        x = cands[-1]
+        x["told"] = True
+        p = self.person(char, st, x["pid"])
+        if not p or p["kind"] in HIDE_KINDS or random.random() >= TELL_P.get(via, 0.35):
+            return None
+        uneasy = p["tone"] in ("uneasy", "strained")
+        self.learn(char, st, x["pid"], via, now, feel="uneasy" if uneasy else "warm" if p["tone"] == "warm" else None)
+        trace = getattr(self.app, "trace", None)
+        if trace:
+            trace.add("circle", "会ったことを話した: %s" % p["name"], char.get("id"), now, via=via, tone=p["tone"])
+        return ("circle_told_uneasy" if uneasy else "circle_told"), {"who": self.who_label(char, st, x["pid"]), "did": DID[x["kind"]],
+                                                                       "when": self._when(x["t1"], now)}
+
+    def grumble(self, char, st, now):
+        """苦手な人・こじれた人と会ったあと (4 時間のうち), 「話そう」を愚痴にするか. 言い方 (who_label) か None. 予定ごとに一度だけ."""
+        r = st.get("circle")
+        if not r:
+            return None
+        for x in reversed(r["plans"]):
+            if not (now - GRUMBLE_SPAN <= x["t1"] <= now) or x.get("gr"):
+                continue
+            p = self.person(char, st, x["pid"])
+            if not p or p["tone"] not in ("uneasy", "strained") or p["kind"] in HIDE_KINDS:
+                continue
+            x["gr"] = True
+            if random.random() >= GRUMBLE_P:
+                return None
+            x["told"] = True                        # 愚痴で話したので, あとで「昨日〇〇と」とは言わない
+            self.learn(char, st, x["pid"], "grumble", now, feel="uneasy")
+            return self.who_label(char, st, x["pid"])
+        return None
+
+    def hide_shift(self, char, st, pid):
+        """「誰といるの / いたの」をはぐらかす方へのずれ (0〜): 元恋人・言い寄る人と, 傾き (flags.pull) の高い人ほど."""
+        p = self.person(char, st, pid) if pid else None
+        if not p:
+            return 0.0
+        pull = float((p.get("flags") or {}).get("pull", 0))
+        return HIDE_SHIFT.get(p["kind"], 0.0) + 0.3 * max(0.0, pull - 30) / 70.0
+
+    def spot_here(self, char, st, place, t):
+        """時刻 t に, 行き先 place で知り合いと会っている最中なら, その予定 (ばったり見かけうる). 無ければ None."""
+        x = self.plan_at(char, st, t)
+        if x and x.get("place") == place:
+            return x
+        return None
 
     def debug(self, char, st, now):
         r = self.rec(char, st, now)
@@ -371,4 +501,6 @@ class Circle:
                 "予定": ["%s〜%s %sと%s（%s）" % (datetime.fromtimestamp(x["t0"]).strftime("%m/%d %H:%M"),
                                               datetime.fromtimestamp(x["t1"]).strftime("%H:%M"),
                                               (self.person(char, st, x["pid"]) or {}).get("name", "?"), x["kind"], x["place"])
-                       for x in r["plans"] if x["t1"] > now]}
+                       for x in r["plans"] if x["t1"] > now],
+                "あなたが知っている知り合い": ["%s（%s%s）" % (k["label"], k["via"], "・" + k["feel"] if k.get("feel") else "")
+                                      for k in self.known_view(char, st)]}

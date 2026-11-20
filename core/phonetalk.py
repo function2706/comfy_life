@@ -951,22 +951,34 @@ class PhoneTalk:
         log = [x for x in st.get("with_log") or [] if x["t0"] <= t and t - x.get("t1", x["t0"]) < 86400]
         return log[-1] if log else None
 
-    def who_label(self, x):
+    def who_label(self, x, char=None, st=None):
+        """一緒にいる (いた) 人の言い方. 知り合いと会う予定 (pid. core/circle.py) なら名前入り (友達の佐藤さん など).
+        以前の記録 (pid なし) は間柄だけ."""
         if not x or not x.get("who"):
             return ""
         if x["who"] == "char":
             return (self.app.chars.get(x.get("cid")) or {}).get("name", "知り合い")
+        if x.get("pid") and char is not None and st is not None:
+            return self.app.circle.who_label(char, st, x["pid"])
         return WHO_LABEL.get(x["who"], "知り合い")
 
+    def told_who(self, char, st, x, via, now):
+        """正直に言った: 知り合いと会う予定の人なら, あなたがその人を知ったことにする (core/circle.py)."""
+        if x and x.get("pid"):
+            self.app.circle.learn(char, st, x["pid"], via, now)
+
     def answer_mode(self, char, st, x):
-        """「誰といるの / 誰といたの」に正直に言うか (honest / vague). 同じ場面について一度決めたら変えない."""
+        """「誰といるの / 誰といたの」に正直に言うか (honest / vague). 同じ場面について一度決めたら変えない.
+        知り合いと会う予定なら, その人との間柄で (元恋人・言い寄る人・傾きの高い人ほどはぐらかす. circle.hide_shift)."""
         if x.get("ans"):
             return x["ans"]
         app = self.app
         p = 0.7 + (0.15 if self.close_rel(char, st) else 0) - 0.08 * max(0.0, float(app.traits(char).get("modesty", 0)) - 2)
         if x.get("who") == "char" and x.get("cid") in app.chars and app.bonds.deep(x["cid"]):
             p -= 0.25                                    # あなたとも親しい人と一緒: 言いにくい
-        x["ans"] = "honest" if random.random() < max(0.2, min(0.95, p)) else "vague"
+        if x.get("pid"):
+            p -= app.circle.hide_shift(char, st, x["pid"])
+        x["ans"] = "honest" if random.random() < max(0.05, min(0.95, p)) else "vague"
         return x["ans"]
 
     def ask_count(self, st, now):
@@ -1007,7 +1019,9 @@ class PhoneTalk:
         else:
             mode = self.answer_mode(char, st, x) if x.get("who") else "honest"
             key, bump = ("phone.whoask_tell" if mode == "honest" else "phone.whoask_vague"), (0 if self.close_rel(char, st) else -3)
-        self._log(c, "her", self.line(char, key, who=self.who_label(x)), now + 0.5)
+            if mode == "honest":
+                self.told_who(char, st, x, "phone", now)
+        self._log(c, "her", self.line(char, key, who=self.who_label(x, char, st)), now + 0.5)
         app.trace.add("call", "誰といるの？と聞いた", char["id"], now, key=key, who=x.get("who"), n=n)
         nori_mod.bump(app, st, now, bump, "電話: 誰といるの？")
         c["turns"] = c.get("turns", 0) + 1

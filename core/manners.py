@@ -33,6 +33,7 @@ FAULT_DAYS = 4                   # 謝る対象として見る, あなたのせ�
 REPEAT_DAYS = 14                 # 「同じ失敗の何度目か」に数える古さ
 FAVOR_SPAN = 24 * 3600           # お礼が効く「最近」
 DEEDS_QUIET = 8 * 3600           # 「態度で」: 連絡しすぎなら, これだけ連絡を控えると消える
+SINGLE_SPAN = 14 * 86400         # 「付き合ってる人いるの？」の聞きすぎを数える長さ
 GREET_OK = {"greet_morning": lambda h: 4 <= h < 12, "greet_night": lambda h: h >= 18 or h < 4}
 GREET_ODD = {"greet_morning": lambda h: 13 <= h < 18 or h >= 21, "greet_night": lambda h: 5 <= h < 17}
 STALE_GREET = 2 * 3600           # あいさつを読むのがこれより遅れたら, まだ同じ朝・同じ夜かを見る (greet_stale)
@@ -611,6 +612,10 @@ class Manners:
         if kind == "who_with":                  # 誰といたの？ (電話の「誰といるの？」と同じ数え方. core/phonetalk.py)
             meta["asked"] = app.phonetalk.ask_count(st, now)
             meta["sent"] = now
+        if kind == "ask_single":                # 付き合ってる人いるの？ (2 週間のうちに何度も聞くと嫌がられる)
+            asks = [t for t in st.get("single_ask") or [] if now - t < SINGLE_SPAN]
+            meta["asked"] = len(asks)
+            st["single_ask"] = asks + [now]
         return meta
 
     def nudge_urgent(self, char, st, pend, now):
@@ -716,11 +721,45 @@ class Manners:
                 return "who_with_none", {}, {}
             mode = app.phonetalk.answer_mode(char, st, x)
             if mode == "honest":
-                return "who_with", {"loneliness": -1}, {"who": app.phonetalk.who_label(x), "where": x.get("label") or ""}
+                app.phonetalk.told_who(char, st, x, "message", now)
+                return "who_with", {"loneliness": -1}, {"who": app.phonetalk.who_label(x, char, st), "where": x.get("label") or ""}
             return "who_with_vague", {"mood": -0.5}, {}
+        if kind == "ask_single":
+            return self.ask_single(char, st, now, meta)
         if kind == "nudge":         # 返事を待たせていない (もう返した・何も来ていない) のに催促
             return "nudge_huh", {"mood": -2, "trust": -0.5}, {}
         return None
+
+    def single_odds(self, char, st):
+        """「付き合ってる人いるの？」の答え方の割合 (bad 気分を害する, vague はぐらかす. 残りが正直).
+        仲 (段階・好感度)・機嫌と, あなたの会話・気配りのスキルで. 回数で必ず答えてくれるようにはしない."""
+        app, L = self.app, self.app.life
+        p = st["params"]
+        stage = app.bonds.stage(char["id"])
+        bad = {"contact": 0.3, "visit": 0.12, "live": 0.03}.get(stage, 0.3) \
+            - 0.12 * L.skill_soft("talk") - 0.08 * L.skill_soft("care") \
+            + (0.15 if p.get("affection", 50) < 35 else 0.0) + (0.1 if p.get("mood", 50) < 35 else 0.0)
+        vague = 0.25 + 0.05 * max(0.0, float(app.traits(char).get("modesty", 0)) - 2) \
+            - (0.12 if app.phonetalk.close_rel(char, st) else 0.0)
+        return max(0.02, min(0.6, bad)), max(0.05, min(0.6, vague))
+
+    def ask_single(self, char, st, now, meta):
+        """付き合ってる人いるの？: 正直に (いない) / はぐらかす / 聞き方・仲で気分を害する / 何度も聞かれて嫌がる.
+        付き合っている人 (st["circle"]["partner"]) は段 4 で入る. それまでは誰もいないので, 正直な答えは「いない」だけ."""
+        L = self.app.life
+        if meta.get("asked", 0) >= 1:
+            L.add_reason(st, "player", "bad", "%sに何度も、付き合っている人がいるのか聞かれた" % self.app.pronouns(char)[2], now,
+                         told=True, delta=-2.0, action="_what_doing")
+            return "ask_single_much", {"mood": -3, "trust": -1}, {}
+        bad, vague = self.single_odds(char, st)
+        r = random.random()
+        if r < bad:
+            L.add_reason(st, "player", "bad", "%sに、付き合っている人がいるのか不躾に聞かれた" % self.app.pronouns(char)[2], now,
+                         told=False, delta=-2.0, action="_what_doing")
+            return "ask_single_bad", {"mood": -3, "trust": -1}, {}
+        if r < bad + vague:
+            return "ask_single_vague", {"shyness": 2}, {}
+        return "ask_single_no", {"shyness": 2}, {}
 
     def nudge_effect(self, char, st, pend, now):
         """返事を待っている間に「返事まだ？」と送った: 返信の前に一言 (場面, 効き目)."""

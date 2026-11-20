@@ -129,5 +129,7 @@ def all_keys(actions, minigames, approaches=()):
                                                    "enc.decline": "急いでいると断られた",
                                                    "enc.join.invite": "立ち話のあと, 一緒に過ごそうと誘ってくる",
                                                    "enc.join.yes": "一緒に過ごそうと誘ったら, 応じた",
-                                                   "enc.join.no": "一緒に過ごそうと誘ったら, 断られた"}[k], "when": "", "text": t}
+                                                   "enc.join.no": "一緒に過ごそうと誘ったら, 断られた",
+                                                   "enc.spot_hi": "知り合いと一緒のところで声をかけられ, 紹介する ({who} に 友達の佐藤さん など)",
+                                                   "enc.spot_hi_uneasy": "苦手な人と一緒のところで声をかけられた ({who} に 上司の佐藤さん など)"}[k], "when": "", "text": t}
     return out
