@@ -242,6 +242,50 @@ def main():
         assert r["known"]["p5"]["via"] == "spot" and res["auto"]
         print("ばったり: OK | 同じ行き先で %d/60 回見かけた" % spot["spot"])
 
+        # ---- 8b. 会って: 「付き合ってる人いるの？」(コマンド. メッセージと同じ判定・同じ数え方) と, 話の中の愚痴 (相づち・掘り下げるで聞く)
+        from core import phonetalk as PT
+        sched = app.scheduled_scene
+        app.scheduled_scene = lambda c, d: dict(sched(c, d), away=False, busy=False, asleep=False)
+        app.bonds.set_stage(cid, "live")
+        assert app.bonds.together(cid) and "ask_single" in [a["id"] for a in app.actions]
+        rx = {r["key"]: r for r in app.action("ask_single")["reactions"]}
+        lines = {k: app.persona_text(char, "ask_single." + k) or rx[k]["text"] for k in rx}
+        got = Counter()
+        for i in range(60):
+            st["single_ask"], st["cooldowns"] = [], {}
+            app.set_params({"mood": 60, "affection": 60}, cid)
+            t = app.act("ask_single", cid)["entry"]["text"]
+            k = next((k for k, v in lines.items() if app.format_text(v, char, app.scene_at(char, st, engine.datetime.now()),
+                                                                       engine.datetime.now()) in t), None)
+            assert k in ("default", "vague", "bad"), t
+            got[k] += 1
+        assert got["default"] > 20, got
+        st["cooldowns"] = {}
+        t = app.act("ask_single", cid)["entry"]["text"]
+        assert app.format_text(lines["much"], char, app.scene_at(char, st, engine.datetime.now()), engine.datetime.now()) in t, t   # 2 週間のうちに二度目
+        print("会って聞く: OK | %s" % dict(got))
+        C.GRUMBLE_P, gp = 1.0, C.GRUMBLE_P
+        drop = Counter()
+        for i in range(120):
+            kind = ("dig", "change")[i % 2]
+            r["plans"] = [plan("p2", time.time() - 3 * 3600, time.time() - 3600, "work_after", "restaurant")]
+            kd, key, text = app.phonetalk._topic(char, st, {}, time.time())
+            assert kd == "topic" and key == PT.GRUMBLE_KEY and "上司の鈴木さん" in text and "{" not in text and "📱" not in text, text
+            assert app.phonetalk._topic(char, st, {}, time.time())[1] != PT.GRUMBLE_KEY          # 予定ごとに一度
+            app.presence.rec().pop("call", None)
+            app.phonetalk.begin(char, st, "もしもし", True, time.time())
+            c = app.phonetalk.rec()
+            app.phonetalk._new_beat(char, st, c, "topic", PT.GRUMBLE_KEY, text, time.time())
+            st["params"]["stress"] = 60
+            app.phonetalk.reply(kind)
+            drop[kind] += 60 - st["params"]["stress"]
+            app.presence.rec().pop("call", None)
+        C.GRUMBLE_P = gp
+        app.scheduled_scene = sched
+        app.bonds.set_stage(cid, "contact")
+        assert drop["dig"] / 60.0 > drop["change"] / 60.0 + 2, drop
+        print("話の中の愚痴: OK | ストレスの下がり 掘り下げる %.1f・話を変える %.1f" % (drop["dig"] / 60.0, drop["change"] / 60.0))
+
         # ---- 8. 関係性タブ・開き直し: 知った人が出て, 開き直しても残る
         r["known"] = {}
         app.circle.learn(char, st, "p1", "talk", now - 100, feel="warm")

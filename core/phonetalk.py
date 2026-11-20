@@ -66,7 +66,9 @@ BG_P = {"coworker": 0.7, "friend_uni": 0.6, "friend_out": 0.3}           # 相�
 WHO_LABEL = {"coworker": "職場の人", "friend": "友達", "family": "家族"}
 HUSH_SPAN = {"train": 0.5, "work": 0.6}                                    # 電車の中・職場: 話していたい長さを縮める
 WORK_ACTS = ("work", "parttime")
-WITH_KEEP = 3 * 86400                                                      # with_log を残す長さ
+GRUMBLE_KEY = "circle.grumble"                                             # 愚痴の切れ目 (セリフは ap.msg_chat.call_grumble を声で)
+GRUMBLE_LISTEN = ("aizuchi", "dig")                                        # 愚痴を聞く返し方
+WITH_KEEP = 3 * 86400                                                     # with_log を残す長さ
 ASK_SPAN = 12 * 3600                                                       # 「誰といるの / 誰といたの」の聞きすぎを数える長さ
 NEAR_LONG = 10                                                             # そばの人を放っておいたと感じる通話の分
 
@@ -399,6 +401,12 @@ class PhoneTalk:
         app = self.app
         call = app.pronouns(char)[2]
         deep = c.get("deep", 0)
+        who = app.circle.grumble(char, st, t)            # 苦手な人と会ったあと: 愚痴 (core/circle.py. 相づち・掘り下げるで聞けばストレスが下がる)
+        if who:
+            txt = app.persona_text(char, "ap.msg_chat.call_grumble") or msgreply.WHY_TEXT["grumble"]
+            fp = app.pronouns(char)[0]
+            txt = txt.replace("📱", "").strip().strip("『』").replace("{who}", who).replace("{call}", call).replace("{fp}", fp)
+            return "topic", GRUMBLE_KEY, txt
         ev = [r for r in st.get("reasons") or [] if r.get("kind") == "event" and not r.get("told") and t - r.get("t", 0) < 36 * 3600]
         if ev and random.random() < 0.45 + 0.15 * deep:
             r = max(ev, key=lambda x: x["t"])
@@ -567,6 +575,8 @@ class PhoneTalk:
         c["score"] = round(c.get("score", 0) + score, 1)
         c.setdefault("res", []).append(res)
         eff = dict(EFFECT[res])
+        if b.get("key") == GRUMBLE_KEY and kind in GRUMBLE_LISTEN and res in msgreply.GRUMBLE_EASE:
+            eff["stress"] = eff.get("stress", 0) - msgreply.GRUMBLE_EASE[res]     # 愚痴を聞いてもらえた (話を変える・自分の話は流したことに)
         if c.get("doing"):
             eff = {k: v * 0.8 for k, v in eff.items()}
         app.apply_effects(st, eff, now)

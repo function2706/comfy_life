@@ -761,6 +761,12 @@ class Manners:
             return "ask_single_vague", {"shyness": 2}, {}
         return "ask_single_no", {"shyness": 2}, {}
 
+    def ask_single_face(self, char, st, now):
+        """会って「付き合ってる人いるの？」(コマンド ask_single. 反応の条件 single): メッセージと同じ数え方・同じ判定.
+        no / vague / bad / much を返す (効き目は反応の側)."""
+        meta = self.on_send(char, st, "ask_single", now)
+        return self.ask_single(char, st, now, meta)[0][len("ask_single_"):]
+
     def nudge_effect(self, char, st, pend, now):
         """返事を待っている間に「返事まだ？」と送った: 返信の前に一言 (場面, 効き目)."""
         if pend.get("nudge") == "ok":

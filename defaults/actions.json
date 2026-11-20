@@ -1125,6 +1125,66 @@
   ]
  },
  {
+  "id": "ask_single",
+  "name": "付き合ってる人いるの？",
+  "icon": "💭",
+  "category": "会話",
+  "when": "free=true",
+  "cooldown": 10,
+  "mood_action": "ask_single",
+  "effects": {},
+  "pos": "looking at viewer, upper body",
+  "neg": "",
+  "skill": "talk",
+  "reactions": [
+   {
+    "key": "default",
+    "when": "",
+    "text": "え、いませんよ？ ……急にどうしたんですか。",
+    "pos": "surprised, blush",
+    "neg": "",
+    "effects": {
+     "shyness": 2
+    }
+   },
+   {
+    "key": "vague",
+    "when": "single=vague",
+    "priority": 1,
+    "text": "さあ、どうでしょう。……それ、聞きます？",
+    "pos": "smile, looking away",
+    "neg": "",
+    "effects": {
+     "shyness": 2
+    }
+   },
+   {
+    "key": "bad",
+    "when": "single=bad",
+    "priority": 1,
+    "text": "……そういうこと、いきなり聞くものじゃないと思います。",
+    "pos": "annoyed, looking away",
+    "neg": "smile",
+    "effects": {
+     "mood": -3,
+     "trust": -1
+    }
+   },
+   {
+    "key": "much",
+    "when": "single=much",
+    "priority": 2,
+    "text": "……前にも聞きましたよね。なんでそんなに気にするんですか。",
+    "pos": "annoyed, frown",
+    "neg": "smile",
+    "effects": {
+     "mood": -3,
+     "trust": -1
+    }
+   }
+  ]
+ },
+ {
   "id": "comfort",
   "name": "相談にのる",
   "icon": "🫂",

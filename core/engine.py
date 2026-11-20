@@ -1660,6 +1660,8 @@ class App:
                 self.manners.favor(st, "consult", now)
                 ctx["consult"], _, ex = self.chat.consult_reply(char, st, pick, now, {})
                 extra.update(ex)
+            elif ma0 == "ask_single":    # 会って「付き合ってる人いるの？」: 判定はメッセージと同じ (反応の条件 single. core/manners.py)
+                ctx["single"] = self.manners.ask_single_face(char, st, now)
             # 別れぎわ (解散・帰る・送っていく): 相手はもっといたいか, それを口に出すか (core/parting.py)
             part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
             if part:
