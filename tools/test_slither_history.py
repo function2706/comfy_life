@@ -158,6 +158,25 @@ def find_browsers():
     return out
 
 
+def run_browser(args, timeout=120):
+    """画面なしのブラウザを流して, 出力 (dump-dom) を返す. 時間切れなら子プロセスごと終わらせて "" (知らせを出す).
+    subprocess.run の timeout だと, Windows では親を殺しても子 (描画のプロセス) が出力の管を握ったままで, 待ち続けて止まっていた."""
+    p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        return p.communicate(timeout=timeout)[0].decode("utf-8", "replace")
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            p.kill()
+        try:
+            p.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        print("browser: TIMEOUT (%d 秒) %s" % (timeout, os.path.basename(args[0])), file=sys.stderr)
+        return ""
+
+
 def main():
     brs = find_browsers()
     if not brs:
@@ -173,9 +192,8 @@ def main():
     url = "file:///" + page.replace("\\", "/")
     out = ""
     for k, br in enumerate(brs):
-        out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
-                              "--virtual-time-budget=3000", "--dump-dom", url],
-                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=120).stdout.decode("utf-8", "replace")
+        out = run_browser([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
+                           "--virtual-time-budget=3000", "--dump-dom", url], timeout=120)
         if "RESULT:" in out:
             break
     shutil.rmtree(tmp, ignore_errors=True)

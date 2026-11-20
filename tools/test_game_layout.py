@@ -20,7 +20,7 @@ import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from test_slither_history import find_browsers  # noqa: E402
+from test_slither_history import find_browsers, run_browser  # noqa: E402
 
 PAGE = r"""<!doctype html><meta charset="utf-8"><body>
 <iframe id="f" src="/" style="width:1400px;height:900px"></iframe><pre id="out">NOT RUN</pre>
@@ -184,10 +184,9 @@ def main():
         for k, br in enumerate(brs):
             for again in range(5):
                 try:
-                    out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--window-size=1500,1000",
+                    out = run_browser([br, "--headless", "--disable-gpu", "--no-first-run", "--window-size=1500,1000",
                                           "--user-data-dir=" + os.path.join(tmp, "prof%d_%d" % (k, again)),
-                                          "--virtual-time-budget=60000", "--dump-dom", url],
-                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=90).stdout.decode("utf-8", "replace")
+                                          "--virtual-time-budget=60000", "--dump-dom", url], timeout=90)
                 except subprocess.TimeoutExpired:
                     out = ""
                 if "LOST (" not in out:

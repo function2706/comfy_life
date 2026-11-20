@@ -14,6 +14,8 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from test_slither_history import run_browser  # noqa: E402  時間切れで止まらない起動 (子プロセスごと終わらせる)
 BROWSERS = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -160,9 +162,8 @@ def main():
     url = "file:///" + page.replace("\\", "/")
     out = ""
     for k, br in enumerate(brs):
-        out = subprocess.run([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
-                              "--virtual-time-budget=20000", "--dump-dom", url],
-                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=180).stdout.decode("utf-8", "replace")
+        out = run_browser([br, "--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=" + os.path.join(tmp, "prof%d" % k),
+                              "--virtual-time-budget=20000", "--dump-dom", url], timeout=180)
         if "RESULT:" in out and "NOT RUN" not in out:
             break
     shutil.rmtree(tmp, ignore_errors=True)
