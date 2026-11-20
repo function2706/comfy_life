@@ -40,6 +40,7 @@ def main():
             st["contacts"], st["cooldowns"] = [], {}
             st.pop("msg_pending", None)
             st.pop("nori", None)
+            app.presence.rec().pop("call", None)           # 前の電話は話し終えたことに (S8: 話している間は次をかけられない)
             app.set_params({"mood": 70, "affection": 60, "trust": 60, "boredom": 60, "loneliness": 60, "sleepiness": 10, "energy": 80}, cid)
 
         # ---- 1. お礼を選んでかける: 受け答えはお礼の判定 (自撮りを送ってくれた → 効く)

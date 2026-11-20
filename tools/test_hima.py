@@ -152,6 +152,7 @@ def main():
                 st.pop("msg_pending", None)
                 st["contacts"] = []
                 st.pop("call_later_until", None)
+                app.presence.rec().pop("call", None)       # 前の電話は話し終えたことに (S8)
                 app.set_params({"mood": 70, "affection": 60, "sleepiness": 0, "energy": 70, "stress": 0}, cid)
                 st["override"] = {"activity": "relax", "label": "くつろぎ", "location": "部屋", "until": time.time() + 9e6}
                 r = app.phone_call(cid, "smalltalk")
@@ -159,6 +160,7 @@ def main():
                     hows.add(r["call"]["how"])
                     assert r["call"]["key"] == ("smalltalk_hit" if res == "hit" else "smalltalk_flat"), r["call"]
             hima.judge = real_judge
+            app.presence.rec().pop("call", None)
             assert hows, res
             if res == "flat":
                 assert "楽しそうだった" not in hows and "落ち着いて話してくれた" not in hows, hows

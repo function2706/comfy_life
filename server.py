@@ -231,6 +231,8 @@ def route(method, path, q, body):
             return a.geo.transit.timetable(b["id"], b.get("t") or time.time())
         if path == "/api/route":
             return a.geo.route_search(b["to"], b.get("at"), b.get("by", "depart"), b.get("from"))
+        if path == "/api/phone/hangup":           # 電話を早めに切る (S8)
+            return a.call_end()
         if path == "/api/phone/call":
             return a.phone_call(b["id"], b.get("talk"), {k: b[k] for k in ("reason", "consult", "topic") if b.get(k)})
         if path == "/api/travel/doing":

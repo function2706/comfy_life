@@ -720,6 +720,9 @@ class App:
     def doing_now(self):
         """いましていること (同時にほかのことを始められない): {kind, label} か None.
         内職の途中 / 休む・家事・研鑽の途中 (家で) / 誰かとミニゲームの途中."""
+        c = self.call_now()
+        if c:                                   # 電話で話している途中 (S8): ほかのことは, 切ってから
+            return {"kind": "call", "label": "%sとの電話" % c.get("name", "")}
         if self.task_running():
             return {"kind": "task", "label": "内職"}
         exam = self.quals.exam_now()
@@ -748,6 +751,8 @@ class App:
             return None                         # 休んでいる途中に作って食べるのはかまわない
         if what == "game" and d["kind"] == "game":
             return None                         # 続き
+        if d["kind"] == "call":
+            return self.call_block()
         if d["kind"] == "task":
             return "内職の途中です（先に内職を終えてから）"
         if d["kind"] == "exam":
@@ -1469,6 +1474,9 @@ class App:
                     pr["beat"] = pr["input"] = now
             scene = self.scene_at(char, st, dt)
             ctx = self.context(char, st, dt, scene)
+            if a.get("category") != "system" and not opts.get("deliver") and not opts.get("approach") \
+                    and not opts.get("appointment") and self.call_now(now):
+                raise ValueError(self.call_block(now))    # 電話の途中 (S8): メッセージ・ほかの人への電話も, 切ってから
             appt = opts.get("appointment")          # 約束して会えた (条件は約束したときに済んでいる)
             when = "asleep=false, away=false" if gift_item else "" if appt else self._when(a, ctx)     # 持ち物を渡すなら, 所持金の条件はいらない
             if not appt and ctx["apart"] and not opts.get("deliver") and self.appoint.needs(a, cid):
@@ -2003,18 +2011,104 @@ class App:
             how = "眠そうだった" if p.get("sleepiness", 0) >= 70 else "疲れていそうだった" if p.get("energy", 60) < 25 \
                 else "楽しそうだった" if good and lv >= 0.55 else "落ち着いて話してくれた" if good \
                 else "素っ気なかった" if lv < 0.35 else "少し気まずそうだった"
+            mins, cut = self._call_limit(char, st, now, mins)
+            if cut:
+                how += "。%sので、早めに切り上げた" % cut
+            sys_it = None
             for it in d["items"]:
                 if it.get("kind") == "call" and it.get("who") == "sys" and abs(it.get("t", 0) - now) < 120 and it["text"] == "📞 電話で話した":
                     it["text"] = "📞 電話で話した（%d分ほど。%s）" % (mins, how)
+                    sys_it = it
             self.chat.save(cid, d)
+            pr = self.presence.rec()           # 話している間は, ほかのことができない (時計は実時間で進む. 「電話を切る」で早めに終えられる)
+            pr["call"] = {"cid": cid, "name": char.get("name", ""), "t": now, "until": now + mins * 60, "mins": mins, "how": how,
+                          "sys_t": (sys_it or {}).get("t")}
+            self.presence.save()
             if good and lv >= 0.55 and not st.get("msg_pending") and random.random() < 0.35:
                 # 楽しかった: あとで相手からひとこと (届くのは時間差の仕組みで)
                 st["msg_pending"] = {"aid": "message", "t": now, "due": now + random.uniform(10, 60) * 60, "reply": True,
                                      "count": 1, "kind": "after_call", "meta": {}, "quick": False}
             self.trace.add("msg", "電話で話した", cid, now, talk=talk, key=key, nori=lv, mins=mins, how=how)
             self.save_state(cid)
-            r["call"] = {"mins": mins, "how": how, "key": key, "text": said[0]["text"] if said else ""}
+            r["call"] = {"mins": mins, "how": how, "key": key, "text": said[0]["text"] if said else "", "cut": cut,
+                         "until": now + mins * 60}
             return r
+
+    CALL_CUT_MIN = 3            # これより短くしか話せないなら, 手短に (それでも 1〜2 分は話す)
+
+    def _call_limit(self, char, st, now, mins):
+        """電話の長さを, ぶつかるものの手前で切り上げる: (分, 切り上げた理由 or None).
+        あなたの約束 (出かける支度の分だけ前)・組んだ予定の時刻・相手の次の用事や寝る時刻・あなたの体力."""
+        end, cut = now + mins * 60, None
+        for x in self.appoint.all():
+            if x.get("status") in ("set", "waiting") and x["t"] > now:
+                lim = x["t"] - planner_mod.APPOINT_LEAD
+                if lim < end:
+                    end, cut = lim, "約束がある"
+        for x in self.planner.rec().get("items") or []:
+            try:
+                t = self.planner.item_t(x)
+            except (KeyError, ValueError):
+                continue
+            if now < t < end:
+                end, cut = t, "予定の時刻が近い"
+        k = 5
+        while now + k * 60 < end:              # 相手の次の用事 (仕事・寝る時刻など): その手前で, 相手から切り上げる
+            sc = self.scene_at(char, st, datetime.fromtimestamp(now + k * 60))
+            if sc.get("asleep") or sc.get("busy"):
+                end = now + k * 60
+                cut = "%sが寝る時間になる" % char.get("name", "相手") if sc.get("asleep") else "%sに次の用事がある" % char.get("name", "相手")
+                break
+            k += 5
+        if self.life.player_state().get("stamina", 100) < 20 and end - now > 10 * 60:
+            end, cut = now + max(10 * 60, (end - now) * 0.6), "あなたが疲れていた"
+        m = int((end - now) // 60)
+        if cut and m < self.CALL_CUT_MIN:
+            return max(1, min(mins, 2)), cut          # ぶつかる直前でも, ひとことふたことは話す
+        return max(1, min(mins, m)), cut
+
+    def call_now(self, now=None):
+        """いま電話で話している途中なら, その記録 ({cid, name, t, until, …}). 終わっていれば None."""
+        c = self.presence.rec().get("call")
+        if c and c.get("until", 0) > (now or time.time()):
+            return c
+        return None
+
+    def call_block(self, now=None):
+        c = self.call_now(now) or {}
+        left = max(1, int(math.ceil((c.get("until", 0) - (now or time.time())) / 60.0)))
+        return "%sと電話で話している途中です（あと%d分ほど。先に「電話を切る」で切ってから）" % (c.get("name", ""), left)
+
+    def call_view(self, now=None):
+        now = now or time.time()
+        c = self.call_now(now)
+        if not c:
+            return None
+        return {"cid": c["cid"], "name": c.get("name", ""), "t": c["t"], "until": c["until"],
+                "left": max(1, int(math.ceil((c["until"] - now) / 60.0)))}
+
+    def call_end(self, now=None):
+        """電話を早めに切る (話している途中で). トークの通話時間を, 実際に話した分に直す."""
+        now = now or time.time()
+        with self.lock:
+            pr = self.presence.rec()
+            c = pr.get("call")
+            if not c or c.get("until", 0) <= now:
+                if pr.pop("call", None) is not None:
+                    self.presence.save()
+                raise ValueError("電話で話している途中ではありません")
+            mins = max(1, int(round((now - c["t"]) / 60.0)))
+            cid = c["cid"]
+            if cid in self.chars and c.get("sys_t") is not None:
+                d = self.chat.load(cid)
+                for it in d["items"]:
+                    if it.get("kind") == "call" and it.get("who") == "sys" and it.get("t") == c["sys_t"]:
+                        it["text"] = "📞 電話で話した（%d分ほど。%s。あなたから切り上げた）" % (mins, c.get("how", ""))
+                self.chat.save(cid, d)
+            pr.pop("call", None)
+            self.presence.save()
+            self.trace.add("msg", "電話を切った", cid, now, mins=mins, planned=c.get("mins"))
+            return {"mins": mins, "name": c.get("name", "")}
 
     def outside_with(self, cid, now=None):
         """cid と一緒に, 外 (家でも相手の家でもない所) にいるか: 外で会っている / 一緒にお出かけしている (行き帰りの移動も含む).
@@ -3349,7 +3443,7 @@ class App:
                 "street": street, "items": self.items.view(), "shop_done": shop_done, "arrival": arrival, "workplace": workplace,
                 "appoints": self.appoint.view(), "appoint_events": appoint_events, "closed": closed, "plan": self.planner.view(now),
                 "side_job": self.task_ready(now), "task_active": self.task_active(),
-                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(),
+                "task_paused": bool(self.task_active()) and not self.task_running(), "blocked": self.blocked_view(), "on_call": self.call_view(now),
                 "street_pending": self.street.view(), "street_join": self.street.join_view(), "street_auto": street_auto,
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),

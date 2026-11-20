@@ -612,11 +612,12 @@ function renderSoloTab() {
       : v.task_paused ? '家事・研鑽・休むなどはできます。出かけるのは、内職を終えてから'
       : '終えるときは、内職の画面で「やめる」か、できあがりまで（✕で一時停止して閉じられます）'),
     h('button', { class: 'btn primary small', disabled: S.busy || !!soloNow, onclick: openTask }, '内職の続きを開く')) : null;
-  const busyNow = soloNow || taskNow;
+  const busyNow = soloNow || taskNow || v.on_call;
   const near = so.near;
   const sj = v.side_job;
   const bl = (v.blocked || {}).solo;
   $('#tab-solo').replaceChildren(...[
+    callBar(),
     soloNow,
     taskNow,
     bl && !busyNow ?h('div', { class: 'blocked-note' }, `⏸ ${bl}`) : null,
@@ -2174,7 +2175,7 @@ async function callWith(cid, talk, extra) {
   S.busy = true;
   try {
     const r = await api('/api/phone/call', Object.assign({ id: cid, talk }, extra || {}));
-    toast(r.call ? `📞 ${r.call.mins}分ほど話した（${r.call.how}）` : (r.entry ? r.entry.text.replace(/\n.*/s, '') : '電話をかけた'), r.missed ? 'err' : 'ok');
+    toast(r.call ? `📞 ${r.call.mins}分ほど話す（${r.call.how}）` : (r.entry ? r.entry.text.replace(/\n.*/s, '') : '電話をかけた'), r.missed ? 'err' : 'ok');
     S.chatJump = true; S.chatPick = null; S.callTalk = null;
   } catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await drawChat(); refresh(); }
@@ -2195,7 +2196,24 @@ async function askVisitNow(cid) {
 // 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
 const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？' };
 const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp' };
+// 電話で話している途中 (S8): 話し終えるまで (または「電話を切る」まで), メッセージ・ほかの電話はできない
+function callBar() {
+  const c = (S.view || {}).on_call;
+  if (!c) return null;
+  return h('div', { class: 'solo-now' },
+    h('span', {}, `📞 ${c.name}と電話中…`),
+    h('span', { class: 'muted small' }, `あと${c.left}分ほど（話している間は、ほかのことはできません）`),
+    h('button', { class: 'btn primary small', disabled: S.busy, onclick: hangUp }, '電話を切る'));
+}
+async function hangUp() {
+  if (S.busy) return;
+  S.busy = true;
+  try { const r = await api('/api/phone/hangup', {}); toast(`📞 ${r.mins}分ほどで切り上げた`, 'ok'); } catch (e) { toast(e.message, 'err'); }
+  finally { S.busy = false; await drawChat(); refresh(); }
+}
 function chatSendBox(th) {
+  const onCall = callBar();
+  if (onCall) return onCall;
   const G = th.groups || [];
   const KD = Object.fromEntries((th.kinds || []).map((k) => [k.id, k]));
   const P = th.pick || {};

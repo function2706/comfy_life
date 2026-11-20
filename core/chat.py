@@ -355,6 +355,8 @@ class Chat:
 
     # ------------------------------------------------------------------ 送る
     def send(self, cid, kind, extra=None):
+        if self.app.call_now():                   # 電話で話している途中 (S8): 返事も含めて, 切ってから
+            raise ValueError(self.app.call_block())
         if self.app.bonds.together(cid):          # そばにいる相手には, メッセージではなく直接 (連絡先にも出ない)
             raise ValueError("%sはそばにいます（「誰かと」から直接話しましょう）" % self.app.chars[cid].get("name", ""))
         if kind not in KINDS:
