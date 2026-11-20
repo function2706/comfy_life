@@ -27,7 +27,8 @@
   "money": -5,
   "neat": -3,
   "carer": 0.2,
-  "chrono": 0.5, "punctual": 0.9,
+  "chrono": 0.5,
+  "punctual": 0.9,
   "repay": 1.1,
   "greed": 0.25,
   "savings": 1.3,
@@ -3230,6 +3231,27 @@
   ],
   "chat.who_with_none": [
    "📱『誰とも。一人だった』"
+  ],
+  "chat.appoint_no_busy": [
+   "📱『ごめん、その日は片付けることが多くて時間が取れない』"
+  ],
+  "chat.appoint_no_friends": [
+   "📱『その日は友達と約束がある。ごめん』"
+  ],
+  "chat.wave_busy": [
+   "📱『最近忙しくて、返信が遅れる傾向にある。ごめん』"
+  ],
+  "chat.wave_hooked": [
+   "📱『最近、調べ始めたことがあって。気づくと夜中になってる』"
+  ],
+  "chat.wave_social": [
+   "📱『最近、人と会う回数が増えてる。理由はよく分からない』"
+  ],
+  "chat.wave_down": [
+   "📱『……最近、気分が下がってる。たぶん一時的なものだと思う』"
+  ],
+  "chat.wave_free": [
+   "📱『最近、時間が余ってる。何か面白い話ない？』"
   ]
  }
 }
