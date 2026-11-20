@@ -3305,6 +3305,36 @@
   ],
   "chat.appoint_plan": [
    "📱『……その時間、{who}と約束。ごめん』"
+  ],
+  "chat.circle_told": [
+   "📱『……{when}、{who}と{did}。楽しかった』"
+  ],
+  "chat.circle_told_uneasy": [
+   "📱『……{when}、{who}と{did}。疲れた』"
+  ],
+  "ap.msg_chat.call_grumble": [
+   "📱『……{call}。少し、聞いて。さっきまで{who}と一緒だった。疲れた』"
+  ],
+  "msgr.why.grumble.bad": [
+   "📱『……そう。もういい』"
+  ],
+  "chat.ask_single_no": [
+   "📱『……いない。なんで？』"
+  ],
+  "chat.ask_single_vague": [
+   "📱『……さあ』"
+  ],
+  "chat.ask_single_bad": [
+   "📱『……それ、急に聞くこと？』"
+  ],
+  "chat.ask_single_much": [
+   "📱『……前も、聞いた』"
+  ],
+  "enc.spot_hi": [
+   "……{call}。……こっち、{who}。"
+  ],
+  "enc.spot_hi_uneasy": [
+   "……{call}。いま{who}と一緒。……助かった。"
   ]
  }
 }

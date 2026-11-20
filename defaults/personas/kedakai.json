@@ -3291,6 +3291,36 @@
   ],
   "chat.appoint_plan": [
    "📱『その時間は{who}との先約があるの。別の日になさい』"
+  ],
+  "chat.circle_told": [
+   "📱『そういえば{when}、{who}と{did}わ。楽しい時間だったわ』"
+  ],
+  "chat.circle_told_uneasy": [
+   "📱『そういえば{when}、{who}と{did}のだけれど……少し疲れたわ』"
+  ],
+  "ap.msg_chat.call_grumble": [
+   "📱『{call}、少し聞いてくださる？ さっきまで{who}と一緒だったのだけれど、ひどく疲れてしまって』"
+  ],
+  "msgr.why.grumble.bad": [
+   "📱『……そう。聞く気がないなら結構よ』"
+  ],
+  "chat.ask_single_no": [
+   "📱『いないわ。急にどうしたの？』"
+  ],
+  "chat.ask_single_vague": [
+   "📱『さあ、どうかしら。{call}に言う必要があって？』"
+  ],
+  "chat.ask_single_bad": [
+   "📱『……そういうことを不躾に聞くものではないわ』"
+  ],
+  "chat.ask_single_much": [
+   "📱『それ、前にも聞いたわよね。ずいぶん気にするのね』"
+  ],
+  "enc.spot_hi": [
+   "あら、{call}。奇遇ね。こちら、{who}よ。"
+  ],
+  "enc.spot_hi_uneasy": [
+   "{call}……。いま{who}と一緒なの。……声をかけてくれて、少し助かったわ。"
   ]
  }
 }

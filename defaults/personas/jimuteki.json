@@ -3305,6 +3305,36 @@
   ],
   "chat.appoint_plan": [
    "📱『その時間は{who}との予定が先に入っている。別の日程なら調整する』"
+  ],
+  "chat.circle_told": [
+   "📱『{when}、{who}と{did}わ。悪くない時間だった』"
+  ],
+  "chat.circle_told_uneasy": [
+   "📱『{when}、{who}と{did}わ。……正直、消耗した』"
+  ],
+  "ap.msg_chat.call_grumble": [
+   "📱『{call}、少し時間をもらえるかしら。さっきまで{who}と一緒だったのだけど、消耗が激しくて』"
+  ],
+  "msgr.why.grumble.bad": [
+   "📱『……そう。愚痴を聞く余裕はないのね。わかったわ』"
+  ],
+  "chat.ask_single_no": [
+   "📱『いないわ。質問の意図は？』"
+  ],
+  "chat.ask_single_vague": [
+   "📱『答える義務はないと思うけれど』"
+  ],
+  "chat.ask_single_bad": [
+   "📱『……その質問は、唐突すぎるわ。距離感を考えて』"
+  ],
+  "chat.ask_single_much": [
+   "📱『その質問は前回もあったわ。何がそんなに気になるの？』"
+  ],
+  "enc.spot_hi": [
+   "{call}。偶然ね。こちら、{who}よ。"
+  ],
+  "enc.spot_hi_uneasy": [
+   "{call}……。いま{who}と一緒なの。……声をかけてくれて、助かったわ。"
   ]
  }
 }
