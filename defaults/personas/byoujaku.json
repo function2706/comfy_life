@@ -3405,6 +3405,30 @@
   ],
   "circle.move_out": [
    "📱『{call}……この家にいると、息が詰まるようになっちゃった。{fp}、出ていくね。今まで、ありがとう』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいよね。……{fp}、なんだか元気が出るの。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、{fp}にはちょっと疲れちゃうんだ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『……同じ気持ちなんだ。なんだか、うれしいな』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん……そうだよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……無理に合わせてくれなくても、いいんだよ？』"
+  ],
+  "chat.react_no_good": [
+   "📱『そっか……{call}はそう思うんだね。ちゃんと言ってくれて、ありがとう』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう、かな。……そういう考えもあるよね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そっか。……ちょっと、悲しいな』"
   ]
  }
 }

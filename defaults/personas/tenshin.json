@@ -3381,6 +3381,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、{fp}、ここ出ることにした。最近、帰ってくるのが楽しくなかったんだ。荷物はもう運んだよ』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいよね！ {fp}、大好き！"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、なんかつまんないんだもん。"
+  ],
+  "chat.react_yes_good": [
+   "📱『いっしょだ！ やったー！』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん！』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、ちゃんと考えてる？ ずっと「そうだね」だよ？』"
+  ],
+  "chat.react_no_good": [
+   "📱『えー、そうなの!? じゃあ今度、{call}の好きなもの教えて！』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうかなあ？ うーん』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……えー、ひどい。そんなに言わなくてもいいじゃん』"
   ]
  }
 }

@@ -3374,6 +3374,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、もう一緒に暮らすのはやめにする。話しても空回りしてばっかりだったし。荷物は運んだから』"
+  ],
+  "hima.opinion_like": [
+   "{genre}ってさ、やっぱいいよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、どうも楽しめないんだよなあ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『おっ、わかる？ 同じこと考えてたんだ』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『だよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……なんか、適当に合わせてない？』"
+  ],
+  "chat.react_no_good": [
+   "📱『え、そっち派？ 意見が違うほうが、話してて面白いかも』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ ま、そういう人もいるか』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……え、なにそれ。ちょっとへこんだ』"
   ]
  }
 }

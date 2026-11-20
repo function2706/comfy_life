@@ -3326,6 +3326,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、最近ぜんぜん話せてなかったよね。……{fp}、ここを出ることにした。いままでありがとう』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいよね！ 話してるだけで楽しくなる。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、いまいち楽しみ方がわからないんだよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『ほんと!? 一緒だね！ 話が合うなあ』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『だよねー』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ねえ、ちゃんと聞いてる？ さっきから全部「そうだね」だよ』"
+  ],
+  "chat.react_no_good": [
+   "📱『えー、そっか！ 違うところもあるんだね。それはそれで面白い』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ うーん、そっかあ』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんなふうに言われると、ちょっと寂しいな』"
   ]
  }
 }

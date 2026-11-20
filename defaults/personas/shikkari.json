@@ -3319,6 +3319,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、家を出ることにした。ちゃんと話せばよかったのかもしれないけど、もう言葉が見つからない』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、やっぱりいいと思うんだ。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうも苦手意識が抜けないんだ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『だろう？ {call}もそう思うなら心強いな』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん、そうだよな』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……なあ、本当にそう思ってるか？ 合わせなくていいんだぞ』"
+  ],
+  "chat.react_no_good": [
+   "📱『そうか、違う意見か。そのほうがちゃんと話せるな』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうか？ まあ、そこは好みだな』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そこまで言わなくてもいいだろう』"
   ]
  }
 }

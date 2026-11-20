@@ -3338,6 +3338,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、この部屋、もう{fp}の居場所じゃない気がするの。出ていくね。……元気でね』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいよね。見てると、時間を忘れちゃう。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、なんだか好きになれないの。理由は、うまく言えないけど。"
+  ],
+  "chat.react_yes_good": [
+   "📱『おんなじだ。……{call}とは、波長が合うのかも』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ふふ、そうだよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、ほんとうはどう思ってるの？』"
+  ],
+  "chat.react_no_good": [
+   "📱『そうなんだ。……{call}の考え、もっと聞いてみたいな』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうかな。……そうかも』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そっか。{fp}、ちょっとしゅんとした』"
   ]
  }
 }

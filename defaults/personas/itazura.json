@@ -3828,6 +3828,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、もうここでふざける気になれないんだ。出ていくね。荷物はほとんど運んだから』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいよね。{call}もそう思うでしょ？"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、どこが面白いのかわかんないんだよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『ふふ、気が合うね。{call}のこと、ちょっと見直した』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『でしょ』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ほんとに？ 今の、絶対考えてないでしょ』"
+  ],
+  "chat.react_no_good": [
+   "📱『へえ、言うじゃん。そういうとこ、嫌いじゃないよ』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ まあいいけど』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……え、そこまで言う？ ちょっと傷ついたんだけど』"
   ]
  }
 }

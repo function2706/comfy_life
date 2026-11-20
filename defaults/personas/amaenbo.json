@@ -3375,6 +3375,30 @@
   ],
   "circle.move_out": [
    "📱『{call}……一緒にいても、寂しいばっかりになっちゃった。{fp}、出ていくね。荷物はもう持ったよ』"
+  ],
+  "hima.opinion_like": [
+   "{genre}ってね、やっぱりいいなって思うの。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、{fp}にはよさがよくわからないんだよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『でしょ？ {call}も同じなの、すっごくうれしい』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん、だよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、ほんとにそう思ってる？ {fp}に合わせてるだけじゃない？』"
+  ],
+  "chat.react_no_good": [
+   "📱『えー、そうかなあ。……でも、{call}の本音が聞けたのは、ちょっとうれしい』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ {fp}はそう思うんだけどなあ』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんな言い方しなくてもいいのに』"
   ]
  }
 }

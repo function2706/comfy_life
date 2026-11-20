@@ -3373,6 +3373,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、家に戻ることにしたわ。この部屋にいても、ひとりでいるのと変わらなかったの。……さようなら』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、素敵よね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうしても馴染めないの。"
+  ],
+  "chat.react_yes_good": [
+   "📱『まあ、{call}も？ 同じ気持ちだなんて、素敵ね』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ええ、そうよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、本当にそう思っていらっしゃる？』"
+  ],
+  "chat.react_no_good": [
+   "📱『あら、そう思うの？ ……意外だけれど、正直に話してくれるのはうれしいわ』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうかしら。いろいろな考えがあるのね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんな言い方、ひどいわ』"
   ]
  }
 }

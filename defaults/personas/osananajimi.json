@@ -3674,6 +3674,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、実家に戻ることにした。こんなに長く一緒にいて、こんな終わり方になるなんてね』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、昔からいいなって思ってるんだよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、昔からどうも好きになれなくてさ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『だよね。こういうとこ、昔から変わんないね』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん、だよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、それ適当に返してるでしょ。わかるんだからね』"
+  ],
+  "chat.react_no_good": [
+   "📱『え、そっち？ まあ{call}は昔からそうだよね。遠慮しないとこ、助かる』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ まあ、そこは昔から合わないよね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そこまで言わなくてもよくない？』"
   ]
  }
 }

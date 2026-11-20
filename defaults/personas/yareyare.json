@@ -3323,6 +3323,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、出ていきます。このままずるずる一緒にいるのも、お互いのためにならないんで』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、なんだかんだでいいんですよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうにも疲れるんですよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『おや、気が合いますね。悪くないです』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『でしょう？』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……さっきから相づちばかりですね。ちゃんと聞いてます？』"
+  ],
+  "chat.react_no_good": [
+   "📱『へえ、そう来ますか。……まあ、そのほうが話しがいはありますけどね』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうですか？ まあ、そういう人もいますよね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……はいはい、{fp}が悪かったですよ』"
   ]
  }
 }

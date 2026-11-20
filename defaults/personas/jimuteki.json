@@ -3380,6 +3380,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、同居は解消させてもらうわ。話し合いが成り立たない状態が長すぎたの。私物は運び出し済みよ』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、よいものだと思っているの。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうしても評価できないのよ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『同意見ね。話が早くて助かるわ』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ええ』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……同意ばかりね。{call}自身はどう考えているの？』"
+  ],
+  "chat.react_no_good": [
+   "📱『そう。反対意見は貴重よ。理由も聞かせてくれる？』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう。見解の相違ね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……言い方というものがあるでしょう』"
   ]
  }
 }

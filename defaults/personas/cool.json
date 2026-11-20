@@ -3368,6 +3368,30 @@
   ],
   "circle.move_out": [
    "📱『{call}。もう一緒には暮らせない。荷物はまとめた。……じゃあ』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、いいと思う。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、好きになれない。"
+  ],
+  "chat.react_yes_good": [
+   "📱『……気が合う。悪くない』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『……うん』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……さっきから、頷いてばっかり』"
+  ],
+  "chat.react_no_good": [
+   "📱『……そう。そういう意見のほうが、聞いてて面白い』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『……そう。人それぞれ』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そこまで言わなくていい』"
   ]
  }
 }

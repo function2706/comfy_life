@@ -3380,6 +3380,30 @@
   ],
   "circle.move_out": [
    "📱『……{call}。出ていく。……荷物は、持った』"
+  ],
+  "hima.opinion_like": [
+   "……{genre}、いい。"
+  ],
+  "hima.opinion_dislike": [
+   "……{genre}は、好きになれない。"
+  ],
+  "chat.react_yes_good": [
+   "📱『……同じ。……うれしい』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『……うん』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ほんとに、そう思ってる？』"
+  ],
+  "chat.react_no_good": [
+   "📱『……そう。……違うの、悪くない』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『……そう』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……ちょっと、痛い』"
   ]
  }
 }

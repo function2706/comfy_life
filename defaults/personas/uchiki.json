@@ -3383,6 +3383,30 @@
   ],
   "circle.move_out": [
    "📱『{call}……直接言えなくて、ごめんなさい。{fp}、出ていきます。荷物は、少しずつ運びました』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいですよね……。{fp}、けっこう好きで。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうしても好きになれなくて……。"
+  ],
+  "chat.react_yes_good": [
+   "📱『……同じ、なんですね。……うれしいです』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『……はい』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……気をつかわせちゃって、ますか……？』"
+  ],
+  "chat.react_no_good": [
+   "📱『……そう、なんですね。……でも、なんだか、少し話しやすくなりました』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『……そう、ですか。……そうかもしれません』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……すみません。もう、言わないようにします……』"
   ]
  }
 }

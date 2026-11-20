@@ -3452,6 +3452,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、ごめんなさいね。{fp}、ここを出ることにしたの。ひとりで過ごす夜が、あんまり長くて』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいわよねぇ。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、なんだか落ち着かないのよねぇ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『あら、同じなの？ 気が合うわねぇ』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うふふ、そうよねぇ』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ほんとうに、そう思ってるのかしら』"
+  ],
+  "chat.react_no_good": [
+   "📱『あらあら、そうなの。……{call}の考えが聞けて、うれしいわぁ』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうかしらねぇ。人それぞれよねぇ』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんなふうに言われると、悲しいわぁ』"
   ]
  }
 }

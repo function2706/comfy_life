@@ -3384,6 +3384,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、いっぱい考えたんだけど……もう一緒には暮らせないや。荷物まとめて出ていくね。今までありがとう』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、やっぱり最高だよね！"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、なんかピンとこないんだよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『だよね！ わかってくれる人がいた！』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん、だよね！』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、なんでも「そうだね」って言ってない？』"
+  ],
+  "chat.react_no_good": [
+   "📱『えっ、そうなの!? 意外！ でも、そういうの知れてよかった』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そっかー。まあ、好みはいろいろだよね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんなにダメかな。ちょっとしょんぼり』"
   ]
  }
 }

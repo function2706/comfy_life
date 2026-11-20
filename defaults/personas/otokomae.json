@@ -3381,6 +3381,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、ここを出る。このまま同じ屋根の下にいても、互いに目をそらすだけだ。世話になった』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、いいもんだな。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうにも性に合わなくてな。"
+  ],
+  "chat.react_yes_good": [
+   "📱『だろう？ 話がわかるな』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ああ、だな』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……さっきから頷いてばかりだな。本音はどうなんだ？』"
+  ],
+  "chat.react_no_good": [
+   "📱『ほう、そう来るか。いいな、そういう話のほうが面白い』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうか。まあ、そういう見方もあるな』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そうか。……言われると、案外堪えるもんだな』"
   ]
  }
 }

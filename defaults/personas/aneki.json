@@ -3671,6 +3671,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、この家のこと、しばらく考えてたの。{fp}は出ていくわね。鍵はテーブルに置いておくから』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、なんだかんだでいいものよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、どうも{fp}には合わないのよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『あら、気が合うじゃない。話しがいがあるわ』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ふふ、でしょう？』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、何でも頷いておけばいいと思ってない？』"
+  ],
+  "chat.react_no_good": [
+   "📱『あら、そう来る？ いいわね、遠慮なく言ってくれるほうが{fp}は好きよ』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ まあ、好みは人それぞれね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……あら、ずいぶんはっきり言うのね。ちょっと傷ついたわ』"
   ]
  }
 }

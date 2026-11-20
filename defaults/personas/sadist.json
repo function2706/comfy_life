@@ -3336,6 +3336,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、出ていくわね。退屈な部屋で退屈な顔を見続けるの、もう飽きたの』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、悪くないのよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、退屈なのよね。"
+  ],
+  "chat.react_yes_good": [
+   "📱『ふふ、わかってるじゃない』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『そうでしょう』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ご機嫌取り？ そういうの、すぐわかるのよ』"
+  ],
+  "chat.react_no_good": [
+   "📱『あら、逆らうの？ ……いいわ、そのくらいのほうが面白いもの』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう。好きにしたら？』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……へえ。そんなふうに言うのね』"
   ]
  }
 }

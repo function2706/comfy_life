@@ -3650,6 +3650,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、ごめんなさい。{fp}、出ていくことにしました。一緒にいるのに、ずっと寂しかったので』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、いいなあって思うんです。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうもなじめなくて。"
+  ],
+  "chat.react_yes_good": [
+   "📱『ですよね。{call}も同じで、うれしいです』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ふふ、ですよね』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、さっきから「そうだね」ばっかりですよ？』"
+  ],
+  "chat.react_no_good": [
+   "📱『そうなんですか？ ……{call}がどう思うのか知れて、うれしいです』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そうですか？ まあ、人それぞれですよね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……そんなふうに言わなくても』"
   ]
  }
 }

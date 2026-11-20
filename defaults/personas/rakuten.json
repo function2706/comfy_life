@@ -3327,6 +3327,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、さすがにもう、なんとかなる気がしなくてさ。出ていくことにした。今までありがとね』"
+  ],
+  "hima.opinion_like": [
+   "{genre}って、やっぱいいよね。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}って、いまいちハマれないんだよね。まあいっか。"
+  ],
+  "chat.react_yes_good": [
+   "📱『だよね！ 気が合うなー』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うんうん』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……{call}、なんか生返事っぽくない？』"
+  ],
+  "chat.react_no_good": [
+   "📱『あはは、そっか、そっち派か。そういうの、言い合えるのいいね』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう？ まあ、それもありか』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……うわ、きっつ。さすがにちょっと落ちる』"
   ]
  }
 }

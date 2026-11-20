@@ -3366,6 +3366,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、この家を出ることにしたわ。冷めきった食卓に座り続けるのは、{fp}の性に合わないの』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、なかなか良いものよ。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、{fp}の趣味ではないわ。"
+  ],
+  "chat.react_yes_good": [
+   "📱『当然よね。{call}もわかっているじゃない』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『ええ、そうでしょう』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……ご機嫌取りなら、結構よ』"
+  ],
+  "chat.react_no_good": [
+   "📱『……{fp}に意見するなんて。でも、まあいいわ。率直なのは悪くないもの』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう。好みの問題ね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……{fp}の言うことを、そう切り捨てるのね』"
   ]
  }
 }

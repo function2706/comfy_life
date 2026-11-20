@@ -3330,6 +3330,30 @@
   ],
   "circle.move_out": [
    "📱『{call}、同居はやめる。何度考えても、続けるほうがお互い損だって結論になった。荷物は運んだ』"
+  ],
+  "hima.opinion_like": [
+   "{genre}は、いいと思う。理由を挙げたらきりがないけど。"
+  ],
+  "hima.opinion_dislike": [
+   "{genre}は、どうも面白さがわからない。"
+  ],
+  "chat.react_yes_good": [
+   "📱『同じ結論か。話が早い』"
+  ],
+  "chat.react_yes_neutral": [
+   "📱『うん、そう』"
+  ],
+  "chat.react_yes_bad": [
+   "📱『……同意しか返ってこないと、ちゃんと伝わってるのかわからない』"
+  ],
+  "chat.react_no_good": [
+   "📱『へえ、反対か。そういう意見のほうが考えがいがある。続けて』"
+  ],
+  "chat.react_no_neutral": [
+   "📱『そう。見方が違うんだね』"
+  ],
+  "chat.react_no_bad": [
+   "📱『……全否定か。話す気がなくなった』"
   ]
  }
 }
