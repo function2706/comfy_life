@@ -745,7 +745,8 @@ class Manners:
 
     def ask_single(self, char, st, now, meta):
         """付き合ってる人いるの？: 正直に (いない) / はぐらかす / 聞き方・仲で気分を害する / 何度も聞かれて嫌がる.
-        付き合っている人 (st["circle"]["partner"]) は段 4 で入る. それまでは誰もいないので, 正直な答えは「いない」だけ."""
+        付き合っている人 (st["circle"]["partner"]. core/circle.py 段 4) がいれば, その答え (circle.single): 正直に言う (yes) /
+        隠している付き合いなら「いない」とうそをつく (no) か はぐらかす (vague)."""
         L = self.app.life
         if meta.get("asked", 0) >= 1:
             L.add_reason(st, "player", "bad", "%sに何度も、付き合っている人がいるのか聞かれた" % self.app.pronouns(char)[2], now,
@@ -753,6 +754,11 @@ class Manners:
             return "ask_single_much", {"mood": -3, "trust": -1}, {}
         bad, vague = self.single_odds(char, st)
         r = random.random()
+        has = self.app.circle.single(char, st) if r >= bad else None
+        if has == "yes":
+            return "ask_single_yes", {}, {}
+        if has:
+            return "ask_single_" + has, {"shyness": 2} if has == "no" else {"shyness": 1}, {}
         if r < bad:
             L.add_reason(st, "player", "bad", "%sに、付き合っている人がいるのか不躾に聞かれた" % self.app.pronouns(char)[2], now,
                          told=False, delta=-2.0, action="_what_doing")

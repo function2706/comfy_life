@@ -71,14 +71,22 @@ def main():
         print("遡及: OK | 足した %s / 元恋人 大人 %d/400・未成年 %d/200 / 言い寄る人 %d/600" % (
             extra or "なし", cnt[("ex", "adult")], cnt[("ex", "minor")], cnt[("suitor", "adult")] + cnt[("suitor", "minor")]))
 
-        # ---- 2. 元恋人・言い寄る人とは予定を作らない (段 4 まで)
+        # ---- 2. 元恋人・言い寄る人とは, ふだんの予定を作らない (会うのは誘いを受けたときだけ. 段 4 の _invite)
         r["people"] = [person("p1", "佐藤", "friend", "warm", 70, now), person("p2", "田中", "ex", "warm", 40, now, interest=50, pull=20),
                        person("p3", "伊藤", "suitor", "uneasy", 20, now, interest=70, persist=0.6, pull=5)]
         r["plans"], r["made_to"] = [], ""
-        for d in range(40):
-            app.circle.daily(char, st, now + d * 86400)
-        assert r["plans"] and all(x["pid"] == "p1" for x in r["plans"]), r["plans"]
-        print("予定は会う人だけ: OK | %d 件" % len(r["plans"]))
+        real_inv = C.Circle._invite
+        C.Circle._invite = lambda self, *a: "no"
+        seen = {}
+        try:
+            for d in range(40):
+                app.circle.daily(char, st, now + d * 86400)
+                seen.update({(x["t0"], x["pid"]): x for x in r["plans"]})
+        finally:
+            C.Circle._invite = real_inv
+        assert seen and not any(x["pid"] in ("p2", "p3") for x in seen.values()), seen
+        assert any(x["pid"] == "p1" for x in seen.values())
+        print("予定は会う人だけ: OK | %d 件" % len(seen))
 
         # ---- 3. 予定のあとの仲: 喧嘩はまれ (親しい 1.2%)・こじれた人とは和解することも. 効き目は終わってすぐだけ
         q = Counter()

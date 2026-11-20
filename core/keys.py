@@ -122,6 +122,9 @@ def all_keys(actions, minigames, approaches=()):
     for k, t in STAY_LINES.items():
         if k in STAY_SCENES:
             out[k] = {"scene": "お泊り / %s" % STAY_SCENES[k], "when": "", "text": t}
+    from .circle import LINES as CI_LINES, SCENE_LABEL as CI_SCENES     # 相手の交友関係 段 4 (打ち明ける・出ていく)
+    for k, t in CI_LINES.items():
+        out[k] = {"scene": "相手の交友関係 / %s" % CI_SCENES[k], "when": "", "text": t}
     from .street import LINES as ENC_LINES     # 出先でのばったり (声をかけられる・立ち話・断られる)
     for k, t in ENC_LINES.items():
         out[k] = {"scene": "出先でのばったり / %s" % {"enc.call.first": "知らない人が声をかけてくる", "enc.call.again": "顔なじみが声をかけてくる",

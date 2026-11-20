@@ -1148,6 +1148,15 @@
     }
    },
    {
+    "key": "yes",
+    "when": "single=yes",
+    "priority": 1,
+    "text": "……実は、いるんです。最近付き合い始めた人が。言ってなかったですね。",
+    "pos": "embarrassed, looking away, smile",
+    "neg": "",
+    "effects": {}
+   },
+   {
     "key": "vague",
     "when": "single=vague",
     "priority": 1,
@@ -3554,6 +3563,63 @@
     "when": "",
     "pos": "sad, tears, looking down",
     "neg": "smile"
+   }
+  ],
+  "reason_good": ""
+ },
+ {
+  "id": "confront",
+  "name": "ほかに会っている人のことを問い詰める",
+  "icon": "💔",
+  "category": "会話",
+  "when": "affair_found=true, apart=false, asleep=false",
+  "cooldown": 0,
+  "mood_action": "confront",
+  "confirm": "ほかに会っている人のことを問い詰めますか？",
+  "effects": {},
+  "pos": "looking at viewer, upper body, serious",
+  "neg": "smile",
+  "skill": "talk",
+  "reactions": [
+   {
+    "key": "default",
+    "when": "",
+    "text": "……ごめんなさい。もう会いません。ちゃんと終わりにします。",
+    "pos": "sad, tears, looking down",
+    "neg": "smile",
+    "effects": {
+     "mood": -12,
+     "trust": -15,
+     "stress": 10
+    }
+   },
+   {
+    "key": "defiant",
+    "when": "confront=defiant",
+    "priority": 1,
+    "text": "……だったら何なんですか。{fp}にだって、会いたい人くらいいます。",
+    "pos": "annoyed, frown, looking away",
+    "neg": "smile",
+    "effects": {
+     "mood": -10,
+     "trust": -20,
+     "affection": -8,
+     "stress": 8
+    }
+   },
+   {
+    "key": "leave",
+    "when": "confront=leave",
+    "priority": 2,
+    "text": "……もう、いいです。私たち、終わりにしましょう。",
+    "pos": "sad, looking away, cold",
+    "neg": "smile",
+    "effects": {
+     "mood": -15,
+     "trust": -25,
+     "affection": -20,
+     "stress": 10
+    }
    }
   ],
   "reason_good": ""

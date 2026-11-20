@@ -206,7 +206,12 @@ class Street:
                 "with": with_cid, "name": c.get("name", ""), "text": "", "stage": 4, "place": place}
         self.rec()["street_pending"] = pend
         app.presence.save()
-        msg = "%sで、%sが誰かと一緒にいるのを見かけた" % (where, c.get("name", ""))
+        date = x.get("kind") == "date"
+        if date:                                # デート: 親しげな様子で分かる. 隠している付き合いなら発覚 (core/circle.py 段 4)
+            app.circle.spotted(c, app.state(cid), x, now)
+            app.save_state(cid)
+            pend["date"] = True
+        msg = "%sで、%sが誰かと%sいるのを見かけた" % (where, c.get("name", ""), "親しげに一緒に" if date else "一緒に")
         app.outdoor.note(msg, now)
         app.trace.add("circle", "知り合いと一緒のところを見かけた", cid, now, pid=x["pid"], place=place)
         return {"kind": "spot", "name": c.get("name", ""), "where": where, "text": "（%s）" % msg}

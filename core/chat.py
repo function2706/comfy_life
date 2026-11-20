@@ -149,6 +149,7 @@ LINES = {
     "chat.circle_told_uneasy": "📱『そういえば{when}、{who}と{did}んですけど……ちょっと気疲れしました』",
     # 付き合ってる人いるの？ (core/manners.py. 答えは画面に事実として出さない: 言ったことだけ)
     "chat.ask_single_no": "📱『え、いませんよ？ ……急にどうしたんですか』",
+    "chat.ask_single_yes": "📱『……実は、いるんです。最近付き合い始めた人が。言ってなかったですね』",
     "chat.ask_single_vague": "📱『さあ、どうでしょう。……それ、聞きます？』",
     "chat.ask_single_bad": "📱『……そういうこと、いきなり聞くものじゃないと思います』",
     "chat.ask_single_much": "📱『……前にも聞きましたよね。なんでそんなに気にするんですか』",
@@ -272,7 +273,8 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "wave_free": "相手から送るメッセージに添える近況 (暇な時期)",
                "circle_told": "知り合いと会ったことを話す (親しい・ふつうの人. {when} 昨日 / 今日 / さっき, {who} 友達の佐藤さん など, {did} ご飯に行った など. 文頭の 📱 と『』は外して添える)",
                "circle_told_uneasy": "知り合いと会ったことを話す (苦手な人. 置き換えは circle_told と同じ)",
-               "ask_single_no": "付き合ってる人いるの？ (いない. 正直に)", "ask_single_vague": "付き合ってる人いるの？ (はぐらかす)",
+               "ask_single_no": "付き合ってる人いるの？ (いない. 正直に / 隠している付き合いなら, うそ)",
+               "ask_single_yes": "付き合ってる人いるの？ (いる. 正直に言う. core/circle.py 段 4)", "ask_single_vague": "付き合ってる人いるの？ (はぐらかす)",
                "ask_single_bad": "付き合ってる人いるの？ (聞き方・仲で気分を害した)", "ask_single_much": "付き合ってる人いるの？ (何度も聞かれた)", "appoint_invite": "相手から約束に誘う ({when} {place})",
                "appoint_invite_myhome": "相手から自分の家に呼ぶ ({when})", "appoint_invite_yourhome": "相手からあなたの家に行きたいと誘う ({when})",
                "appoint_invite_now": "相手から急に誘う (これから {place})", "appoint_invite_now_myhome": "相手から急に自分の家に呼ぶ (これから)",

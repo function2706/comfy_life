@@ -92,6 +92,17 @@ class Bonds:
         ps["bonds"][cid] = {"stage": stage, "t": now or time.time(), "hist": hist}
         self.save()
 
+    def move_out(self, cid, now, stage="visit"):
+        """同居をやめる (あなたから: コマンド move_out / 相手から: 浮気を問い詰められて・冷え切って. core/circle.py 段 4).
+        家事の分担・家計・看病などは, 同居相手 (living) で決まっているので, 段階を下げればそのまま外れる.
+        家に行ける仲以上でなくなるなら, 家に来ている・相手の家にいる間柄も終える."""
+        if self.stage(cid) not in ("live", "visit"):
+            return
+        w = self.with_rec() or {}
+        self.set_stage(cid, stage, now)
+        if w.get("cid") == cid:                     # 相手の家にいたなら, そこから家へ (家で一緒だったなら, 相手が出ていく)
+            self.end(go_home=w.get("mode") == "visit")
+
     def living(self):
         for cid, b in self.rec()["bonds"].items():
             if b.get("stage") == "live" and cid in self.app.chars:
@@ -230,9 +241,10 @@ class Bonds:
         elif b == "to_live":
             self.set_stage(cid, "live", now)
             self.end(go_home=False)
+            if hasattr(self.app, "circle"):         # ほかに付き合っている人がいたら, あなたを選んで別れる (core/circle.py 段 4)
+                self.app.circle.chose_you(self.app.chars[cid], self.app.state(cid), now)
         elif b == "end_live" and self.stage(cid) == "live":
-            self.set_stage(cid, "visit", now)
-            self.end(go_home=False)
+            self.move_out(cid, now, "visit")
         elif b == "visit_start":
             self.start(cid, "visit", now)
         elif b == "guest_start":
@@ -465,7 +477,8 @@ class Bonds:
         p = st["params"]
         return round(50 + (p.get("affection", 40) - 60) + 0.8 * (p.get("trust", 40) - 50) + 4 * (self.freq(st, now) - 4)
                      - 5 * max(0.0, self.gap_days(st, now) - 3) + self.trait(char, "caution")
-                     + self.app.regard.ready_shift(char, st) + random.uniform(-20, 20), 1)     # 思われていると感じるほど (core/regard.py)
+                     + self.app.regard.ready_shift(char, st) + self.app.circle.ready_shift(char, st)
+                     + random.uniform(-20, 20), 1)     # 思われていると感じるほど (core/regard.py)
 
     def exchange_chance(self, char, st):
         """知り合いと偶然会って話したとき, 連絡先を交換する確率 (0.05〜0.85).

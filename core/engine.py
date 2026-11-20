@@ -1034,6 +1034,7 @@ class App:
         ctx.update(self.waves.ctx(char, st))                   # wave / wave_apart / wave_near / fresh (core/waves.py)
         ctx["wave_apart"] = round(ctx["wave_apart"] * self.circle.contact_f(char, st, dt.timestamp()), 3)    # 知り合いと会っている最中 (core/circle.py)
         ctx["fight"] = self.quarrel.active(st, dt.timestamp())                            # 言い争いのあと (素っ気ない)
+        ctx["affair_found"] = self.circle.found(char, st)      # ほかに会っている人がいると分かって, まだ問い詰めていない (core/circle.py 段 4)
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
         ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)
@@ -1664,6 +1665,10 @@ class App:
                 extra.update(ex)
             elif ma0 == "ask_single":    # 会って「付き合ってる人いるの？」: 判定はメッセージと同じ (反応の条件 single. core/manners.py)
                 ctx["single"] = self.manners.ask_single_face(char, st, now)
+            elif ma0 == "confront":      # 浮気を問い詰める: 謝って別れる / 開き直る / あなたと終わりにする (反応の条件 confront. core/circle.py 段 4)
+                if not self.circle.found(char, st):
+                    raise ValueError("いまは問い詰めることがありません")
+                ctx["confront"] = self.circle.confront(char, st, now)
             # 別れぎわ (解散・帰る・送っていく): 相手はもっといたいか, それを口に出すか (core/parting.py)
             part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
             if part:

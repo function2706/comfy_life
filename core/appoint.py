@@ -642,7 +642,7 @@ class Appoint:
             return None
         rate = 0.02 * max(0.1, (p.get("affection", 50) - 35) / 30.0 + (p.get("loneliness", 30) - 40) / 80.0) \
             * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) \
-            * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) \
+            * app.regard.invite_factor(char, st) * app.circle.invite_f(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) \
             * app.waves.invite_factor(char, st)      # 思われていないと感じる (core/regard.py)・所持金が苦しいと, 誘いを控える・生活の波と慣れ (core/waves.py)
         if random.random() >= rate * h:
             return None
@@ -752,7 +752,7 @@ class Appoint:
             return None
         want = max(0.0, (p.get("boredom", 30) - 40) / 40.0) + max(0.0, (p.get("loneliness", 30) - 40) / 50.0) \
             + max(0.0, (p.get("mood", 50) - 55) / 60.0)
-        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) * app.waves.invite_factor(char, st)
+        rate = NOW_RATE * want * float(app.traits(char).get("approach", 1)) * self.mood_factor(p) * app.regard.invite_factor(char, st) * app.circle.invite_f(char, st)             * (TIGHT_INVITE if app.purse.tight(char, st) else 1.0) * app.waves.invite_factor(char, st)
         if not rate or random.random() >= rate * h:
             return None
         dt = datetime.fromtimestamp(now)

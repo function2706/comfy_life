@@ -9,7 +9,9 @@
   連絡の数・元恋人からの連絡の数. 目安: 入れ替わりは年に数人〜十人ほど (人数は 3〜9 人に収まる). 喧嘩は年に 0〜2 回ほど.
   言い寄る人がいる日は 3 割以下・連絡は週 1〜2 回まで. 元恋人からの連絡は年に数回まで.
   機嫌の偏りは, 予定に加えて段 3 の出来事も「無い場合」(Circle.events_on = False) と比べる.
-段 4 (恋愛) が入ったら, ここに 1 年で付き合い始める割合・浮気の割合を足す (目安は REMAINING の A34).
+段 4 (恋愛): 同じ組み合わせを 1 年ずつ, あなたとの間柄の場面ごとに進めて, 誰かと付き合い始めた割合を数える.
+  目安 (REMAINING の A34): 連絡先止まりで好かれていない → 2〜3 割ほど / 好かれている → その半分以下 /
+  自覚ありで ふつうに接している → 1% 以下 (浮気) / 自覚ありで ご無沙汰・見立てが低い・機嫌が悪いがそろう → 数 % まで.
 
     python tools/check_circle.py
     python tools/check_circle.py --days 364 --weeks 4 --seed 3 --runs 5
@@ -130,12 +132,60 @@ def mood_run(app, char, st, weeks, with_plans, seed):
     return {k: statistics.mean(v) for k, v in acc.items()}
 
 
+SCENES = (("連絡先・好かれていない", False, 0, 30, (0.15, 0.35)),
+          ("連絡先・好かれている", False, 0, 75, None),
+          ("自覚あり・ふつう", True, 0, 75, (0.0, 0.01)),
+          ("自覚あり・ご無沙汰がそろう", True, 3, 45, (0.0, 0.06)))
+
+
+def romance(app, vs, a):
+    """段 4: 場面ごとに, 1 年で付き合い始めた割合 (自覚ありなら浮気)."""
+    print("== 段 4 恋愛 (%d 日 × %d 回. 場面ごとに 1 年で付き合い始めた割合)" % (a.days, a.years))
+    real_aware, real_neg = C.Circle.aware, C.Circle._neglect
+    ok, res = True, {}
+    try:
+        for name, aware, neg, aff, rng in SCENES:
+            C.Circle.aware = lambda self, char, st, _v=aware: _v
+            C.Circle._neglect = lambda self, char, st, now, _v=neg: _v
+            n = hit = 0
+            for i in range(a.years):
+                for vname, char, st in vs:
+                    st["params"]["affection"] = aff
+                    st["params"]["mood"] = 40 if neg >= 3 else 60
+                    st.pop("circle", None)
+                    t0 = T0.timestamp()
+                    app.circle.rec(char, st, t0 - 86400)
+                    got = False
+                    for d in range(a.days):
+                        t = t0 + d * 86400 + 60
+                        app.circle.daily(char, st, t)
+                        app.circle.step(char, st, t, t + 86400 - 120)
+                        st["params"]["affection"] = aff
+                        got = got or bool(st["circle"].get("partner"))
+                    n += 1
+                    hit += got
+            frac = hit / float(n)
+            res[name] = frac
+            print("%-24s %5.1f%% (%d/%d)" % (name, frac * 100, hit, n))
+            if rng and not (rng[0] <= frac <= rng[1]):
+                print("!! 目安 %.0f〜%.0f%% から外れている" % (rng[0] * 100, rng[1] * 100))
+                ok = False
+        if res["連絡先・好かれている"] > res["連絡先・好かれていない"] * 0.5 + 0.02:
+            print("!! 好かれているのに, ほかの人と付き合い始めやすい (半分以下が目安)")
+            ok = False
+    finally:
+        C.Circle.aware, C.Circle._neglect = real_aware, real_neg
+    return ok
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=364)
     ap.add_argument("--weeks", type=int, default=4)
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--runs", type=int, default=5)          # 機嫌の偏りを平均する回数
+    ap.add_argument("--years", type=int, default=3)         # 段 4 の場面ごとに, 組み合わせを何年ぶん回すか
+    ap.add_argument("--only4", action="store_true")         # 段 4 だけ数える
     a = ap.parse_args()
     random.seed(a.seed)
     tmp = tempfile.mkdtemp(prefix="kurashi_check_")
@@ -149,6 +199,10 @@ def main():
         rates, tones_all, by_rate = [], Counter(), []
         base = next(iter(app.chars.values()))
         vs = list(variants(app, base))
+        if a.only4:
+            ok = romance(app, vs, a)
+            print("OK" if ok else "NG")
+            return 0 if ok else 1
         _counting()
         stage3 = []
         for name, char, st in vs:
@@ -196,6 +250,9 @@ def main():
         if tot["quarrel"] / n > 2.0 or sui > 0.3 or tot["event:ex"] / n > 6:
             print("!! 段 3 の出来事が多い (喧嘩 年 2 回 / 言い寄る人のいる日 3 割 / 元恋人の連絡 年 6 回 まで)")
             ok = False
+
+        if a.years:                                     # --years 0 で段 4 の数えを飛ばす (機嫌の偏りだけ見たいとき)
+            ok &= romance(app, vs, a)
 
         print("== 機嫌の偏り (%d 週 × %d 回の平均. 予定・段 3 の出来事あり − なし. 予定の多い人・苦手な人とよく会う人・言い寄る人 / 元恋人のいる人)"
               % (a.weeks, a.runs))
