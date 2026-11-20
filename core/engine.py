@@ -2565,7 +2565,7 @@ class App:
             if kind == "ap_reply":              # 向こうからのメッセージへの, あなたの返事を読んだ (core/presence.py)
                 m = pend.get("meta") or {}
                 e = self.presence.reply_land(char, st, m.get("ap"), m.get("choice"), now, why=m.get("why"),
-                                             re_t=pend.get("kind_t") or pend.get("t"), quote=rq)
+                                             re_t=pend.get("kind_t") or pend.get("t"), quote=rq, asks=bool(m.get("asks")))
                 return {"cid": cid, "name": char.get("name", ""), "text": e["text"], "late": now - pend["t"] > 3600}
             # あいさつを, ずっとあとで読んだ (寝ていた・画面を閉じていた): 翌日の昼に「おやすみなさい。また明日」とは返さない.
             # 朝に読んだ「おやすみ」には「おはよう」で返し, それ以外は既読だけ (前の分への返事は, 上でもう届いている)

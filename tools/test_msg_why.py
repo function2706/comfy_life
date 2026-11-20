@@ -11,14 +11,16 @@
 import glob
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
-from core import engine, msgreply as MR, store  # noqa: E402
+from core import engine, msgreply as MR, react as RE, store  # noqa: E402
 from testclock import fix_noon, landed  # noqa: E402
 
 fix_noon(engine)
@@ -106,6 +108,49 @@ def main():
                 break
         assert got and "疲れ" in got, got
         print("よくなかったとき: OK |", got)
+
+        # ---- 6. 問いかけで終わる「話そう」(「いま何してます？」) には「答える」が並び, 退屈なら答えるのがいちばん合う
+        assert "re_answer" not in RE.kinds_for("bored") and "re_answer" in RE.kinds_for("bored", True)
+        char["persona_id"] = "seijitsu"         # 退屈の誘い文が「……いま何してます？」
+        seen = {}
+        for _ in range(60):
+            st["params"].update(dict(calm, boredom=85))
+            st["approach"], st["ap_quiet_until"], st["ap_last"], st["msg_pending"] = None, 0, {}, None
+            app.force_approach("msg_chat", cid)
+            if st["approach"].get("why") != "bored":
+                continue
+            assert st["approach"].get("asks") is True, st["approach"]
+            rg, tg = RE.group(app, cid, st, time.time())
+            assert "re_answer" in rg["kinds"] and tg["asks"], (rg, tg)
+            ap0 = dict(st["approach"])
+            del st["approach"]["asks"]          # 印の無い以前のメッセージ: トークの文面から
+            assert RE.ap_asks(app, cid, st["approach"]) is True
+            st["approach"] = ap0
+            st["params"].update({"mood": 60, "affection": 60})
+            r = landed(app, app.answer_approach("reply", cid, "re_answer"), cid)
+            res = r["entry"]["reply"]["result"]
+            lines = app.personas["seijitsu"]["lines"]["chat.react_answer_" + res]     # 答えへの返し (メッセージの「答える」と同じセリフ)
+            lines = [lines] if isinstance(lines, str) else lines
+            seen.setdefault(res, r["entry"]["text"])
+            assert any(all(s in r["entry"]["text"] for s in re.split(r"\{[^}]*\}", x) if s) for x in lines), (r["entry"]["text"], lines)
+            if len(seen) >= 2:
+                break
+        assert seen, "退屈の「話そう」が来なかった"
+
+        def re_rates(tone, kind, asks, n=40):
+            g = 0
+            for pid in PERSONAS:
+                char["persona_id"] = pid
+                for _ in range(n):
+                    st["params"].update({"mood": 60, "affection": 60, "loneliness": 50})
+                    g += RE.judge(app, char, st, tone, kind, asks=asks)[0] == "good"
+            return g / float(n * len(PERSONAS))
+        ans, more, ans_no = re_rates("bored", "re_answer", True), re_rates("bored", "re_more", True), re_rates("bored", "re_answer", False)
+        assert ans > more and ans > 0.7 and ans_no < 0.5, (ans, more, ans_no)
+        hard, ans_t = re_rates("down", "re_hard", True), re_rates("down", "re_answer", True)
+        assert hard > ans_t, (hard, ans_t)      # 疲れた「少しだけ話せます？」は, 答えるより ねぎらうほうが合う
+        print("問いかけの「話そう」に答える: OK | 退屈で答える %.2f / もっと聞かせて %.2f / (問いかけでないとき %.2f) ・ 疲れたとき ねぎらう %.2f / 答える %.2f |"
+              % (ans, more, ans_no, hard, ans_t), " / ".join("%s: %s" % kv for kv in seen.items()))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("ALL OK")

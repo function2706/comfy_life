@@ -244,7 +244,10 @@ def target(app, cid, st, now):
     if not items or items[-1]["who"] != "her" or now - items[-1]["t"] > OPEN_H * 3600:
         return None
     it = items[-1]
-    return {"t": it["t"], "kind": it.get("kind"), "tone": tone_of(app, st, it), "ap": it.get("ap")}
+    tg = {"t": it["t"], "kind": it.get("kind"), "tone": tone_of(app, st, it), "ap": it.get("ap")}
+    if it.get("kind") == "approach":      # 「話そう」の文面が問いかけ (「いま何してます？」): 「答える」も並べる (kinds_for)
+        tg["asks"] = text_question(it.get("text"))
+    return tg
 
 
 def ap_tone(aid, why):
@@ -253,10 +256,28 @@ def ap_tone(aid, why):
     return AP_TONE.get(aid, "plain")
 
 
-def kinds_for(tone):
-    """「返す」に並べる種類 (「答える」は問いかけのときだけ. 「気にしないで」は謝られたときだけ, 「遅いよ」は返事が遅れて謝られたときだけ)."""
-    return [k for k in IDS if (k != "re_answer" or tone in ("question", "where")) and (k != "re_nevermind" or tone in SORRY)
+def kinds_for(tone, asks=False):
+    """「返す」に並べる種類 (「答える」は問いかけのときだけ. 「気にしないで」は謝られたときだけ, 「遅いよ」は返事が遅れて謝られたときだけ).
+    asks: 話の向きは別 (退屈・寂しい など) だが, 文面が問いかけで終わる (「暇で。いま何してます？」). 「答える」も並べる."""
+    return [k for k in IDS if (k != "re_answer" or asks or tone in ("question", "where")) and (k != "re_nevermind" or tone in SORRY)
             and (k != "re_late" or tone == "sorry_late")]
+
+
+# 問いかけで終わる「話そう」に「答える」(いま何をしているか・どうしているかを話す) で返したときの合い方 (FIT の代わり).
+# 退屈の「いま何してます？」には, 答えるのがいちばん自然. 疲れた・寂しいときは, 気づかう返しのほうが合う.
+ASK_FIT = {"bored": 15, "lonely": 4, "down": 2, "happy": -2}      # 退屈: ノリで「もっと聞かせて」が上がっても (最大 +6), 答えるのが上
+ASK_FIT_ELSE = 6
+
+
+def ap_asks(app, cid, ap):
+    """相手から来たメッセージ (働きかけ) の文面が, 問いかけで終わるか. 送ったときの印 (asks) が無い以前のものは, トークの文面から."""
+    if "asks" in ap:
+        return bool(ap["asks"])
+    t = float(ap.get("t") or 0)
+    for it in reversed(app.chat.load(cid)["items"]):
+        if it.get("who") == "her" and it.get("kind") == "approach" and abs(float(it.get("t", 0)) - t) < 1:
+            return text_question(it.get("text"))
+    return False
 
 
 def group(app, cid, st, now):
@@ -265,20 +286,24 @@ def group(app, cid, st, now):
     ap = st.get("approach") or {}
     if ap and (app.presence.find(ap.get("id")) or {}).get("apart"):
         tone = ap_tone(ap.get("id"), ap.get("why"))
-        tg = {"t": ap.get("t"), "kind": "approach", "tone": tone, "ap": ap.get("id")}
+        tg = {"t": ap.get("t"), "kind": "approach", "tone": tone, "ap": ap.get("id"), "asks": ap_asks(app, cid, ap)}
     if not tg:
         return None, None
-    return {"id": GROUP[0], "icon": GROUP[1], "label": GROUP[2], "kinds": kinds_for(tg["tone"])}, tg
+    return {"id": GROUP[0], "icon": GROUP[1], "label": GROUP[2], "kinds": kinds_for(tg["tone"], tg.get("asks"))}, tg
 
 
-def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0):
+def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0, asks=False):
     """返しがどう受け取られるか: (good / neutral / bad, 点).
-    ease: 遅れて返したことの重さへの倍率 (あなたの癖. core/regard.py ease: ふだんどおりの遅さなら 1 より小さい)."""
+    ease: 遅れて返したことの重さへの倍率 (あなたの癖. core/regard.py ease: ふだんどおりの遅さなら 1 より小さい).
+    asks: 向きは別だが文面が問いかけ (kinds_for). 「答える」の合い方は ASK_FIT で."""
     p = st["params"]
     taste = msgreply.TASTE.get(char.get("persona_id") or "", {})
     cat = CAT.get(kind, "cheerful")
     skill = app.life.skill_mult("talk")
-    score = BASE.get(kind, 0) + FIT.get(tone, FIT["plain"]).get(kind, 0) + 0.5 * taste.get(cat, 0) \
+    fit = FIT.get(tone, FIT["plain"]).get(kind, 0)
+    if asks and kind == "re_answer" and tone not in ("question", "where"):
+        fit = ASK_FIT.get(tone, ASK_FIT_ELSE)
+    score = BASE.get(kind, 0) + fit + 0.5 * taste.get(cat, 0) \
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill - 1.0) + rng.uniform(-noise, noise)
     if kind in ("tease", "re_lol", "re_late"):     # 冗談・からかい (「遅いよ」も) は, 仲が深いほど通じる
         score += 0.3 * (p.get("affection", 45) - 60)
@@ -336,7 +361,7 @@ def land(app, char, st, kind, meta, now, silent=False):
     G = app.regard
     t_to = float(to.get("t") or 0)
     ez = G.ease(char, st, t_to, sent, waited=late_h * 60.0) if t_to and tone in AWAIT and late_h > 1 else 1.0
-    res, score = judge(app, char, st, tone, kind, late_h, ease=ez)
+    res, score = judge(app, char, st, tone, kind, late_h, ease=ez, asks=bool(to.get("asks")))
     if t_to and to.get("ap"):                # 待ち時間が切れたあとに, 相手からのメッセージへ返した: 「返さなかった」の記録を直す
         G.note_reply(char, st, t_to, sent, waited=late_h * 60.0, late=True)
     G.note_kind(char, st, kind)

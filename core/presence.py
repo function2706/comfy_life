@@ -342,6 +342,8 @@ class Presence:
                 return None
         e = self._entry(char, st, now, a, "call_" + why if why else "call", msgreply.WHY_TEXT[why] if why else text0, {}, a,
                         gen=a.get("generate", True) and not a.get("apart"))
+        if why:                          # 「話そう」の文面が問いかけ (「いま何してます？」): 「答える」で返せる (core/react.py kinds_for)
+            st["approach"]["asks"] = react.text_question(e["text"])
         if a.get("apart"):              # 離れている相手からのメッセージ: トークにも (送ったあと, しばらくスマホを見ている)
             body = e["text"]
             wk = self.app.waves.tell_key(char, st)          # 時期のあいだ, 一度だけ近況を添える (忙しい・はまっている … core/waves.py)
@@ -509,6 +511,7 @@ class Presence:
         auto: 画面を閉じていた間の自動の返事 (その場で済ませる)."""
         ap = st.get("approach") or {}
         why = ap.get("why")
+        asks = react.ap_asks(self.app, char["id"], ap) if why else False      # 文面が問いかけ: 「答える」が合う (core/react.py)
         opts = [o["id"] for o in msgreply.options(a["id"], why)]
         kind = choice if choice in opts or choice in react.AP_KINDS else opts[0]       # 「返す」の種類 (1.6.0) / 以前の 4 択
         st["approach"] = None
@@ -524,13 +527,13 @@ class Presence:
             self.app.regard.replied(char, st, float(ap.get("t", now)), now)
             self.app.regard.note_kind(char, st, kind)
         if auto or st.get("msg_pending"):        # 自動の返事 / 別の返事待ちがある (重ねない): その場で
-            return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why)
+            return self.reply_land(char, st, a["id"], kind, now, auto=auto, why=why, asks=asks)
         app = self.app
         d = datetime.fromtimestamp(now)
         scene = app.scene_at(char, st, d)
         delay, quick, _ = app.reply_delay(char, st, now, scene, app.context(char, st, d, scene))
         st["msg_pending"] = {"aid": "_ap_reply", "t": now, "due": now + delay, "reply": True, "count": 1, "kind": "ap_reply",
-                             "quick": quick, "meta": {"ap": a["id"], "choice": kind, "why": why, "waited": now - float(ap.get("t", now))}}
+                             "quick": quick, "meta": {"ap": a["id"], "choice": kind, "why": why, "asks": asks, "waited": now - float(ap.get("t", now))}}
         app.trace.add("msg", "働きかけに返事: 返しの予定を決めた", char["id"], now, ap=a["id"], choice=kind, due_min=delay / 60.0,
                       quick=quick, waited_min=(now - float(ap.get("t", now))) / 60.0)
         e = self._entry(char, st, now, a, "sent", "（📱 %sに返信した）" % char.get("name", ""), {}, None, gen=False)
@@ -580,13 +583,14 @@ class Presence:
         app.save_state(char["id"])
         return e
 
-    def reply_land(self, char, st, aid, kind, now, auto=False, why=None, re_t=None, quote=None):
-        """働きかけへのあなたの返事を, 相手が読んだ: 受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言."""
+    def reply_land(self, char, st, aid, kind, now, auto=False, why=None, re_t=None, quote=None, asks=False):
+        """働きかけへのあなたの返事を, 相手が読んだ: 受け取り方 (good / neutral / bad) で効き目と返しが変わり, ときどきもう一言.
+        asks: 相手の文面が問いかけだった (「いま何してます？」. 「答える」の合い方が変わる)."""
         a = self.find(aid) or {"id": aid}
         out = a.get("accept") or {}
         mult = self.app.life.skill_mult("talk")
         if kind in react.AP_KINDS:       # 「返す」の種類: 何の話か (働きかけ・理由) と返し方の合い方で (core/react.py)
-            res, _ = react.judge(self.app, char, st, react.ap_tone(a["id"], why), kind)
+            res, _ = react.judge(self.app, char, st, react.ap_tone(a["id"], why), kind, asks=asks)
             cat = react.CAT[kind]
         else:
             res = msgreply.judge(char, st, a["id"], kind, mult, noise=25 if auto else 15, why=why)     # 自動の返事は, 相手の様子を読み違えやすい
@@ -616,8 +620,13 @@ class Presence:
             self.app.life.add_reason(st, "player", "bad", (react.BAD_TELL.get(kind) or msgreply.BAD_TELL[cat]).replace("{call}", call), now, told=True,
                                      delta=deltas.get("mood", 0), action="_ap_" + a["id"])
         key = "msgr.%s.%s" % (a["id"] if a["id"] in msgreply.AP_REPLY else cat, res)
-        text = self.app.persona_text(char, key) or msgreply.LINES[key]
-        if res == "bad" and why in msgreply.WHY_BAD:          # よくなかった: 理由をにじませる (次から読めるように)
+        if kind == "re_answer" and a["id"] not in msgreply.AP_REPLY:
+            # 聞かれたことに答えた: 「聞いてくれるんですか？」(msgr.expand) でなく, 答えへの返し (メッセージの「答える」と同じセリフ)
+            key = "chat.react_answer_%s" % res
+            text = self.app.persona_text(char, key) or react.LINES[key]
+        else:
+            text = self.app.persona_text(char, key) or msgreply.LINES[key]
+        if res == "bad" and why in msgreply.WHY_BAD and kind != "re_answer":      # よくなかった: 理由をにじませる (次から読めるように)
             text = self.app.persona_text(char, "msgr.why.%s.bad" % why) or msgreply.WHY_BAD[why]
         e = self._entry(char, st, now, a, "reply", text, deltas, None, gen=False)
         e["reply"] = {"kind": kind, "result": res}
