@@ -7,7 +7,8 @@
   (engine._reply_chance: 機嫌・好感度・ストレス・送りすぎ) と, 会っていて機嫌が悪いときの断り (talk の反応) だけ.
   仲の近さは結果ではなく断り方に効く: 近い仲 (互いの家に行ける・同居・好感度 70 以上) ははっきり断り, 浅い仲は取り繕う.
 - 弾んだときに, ときどき相手の好き・苦手 (話題の好み. topics.tastes) が口に出て「知っていること」に残る (bonds.learn).
-  まだ知らないものだけ. 話したがりで, 信頼があり, 機嫌がよいほど言う.
+  まだ知らないものが先. 知っているものは, ときどき意見として口にする (「やっぱり○○っていいよね」. OPINION).
+  話したがりで, 信頼があり, 機嫌がよいほど言う. 口にしたことは相手の言い分 (core/stance.py) になり, 肯定・否定で返せる.
 """
 import random
 from datetime import datetime
@@ -21,6 +22,8 @@ EFFECT = {"hit": {"boredom": -10, "loneliness": -8, "mood": 3, "affection": 1},
 NORI = {"hit": 8, "ok": 0, "flat": -8}
 HIT, FLAT = 12, -8           # 点数の区切り (これ以上で弾む / これ未満で乗らない)
 REVEAL = {"like": "そういえば{fp}、{genre}がけっこう好きなんです。", "dislike": "{genre}は、正直ちょっと苦手で。"}
+OPINION = {"like": "{genre}って、やっぱりいいですよね。", "dislike": "{genre}って、どうしても好きになれないんですよね。"}
+OPINION_P = 0.5              # まだ知らない好みが無いとき, 知っている好みを意見として口にする割合
 LABEL = {"hit": "弾んだ", "ok": "ふつう", "flat": "乗らない"}
 
 
@@ -54,8 +57,31 @@ def judge(app, char, st, now):
     return res, {"score": round(score, 1), "n": n, "nori": lv, "skill": round(sk, 1)}
 
 
-def settle(app, char, st, res, now):
-    """結果のあとの始末: ノリ・好みが口に出るか. 口にした一言 (文. {fp} は置き換え済み) を返す. 言わなければ None."""
+def speak(app, char, st, now, rng=random, opinion_p=OPINION_P):
+    """好み (topics.tastes) を一つ口にする: まだ知らないもの (REVEAL. 知っていることに残す) が先, 無ければ opinion_p で
+    知っているものを意見として (OPINION). (文, セリフの鍵, 言い分) を返す. 言わなければ None."""
+    from .topics import TAGS
+    from . import stance as stance_mod
+    known = {(k.get("kind"), k.get("text")) for k in st.get("known") or []}
+    tv = [(k, v) for k, v in sorted(app.topics.tastes(char, st).items()) if abs(v) >= 0.3 and k in TAGS]
+    cands = [(k, v) for k, v in tv if (("like" if v > 0 else "dislike"), TAGS[k]) not in known]
+    if cands:
+        base, lines = "hima.reveal_", REVEAL
+    elif tv and rng.random() < opinion_p:
+        cands, base, lines = tv, "hima.opinion_", OPINION
+    else:
+        return None
+    k, v = rng.choice(cands)
+    kind = "like" if v > 0 else "dislike"
+    app.bonds.learn(st, kind, TAGS[k], now)
+    t = app.persona_text(char, base + kind) or lines[kind]
+    fp = app.pronouns(char)[0]
+    return t.replace("{genre}", TAGS[k]).replace("{fp}", fp), base + kind, stance_mod.of_taste(k, v)
+
+
+def settle(app, char, st, res, now, out=None):
+    """結果のあとの始末: ノリ・好みが口に出るか. 口にした一言 (文. {fp} は置き換え済み) を返す. 言わなければ None.
+    out: 渡されれば, 口にした言い分を out["stance"] に (メッセージのトークに残す)."""
     if nori_mod.active(st, now) and NORI[res]:
         nori_mod.bump(app, st, now, NORI[res], "話したい: " + res)
     if res != "hit":
@@ -65,15 +91,9 @@ def settle(app, char, st, res, now):
         + 0.15 * (float(app.traits(char).get("approach", 1.0)) - 1.0)
     if random.random() >= max(0.05, min(0.7, pr)):
         return None
-    from .topics import TAGS
-    known = {(k.get("kind"), k.get("text")) for k in st.get("known") or []}
-    cands = [(k, v) for k, v in app.topics.tastes(char, st).items()
-             if abs(v) >= 0.3 and k in TAGS and (("like" if v > 0 else "dislike"), TAGS[k]) not in known]
-    if not cands:
+    got = speak(app, char, st, now)
+    if not got:
         return None
-    k, v = random.choice(cands)
-    kind = "like" if v > 0 else "dislike"
-    app.bonds.learn(st, kind, TAGS[k], now)
-    t = app.persona_text(char, "hima.reveal_" + kind) or REVEAL[kind]
-    fp = app.pronouns(char)[0]
-    return t.replace("{genre}", TAGS[k]).replace("{fp}", fp)
+    if out is not None:
+        out["stance"] = got[2]
+    return got[0]

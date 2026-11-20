@@ -407,8 +407,11 @@ class Chat:
             ap = st.get("approach") or {}
             if ap and (self.app.presence.find(ap.get("id")) or {}).get("apart"):
                 return self.app.answer_approach("reply", cid, choice=kind)     # 相手から来たメッセージへの返事 (以前の 4 択の代わり)
-            if kind in react.IDS and not react.target(self.app, cid, st, time.time()):
+            tg = react.target(self.app, cid, st, time.time()) if kind in react.IDS else None
+            if kind in react.IDS and not tg:
                 raise ValueError("返す相手のメッセージがありません")
+            if tg and kind in ("re_yes", "re_no") and not tg.get("stance"):         # 肯定・否定は, 言い分のあるメッセージにだけ
+                raise ValueError("いまのメッセージには、その返し方はできません")
         extra = msgpick.check_extra(self.app, kind, extra, cid)
         return self.app.act("message", cid, opts={"msg_kind": kind, "msg_extra": {k: v for k, v in extra.items() if k != "said" or v != KINDS[kind][2]} or None})
 
@@ -486,12 +489,15 @@ class Chat:
                 return self.consult_reply(char, st, meta["consult"], now, extra)
         if kind == "smalltalk":                 # 話したい: 乗ってくるか (会って話すときと同じ判定. core/hima.py)
             res, vals = hima.judge(app, char, st, now)
-            said = hima.settle(app, char, st, res, now)
+            sv = {}
+            said = hima.settle(app, char, st, res, now, out=sv)
             app.trace.add("msg", "話したい: " + hima.LABEL[res], cid, now, said=said, **vals)
             key = "smalltalk" if res == "ok" else "smalltalk_" + res
             if res == "flat" and hima.close(app, char, st):
                 key = "smalltalk_flat_close"
             extra["said"] = said or ""
+            if sv.get("stance"):
+                extra["stance"] = sv["stance"]          # 口にした好み・意見: トークに残して, 肯定・否定で返せる (core/stance.py)
             return key, dict(hima.EFFECT[res]), extra
         if kind == "ask_how":
             untold = [x for x in L.reasons(st, now) if not x["told"] and x.get("tell")]

@@ -18,6 +18,7 @@ from datetime import datetime
 from . import msgreply
 from . import nori
 from . import regard as regard_mod
+from . import stance as stance_mod
 
 # (id, 文言, 印, トークに残す要約, 働きかけへの返事としての区分 msgreply.KINDS)
 REACTS = [
@@ -32,6 +33,8 @@ REACTS = [
     ("re_answer", "答える", "💬", "（聞かれたことに答えた）", "expand"),
     ("re_nevermind", "気にしないで", "🙆", "（「気にしないで」と返した）", "cheerful"),      # 謝られたときだけ
     ("re_late", "遅いよ", "😤", "（「遅いよ」と返した）", "tease"),                      # 返事が遅れて謝られたときだけ
+    ("re_yes", "そうだね", "👍", "（「そうだね」と返した）", "cheerful"),                # 相手の言い分 (好き・苦手・意見・相談への答え) があるときだけ (core/stance.py)
+    ("re_no", "それはちょっと", "🤔", "（「それはちょっと」と返した）", "curt"),          # 同上
 ]
 IDS = tuple(r[0] for r in REACTS)
 CAT = {r[0]: r[4] for r in REACTS}
@@ -76,7 +79,8 @@ AWAIT = ("question", "where", "news", "lonely", "bored", "down", "happy", "sorry
 
 # 返し方そのものの重み (msgreply.KIND_BASE と同じ目盛り: 10 以上で よく効く / -8 未満で よくない)
 BASE = {"re_glad": 6, "re_hard": 4, "re_more": 6, "re_agree": 5, "re_really": 2, "re_lol": 1, "re_sokka": -5, "re_ok": -3, "re_answer": 3,
-        "tease": 0, "you_ok": 3, "re_nevermind": 4, "re_late": -2}
+        "tease": 0, "you_ok": 3, "re_nevermind": 4, "re_late": -2,
+        "re_yes": 2, "re_no": 0}            # 肯定・否定の合い方は, 向きではなく言い分で (stance.fit)
 # 謝られたとき: 「気にしないで」がいちばん. 「了解」は可, 「そっか」は少し冷たい, 喜ぶ・笑う・掘り下げるのは外れ.
 # 「遅いよ」は, からかいと同じく仲しだい (judge)
 _FIT_SORRY = {"re_nevermind": 12, "re_ok": 2, "re_agree": -2, "re_sokka": -8, "re_glad": -12, "re_lol": -8, "re_more": -6,
@@ -113,7 +117,8 @@ EFFECT = {"good": {"mood": 2.5, "loneliness": -4, "affection": 0.5}, "neutral": 
 BAD_TELL = {"re_glad": "{call}に、話を軽く流された", "re_hard": "{call}に、大げさに受け取られた", "re_more": "{call}に、しつこく聞かれた",
             "re_agree": "{call}に、分かったふうに言われた", "re_really": "{call}に、疑われた", "re_lol": "{call}に、笑われた",
             "re_sokka": "{call}の返事が素っ気なかった", "re_ok": "{call}の返事が事務的だった", "re_answer": "{call}の答えがずれていた",
-            "re_nevermind": "{call}に、謝ったのを軽く流された", "re_late": "{call}に、遅いって責められた"}
+            "re_nevermind": "{call}に、謝ったのを軽く流された", "re_late": "{call}に、遅いって責められた",
+            "re_yes": stance_mod.TELL["re_yes"], "re_no": stance_mod.TELL["re_no"]}
 # 共通の返し (性格プリセットに無ければ). 鍵は chat.react_<返し方>_<結果>
 LINES = {
     "chat.react_glad_good": "📱『ありがとうございます。{call}にそう言ってもらえると、もっとうれしくなります』",
@@ -149,6 +154,12 @@ LINES = {
     "chat.react_late_good": "📱『ふふ、ごめんなさいってば。次はすぐ返しますから』",
     "chat.react_late_neutral": "📱『……はい、すみません』",
     "chat.react_late_bad": "📱『……だから、謝ったじゃないですか』",
+    "chat.react_yes_good": "📱『ですよね！ {call}もそう思います？ なんだかうれしいです』",
+    "chat.react_yes_neutral": "📱『ふふ、ですよね』",
+    "chat.react_yes_bad": "📱『……{call}、さっきからそうだねばっかりじゃないですか？』",
+    "chat.react_no_good": "📱『えっ、そうですか？ ……でも、そうはっきり言ってもらえるの、嫌いじゃないです』",
+    "chat.react_no_neutral": "📱『そうですか？ まあ、人それぞれですよね』",
+    "chat.react_no_bad": "📱『……そこまで言わなくても』",
 }
 _RES_LABEL = {"good": "よく効いた", "neutral": "ふつう", "bad": "よくなかった"}
 SCENE_LABEL = {"react_%s_%s" % (r[0][3:], o): "相手のメッセージへの返し「%s」に %s" % (r[1], _RES_LABEL[o])
@@ -246,9 +257,21 @@ def target(app, cid, st, now):
         return None
     it = items[-1]
     tg = {"t": it["t"], "kind": it.get("kind"), "tone": tone_of(app, st, it), "ap": it.get("ap")}
+    sv = stance_of(it)
+    if sv:
+        tg["stance"] = sv
     if it.get("kind") == "approach":      # 「話そう」の文面が問いかけ (「いま何してます？」): 「答える」も並べる (kinds_for)
         tg["asks"] = bool(it["asks"]) if "asks" in it else text_question(it.get("text"))     # 印 (添えた近況で文面の終わりが変わっても) / 以前の記録は文面から
     return tg
+
+
+def stance_of(it):
+    """トークの 1 件にある相手の言い分 (core/stance.py). 好き・苦手・意見を口にした印 / 相談への答え. 無ければ None."""
+    if it.get("stance"):
+        return it["stance"]
+    if it.get("kind") in ("consult_good", "consult_off"):
+        return dict(stance_mod.ADVICE)
+    return None
 
 
 def ap_tone(aid, why):
@@ -257,11 +280,11 @@ def ap_tone(aid, why):
     return AP_TONE.get(aid, "plain")
 
 
-def kinds_for(tone, asks=False):
+def kinds_for(tone, asks=False, stance=None):
     """「返す」に並べる種類 (「答える」は問いかけのときだけ. 「気にしないで」は謝られたときだけ, 「遅いよ」は返事が遅れて謝られたときだけ).
     asks: 話の向きは別 (退屈・寂しい など) だが, 文面が問いかけで終わる (「暇で。いま何してます？」). 「答える」も並べる."""
     return [k for k in IDS if (k != "re_answer" or asks or tone in ("question", "where")) and (k != "re_nevermind" or tone in SORRY)
-            and (k != "re_late" or tone == "sorry_late")]
+            and (k != "re_late" or tone == "sorry_late") and (k not in stance_mod.KINDS or stance)]
 
 
 # 問いかけで終わる「話そう」に「答える」(いま何をしているか・どうしているかを話す) で返したときの合い方 (FIT の代わり).
@@ -290,13 +313,14 @@ def group(app, cid, st, now):
         tg = {"t": ap.get("t"), "kind": "approach", "tone": tone, "ap": ap.get("id"), "asks": ap_asks(app, cid, ap)}
     if not tg:
         return None, None
-    return {"id": GROUP[0], "icon": GROUP[1], "label": GROUP[2], "kinds": kinds_for(tg["tone"], tg.get("asks"))}, tg
+    return {"id": GROUP[0], "icon": GROUP[1], "label": GROUP[2], "kinds": kinds_for(tg["tone"], tg.get("asks"), tg.get("stance"))}, tg
 
 
-def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0, asks=False):
+def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0, asks=False, stance=None):
     """返しがどう受け取られるか: (good / neutral / bad, 点).
     ease: 遅れて返したことの重さへの倍率 (あなたの癖. core/regard.py ease: ふだんどおりの遅さなら 1 より小さい).
-    asks: 向きは別だが文面が問いかけ (kinds_for). 「答える」の合い方は ASK_FIT で."""
+    asks: 向きは別だが文面が問いかけ (kinds_for). 「答える」の合い方は ASK_FIT で.
+    stance: 相手の言い分 (肯定・否定の合い方は, 向きの FIT ではなく stance.fit で)."""
     p = st["params"]
     taste = msgreply.TASTE.get(char.get("persona_id") or "", {})
     cat = CAT.get(kind, "cheerful")
@@ -304,15 +328,19 @@ def judge(app, char, st, tone, kind, late_h=0.0, rng=random, noise=12, ease=1.0,
     fit = FIT.get(tone, FIT["plain"]).get(kind, 0)
     if asks and kind == "re_answer" and tone not in ("question", "where"):
         fit = ASK_FIT.get(tone, ASK_FIT_ELSE)
+    lv = nori.level(st, time.time())         # 会話のノリ: 乗っているほど軽い返し・冗談が通じ, 素っ気ない返しは冷や水になる
+    if kind in stance_mod.KINDS:
+        fit = stance_mod.fit(app, char, st, stance, kind, lv=lv)
+        if kind == stance_mod.NO:            # 否定の好みは, 性格の率直さ (stance.candor) で見る
+            taste = {}
     score = BASE.get(kind, 0) + fit + 0.5 * taste.get(cat, 0) \
         + 0.25 * (p.get("mood", 50) - 50) + 0.3 * (p.get("affection", 45) - 45) + 8 * (skill - 1.0) + rng.uniform(-noise, noise)
     if kind in ("tease", "re_lol", "re_late"):     # 冗談・からかい (「遅いよ」も) は, 仲が深いほど通じる
         score += 0.3 * (p.get("affection", 45) - 60)
         if app.regard.teaser(char, st):      # よくからかう人だと分かっている (あなたの癖): 真に受けない
             score += regard_mod.TEASE_BONUS
-    lv = nori.level(st, time.time())         # 会話のノリ: 乗っているほど軽い返し・冗談が通じ, 素っ気ない返しは冷や水になる
     if lv is not None:
-        if kind in ("tease", "re_lol", "re_late", "re_agree", "re_really", "re_more", "re_glad"):
+        if kind in ("tease", "re_lol", "re_late", "re_agree", "re_really", "re_more", "re_glad", "re_yes"):
             score += 12 * (lv - 0.5)
         elif kind in ("re_sokka", "re_ok") and tone not in QUIET:
             score -= 8 * (lv - 0.5)
@@ -362,13 +390,15 @@ def land(app, char, st, kind, meta, now, silent=False):
     G = app.regard
     t_to = float(to.get("t") or 0)
     ez = G.ease(char, st, t_to, sent, waited=late_h * 60.0) if t_to and tone in AWAIT and late_h > 1 else 1.0
-    res, score = judge(app, char, st, tone, kind, late_h, ease=ez, asks=bool(to.get("asks")))
+    res, score = judge(app, char, st, tone, kind, late_h, ease=ez, asks=bool(to.get("asks")), stance=to.get("stance"))
     if t_to and to.get("ap"):                # 待ち時間が切れたあとに, 相手からのメッセージへ返した: 「返さなかった」の記録を直す
         G.note_reply(char, st, t_to, sent, waited=late_h * 60.0, late=True)
     G.note_kind(char, st, kind)
     app.trace.add("react", "返しの受け取り方: %s → %s" % (kind, res), char["id"], now, tone=tone, score=round(score, 1),
                   late_h=round(late_h, 2), silent=silent, ease=round(ez, 2))
     eff = dict(EFFECT[res])
+    for k, v in stance_mod.note(app, char, st, kind, res, now).items():
+        eff[k] = eff.get(k, 0) + v
     if res == "bad":
         call = app.pronouns(char)[2]
         app.life.add_reason(st, "player", "bad", BAD_TELL[kind].replace("{call}", call), now, told=not silent, delta=-3.0,

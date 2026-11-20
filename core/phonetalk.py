@@ -29,15 +29,20 @@ from datetime import datetime, timedelta
 from . import msgreply
 from . import nori as nori_mod
 from . import circle as circle_mod
+from . import stance as stance_mod
 
 # 返し方: (id, 文言, 印)
 RETURNS = [("aizuchi", "相づちを打つ", "🙂"), ("dig", "掘り下げる", "👂"), ("mine", "自分の話をする", "💬"),
            ("change", "話を変える", "🔀"), ("bye", "そろそろ切る", "👋")]
 ASLEEP_RETURNS = [("hang", "そっと切る", "📵"), ("night", "小さく「おやすみ」と言って切る", "🌙"), ("keep", "つないだままにする", "📞")]
-RETURN_LABEL = dict((k, l) for k, l, _ in RETURNS + ASLEEP_RETURNS)
-SAID = {"aizuchi": "相づちを打った", "dig": "掘り下げて聞いた", "mine": "自分の話をした", "change": "話を変えた", "bye": "そろそろ切ろうと言った"}
-CAT = {"aizuchi": "cheerful", "dig": "expand", "mine": "cheerful", "change": "curt", "bye": "curt"}     # 性格の好み (msgreply.TASTE) の読み替え
-BASE = {"aizuchi": 4, "dig": 5, "mine": 4, "change": 0, "bye": 0}
+# 相手が好き・苦手・意見を口にした切れ目 (言い分 stance のある切れ目) にだけ, 肯定・否定も並ぶ (core/stance.py. 相づちの前に)
+STANCE_RETURNS = [("yes", "そうだね", "👍"), ("no", "それはちょっと", "🤔")]
+STANCE_KIND = {"yes": stance_mod.YES, "no": stance_mod.NO}
+RETURN_LABEL = dict((k, l) for k, l, _ in RETURNS + ASLEEP_RETURNS + STANCE_RETURNS)
+SAID = {"aizuchi": "相づちを打った", "dig": "掘り下げて聞いた", "mine": "自分の話をした", "change": "話を変えた", "bye": "そろそろ切ろうと言った",
+        "yes": "「そうだね」と返した", "no": "「それはちょっと」と返した"}
+CAT = {"aizuchi": "cheerful", "dig": "expand", "mine": "cheerful", "change": "curt", "bye": "curt", "yes": "cheerful", "no": None}     # 性格の好み (msgreply.TASTE) の読み替え. 否定は率直さ (stance.candor) で
+BASE = {"aizuchi": 4, "dig": 5, "mine": 4, "change": 0, "bye": 0, "yes": 2, "no": 0}
 # 切れ目の種類 × 返し方の合い方 (react.FIT と同じ目盛り)
 FIT = {
     "reply": {"aizuchi": 6, "dig": 8, "mine": 0, "change": -6, "bye": -8},
@@ -323,6 +328,9 @@ class PhoneTalk:
         mine = kind in ("topic",)
         due = None if kind == "asleep" else t + self.wait_secs(char, st, text, kind, t)
         c["beat"] = {"id": uuid.uuid4().hex[:8], "kind": kind, "key": key, "text": text, "t": t, "due": due, "stage": 0, "mine": mine}
+        sv = c.pop("sv", None)                            # 好き・苦手・意見を口にした (_topic): 肯定・否定で返せる
+        if sv and kind == "topic":
+            c["beat"]["stance"] = sv
         c.pop("next", None)
         self._log(c, "her", text, t)
         app.trace.add("call", "電話の切れ目", char["id"], t, kind=kind, key=key, wait=round((due or t) - t, 1))
@@ -417,19 +425,19 @@ class PhoneTalk:
             news = r["tell"].replace("{call}", call)
             return "topic", "phone.topic_news", self.line(char, "phone.topic_news", news=news)
         if random.random() < 0.25 + 0.2 * deep:
-            from .topics import TAGS
-            known = {(k.get("kind"), k.get("text")) for k in st.get("known") or []}
-            cands = [(k, v) for k, v in app.topics.tastes(char, st).items()
-                     if abs(v) >= 0.3 and k in TAGS and (("like" if v > 0 else "dislike"), TAGS[k]) not in known]
-            if cands:
-                k, v = random.choice(cands)
-                kind = "like" if v > 0 else "dislike"
-                app.bonds.learn(st, kind, TAGS[k], t)
-                from .hima import REVEAL
-                txt = (app.persona_text(char, "hima.reveal_" + kind) or REVEAL[kind]).replace("{genre}", TAGS[k]) \
-                    .replace("{fp}", app.pronouns(char)[0])
-                return "topic", "hima.reveal_" + kind, txt
+            from . import hima
+            got = hima.speak(app, char, st, t)            # まだ知らない好み (知っていることに残る) / 知っている好みについての意見
+            if got:
+                c["sv"] = got[2]
+                return "topic", got[1], got[0]
         return "topic", "phone.topic_plain", self.line(char, "phone.topic_plain")
+
+    def stance_line(self, char, kind, res):
+        """肯定・否定への返し: メッセージの返し (react の chat.react_yes / no) を声にする."""
+        from . import react
+        key = "chat.react_%s_%s" % (kind[3:], res)
+        fp, _, call = self.app.pronouns(char)
+        return react.face_line(self.app.persona_text(char, key) or react.LINES[key]).replace("{fp}", fp).replace("{call}", call)
 
     def _elapsed(self, c, t):
         return (t - c["t"]) / 60.0
@@ -524,7 +532,9 @@ class PhoneTalk:
         b = c["beat"]
         taste = msgreply.TASTE.get(char.get("persona_id") or "", {})
         lv = nori_mod.level(st, now)
-        score = BASE[kind] + 1.3 * FIT.get(b["kind"], FIT["lull"]).get(kind, 0) + 0.5 * taste.get(CAT[kind], 0) \
+        fit = stance_mod.fit(self.app, char, st, b.get("stance"), STANCE_KIND[kind], now, lv=lv) if kind in STANCE_KIND \
+            else FIT.get(b["kind"], FIT["lull"]).get(kind, 0)
+        score = BASE[kind] + 1.3 * fit + 0.5 * taste.get(CAT[kind], 0) \
             + 0.25 * (p.get("mood", 50) - 50) + 0.2 * (p.get("affection", 45) - 45) + 8 * (self.app.life.skill_mult("talk") - 1.0) \
             + (12 * (lv - 0.5) if lv is not None else 0) + random.uniform(-12, 12)
         if b.get("stage"):
@@ -567,7 +577,7 @@ class PhoneTalk:
             if not self._can_ask_bg(c):
                 raise ValueError("いまは聞けません")
             return self._bg_ask(char, st, c, now)
-        if kind not in BASE:
+        if kind not in BASE or (kind in STANCE_KIND and not b.get("stance")):
             raise ValueError("返し方を選んでください")
         self._log(c, "me", "（%s）" % SAID[kind], now)
         res, score = self.judge(char, st, c, kind, now)
@@ -588,8 +598,18 @@ class PhoneTalk:
             return {"ended": self._finish(char, st, c, now, "you", "bye", res=res)}
         if kind == "dig" and res == "good":
             c["deep"] = c.get("deep", 0) + 1
+        if kind in STANCE_KIND:
+            extra = stance_mod.note(app, char, st, STANCE_KIND[kind], res, now)
+            if extra:
+                app.apply_effects(st, extra, now)
+            if res == "bad":
+                app.life.add_reason(st, "player", "bad", stance_mod.tell(STANCE_KIND[kind]).replace("{call}", app.pronouns(char)[2]), now,
+                                    told=True, delta=EFFECT["bad"].get("mood", -2), action="_react")
+            if res != "neutral" or random.random() < 0.5:
+                self._log(c, "her", self.stance_line(char, STANCE_KIND[kind], res), now + 0.5)
+                c["stance_said"] = True
         closing = nori_mod.bump(app, st, now, NORI[res] - nori_mod.TIRE * 0.6 - 0.05 * self._elapsed(c, now), "電話の返し: " + res)
-        if res != "neutral" or random.random() < 0.5:
+        if not c.pop("stance_said", None) and (res != "neutral" or random.random() < 0.5):
             self._log(c, "her", self.line(char, "phone.react_" + res), now + 0.5)
         if closing is not None and closing < nori_mod.CLOSE_BELOW and c["turns"] >= nori_mod.CLOSE_TURNS:
             return {"ended": self._finish(char, st, c, now + 1, "her", "cold")}
@@ -1073,7 +1093,7 @@ class PhoneTalk:
                            "left": None if b.get("due") is None else max(0, int(math.ceil(b["due"] - now))),
                            "stage": b.get("stage", 0)}
             from .ring import REQ_RETURNS
-            rs = ASLEEP_RETURNS if b["kind"] == "asleep" else REQ_RETURNS if b["kind"] == "req" else WHO_RETURNS if b["kind"] == "who"                 else RETURNS + ([WHO_ASK] if self._can_ask_bg(c) else [])
+            rs = ASLEEP_RETURNS if b["kind"] == "asleep" else REQ_RETURNS if b["kind"] == "req" else WHO_RETURNS if b["kind"] == "who"                 else (STANCE_RETURNS if b.get("stance") else []) + RETURNS + ([WHO_ASK] if self._can_ask_bg(c) else [])
             out["returns"] = [{"id": k, "label": l, "icon": i} for k, l, i in rs]
         else:
             out["talking"] = True                          # 話している (次に相手が話すまで)

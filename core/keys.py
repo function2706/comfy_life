@@ -69,6 +69,10 @@ def all_keys(actions, minigames, approaches=()):
     for kind, label in (("like", "好き"), ("dislike", "苦手")):
         out["hima.reveal_" + kind] = {"scene": "話したい / 弾んで, 自分の%sなものを口にする ({genre} に系統. 文のみ, 📱 なし)" % label,
                                       "when": "", "text": HIMA_REVEAL[kind]}
+    from .hima import OPINION as HIMA_OPINION                               # 知っている好みを, 意見として口にする (肯定・否定で返せる)
+    for kind, label in (("like", "好き"), ("dislike", "苦手")):
+        out["hima.opinion_" + kind] = {"scene": "話したい・会話 / %sなものについての意見を言う ({genre} に系統. 文のみ, 📱 なし)" % label,
+                                       "when": "", "text": HIMA_OPINION[kind]}
     from .engine import App                                                 # 一緒にお出かけ中, 次の場所へ誘われて断る
     for kind, label in (("tired", "疲れている"), ("late", "夜遅い"), ("no", "いまの場所にいたい"),
                         ("keep", "移動の途中で行き先を変えようと言われて, このまま行きたい"),

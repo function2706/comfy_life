@@ -126,8 +126,10 @@ def main():
         n_cand = sum(1 for v in tv.values() if abs(v) >= 0.3)
         said = [hima.settle(app, char, st, "hit", now) for _ in range(200)]
         got = [s for s in said if s]
-        assert got and len(got) <= n_cand, (len(got), n_cand)
-        assert len({(k["kind"], k["text"]) for k in st["known"]}) == len(got), "同じことは二度言わない"
+        nk = len({(k["kind"], k["text"]) for k in st["known"]})
+        assert got and nk == len(st["known"]) <= n_cand, (nk, n_cand)         # 知らない好みは一度ずつ (同じことは二度覚えない)
+        assert nk == n_cand and len(got) > nk, (len(got), nk)                   # 知り尽くしたら, ときどき意見として口にする (A21)
+        assert all(s.replace("{fp}", "") == s for s in got)
         assert all(hima.settle(app, char, st, r, now) is None for r in ("ok", "flat") for _ in range(30)), "弾んだときだけ"
         st["known"] = []
         hima.judge = lambda a, c, s, t: ("hit", {})

@@ -2618,7 +2618,7 @@ class App:
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie,
                           re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t"), rq),       # どのメッセージへの返事か (トークで引用)
-                          **({"sorry": True} if sorry else {}))
+                          **({"sorry": True} if sorry else {}), **({"stance": extra["stance"]} if extra.get("stance") else {}))
             if selfie:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)

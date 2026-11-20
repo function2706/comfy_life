@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime
 
 from . import nori as nori_mod
-from .phonetalk import PhoneTalk, RETURNS, HOW, EFFECT
+from .phonetalk import PhoneTalk, RETURNS, HOW, EFFECT, STANCE_RETURNS
 
 FACE_RETURNS = [(k, "話を切り上げる" if k == "bye" else l, i) for k, l, i in RETURNS]
 ASLEEP_RETURNS = [("keep", "そっとしておく", "🤫"), ("cover", "何か掛けてあげる", "🧣"), ("wake", "起こす", "👋")]
@@ -222,7 +222,7 @@ class FaceTalk(PhoneTalk):
             if kind not in [k for k, _, _ in self.asleep_returns(char)]:
                 raise ValueError("眠っている（そっとしておく・起こす から）")
             return {"ended": self._finish(char, st, c, now, "you", kind)}
-        if kind not in [k for k, _, _ in FACE_RETURNS]:
+        if kind not in [k for k, _, _ in FACE_RETURNS + STANCE_RETURNS]:
             raise ValueError("返し方を選んでください")
         out = PhoneTalk.reply(self, kind, now)
         c = self.rec()
@@ -396,7 +396,8 @@ class FaceTalk(PhoneTalk):
         if b:
             out["beat"] = {"id": b["id"] + ("h" if b.get("stage") else ""), "kind": b["kind"], "text": b.get("hello") if b.get("stage") else b["text"],
                            "left": None if b.get("due") is None else max(0, int(-(-(b["due"] - now) // 1))), "stage": b.get("stage", 0)}
-            rs = self.asleep_returns(self.app.char(c["cid"])) if b["kind"] == "asleep" else FACE_RETURNS
+            rs = self.asleep_returns(self.app.char(c["cid"])) if b["kind"] == "asleep" \
+                else (STANCE_RETURNS if b.get("stance") else []) + FACE_RETURNS
             out["returns"] = [{"id": k, "label": l, "icon": i} for k, l, i in rs]
         else:
             out["talking"] = True
