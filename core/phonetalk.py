@@ -53,58 +53,58 @@ NAGARA = ("chores", "rest", "out")      # 通話中もできる一人のこと (
 NAGARA_HOW = ("walk", "transit", "taxi")
 NAGARA_LABEL = {"chores": "家事", "rest": "ひと休み", "out": "移動"}
 
-# 共通のセリフ (性格プリセットの call.<場面> があればそちら). 📞 は付けない (通話画面とトークで付ける)
+# 共通のセリフ (性格プリセットの phone.<場面> があればそちら. 「電話する」コマンドの反応 call.<キー> とは別). 📞 は付けない (通話画面とトークで付ける)
 LINES = {
-    "call.topic_news": "そういえば今日、{news}んです。",
-    "call.topic_plain": "今日は、特に何もない一日でした。……こういう日もいいですよね。",
-    "call.ask": ["{call}は、今日どうでした？", "{call}のほうは、最近どうですか？"],
-    "call.lull": ["……ふふ。こうして話してると、なんだか落ち着きます。", "……なんだか、話が尽きないですね。"],
-    "call.sleepy": "ん……ごめんなさい、ちょっと眠くなってきて……。",
-    "call.what": "……ん？ 何か音がしますけど、いま何してるんですか？",
-    "call.hello": "……もしもし？ 聞こえてます？",
-    "call.hello_asleep": "……{call}？ 寝ちゃいました？",
-    "call.silent_cut": "……もういいです。切りますね。",
-    "call.silent_awkward": "あ、あの……電波が悪いみたいなので、いったん切りますね。",
-    "call.silent_sleep": "……おやすみなさい。",
-    "call.end_limit": "あ、ごめんなさい、そろそろ行かないと。またかけますね。",
-    "call.end_limit_plain": "じゃあ、そろそろ時間なので。また。",
-    "call.end_sleepy": "すみません、もう眠くて……。おやすみなさい。",
-    "call.end_cold": "……じゃあ、そろそろ切りますね。",
-    "call.end_enough": "今日はたくさん話せて楽しかったです。じゃあ、また。",
-    "call.bye_ok": "はい。じゃあ、また話しましょうね。",
-    "call.bye_early": "あ……はい。じゃあ、また。",
-    "call.react_good": "ふふ、なんか楽しいです。",
-    "call.react_neutral": "……うん、うん。",
-    "call.react_bad": "……うーん。",
-    "call.morning_glad": "📱『昨日、寝ちゃってましたよね。……つないだままにしてくれてたんですか？ ちょっとうれしかったです』",
-    "call.morning_shy": "📱『昨日、電話の途中で寝ちゃって……。寝息とか聞こえてませんでした？ 恥ずかしい……』",
-    "call.morning_awkward": "📱『昨日は電話の途中で寝ちゃって、すみませんでした』",
+    "phone.topic_news": "そういえば今日、{news}んです。",
+    "phone.topic_plain": "今日は、特に何もない一日でした。……こういう日もいいですよね。",
+    "phone.ask": ["{call}は、今日どうでした？", "{call}のほうは、最近どうですか？"],
+    "phone.lull": ["……ふふ。こうして話してると、なんだか落ち着きます。", "……なんだか、話が尽きないですね。"],
+    "phone.sleepy": "ん……ごめんなさい、ちょっと眠くなってきて……。",
+    "phone.what": "……ん？ 何か音がしますけど、いま何してるんですか？",
+    "phone.hello": "……もしもし？ 聞こえてます？",
+    "phone.hello_asleep": "……{call}？ 寝ちゃいました？",
+    "phone.silent_cut": "……もういいです。切りますね。",
+    "phone.silent_awkward": "あ、あの……電波が悪いみたいなので、いったん切りますね。",
+    "phone.silent_sleep": "……おやすみなさい。",
+    "phone.end_limit": "あ、ごめんなさい、そろそろ行かないと。またかけますね。",
+    "phone.end_limit_plain": "じゃあ、そろそろ時間なので。また。",
+    "phone.end_sleepy": "すみません、もう眠くて……。おやすみなさい。",
+    "phone.end_cold": "……じゃあ、そろそろ切りますね。",
+    "phone.end_enough": "今日はたくさん話せて楽しかったです。じゃあ、また。",
+    "phone.bye_ok": "はい。じゃあ、また話しましょうね。",
+    "phone.bye_early": "あ……はい。じゃあ、また。",
+    "phone.react_good": "ふふ、なんか楽しいです。",
+    "phone.react_neutral": "……うん、うん。",
+    "phone.react_bad": "……うーん。",
+    "phone.morning_glad": "📱『昨日、寝ちゃってましたよね。……つないだままにしてくれてたんですか？ ちょっとうれしかったです』",
+    "phone.morning_shy": "📱『昨日、電話の途中で寝ちゃって……。寝息とか聞こえてませんでした？ 恥ずかしい……』",
+    "phone.morning_awkward": "📱『昨日は電話の途中で寝ちゃって、すみませんでした』",
 }
 SCENE_LABEL = {
-    "call.topic_news": "電話 / 話を振る: 今日あったこと ({news} に出来事. 「〜た」で終わる)",
-    "call.topic_plain": "電話 / 話を振る: 特に何もなかった",
-    "call.ask": "電話 / あなたのことを聞いてくる",
-    "call.lull": "電話 / 話がひと段落した",
-    "call.sleepy": "電話 / 眠くなってきた (寝落ちしそう)",
-    "call.what": "電話 / 生活音に気づいて「何してるの？」(ながら電話)",
-    "call.hello": "電話 / 返事が無い: もしもし？",
-    "call.hello_asleep": "電話 / 返事が無い: 夜更けで, 寝落ちしたと思う",
-    "call.silent_cut": "電話 / 返事が無いので切る (近い仲. 不満)",
-    "call.silent_awkward": "電話 / 返事が無いので切る (浅い仲. 気まずそうに)",
-    "call.silent_sleep": "電話 / 返事が無いので切る (寝落ちしたと思って, そっと)",
-    "call.end_limit": "電話 / 用事・時間で切り上げる (謝って, またかけると言う)",
-    "call.end_limit_plain": "電話 / 用事・時間で切り上げる (謝らない)",
-    "call.end_sleepy": "電話 / 眠くて切り上げる",
-    "call.end_cold": "電話 / 乗らなくて切り上げる (謝らない)",
-    "call.end_enough": "電話 / 十分話して, 満足して切り上げる",
-    "call.bye_ok": "電話 / あなたが「そろそろ」と言った (応じる)",
-    "call.bye_early": "電話 / あなたが「そろそろ」と言った (まだ話したかった)",
-    "call.react_good": "電話 / あなたの返しがよく効いた",
-    "call.react_neutral": "電話 / あなたの返しがふつう",
-    "call.react_bad": "電話 / あなたの返しがよくなかった",
-    "call.morning_glad": "電話の翌朝 / 寝落ちをつないだままにしてくれた (うれしい. 📱 で包む)",
-    "call.morning_shy": "電話の翌朝 / 寝落ちをつないだままにしてくれた (照れる. 📱 で包む)",
-    "call.morning_awkward": "電話の翌朝 / 寝落ちしたことを気まずく謝る (📱 で包む)",
+    "phone.topic_news": "電話 / 話を振る: 今日あったこと ({news} に出来事. 「〜た」で終わる)",
+    "phone.topic_plain": "電話 / 話を振る: 特に何もなかった",
+    "phone.ask": "電話 / あなたのことを聞いてくる",
+    "phone.lull": "電話 / 話がひと段落した",
+    "phone.sleepy": "電話 / 眠くなってきた (寝落ちしそう)",
+    "phone.what": "電話 / 生活音に気づいて「何してるの？」(ながら電話)",
+    "phone.hello": "電話 / 返事が無い: もしもし？",
+    "phone.hello_asleep": "電話 / 返事が無い: 夜更けで, 寝落ちしたと思う",
+    "phone.silent_cut": "電話 / 返事が無いので切る (近い仲. 不満)",
+    "phone.silent_awkward": "電話 / 返事が無いので切る (浅い仲. 気まずそうに)",
+    "phone.silent_sleep": "電話 / 返事が無いので切る (寝落ちしたと思って, そっと)",
+    "phone.end_limit": "電話 / 用事・時間で切り上げる (謝って, またかけると言う)",
+    "phone.end_limit_plain": "電話 / 用事・時間で切り上げる (謝らない)",
+    "phone.end_sleepy": "電話 / 眠くて切り上げる",
+    "phone.end_cold": "電話 / 乗らなくて切り上げる (謝らない)",
+    "phone.end_enough": "電話 / 十分話して, 満足して切り上げる",
+    "phone.bye_ok": "電話 / あなたが「そろそろ」と言った (応じる)",
+    "phone.bye_early": "電話 / あなたが「そろそろ」と言った (まだ話したかった)",
+    "phone.react_good": "電話 / あなたの返しがよく効いた",
+    "phone.react_neutral": "電話 / あなたの返しがふつう",
+    "phone.react_bad": "電話 / あなたの返しがよくなかった",
+    "phone.morning_glad": "電話の翌朝 / 寝落ちをつないだままにしてくれた (うれしい. 📱 で包む)",
+    "phone.morning_shy": "電話の翌朝 / 寝落ちをつないだままにしてくれた (照れる. 📱 で包む)",
+    "phone.morning_awkward": "電話の翌朝 / 寝落ちしたことを気まずく謝る (📱 で包む)",
 }
 NARRATION = {"quiet": "（……少しの間、黙っている）", "asleep": "（すう……すう……。寝息だけが聞こえる）",
              "night": "（小さく「おやすみ」と言って、電話を切った）", "hang": "（そっと電話を切った）",
@@ -243,7 +243,7 @@ class PhoneTalk:
         lv = nori_mod.level(st, t) or 0.3
         if c.get("doing") and not c.get("asked_doing") and random.random() < 0.3 * self._nosy(char):
             c["asked_doing"] = True
-            return "what", "call.what", self.line(char, "call.what")
+            return "what", "phone.what", self.line(char, "phone.what")
         w = {"topic": 1.0 + lv + 0.3 * c.get("deep", 0), "ask": 0.8 + 0.4 * (p.get("affection", 50) - 50) / 50.0,
              "lull": 0.4 + 0.02 * self._elapsed(c, t), "quiet": 0.5 * (1.2 - lv)}
         recent = c.get("recent") or []
@@ -253,14 +253,14 @@ class PhoneTalk:
         c["recent"] = (recent + [kind])[-3:]
         if kind == "topic":
             kind, key, text = self._topic(char, st, c, t)
-            if key == "call.topic_plain":
-                if "call.topic_plain" in (c.get("said") or []):         # 「特に何もない一日」は一度だけ
-                    return "lull", "call.lull", self.line(char, "call.lull")
+            if key == "phone.topic_plain":
+                if "phone.topic_plain" in (c.get("said") or []):         # 「特に何もない一日」は一度だけ
+                    return "lull", "phone.lull", self.line(char, "phone.lull")
                 c["said"] = (c.get("said") or []) + [key]
             return kind, key, text
         if kind == "quiet":
             return "quiet", None, NARRATION["quiet"]
-        return kind, "call." + kind, self.line(char, "call." + kind)
+        return kind, "phone." + kind, self.line(char, "phone." + kind)
 
     def _nosy(self, char):
         """生活音を気にする性格か (0.3〜1.5)."""
@@ -278,7 +278,7 @@ class PhoneTalk:
             r["told"] = True
             app.bonds.remember(char, st, t)
             news = r["tell"].replace("{call}", call)
-            return "topic", "call.topic_news", self.line(char, "call.topic_news", news=news)
+            return "topic", "phone.topic_news", self.line(char, "phone.topic_news", news=news)
         if random.random() < 0.25 + 0.2 * deep:
             from .topics import TAGS
             known = {(k.get("kind"), k.get("text")) for k in st.get("known") or []}
@@ -292,7 +292,7 @@ class PhoneTalk:
                 txt = (app.persona_text(char, "hima.reveal_" + kind) or REVEAL[kind]).replace("{genre}", TAGS[k]) \
                     .replace("{fp}", app.pronouns(char)[0])
                 return "topic", "hima.reveal_" + kind, txt
-        return "topic", "call.topic_plain", self.line(char, "call.topic_plain")
+        return "topic", "phone.topic_plain", self.line(char, "phone.topic_plain")
 
     def _elapsed(self, c, t):
         return (t - c["t"]) / 60.0
@@ -336,7 +336,7 @@ class PhoneTalk:
                 if b["stage"] == 0:                       # もしもし？
                     late = self.close_rel(char, st) and (nori_mod.hour_at(b["due"]) >= 23 or nori_mod.hour_at(b["due"]) < 4) \
                         and random.random() < 0.6
-                    key = "call.hello_asleep" if late else "call.hello"
+                    key = "phone.hello_asleep" if late else "phone.hello"
                     text = self.line(char, key)
                     b.update(stage=1, t0=b["t"], t=b["due"], due=b["due"] + random.uniform(*HELLO_WAIT), asleep_guess=late,
                              hello=text)
@@ -359,7 +359,7 @@ class PhoneTalk:
                     if c["doze"] >= 2:
                         self._new_beat(char, st, c, "asleep", None, NARRATION["asleep"], t)
                     else:
-                        self._new_beat(char, st, c, "sleepy", "call.sleepy", self.line(char, "call.sleepy"), t)
+                        self._new_beat(char, st, c, "sleepy", "phone.sleepy", self.line(char, "phone.sleepy"), t)
                     app.presence.save()
                     continue
                 return self._finish(char, st, c, t, "her", "sleepy")
@@ -431,7 +431,7 @@ class PhoneTalk:
             c["deep"] = c.get("deep", 0) + 1
         closing = nori_mod.bump(app, st, now, NORI[res] - nori_mod.TIRE * 0.6 - 0.05 * self._elapsed(c, now), "電話の返し: " + res)
         if res != "neutral" or random.random() < 0.5:
-            self._log(c, "her", self.line(char, "call.react_" + res), now + 0.5)
+            self._log(c, "her", self.line(char, "phone.react_" + res), now + 0.5)
         if closing is not None and closing < nori_mod.CLOSE_BELOW and c["turns"] >= nori_mod.CLOSE_TURNS:
             return {"ended": self._finish(char, st, c, now + 1, "her", "cold")}
         c.pop("beat", None)
@@ -472,7 +472,7 @@ class PhoneTalk:
         call = app.pronouns(char)[2]
         if why == "silent":                               # 黙ったまま: 相手から切る
             asleep = b.get("asleep_guess")
-            key = "call.silent_sleep" if asleep else "call.silent_cut" if self.close_rel(char, st) else "call.silent_awkward"
+            key = "phone.silent_sleep" if asleep else "phone.silent_cut" if self.close_rel(char, st) else "phone.silent_awkward"
             last = self.line(char, key)
             self._silent(char, st, c, b, t, asleep)
             note = "途中で返事をしなくなり、%sから切れた" % char.get("name", "相手")
@@ -482,7 +482,7 @@ class PhoneTalk:
             sorry = random.random() < 0.35 + 0.4 * pun + (0.15 if self.close_rel(char, st) else 0) - 0.12 * len(recent)
             if sorry:
                 st["call_sorries"] = (recent + [t])[-5:]
-            last = self.line(char, "call.end_limit" if sorry else "call.end_limit_plain")
+            last = self.line(char, "phone.end_limit" if sorry else "phone.end_limit_plain")
             if sorry and random.random() < 0.7:
                 st["call_back"] = {"t": t, "why": c.get("cut")}           # またかけるね (段 2 の着信が使う)
             note = "%sので、%sから切り上げた" % (c.get("cut") or "用事がある", char.get("name", "相手"))
@@ -490,17 +490,17 @@ class PhoneTalk:
             note = "%sので、切り上げた" % (c.get("cut") or "用事がある")
         elif why == "sleepy":
             sorry = random.random() < 0.5
-            last = self.line(char, "call.end_sleepy")
+            last = self.line(char, "phone.end_sleepy")
             note = "%sが眠そうで、切り上げた" % char.get("name", "相手")
         elif why == "cold":
-            last = self.line(char, "call.end_cold")
+            last = self.line(char, "phone.end_cold")
             note = "話が続かず、%sから切り上げた" % char.get("name", "相手")
         elif why == "enough":
-            last = self.line(char, "call.end_enough")
+            last = self.line(char, "phone.end_enough")
             note = "十分話して、%sから切り上げた" % char.get("name", "相手")
         elif why == "bye":
             early = (c.get("by") == "her" or b.get("mine")) and (mins < 5 or c.get("turns", 0) < 3)
-            last = self.line(char, "call.bye_early" if early or res == "bad" else "call.bye_ok")
+            last = self.line(char, "phone.bye_early" if early or res == "bad" else "phone.bye_ok")
             note = "あなたから切り上げた"
             if early:
                 self._cut_early(char, st, c, t, soft=True)
@@ -611,7 +611,7 @@ class PhoneTalk:
         if self.app.scene_at(char, st, datetime.fromtimestamp(min(now, t + 3 * 3600))).get("asleep") and now - t < 6 * 3600:
             return False
         st.pop("call_doze", None)
-        self.app.chat.add(char["id"], "her", self.line(char, "call.morning_" + dz["mood"]), kind="call_morning", t=min(now, t + 60))
+        self.app.chat.add(char["id"], "her", self.line(char, "phone.morning_" + dz["mood"]), kind="call_morning", t=min(now, t + 60))
         self.app.trace.add("call", "寝落ちした電話の翌朝", char["id"], now, mood=dz["mood"])
         return True
 

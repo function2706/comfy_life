@@ -137,7 +137,7 @@ def main():
         c = call()
         b = c["beat"]
         v = app.call_view(b["due"] + 0.1)
-        assert v["beat"]["stage"] == 1 and v["beat"]["text"] in (PT.line(char, "call.hello"), PT.line(char, "call.hello_asleep")) \
+        assert v["beat"]["stage"] == 1 and v["beat"]["text"] in (PT.line(char, "phone.hello"), PT.line(char, "phone.hello_asleep")) \
             or v["beat"]["stage"] == 1, v
         mood0 = st["params"]["mood"]
         due2 = PT.rec()["beat"]["due"]

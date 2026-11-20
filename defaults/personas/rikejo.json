@@ -3006,6 +3006,80 @@
   ],
   "chat.visit_now_missed": [
    "📱『……来るって言ってたよね。待ってたんだけど、何かあった？』"
+  ],
+  "phone.topic_news": [
+   "そういえば今日、{news}。なかなか興味深かった"
+  ],
+  "phone.topic_plain": [
+   "今日は特に変化なし。そういう日のデータも大事"
+  ],
+  "phone.ask": [
+   "{call}くんは今日どうだった？",
+   "そっちの近況は？"
+  ],
+  "phone.lull": [
+   "……こうやって話してると、思考がまとまる",
+   "気づいたら、けっこうな時間話してる"
+  ],
+  "phone.sleepy": [
+   "……ごめん、集中力が落ちてきた。眠いみたい"
+  ],
+  "phone.what": [
+   "何か物音がする。いま何してるの？"
+  ],
+  "phone.hello": [
+   "もしもし？ 聞こえてる？"
+  ],
+  "phone.hello_asleep": [
+   "……{call}くん？ 寝た？"
+  ],
+  "phone.silent_cut": [
+   "応答なし。切るよ"
+  ],
+  "phone.silent_awkward": [
+   "電波の状態が悪いみたい。いったん切るね"
+  ],
+  "phone.silent_sleep": [
+   "……おやすみ"
+  ],
+  "phone.end_limit": [
+   "ごめん、次の予定がある。あとでかけ直す"
+  ],
+  "phone.end_limit_plain": [
+   "時間だから、ここまで"
+  ],
+  "phone.end_sleepy": [
+   "ごめん、もう眠い。睡眠を優先する。おやすみ"
+  ],
+  "phone.end_cold": [
+   "……じゃあ、切るね"
+  ],
+  "phone.end_enough": [
+   "今日はたくさん話せた。楽しかった。また"
+  ],
+  "phone.bye_ok": [
+   "了解。またね"
+  ],
+  "phone.bye_early": [
+   "……もう？ まあ、いいけど。またね"
+  ],
+  "phone.react_good": [
+   "ふふ、そういうこと"
+  ],
+  "phone.react_neutral": [
+   "……なるほど"
+  ],
+  "phone.react_bad": [
+   "……論点がずれてる"
+  ],
+  "phone.morning_glad": [
+   "📱『昨日、途中で寝てたよね。つないだままにしてたの？ ……悪くない気分だった』"
+  ],
+  "phone.morning_shy": [
+   "📱『昨日寝落ちした。寝言、記録してないよね？』"
+  ],
+  "phone.morning_awkward": [
+   "📱『昨日は途中で寝てごめん』"
   ]
  }
 }
