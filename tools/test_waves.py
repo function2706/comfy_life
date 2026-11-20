@@ -204,11 +204,17 @@ def main():
         print("依存度との釣り合い: OK | 慣れている %.2f / 新鮮 %.2f" % (l_lo, l_hi))
 
         # ---- 7. 誘いの断り方: 忙しい・人付き合いの時期は理由を言うことがある. ふつうは言わない
-        def keys(wv, n=300):
+        # 「友達と約束がある」は, 誘われた日に本当に知り合いと会う予定があるときだけ (core/circle.py. 作り事にしない)
+        def keys(wv, n=300, plan=False):
             V.rec(char, st).update(p=wv)
-            return {V.decline_key(char, st) for _ in range(n)}
-        assert keys("busy") == {None, "appoint_no_busy"} and keys("social") == {None, "appoint_no_friends"}
+            cr = app.circle.rec(char, st, now)
+            cr["plans"] = [{"t0": now + 86400, "t1": now + 86400 + 7200, "pid": cr["people"][0]["pid"], "place": "cafe",
+                            "kind": "meal"}] if plan else []
+            return {V.decline_key(char, st, now + 86400 + 3 * 3600) for _ in range(n)}
+        assert keys("busy") == {None, "appoint_no_busy"} and keys("social") == {None}
+        assert keys("social", plan=True) == {None, "appoint_no_friends"} and keys("normal", plan=True) == {None, "appoint_no_friends"}
         assert keys("normal") == {None} and keys("free") == {None}
+        app.circle.rec(char, st, now)["plans"] = []
         from core import chat as chat_mod
         for k in ("appoint_no_busy", "appoint_no_friends") + tuple("wave_" + w for w in W.SPECIAL):
             assert "chat." + k in chat_mod.LINES and k in chat_mod.SCENE_LABEL, k
@@ -264,6 +270,9 @@ def main():
         free = app.scheduled_scene
         app.scheduled_scene = lambda c, d: dict(free(c, d), away=False, busy=False, asleep=False)
         V.rec(char, st).update(p="social")
+        cr = app.circle.rec(char, st, now)          # その日の夜に知り合いと会う予定がある (誘いの時刻とは重ならない)
+        cr["plans"] = [{"t0": now + 2 * 86400 + 4 * 3600, "t1": now + 2 * 86400 + 6 * 3600, "pid": cr["people"][0]["pid"],
+                        "place": "cafe", "kind": "meal"}]
         got = Counter()
         for i in range(120):
             x = {"id": "w%d" % i, "cid": cid, "t": now + 2 * 86400, "place": "riverside", "do": "walk", "by": "me",

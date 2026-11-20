@@ -28,6 +28,7 @@ from datetime import datetime, timedelta
 
 from . import msgreply
 from . import nori as nori_mod
+from . import circle as circle_mod
 
 # 返し方: (id, 文言, 印)
 RETURNS = [("aizuchi", "相づちを打つ", "🙂"), ("dig", "掘り下げる", "👂"), ("mine", "自分の話をする", "💬"),
@@ -62,7 +63,7 @@ WHO_RETURNS = [("honest", "正直に言う", "🙋"), ("dodge", "ごまかす", 
 WHO_ASK = ("who_ask", "誰といるの？と聞く", "🕵")
 NEAR_P = {"home": 0.55, "guest": 0.55, "meet": 0.4, "visit": 0.45}     # そばの人の声に, 電話の相手が気づく割合のもと (一緒にいる形)
 BG_P = {"coworker": 0.7, "friend_uni": 0.6, "friend_out": 0.3}           # 相手の場面から, 一緒にいる人がいる割合
-WHO_LABEL = {"coworker": "職場の人", "friend": "友達"}
+WHO_LABEL = {"coworker": "職場の人", "friend": "友達", "family": "家族"}
 HUSH_SPAN = {"train": 0.5, "work": 0.6}                                    # 電車の中・職場: 話していたい長さを縮める
 WORK_ACTS = ("work", "parttime")
 WITH_KEEP = 3 * 86400                                                      # with_log を残す長さ
@@ -904,8 +905,12 @@ class PhoneTalk:
         if not sc.get("away") or sc.get("asleep"):
             return None
         act, loc = sc.get("activity"), sc.get("location") or ""
-        who, ocid, hush = None, None, None
-        if act in ("commute", "moving"):
+        who, ocid, hush, pid = None, None, None, None
+        if sc.get("circle"):                             # 知り合いと会う予定の最中 (core/circle.py): その人と一緒
+            pl = sc["circle"]
+            pid = pl["pid"]
+            who = circle_mod.WHO.get((app.circle.person(char, st, pid) or {}).get("kind"), "friend")
+        elif act in ("commute", "moving"):
             hush = "train"
         else:
             if act in WORK_ACTS:
@@ -929,7 +934,11 @@ class PhoneTalk:
             if s2.get("label") != sc.get("label") or s2.get("location") != loc:
                 break
             t1 += 600
+        if pid:
+            t1 = max(t, min(sc["circle"]["t1"], t + 4 * 3600))
         x = {"t0": t, "t1": t1, "who": who, "cid": ocid, "label": sc.get("label", ""), "loc": loc, "hush": hush}
+        if pid:
+            x["pid"] = pid
         st["with_log"] = (log + [x])[-20:]
         app.trace.add("call", "相手の側の気配を決めた", char["id"], t, who=who, other=ocid, label=x["label"], hush=hush)
         return x

@@ -57,7 +57,7 @@ _TONES = {
     "down": ("appoint_change_sad", "appoint_cancel_sad", "favor_plants_dead", "money_worry", "favor_lapsed"),
     "news": ("ask_how",),
     "advice": ("consult", "consult_good", "consult_off"),
-    "notice": ("appoint_no_busy", "appoint_no_friends", "visit_now_no", "visit_now_out", "visit_now_busy", "visit_now_late", "visit_now_unwell", "visit_now_stale",
+    "notice": ("appoint_no_busy", "appoint_no_friends", "appoint_plan", "visit_now_no", "visit_now_out", "visit_now_busy", "visit_now_late", "visit_now_unwell", "visit_now_stale",
                "appoint_busy", "appoint_no", "appoint_counter", "appoint_cancel", "appoint_rearranged", "appoint_move_mine",
                "appoint_change_fine", "appoint_change_keep_want", "appoint_change_keep_busy", "appoint_change_counter", "appoint_change_gone",
                "appoint_cancel_fine", "appoint_cancel_favor", "favor_ask_move", "favor_ask_offer", "favor_ask_when", "favor_ask_plants",

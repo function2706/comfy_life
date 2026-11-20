@@ -49,6 +49,7 @@ from . import nori as nori_mod
 from . import react as react_mod
 from . import attach as attach_mod
 from . import waves as waves_mod
+from . import circle as circle_mod
 from . import regard as regard_mod
 from . import topics as topics_mod
 from . import hima as hima_mod
@@ -214,6 +215,7 @@ class App:
         self.topics = topics_mod.Topics(self)          # 話題のたくわえ (あなたの体験 → 相手に振る)
         self.attach = attach_mod.Attach(self)        # 献身度・依存度 (相手ごと. 画面には出さない)
         self.waves = waves_mod.Waves(self)          # 相手の生活の波 (時期) と, あなたへの慣れ・新鮮さ (画面には出さない)
+        self.circle = circle_mod.Circle(self)        # 相手の交友関係: 知り合いと, その人たちと会う予定 (A34. 画面には出さない)
         self.regard = regard_mod.Regard(self)        # 相手の中の「あなたの見立て」(思われている度と確かさ. 画面には出さない)
         self.encounters = encounters_mod.Encounters(self)
         self.solo = solo_mod.Solo(self)
@@ -928,7 +930,17 @@ class App:
         return s
 
     def scheduled_scene(self, char, dt):
-        """予定の場面. 基本の予定に, その日の生活リズムの揺らぎ (寝坊・夜ふかし・残業など. core/rhythm.py) を効かせる."""
+        """予定の場面. 基本の予定に, その日の生活リズムの揺らぎ (寝坊・夜ふかし・残業など. core/rhythm.py) を効かせ,
+        知り合いと会う予定 (core/circle.py) も重ねる."""
+        s = self.own_scene(char, dt)
+        if hasattr(self, "circle") and char.get("id") in self.chars:
+            st = self.state(char["id"])
+            if st.get("circle"):
+                s = self.circle.scene(char, st, s, dt)
+        return s
+
+    def own_scene(self, char, dt):
+        """本人の予定 (生活リズムの揺らぎまで. 知り合いと会う予定は重ねない. 予定を作るときの空きの確かめ用)."""
         if not char.get("schedule") or not hasattr(self, "rhythm"):
             return self._base_scene(char, dt)
         return self.rhythm.adjust(char, dt, lambda t: self._base_scene(char, t))
@@ -1020,6 +1032,7 @@ class App:
             ctx["away"] = True      # あなたから見れば, そばにいない (free は相手自身の予定のまま = 誘えるか)
         ctx.update({k: round(v, 1) for k, v in self.attach.view(char, st).items()})      # devotion / dependence
         ctx.update(self.waves.ctx(char, st))                   # wave / wave_apart / wave_near / fresh (core/waves.py)
+        ctx["wave_apart"] = round(ctx["wave_apart"] * self.circle.contact_f(char, st, dt.timestamp()), 3)    # 知り合いと会っている最中 (core/circle.py)
         ctx["fight"] = self.quarrel.active(st, dt.timestamp())                            # 言い争いのあと (素っ気ない)
         ctx["roll"] = random.randint(0, 99)
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
@@ -3915,7 +3928,7 @@ class App:
                                                          * (1.15 if st.get("call_ok_until", 0) > now else 1))) + "（寝ている・手が離せないときは別）",
                 },
                 "attach": dict({attach_mod.LABEL.get(k, k): round(v, 1) for k, v in self.attach.view(char, st).items()},
-                               **dict(self.regard.debug(char, st), **self.waves.debug(char, st, now))),
+                               **dict(self.regard.debug(char, st), **dict(self.waves.debug(char, st, now), **self.circle.debug(char, st, now)))),
                 "traits": {k: v for k, v in sorted(tr.items()) if isinstance(v, (int, float)) and not isinstance(v, bool)},
                 "reasons": [{"mood": r["mood"], "tell": r.get("tell") or "", "delta": r.get("delta", 0), "t": r["t"],
                              "told": bool(r.get("told")), "resolved": bool(r.get("resolved")), "kind": r.get("kind"),

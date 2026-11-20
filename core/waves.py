@@ -38,7 +38,7 @@ WAVES = {
              "accept": -0.15, "say": "appoint_no_busy"},
     "hooked": {"label": "何かにはまっている", "apart": 0.7, "near": 0.85, "invite": 0.8, "lonely": 0.85, "bored": 0.4, "call": 0.8,
                "accept": -0.05, "mood": 2},
-    "social": {"label": "人付き合いが多い", "apart": 0.7, "near": 0.85, "invite": 0.6, "lonely": 0.55, "bored": 0.8, "call": 0.8,
+    "social": {"label": "人付き合いが多い", "apart": 0.7, "near": 0.85, "invite": 0.6, "lonely": 0.75, "bored": 0.8, "call": 0.8,
                "accept": -0.15, "say": "appoint_no_friends", "mood": 3},
     "down": {"label": "落ち込んでいる", "apart": None, "near": 0.9, "invite": 0.5, "accept": -0.1, "mood": -8},
     "free": {"label": "暇", "apart": 1.3, "near": 1.15, "invite": 1.3, "lonely": 1.1, "bored": 1.3, "accept": 0.05},
@@ -162,9 +162,17 @@ class Waves:
         慣れて当たり前になるほど深まりにくい."""
         return round(1 + (self.fresh(char, st) - FRESH_CENTER) / 100.0, 3)
 
-    def decline_key(self, char, st):
-        """誘いを断るときの理由のセリフ (時期しだい. 必ずではない). 無ければ None."""
+    def decline_key(self, char, st, t=None):
+        """誘いを断るときの理由のセリフ (時期しだい. 必ずではない). 無ければ None.
+        「友達と約束がある」(social) は, 誘われた日に本当に知り合いと会う予定があるときだけ (core/circle.py. 作り事にしない).
+        予定があれば, 時期によらず言うことがある."""
+        circle = getattr(self.app, "circle", None)
+        has_plan = bool(t and circle and circle.plans_on(char, st, t))
         k = (WAVES.get(self.period(char, st)) or {}).get("say")
+        if k == "appoint_no_friends" and not has_plan:
+            return None
+        if not k and has_plan:
+            k = "appoint_no_friends"
         return k if k and random.random() < SAY_REASON else None
 
     # ------------------------------------------------------------------ 時期の移り

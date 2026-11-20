@@ -439,13 +439,19 @@ class Appoint:
             self.save()
             return "favor_yes", {"mood": 2, "trust": 1}, extra
         busy = app.scheduled_scene(char, datetime.fromtimestamp(x["t"]))
-        if (busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8:
+        plan = app.circle.plan_over(char, st, x["t"], x["t"] + 2 * 3600)      # 知り合いと会う予定 (core/circle.py)
+        if plan:
+            extra["who"] = app.circle.who_word(char, st, plan)
+        if ((busy["away"] or busy["busy"] or busy["asleep"]) and not places_mod.is_home(x["place"]) and random.random() < 0.8 or plan):
+            # 知り合いと先に約束していれば, たまたま受けることはない (献身的なら, その予定をずらして合わせてくれることがある)
             alt = self._alt_time(char, x, now) if int(x.get("rounds", 0)) < COUNTER_MAX else None
             fv = app.attach.factor(char, st, "devotion")
             if fv > 0 and random.random() < 0.4 * fv:          # 献身的なら, 自分の予定のほうを動かして合わせてくれることも
                 x["status"] = "set"
                 x["plan"] = self._plan(char, st, x)
                 x["rearranged"] = True
+                if plan:
+                    app.circle.drop(char, st, plan, "あなたとの約束に合わせた")
                 st.pop("date_promise", None)
                 self.save()
                 app.attach.give(char, st, "her", 2, "予定を動かして合わせてくれた")
@@ -455,7 +461,7 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)        # その時間は無理だけど, この時間なら
             x["status"] = "declined"
             self.save()
-            return "appoint_busy", {}, extra
+            return ("appoint_plan" if plan else "appoint_busy"), {}, extra
         promised = st.get("date_promise", 0) > now or bool(x.get("counter"))        # 自分から誘った話の続き
         pa = 0.35 + (p.get("affection", 50) - 50) / 80.0 + (p.get("mood", 50) - 50) / 150.0 \
             - float(app.traits(char).get("caution", 0)) / 50.0 + (0.1 if app.bonds.stage(char["id"]) == "visit" else 0.0) \
@@ -466,6 +472,8 @@ class Appoint:
         if random.random() < max(0.03, min(0.95, pa)):
             x["status"] = "set"
             x["plan"] = self._plan(char, st, x)
+            if plan:                                   # 予定より, あなたとの約束を選んだ (友達との予定はやめる)
+                app.circle.drop(char, st, plan, "あなたとの約束を選んだ")
             st.pop("date_promise", None)
             self.save()
             self._favor_set(st, x, now)
@@ -477,7 +485,7 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)      # その日は気が乗らないけど, こっちなら
         x["status"] = "declined"
         self.save()
-        return app.waves.decline_key(char, st) or "appoint_no", {}, extra       # 忙しい・友達と約束 (時期しだい. core/waves.py)
+        return app.waves.decline_key(char, st, x["t"]) or "appoint_no", {}, extra       # 忙しい・友達と約束 (時期と, その日の予定. core/waves.py)
 
     def _favor_set(self, st, x, now):
         """約束が決まった: お礼の心当たり. 約束してくれた / もとが相手からの誘いなら, 会おうと言ってくれた
