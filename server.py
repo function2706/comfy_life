@@ -238,6 +238,9 @@ def route(method, path, q, body):
         if path == "/api/travel/doing":
             with a.lock:
                 return a.geo.set_doing(b.get("what"))
+        if path == "/api/vehicle/fetch":          # 出先に置いた自転車・車を取りに行く (F14)
+            with a.lock:
+                return a.solo.fetch(b.get("vid"), how=b.get("how"))
         if path == "/api/solo/move":
             with a.lock:
                 return a.solo.move(b["place"], how=b.get("how"))

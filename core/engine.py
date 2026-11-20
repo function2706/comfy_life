@@ -3471,9 +3471,9 @@ class App:
         if frm == pl or geo_mod.INSTANT:
             return None
         try:
-            go = self.geo.leg(frm, pl, how, now)
+            go = self.geo.leg(frm, pl, how, now, pair=True)        # 二人で: 自転車は使わない (F13. 自転車は置いた所に残る)
             self.geo.used(go, pl)
-            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] in ("bike", "car") else None, now, rand=False) \
+            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] == "car" else None, now, rand=False, pair=True) \
                 if self.bonds.mode(cid) == "home" else None
             if back:
                 self.geo.used(back, places_mod.HOME_ME)
@@ -3482,7 +3482,7 @@ class App:
         dur = max(0.0, ov["until"] - now)                  # 現地で過ごす長さ (デート)
         if back and back.get("legs"):                    # 帰りの電車・バスは, 帰る時刻の時刻表で
             try:
-                back = self.geo.leg(pl, places_mod.HOME_ME, None, now + go["min"] * 60 + dur, rand=False)
+                back = self.geo.leg(pl, places_mod.HOME_ME, None, now + go["min"] * 60 + dur, rand=False, pair=True)
             except ValueError:
                 pass
         ov["arr"] = now + go["min"] * 60
@@ -3587,6 +3587,8 @@ class App:
         cid, ov = self.outing_now(now)
         if not cid:
             raise ValueError("いまは誰とも出かけていません")
+        if how == "bike":
+            raise ValueError("二人では自転車に乗れません")       # F13: 一緒の移動に自転車は使わない
         char, st = self.char(cid), self.state(cid)
         trip = self.outing_trip(st, now)          # 移動の途中なら, 行き先を変える (いまの地点から)
         if aid:                                  # コマンドから (移動の分類): 行き先はそのコマンドの場所か, 選んだ場所

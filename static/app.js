@@ -749,13 +749,27 @@ function travelSteps(tv) {
 }
 function howPicker(onchange) {
   const V = (((S.view || {}).outdoor || {}).vehicles || {}).own || {};
-  const ids = ['auto', 'walk', 'transit', ...(V.bicycle ? ['bike'] : []), ...(V.car ? ['car'] : []), 'taxi'];
+  const pair = !!((S.view || {}).outdoor || {}).with_outing;          // 相手と一緒: 二人では自転車に乗れない (F13)
+  const ids = ['auto', 'walk', 'transit', ...(V.bicycle && !pair ? ['bike'] : []), ...(V.car ? ['car'] : []), 'taxi'];
   if (!ids.includes(S.how)) S.how = 'auto';
   const where = Object.values(V).filter((v) => !v.here).map((v) => `${v.label}は${v.at_label}に置いてある`).join('・');
+  // 出先に置いてきた乗り物: 取りに行く (いま選んでいる行き方で. 着いたらそれに乗って家へ. 店が閉まっていても行ける. F14)
+  const fetch = pair ? [] : Object.entries(V).filter(([, v]) => v.fetch).map(([vid, v]) => h('button', { class: 'btn small', disabled: S.busy,
+    title: `${v.at_label}まで${['bike', 'car'].includes(S.how) || S.how === 'auto' ? 'おまかせ' : HOW_NAME[S.how]}で行き、${v.label}に乗って家へ帰る（店が閉まっていても行けます）`,
+    onclick: () => fetchVehicle(vid) }, `${vid === 'car' ? '🚗' : '🚲'} ${v.label}を取りに行く`));
   return h('div', { class: 'row', style: 'grid-column:1/-1;gap:4px;align-items:center;flex-wrap:wrap' }, h('span', { class: 'muted small' }, '行き方:'),
     ...ids.map((k) => h('button', { class: 'btn small' + (S.how === k ? ' primary' : ''),
       onclick: () => { S.how = k; (onchange || renderSoloTab)(); } }, HOW_NAME[k])),
-    where ? h('span', { class: 'muted small' }, `（${where}）`) : '');
+    where ? h('span', { class: 'muted small' }, `（${where}）`) : '', ...fetch);
+}
+async function fetchVehicle(vid) {
+  if (S.busy) return;
+  S.busy = true;
+  try {
+    const how = ['bike', 'car', 'auto'].includes(S.how) ? null : S.how;
+    const r = await api('/api/vehicle/fetch', { vid, how });
+    toast((r.done || '').replace(/^（|）$/g, '') || '取りに向かった', 'ok');
+  } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
 }
 function routeOf(id) { return (((S.view || {}).outdoor || {}).routes || {})[id]; }
 // 選んでいる行き方での目安 (行けなければ ng)
@@ -766,7 +780,7 @@ function routeText(id) {
   const how = S.how === 'auto' ? r.best : S.how;
   const m = (r.modes || {})[how];
   if (!m) return { text: how === 'transit' ? '電車・バスは使えない距離' : `${HOW_NAME[how]}は使えない`, ng: S.how !== 'auto' && how !== 'transit',
-    why: how === 'bike' ? '自転車を持っていません' : how === 'car' ? '車（と免許）がありません' : `${HOW_NAME[how]}は使えない距離です` };
+    why: how === 'bike' ? (((S.view || {}).outdoor || {}).with_outing ? '二人では自転車に乗れません' : '自転車を持っていません') : how === 'car' ? '車（と免許）がありません' : `${HOW_NAME[how]}は使えない距離です` };
   return { text: `${HOW_ICON[how]}${m.min}分${m.fare ? `・${m.fare}円` : ''}${m.ok ? '' : '（行けない）'}`, ng: !m.ok, why: m.ok ? '' : (m.note || '行けません') };
 }
 function routeTip(id) {

@@ -121,7 +121,8 @@ class Outdoor:
                 out["current"].update(label="%sへ移動中" % self.app.places.label(cur["dest"]) if cur["dest"] != places_mod.HOME_ME else "家へ移動中",
                                       icon={"transit": "🚃", "bike": "🚲", "car": "🚗", "taxi": "🚕"}.get(cur.get("how"), "🚶"))
         # 行き先ごとの行き方の目安 (いまいる場所から)
-        out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES) | {places_mod.HOME_ME}), now)   # 家へ: 帰る行き方
+        pair = bool(self.app.outing_now(now)[0])              # 相手と一緒: 自転車は出さない (二人では乗れない. F13)
+        out["routes"] = self.app.geo.choices_view(sorted(set(ch["out"]) | set(places_mod.OUT_PLACES) | {places_mod.HOME_ME}), now, pair)   # 家へ: 帰る行き方
         out["travel"] = self.app.geo.view(now)
         out["vehicles"] = self.app.geo.vehicles_view(now)
         out["here"] = self.app.geo.where(now)

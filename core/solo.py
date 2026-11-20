@@ -167,8 +167,71 @@ class Solo:
             return self._at_home_of(place)
         return self._start(kind, skill, place, cid, how, frm)
 
+    # ------------------------------------------------------------------ 出先に置いた乗り物を取りに行く (F14)
+    FETCH_HOW = {"bicycle": "bike", "car": "car"}
+    FETCH_LABEL = {"bicycle": "自転車", "car": "車"}
+
+    def fetch_why(self, vid, now=None):
+        """出先に置いてある自転車・車を, いま取りに行けない理由 (行けるなら None). 取りに行けるのは家にいるときだけ."""
+        app = self.app
+        now = now or time.time()
+        if vid not in self.FETCH_HOW or app.items.count(vid) <= 0:
+            return "持っていません"
+        at = app.geo.veh_at(vid, now)
+        if at == places_mod.HOME_ME:
+            return "家にあります"
+        if app.presence.rec().get("mode") != "none" or app.geo.where(now) != places_mod.HOME_ME or app.geo.moving(now):
+            return "家にいるときに取りに行けます"
+        why = app.blocked("solo") or app.stay_home()
+        return why
+
+    def fetch(self, vid, how=None, now=None):
+        """出先 (店・駅など) に置いてきた自転車・車を取りに行く: そこまで歩き・電車・バス・タクシーで行き, 着いたらそれに乗って家へ.
+        行き先の店が閉まっていても行ける (店の前の駐輪場・駐車場まで. 店の中のことはしない). 1 回の操作で, 取ってそのまま帰る."""
+        app = self.app
+        now = now or time.time()
+        why = self.fetch_why(vid, now)
+        if why:
+            raise ValueError("%sを取りに行けません（%s）" % (self.FETCH_LABEL.get(vid, "乗り物"), why))
+        if how in ("bike", "car", "run"):
+            raise ValueError("取りに行く行き方は、歩き・電車・バス・タクシーから選んでください")
+        at = app.geo.veh_at(vid, now)
+        app.presence.declare("out", now)
+        pr = app.presence.rec()
+        pr["solo"] = {"kind": "out", "skill": None, "t": now, "fetch": vid}
+        pr["place"] = at
+        app.presence.save()
+        tr = app.geo.depart(at, how, now, then="fetch:" + vid)
+        if not tr:
+            return self.arrive_then("fetch:" + vid, at, now)
+        text = "%sを取りに%sへ向かった（%sで%d分ほど）" % (self.FETCH_LABEL[vid], app.places.label(at), geo_mod.HOW_LABEL[tr["how"]],
+                                                max(1, round((tr["arr"] - now) / 60)))
+        self.note("out", text, now)
+        return {"started": "out", "label": "%sへ移動中" % app.places.label(at), "act": None, "done": "（%s）" % text, "travel": app.geo.view(now)}
+
+    def _fetch_ride(self, vid, place, t):
+        """取りに来た乗り物に乗って, 家へ向かう (着いたら come_back で戻る)."""
+        app = self.app
+        pr = app.presence.rec()
+        pr["left"] = t
+        lab = self.FETCH_LABEL.get(vid, "乗り物")
+        try:
+            tr = app.geo.depart(places_mod.HOME_ME, self.FETCH_HOW[vid], t, frm=place, direction="home")
+            how_note = "%sに乗って" % lab
+        except ValueError:                        # 家まで乗って帰るには遠い: おまかせで (駅まで乗って停める経路もある)
+            tr = app.geo.depart(places_mod.HOME_ME, None, t, frm=place, direction="home")
+            how_note = "家まで%sで帰るには遠いので、%sで" % (lab, geo_mod.HOW_LABEL[tr["how"]] if tr else "歩いて")
+        if not tr:
+            return self.app.come_back(at=t, arrived=True)
+        text = "%sに着いて、%s家へ向かった（%d分ほど）" % (app.places.label(place), how_note, max(1, round((tr["arr"] - t) / 60)))
+        self.note("out", text, t)
+        return {"started": "out", "label": "家へ移動中", "act": None, "done": "（%s）" % text}
+
     def arrive_then(self, then, place, t):
-        """移動して着いたときにすること (core/geo.py の tick から). 相手の家なら, 着いてから訪ねる."""
+        """移動して着いたときにすること (core/geo.py の tick から). 相手の家なら, 着いてから訪ねる.
+        fetch:<乗り物>: 置いてきた乗り物を取りに来た. それに乗って家へ (F14)."""
+        if str(then or "").startswith("fetch:"):
+            return self._fetch_ride(then[6:], place, t)
         if then == "visit":
             p = self.app.presence.rec()
             p["mode"] = "none"                 # 玄関先に着いた (訪ねる処理は家を出るところから)
@@ -421,6 +484,16 @@ class Solo:
         sl = ll.get("solo")
         if not sl or sl.get("parted"):          # 別れて家へ帰ってきただけ (core/bonds.py)
             return None
+        if sl.get("fetch"):                     # 置いてきた乗り物を取りに行った (F14): 店の中のこと (食事・買い物・入場) はしていない
+            vid = sl["fetch"]
+            place = ll.get("place")
+            now_at = self.app.geo.veh_at(vid, ll.get("back", time.time()))
+            where, lab = self.app.places.label(place) if place else "出先", self.FETCH_LABEL.get(vid, "乗り物")
+            text = "%sに置いていた%sを取ってきた" % (where, lab) if now_at == places_mod.HOME_ME \
+                else "%sに置いていた%sを、%sまで乗ってきた" % (where, lab, self.app.places.label(now_at)) if now_at != place \
+                else "%sに置いている%sを取りに行ったが、乗って帰らなかった" % (where, lab)
+            self.note("out", text, ll.get("back", time.time()), hours=0, place=place)
+            return {"kind": "out", "hours": 0, "place": place, "text": "（%s）" % text, "fetch": vid}
         h = max(0.0, float(ll.get("h_at", ll.get("h", 0))))     # その場所にいた時間 (移動の時間は入れない)
         shop = sl.get("shop_done")
         if sl["kind"] == "out" and "arr" in ll and ll.get("left", ll["arr"]) - ll["arr"] < 30 and not shop:

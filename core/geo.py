@@ -220,9 +220,10 @@ class Geo:
             return 1000
         return 400
 
-    def options(self, a, b, t=None):
+    def options(self, a, b, t=None, pair=False):
         """a → b の行き方 (目安). {km, modes: {how: {min, fare, ok, note}}, walk, transit, best}.
-        modes: walk (いつも) / transit (1.2 km より遠く, 歩くより早ければ) / bike・car (持っていて, a に置いてあれば) / taxi (いつでも. 高い)."""
+        modes: walk (いつも) / transit (1.2 km より遠く, 歩くより早ければ) / bike・car (持っていて, a に置いてあれば) / taxi (いつでも. 高い).
+        pair: 相手と一緒の移動 (F13). 自転車は二人で乗れないので出さない (駅まで自転車の経路も). 車・タクシーは二人で乗れる."""
         t = t or time.time()
         km = self.km(a, b)
         h = _hour(t)
@@ -230,13 +231,15 @@ class Geo:
         walk = self.walk_min(a, b, t)
         modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN,
                           "note": "" if walk <= WALK_MAX_MIN else "歩いて行くには遠すぎる（%d時間を超える）" % (WALK_MAX_MIN // 60)}}
-        routes = self.routes(a, b, t) if km > 1.2 else []
+        routes = self.routes(a, b, t, pair) if km > 1.2 else []
         if routes and routes[0]["min"] < walk * 0.9:
             r0 = routes[0]
             modes["transit"] = {"min": r0["min"], "fare": r0["fare"], "ok": True, "note": r0["note"]}
         elif km > 1.2 and not routes and walk > 30:
             modes["transit"] = {"min": 0, "fare": 0, "ok": False, "note": "いまは電車・バスで行けない（走っていない時間）"}
-        if km > 0 and self._vehicle_ok("bicycle", a, t):      # 自転車は近場でも乗れる
+        if pair:
+            pass                                               # 一緒の移動: 自転車は出さない (自転車は置いた所に残る. 取りに行くのは F14)
+        elif km > 0 and self._vehicle_ok("bicycle", a, t):    # 自転車は近場でも乗れる
             m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN,
                              "note": ("自転車で行くには遠すぎる（%d分を超える）" % BIKE_MAX_MIN) if m > BIKE_MAX_MIN else "雨の中を走る" if wet else ""}
@@ -276,10 +279,10 @@ class Geo:
             return min(ok)[1]
         return "taxi" if "taxi" in modes else "walk"
 
-    def leg(self, a, b, how, t, rand=True):
+    def leg(self, a, b, how, t, rand=True, pair=False):
         """実際の移動 1 回: {how, min, fare, wait (待った分), note}. 行けなければ ValueError.
-        rand: 待ちの揺らぎと, 途中の出来事 (遅延・渋滞・パンク・乗り過ごし) を入れる."""
-        r = self._leg(a, b, how, t, rand)
+        rand: 待ちの揺らぎと, 途中の出来事 (遅延・渋滞・パンク・乗り過ごし) を入れる. pair: 相手と一緒 (自転車は使わない)."""
+        r = self._leg(a, b, how, t, rand, pair)
         return self._event(r, a, b, t) if rand else r
 
     def _event(self, r, a, b, t):
@@ -311,8 +314,10 @@ class Geo:
         r["note"] = "。".join(notes)
         return r
 
-    def _leg(self, a, b, how, t, rand):
-        o = self.options(a, b, t)
+    def _leg(self, a, b, how, t, rand, pair=False):
+        if pair and how == "bike":
+            raise ValueError("二人では自転車に乗れません")
+        o = self.options(a, b, t, pair)
         if how in (None, "", "auto"):
             how = o["best"]
         if how == "run":
@@ -337,7 +342,7 @@ class Geo:
             if how == "taxi" and rand:            # 来るまでの待ち (呼んでから)
                 wait = random.uniform(-3, 6)
             return {"how": how, "min": max(3.0, m["min"] + wait), "fare": m["fare"], "wait": max(0.0, wait), "note": m["note"]}
-        rs = self.routes(a, b, t)
+        rs = self.routes(a, b, t, pair)
         if not rs:
             raise ValueError("電車・バスで行ける経路がありません（走っていない時間か、駅から遠すぎます）")
         r = rs[0]
@@ -352,13 +357,14 @@ class Geo:
         m = (15 if night else 7) + drive_min(km) * (JAM if _rush(h) else 1.0)
         return m, int((TAXI_BASE + TAXI_KM * max(0.0, km - 1.0)) * (1.2 if night else 1.0) / 10) * 10
 
-    def _ends(self, pid, t, side, taxi):
-        """駅・停留所との行き来の候補: {駅: (分, 円, 区間の種類, 乗り物)} (side: access = 出るところから / egress = 行き先まで)."""
+    def _ends(self, pid, t, side, taxi, pair=False):
+        """駅・停留所との行き来の候補: {駅: (分, 円, 区間の種類, 乗り物)} (side: access = 出るところから / egress = 行き先まで).
+        pair: 相手と一緒 (自転車の区間は作らない)."""
         T = self.transit
         net = T.net()
         xy = self.pt(pid)["xy"]
         out = {}
-        bike_here = side == "access" and self._vehicle_ok("bicycle", pid, t)
+        bike_here = side == "access" and not pair and self._vehicle_ok("bicycle", pid, t)
         car_here = side == "access" and self._vehicle_ok("car", pid, t)
         wet = self._weather(t) in ("rain", "snow")
         for sid, stn in net["stations"].items():
@@ -376,7 +382,7 @@ class Geo:
                 if car_here and km > 0.5:
                     c.append((CAR_ADD + drive_min(km), transit_mod.CAR_PARK, "car", "car"))
             else:                        # 駅に置いてある自転車・車で, 行き先まで
-                if self.veh_at("bicycle", t) == sid and self.app.items.count("bicycle") > 0 and km > 0.3:
+                if not pair and self.veh_at("bicycle", t) == sid and self.app.items.count("bicycle") > 0 and km > 0.3:
                     c.append((km / BIKE_KMH * 60, 0, "bike", "bicycle"))
                 if self.veh_at("car", t) == sid and self.app.items.count("car") > 0 and self.app.quals.has("drive") and km > 0.5:
                     c.append((CAR_ADD + drive_min(km), self.parking(pid), "car", "car"))
@@ -390,18 +396,19 @@ class Geo:
     VARIANTS = (("auto", "おまかせ", False, transit_mod.TRANSFER_BUF), ("few", "乗り換え少なめ", False, 15.0),
                 ("taxi", "タクシーも使う", True, transit_mod.TRANSFER_BUF))
 
-    def routes(self, a, b, t):
-        """a → b の電車・バスを使う経路の候補 (速い順. 同じ乗り方は 1 つ). 各 {key, label, legs, t_arr, min, fare, transfers, note}."""
+    def routes(self, a, b, t, pair=False):
+        """a → b の電車・バスを使う経路の候補 (速い順. 同じ乗り方は 1 つ). 各 {key, label, legs, t_arr, min, fare, transfers, note}.
+        pair: 相手と一緒 (駅まで・駅から自転車の区間は使わない)."""
         T = self.transit
         out = []
         seen = set()
         egress_cache = {}
         for vi, (vk, label, taxi, tbuf) in enumerate(self.VARIANTS):
-            ck = (store.WORLD, a, int(t // 60), vk, self.veh_at("bicycle", t), self.veh_at("car", t))
+            ck = (store.WORLD, a, int(t // 60), vk, None if pair else self.veh_at("bicycle", t), self.veh_at("car", t), pair)
             sc = T._csa.get(ck)
             if sc is None:
                 acc = {}
-                for sid, (m, f, kind, veh) in self._ends(a, t, "access", taxi).items():
+                for sid, (m, f, kind, veh) in self._ends(a, t, "access", taxi, pair).items():
                     acc[sid] = (t + m * 60, [{"kind": kind, "from": a, "to": sid, "t0": t, "t1": t + m * 60, "fare": f, "veh": veh}])
                 sc = T.scan(self.pt(a)["xy"], t, acc, transfer=tbuf)
                 if len(T._csa) > 300:
@@ -409,7 +416,7 @@ class Geo:
                 T._csa[ck] = sc
             arr, how, rarr, rhow = sc
             if taxi not in egress_cache:
-                egress_cache[taxi] = self._ends(b, t, "egress", taxi)
+                egress_cache[taxi] = self._ends(b, t, "egress", taxi, pair)
             eg = egress_cache[taxi]
             best = None
             for sid, at in rarr.items():          # 降りる駅: 電車・バスで着く時刻 (歩いて着くほうが早い駅でも)
@@ -665,7 +672,8 @@ class Geo:
             if app.items.count(vid) > 0:
                 at = self.veh_at(vid, now)
                 out[vid] = {"label": label, "at": at, "at_label": app.places.label(at) if at != places_mod.HOME_ME else "家",
-                            "here": at == here, "ok": self._vehicle_ok(vid, here, now)}
+                            "here": at == here, "ok": self._vehicle_ok(vid, here, now),
+                            "fetch": app.solo.fetch_why(vid, now) is None}       # 取りに行ける (F14. 店が閉まっていても)
         return {"own": out, "license": app.quals.has("drive")}
 
     @staticmethod
@@ -1054,14 +1062,14 @@ class Geo:
                 continue
         return out
 
-    def choices_view(self, ids, now=None):
-        """行き先ごとの行き方の目安 (画面の行き先の欄に出す): {id: {walk, transit, best}}."""
+    def choices_view(self, ids, now=None, pair=False):
+        """行き先ごとの行き方の目安 (画面の行き先の欄に出す): {id: {walk, transit, best}}. pair: 相手と一緒 (自転車を出さない)."""
         now = now or time.time()
         frm = self.where(now)
         out = {}
         for pid in ids:
             try:
-                o = self.options(frm, pid, now)
+                o = self.options(frm, pid, now, pair)
             except Exception:  # noqa: BLE001 - 目安なので, 出せなければ出さない
                 continue
             out[pid] = {"walk": o["walk"], "transit": o["transit"], "modes": o["modes"], "best": o["best"], "km": o["km"], "routes": o["routes"]}
