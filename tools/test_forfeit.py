@@ -475,7 +475,11 @@ def main():
         st2 = app2.state(cid)
         assert st2["game"]["bout"]["me"] == 1 and st2["game"]["bout"]["pens"] == ["strip", "photo"], "作り直しても続く"
         v = app2.games.view(app2.chars[cid], st2, app2.context(app2.chars[cid], st2, engine.datetime.now()))["current"]
-        assert v["strip"] and v["bout"]["label"] == "先に 2 勝"
+        assert v["strip"] and v["bout"]["label"] == "先に 2 勝（試合に負けた方に罰）", v["bout"]["label"]
+        # 選ぶ欄: 罰がいつ来るかを添える (n 回勝負は勝ち越しても負けた回の罰が来るので, 選ぶ前に分かるように)
+        fl = {f["id"]: f["label"] for f in F.options(char, st, cid)["forms"]}
+        assert fl["n"] == "n 回勝負（負けるたびに罰）" and fl["first"] == "先に n 勝（試合に負けた方に罰）", fl
+        assert all("（" in x for x in fl.values()), fl
         st2["game"] = None
         app2.save_state(cid)
         # 以前の版で始めた途中の脱衣麻雀 (bout なし)

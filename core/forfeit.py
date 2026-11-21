@@ -62,6 +62,9 @@ PENALTIES = (
 )
 PEN = {p["id"]: p for p in PENALTIES}
 FORMS = {"one": "一発勝負", "n": "%d 回勝負", "first": "先に %d 勝", "points": "持ち点 %d", "strip": "脱ぎきるまで"}
+# 罰がいつ・誰に来るか (選ぶ欄と勝負の帯に添える). n 回勝負は「勝ち越せば罰なし」ではないので, 選ぶ前に分かるように
+FORM_RULE = {"one": "負けた方に罰", "n": "負けるたびに罰", "first": "試合に負けた方に罰", "points": "点が尽きた方に罰",
+             "strip": "脱ぎきった方の負け"}
 N_RANGE = {"n": (2, 9), "first": (2, 9), "points": (2, 20)}
 MONEY = (500, 1000, 3000, 5000, 10000)
 DATE_PLACES = ("cafe", "eat_out", "aquarium", "amusement", "beach", "picnic", "stargazing", "date")
@@ -839,14 +842,14 @@ class Forfeit:
         ok_adult = adult(char)
         return {"pens": [{"id": p["id"], "label": p["label"], "icon": p["icon"], "privacy": p["privacy"]}
                          for p in PENALTIES if ok_adult or not p.get("adult")],
-                "forms": [{"id": k, "label": v.replace("%d ", "n ").replace(" %d", " n").replace("%d", "n"),
+                "forms": [{"id": k, "label": v.replace("%d ", "n ").replace(" %d", " n").replace("%d", "n") + "（%s）" % FORM_RULE[k],
                            "range": list(N_RANGE.get(k, (0, 0)))} for k, v in FORMS.items()],
                 "money": list(MONEY), "dates": [{"id": d, "name": self._place_name(d)} for d in DATE_PLACES],
                 "calls": [c.replace("{player}", self.app.player_name() or "あなた") for c in CALLS], "bans": BANS}
 
     def bout_view(self, g, game):
         b = self.bout(g, game)
-        out = {"form": b["form"], "n": b["n"], "label": self.label(b), "me": b["me"], "her": b["her"], "units": b["units"],
+        out = {"form": b["form"], "n": b["n"], "label": self.label(b) + ("（%s）" % FORM_RULE[b["form"]] if [p for p in b["pens"] if p != "strip"] else ""), "me": b["me"], "her": b["her"], "units": b["units"],
                "pens": [{"id": p, "label": self.pen_label(p, b["opt"]), "icon": PEN[p]["icon"]} for p in b["pens"]],
                "between": bool(game.get("between")), "omakase": bool(b.get("omakase"))}
         if b["form"] == "points":
