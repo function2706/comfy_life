@@ -209,6 +209,22 @@ class Bonds:
         if go_home and w.get("mode") in ("meet", "visit") and w.get("cid") in self.app.chars:
             self._head_home(w)
 
+    def go_out(self, cid, now=None):
+        """相手の家に来ている / 招いている相手と, 二人で外へ出かけた: 家を出たので「外で会っている」(meet) にする.
+        家を出るときの後始末 (手伝いの切り上げ・来客のあとの散らかり・お泊りの終わり) は別れるときと同じで, 一人で家へは帰らない.
+        こうしておけば, 出た先から「家に寄ってもいい？」/「うちに寄っていく？」で, どちらの家にも一緒に移れる.
+        戻り値: 切り替えたか."""
+        w = self.with_rec()
+        if not w or w.get("cid") != cid or w.get("mode") not in ("visit", "guest"):
+            return False
+        st = self.app.state(cid)
+        ov = st.get("override")
+        self.end(go_home=False)
+        if ov and ov.get("outing"):
+            st["override"] = ov          # 来客の一時シーンを消す後始末で, 出かけた先の一時シーンまで消さない
+        self.start(cid, "meet", now)
+        return True
+
     def _head_home(self, w):
         """外で会っていた / 相手の家にいた: 別れたら, そこから一人で家へ移動する (core/geo.py).
         別れてすぐ仕事・外出などに向かうとき (告げてから) は, そちらで移動する."""
@@ -245,6 +261,10 @@ class Bonds:
         if w["mode"] == "meet" and not (ov and ov.get("until", 0) > now and ov.get("outing")):
             self.end()
             return True
+        if w["mode"] in ("visit", "guest") and ov and ov.get("outing") and ov.get("until", 0) > now and not ov.get("home_trip"):
+            # 1.7.0 までのセーブ: 家から二人で出かけたのに「相手の家にいる / 招いている」のままだった. 外で会っているに直す
+            self.go_out(cid, now)
+            return False
         if w["mode"] in ("visit", "guest") and now >= w.get("until", 0):
             self.end()
             return True

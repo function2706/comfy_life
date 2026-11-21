@@ -1799,6 +1799,10 @@ class App:
                     # 一緒に出かけた時刻 (次の場所へ移っても, 出かけたときのまま. 別れぎわの「もう？」に使う)
                     ov["start"] = (st.get("override") or {}).get("start", now) if opts.get("move_on") else now
                 st["override"] = ov
+                if ov.get("outing"):
+                    # 相手の家・あなたの家から二人で出かけた: 家を出たので「外で会っている」に (移動は出る前の家から組んである).
+                    # 出た先から「家に寄ってもいい？」/「うちに寄っていく？」で, どちらの家にも移れる
+                    self.bonds.go_out(cid, now)
                 worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
                         char, st, worn, now, outside=True, others=1, record=False) in ("refuse", "angry"):
