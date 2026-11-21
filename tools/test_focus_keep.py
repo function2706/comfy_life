@@ -3,6 +3,7 @@
 30 秒ごとの状態の取り直し (refresh) は画面を描き直す. 描き直すと欄が作り直されて, 開いていたプルダウンが閉じ, フォーカスが外れていた
 (地図の「時刻を決めて調べる」のプルダウン. 前にも別の欄で起きた). 入力の途中は描き直しを待ち, 欄を離れたら描き直す.
 一時データでサーバを立て, ヘッドレスのブラウザ (Edge か Chrome) で画面を開いて確かめる.
+- 画面の上の「🗺 地図」で開いた地図が, 描き直しで閉じない (A40)
 - 地図の時刻を決めて調べる: プルダウン・時刻の欄にフォーカスを置いたまま描き直しても, フォーカスが残る
 - 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)・一人でタブのほかの欄・お金・ログ・関係性・
   持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
@@ -65,6 +66,10 @@ f.onload = () => setTimeout(async () => {
     await keep(d.querySelector('dialog[open] input[type=time]'), 'map-time');
     d.activeElement.blur(); await sleep(800);
     out.push(S.renderPending ? 'resume:NG' : 'resume:OK');
+    S.mapDlg.close();
+    // 1a. 画面の上の「🗺 地図」(A40): どの場面でも開け, 周期の描き直しで閉じない
+    d.getElementById('btn-map').click(); await w.refresh(); await w.refresh();
+    out.push('map-top' + (S.mapDlg.open && d.querySelector('dialog[open] svg') && d.querySelector('dialog[open]').textContent.includes('🗺 地図') ? ':OK' : ':NG'));
     S.mapDlg.close();
     // 1b. ギャラリーの「誰の画像か」のプルダウン (A19)
     await w.openGallery();
@@ -220,7 +225,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "map-top:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
     print("ALL OK")
 
 

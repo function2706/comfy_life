@@ -2747,7 +2747,7 @@ function renderAway() {
       .map((x) => h('div', { class: 'away-appoint' + (x.here ? ' here' : '') },
         `📅 約束: ${hhmm(x.t)} ${x.name}（${x.place_label}・${remainText(x.remain)}）${x.here ? '　📍ここ' : ''}`,
         x.here || x.home_me ? '' : h('button', { class: 'btn small', disabled: S.busy, style: 'margin-left:6px', onclick: () => goAppoint(x.id) }, `${x.place_label}へ向かう`))),
-    h('button', { class: 'btn small', onclick: openMap, style: 'margin:4px 0' }, '🗺 外出・地図（行き先を変える）'),
+    h('button', { class: 'btn small', onclick: openMap, style: 'margin:4px 0' }, ['out', 'work'].includes(p.mode) ? '🗺 地図（行き先を変える）' : '🗺 地図'),
     phonePanel(),
     (() => { const c = (S.view.outdoor || {}).current; return c && c.log && c.log.length ? h('div', { class: 'street-log' },
       c.log.map((x) => h('div', { class: 'small' }, `${fmtTime(x.t)} ${x.text}`))) : ''; })(),
@@ -2914,8 +2914,9 @@ function openMap() {
     if (((S.view || {}).outdoor || {}).travel) drawMap();
   }, 1000);
   const od = (S.view || {}).outdoor || {};
-  mapPreset((od.here || 'home:me') === 'home:me' || !(od.map || {})[od.here] ? 'near' : 'town');
-  if (od.here && od.here !== 'home:me' && (od.map || {})[od.here]) S.mapView = { r: 1.5, c: od.map[od.here].slice() };
+  mapPreset('near');
+  const me0 = mapMe();                     // 出先・相手の家・移動の途中: いまいる所を真ん中に
+  if ((od.here || 'home:me') !== 'home:me' && me0) S.mapView = { r: 1.5, c: me0.slice() };
   renderMap();
   S.mapDlg.showModal();
 }
@@ -2940,6 +2941,8 @@ function drawMap() {
   if (tv && mapXY(tv.from) && mapXY(tv.to)) {
     const a = xy(mapXY(tv.from)), b = xy(mapXY(tv.to));
     kids.push(mapEl('line', { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: '#d55', 'stroke-dasharray': '6 4', 'stroke-width': 3 }));
+    kids.push(mapEl('circle', { cx: b[0], cy: b[1], r: 19, fill: 'none', stroke: '#d55', 'stroke-width': 2.5, 'stroke-dasharray': '4 3' },
+      mapEl('title', {}, `向かう先: ${tv.label}`)));       // 向かう先 (A40)
   }
   // 路線 (鉄道は太い線, バスは点線) と駅・停留所 (押すと時刻表)
   const NET = od.net || { stations: {}, lines: [] };
@@ -3098,6 +3101,16 @@ function stationBox(sid) {
         h('div', { class: 'tt-body' }, ...Object.keys(ln.hours).sort((a, b) => a - b).map((hh) => h('div', { class: 'small' },
           h('b', { style: 'display:inline-block;width:2.2em' }, String(hh % 24)), ln.hours[hh].map((m) => String(m).padStart(2, '0')).join(' ')))))));
 }
+// いまの様子 (一人で外にいる・移動中のほか): 相手と一緒に出かけている・相手の家・家 (相手が来ている) など. 地図はどの場面でも開ける (A40)
+function mapWhere(od, pres) {
+  const wo = od.with_outing;
+  const comp = ((S.view || {}).company || []).map((c) => c.name).join('・');
+  if (wo) return wo.moving && wo.to ? `🚶 ${wo.name}と${mapName(wo.to)}へ移動中` : wo.moving ? `🚶 ${wo.name}と移動中`
+    : `📍 ${wo.name}と${mapName(od.here)}にいる`;
+  if (String(od.here || '').startsWith('home:') && od.here !== 'home:me') return `🏠 ${mapName(od.here)}にいる`;
+  if (pres.mode === 'none') return `🏠 家にいる${comp ? `（${comp}と）` : ''}`;
+  return `いま: ${pres.label || ''}（🏠 家）`;
+}
 function renderMap() {
   const od = (S.view || {}).outdoor || {};
   const M = od.map || {}, P = od.places || {}, G = od.groups || {};
@@ -3118,7 +3131,7 @@ function renderMap() {
   const status = h('div', { class: 'pgroup', style: 'margin:6px 0;padding:8px' },
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' },
       h('b', {}, tv ? `${HOW_ICON[tv.how] || '🚶'} ${tv.label}へ移動中（${tv.how_label}・あと${Math.max(1, Math.round(tv.remain / 60))}分）`
-        : out ? `📍 ${mapName(od.here)}にいる${workAway ? '（仕事中）' : ''}` : pres.mode === 'none' ? '🏠 家にいる' : `いま: ${pres.label || ''}`),
+        : out ? `📍 ${mapName(od.here)}にいる${workAway ? '（仕事中）' : ''}` : mapWhere(od, pres)),
       h('div', { class: 'spacer' }),
       out ? h('button', { class: 'btn small primary', disabled: S.busy || (tv && tv.dir === 'home'), onclick: async () => { await comeBack(); renderMap(); } },
         tv && tv.dir === 'home' ? '家へ向かっている' : tv ? '↩ 引き返す' : '🏠 帰る') : ''),
@@ -3176,7 +3189,7 @@ function renderMap() {
   const pv = (S.mapView || {}).preset;
   const pbtn = (k, label) => h('button', { class: 'btn small' + (pv === k ? ' primary' : ''), onclick: () => { mapPreset(k); renderMap(); } }, label);
   S.mapDlg.replaceChildren(h('div', { style: 'padding:12px' },
-    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('b', {}, '🚶 外出・地図'),
+    h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('b', {}, '🗺 地図'),
       h('span', { class: 'muted small' }, `${(od.weather || {}).icon || ''}${(od.weather || {}).label || ''}`),
       h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
     status,
@@ -5797,6 +5810,7 @@ function bind() {
   $('#btn-settings').addEventListener('click', () => openSettings());
   $('#btn-gallery').addEventListener('click', openGallery);
   $('#btn-chat').addEventListener('click', () => openChat());
+  $('#btn-map').addEventListener('click', () => openMap());
   $('#home-chip').addEventListener('click', () => openHome());
   $('#btn-manual').addEventListener('click', () => openManual());
   const seen = () => { S.lastInput = Date.now(); };
