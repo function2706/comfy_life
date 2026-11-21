@@ -19,6 +19,7 @@ import random
 import time
 from datetime import datetime
 
+from . import activity as activity_mod
 from . import cond
 from . import msgreply
 from . import nori
@@ -27,8 +28,7 @@ from . import react
 DECLARED = ("busy", "out", "work", "sleep", "left")
 AWAY_MODES = ("out", "work", "sleep", "left")
 AWAY_SEND = 0.35        # 相手が仕事中・出かけているときの, 送ってくる見込みの倍率 (休憩・移動の合間)
-MODE_LABEL = {"here": "そばにいる", "idle": "そばでのんびり", "busy": "作業中", "out": "外出中", "work": "仕事中",
-              "sleep": "就寝中", "left": "離れている", "gone": "いない"}
+MODE_LABEL = activity_mod.MODE_LABEL     # 語彙は core/activity.py の DO
 
 
 def hour_factor(dt):

@@ -48,6 +48,18 @@ DEFAULTS = {"gain_cap_affection": 6, "gain_cap_trust": 5, "cool_after_days": 3, 
             "renotice_days": 7, "selfie_rate": 1.0}
 
 
+def migrate_with(ps):
+    """以前の形: 「誰と」(with) が player.json の直下にあった → あなたの Activity (presence) の中へ (A24). 値はそのまま
+    (会っている途中・相手の家にいる途中でも続きから). 移したら True. 済んでいれば何もしない."""
+    if "with" not in ps:
+        return False
+    w = ps.pop("with")
+    p = ps.setdefault("presence", {})
+    if w and not p.get("with"):
+        p["with"] = w
+    return True
+
+
 class Bonds:
     def __init__(self, app):
         self.app = app
@@ -68,9 +80,9 @@ class Bonds:
                 ps["bonds"] = {cid: {"stage": s, "t": time.time()} for cid, s in (meta.get("start_bonds") or {}).items()}
             else:
                 ps["bonds"] = {cur: {"stage": "live", "t": time.time()}} if cur else {}
-            ps.setdefault("with", None)
             self.app.life.save_player()
-        ps.setdefault("with", None)
+        if migrate_with(ps):
+            self.app.life.save_player()
         return ps
 
     def save(self):
@@ -109,8 +121,13 @@ class Bonds:
                 return cid
         return None
 
+    def wrec(self):
+        """「誰と」を持つ記録 = あなたの Activity (player.json の presence. core/activity.py)."""
+        self.rec()
+        return self.app.presence.rec()
+
     def with_rec(self):
-        w = self.rec().get("with")
+        w = self.wrec().get("with")
         if w and w.get("cid") not in self.app.chars:
             return None
         return w
@@ -167,14 +184,14 @@ class Bonds:
         w = {"cid": cid, "mode": mode, "t": now}
         if mode in ("visit", "guest"):
             w["until"] = now + float(self.cfg()["visit_hours"]) * 3600
-        self.rec()["with"] = w
+        self.wrec()["with"] = w
         self.save()
         if mode == "visit" and hasattr(self.app, "athome"):
             self.app.athome.entered(cid, now)       # 家に上げてもらった: 慣れ (core/visit.py)
 
     def end(self, go_home=True):
         """別れる. go_home: 外で会っていた / 相手の家にいたなら, そこから家へ移動する (同居を始めたときなどは移動しない)."""
-        w = self.rec().get("with") or {}
+        w = self.wrec().get("with") or {}
         if w.get("mode") == "visit" and hasattr(self.app, "athome"):
             self.app.athome.on_leave()              # 相手の家での手伝い: 最中なら切り上げ, 始めていなければ手伝わずに帰った
         if w.get("mode") == "guest" and hasattr(self.app, "askhelp"):
@@ -186,8 +203,8 @@ class Bonds:
                 if (st.get("override") or {}).get("activity") == "guest":
                     st["override"] = None
                     self.app.save_state(w["cid"])
-        if self.rec().get("with"):
-            self.rec()["with"] = None
+        if self.wrec().get("with"):
+            self.wrec()["with"] = None
             self.save()
         if go_home and w.get("mode") in ("meet", "visit") and w.get("cid") in self.app.chars:
             self._head_home(w)

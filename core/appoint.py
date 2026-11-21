@@ -1191,7 +1191,7 @@ class Appoint:
         mode = p.get("mode")
         w = app.bonds.with_rec()
         if place == places_mod.HOME_ME:
-            return mode in ("none", "busy") and not (w and w["mode"] in ("meet", "visit")) and not app.outdoor.current(now)
+            return app.activity.home_free(now)
         return mode == "out" and (p.get("place") or "town") == place and not w and not p.get("travel")     # 移動中はまだ着いていない
 
     def go(self, aid, now=None):

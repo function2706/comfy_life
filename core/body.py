@@ -375,9 +375,7 @@ class Body:
     def at_home(self, now=None):
         app = self.app
         now = now or time.time()
-        w = app.bonds.with_rec()
-        return app.presence.rec().get("mode") in ("none", "busy") and not app.outdoor.current(now) \
-            and not (w and w["mode"] in ("meet", "visit"))
+        return app.activity.home_free(now)
 
     def here(self, now=None):
         """いる行き先 (一人の外出・誰かとのお出かけ). 家なら None."""

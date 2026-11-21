@@ -29,6 +29,7 @@ core/cond.py         条件式 ("free=true, mood>=50, phase=night|midnight")
 core/keys.py         セリフのキー (性格プリセットの差し替え用)
 core/life.py         お金・株・仕事・スキル・体力, キャラの出来事・機嫌の理由・おねだり
 core/presence.py     あなたの在席状態と, キャラからの働きかけ
+core/activity.py     いつ・どこで・何を・誰と の読み出し (あなた / 相手の Activity・外出・家で手が空いているか・閉じている間の予定の枠). 「何を」の語彙の表 DO
 core/bonds.py        あなたと各キャラの間柄・いまそばにいる人 (company)・現実的な深まり方・嫉妬・自撮り・あなたが知ったこと
 core/circle.py       相手の交友関係 (知り合い・苦手な人と, その人たちと会う予定. 断る理由・電話の気配のもと. あなたが知った人だけ関係性タブに. 仲の動き・人の移り・言い寄る人・元恋人・恋愛 (付き合う・浮気・発覚))
 core/regard.py       相手の中の「あなたの見立て」(思われている度と確かさ. 相手から見えるあなたの振る舞いで動く. 誘いの控え・探り・段階の提案に効く)
@@ -212,14 +213,14 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 | 何 | 別々の表し方 |
 |---|---|
 | あなたが「何をしているか」 | `presence.mode`（busy/out/work/sleep/left）＋ `presence.solo.kind` ＋ `presence.place`, `solo.KINDS` / `solo.PLAIN`, `go_*` コマンド（`presence_set`）, `offline` の `do`（sleep/rest/home/work/out/chores/practice）。同じ活動に 3〜4 通りの語彙がある（外出は「外出 + 行き先」にそろえた） |
-| 外出していること | あなたの out / work, キャラの `override.outing`（誰かとのお出かけ）, `bonds.with.mode = meet`, キャラのスケジュールの `away`。`outdoor.current` がこれらを寄せ集めて現在地を推定している |
+| 外出していること | 読み出しは `core/activity.py` 1 つ（`player` / `outdoor` / `at_home` / `home_free` / `out_with`。`outdoor.current` はその外出部分）。保存はまだ, あなたの out / work と `presence.with`（あなたの側）と, 二人のお出かけの記録 `override.outing`（相手の側）に分かれている。キャラ側を Activity にするのは移行手順 4 |
 | 行き先 | 表は `core/places.py` 1 つにした（一人の外出・お出かけの `override.place`・行動パターン・品ぞろえ・家）。残っているのは, キャラのスケジュールの `location`（自由記述. 出会いとは無関係）と, 顔なじみの習慣 `street.HAUNT_PLACES`（名前から決まるので, 既存の人の習慣が変わらないよう以前の 6 か所のまま） |
-| 誰と一緒か | `bonds.with`（あなた側の 1 枠）, 同居（`stage = live` で, あなたも相手も家にいれば一緒）, 誘ったお出かけの `override`（キャラ側）。`bonds.sync` が両者を合わせ, `bonds.company()` がまとめて「いまそばにいる人たち」にする。同時にそばにいられるのは, いまは「会っている・招いた人 1 人 + 家にいる同居相手」まで |
+| 誰と一緒か | `presence.with`（あなた側の 1 枠. 以前は `player.json` 直下の `with`）, 同居（`stage = live` で, あなたも相手も家にいれば一緒）, 誘ったお出かけの `override`（キャラ側）。`bonds.sync` が両者を合わせ, `bonds.company()` がまとめて「いまそばにいる人たち」にする。同時にそばにいられるのは, いまは「会っている・招いた人 1 人 + 家にいる同居相手」まで |
 | 出会い | 現行の `outdoor.live` → `street.happen`（起きやすさは `world.outdoor.rate_*`）と, 旧来の `encounters.happen` / `roll` / `bump` / `meet_stranger`（`world.encounters.rate_*` / `stranger_share`）。後者は `/api/encounter/force` とテストからしか呼ばれず, `roll` は使われていない |
 | 「知り合い」 | 未登録の人の段階 `street.STAGES[4]`「知り合い」（ここで登録を尋ね, 登録すると contact）と, 登録キャラの `bonds` の known「知り合い（連絡先を知らない）」 |
 | 交流した記録 | `last_interaction`（engine）, `last_touch` / `touch_days`（bonds）, `contacts`（連絡の回数）, `ap_last`, `gifts` |
 | 何があったかの記録 | キャラごとの `log`, `mylog`, `presence.street_log`, `offline_report.timeline`, トーク, 日記, `reasons` / `events`。画面のログは `App.timeline` で `log` と `mylog` を 1 本に並べている（保存は別々のまま） |
-| 「そばにいない」と「出かけている」 | `context()` は離れている相手について, あなたから見て「そばにいない」ことを `away=True` で表す。以前は同じ `away` がその人自身のパラメータの規則（退屈が減る・ストレスの目標 +25・元気が速く減る）にも効き, 家にいても「ずっと外出中」の体の動きになっていた。いまは本人の動き・出来事は `context(..., view=False)`（本人の予定どおり）で分けている。条件式のキー `away` 自体は, まだ「見えない」と「出かけている」の両方の意味で使われている（統一モデルで分ける） |
+| 「そばにいない」と「出かけている」 | `context()` は離れている相手について, あなたから見て「そばにいない」ことを `away=True` で表す。以前は同じ `away` がその人自身のパラメータの規則（退屈が減る・ストレスの目標 +25・元気が速く減る）にも効き, 家にいても「ずっと外出中」の体の動きになっていた。いまは本人の動き・出来事は `context(..., view=False)`（本人の予定どおり）で分けている。条件式では, 本人が出かけているかを `out` で引ける（`away` は「あなたから見てそばにいない」。データのコマンドの `away` は以前のまま） |
 | 体力の回復 | `life.tick_world`（在席から推定）と `offline.simulate`（行動パターンから計算し直して上書き） |
 | 返信の予定 | `msg_pending`（1 枠. 送るたびに `count` と `kind` を上書き）。働きかけの返事待ち `approach` も 1 枠 |
 | 効き目の掛け算 | コマンドの効果 × `repeat_scale` × スキル × 体力 → `bonds.realize`（揺らぎ・鈍り・機嫌・繰り返し・贈り物）→ `trait_effects`。層が多く, 最終的な効き方が読みにくい |
@@ -249,9 +250,12 @@ Activity = {
 ### 移行手順（段階ごとに動く状態を保つ）
 
 1. **語彙をそろえる**: `do` の語彙を 1 つの表（`core/activity.py` の `DO`）にし, `solo.KINDS` / `PLAIN` / `offline.DO_LABEL` / `presence.MODE_LABEL` をそこから作る。行き先の id も `PLACES` 1 つに寄せ, お出かけのコマンドには `place` を持たせる（`override.location` は表示用に残す）。データ形式は変えない。
-   - **済み（行き先）**: 行き先の表は `core/places.py`（家を含む）。一人の外出は「外出 + 行き先」, お出かけは `override.place`, 行動パターンは `do: out` + `place`。`do` の語彙の表（`core/activity.py`）はまだ。
+   - **済み（行き先）**: 行き先の表は `core/places.py`（家を含む）。一人の外出は「外出 + 行き先」, お出かけは `override.place`, 行動パターンは `do: out` + `place`。
+   - **済み（語彙. A24）**: `core/activity.py` の `DO`。`presence.MODE_LABEL` と `offline.DO_LABEL` はそこから作る。`solo.KINDS` / `PLAIN` は中身（結果の出し方）を持つので表のまま。
 2. **読み出しを Activity にする**: `activity.current(who)` / `activity.at(who, t)` を作り, `outdoor.current`・`presence.at`・`bonds.mode` の判定をそこ経由にする。保存は今のまま（読み替えだけ）。テストは今のものが通ること。
+   - **済み（A24）**: `activity.player(now)` / `char(cid, t)` / `outdoor` / `at_home` / `home_free` / `out_with`。`outdoor.current`・`App.outing_now` / `out_with`・内職 / 家計簿 / 店 / 家での約束の「家で手が空いているか」がここを読む。`presence.at`（画面の前にいるか: here / idle / gone）は在席の値なので presence に残した。`bonds.mode` は同居の決まり（あなたも相手も家にいるときだけ）を持つので bonds に残し, `activity.player` がそれを使う。
 3. **あなたの側の保存を Activity にする**: `player.json` に `activity`（いま）と `plan`（予定）を持ち, `presence.mode/solo/place` と `with` をそこから導く。起動時の移行（`store` の移行 + 自動バックアップ）で旧項目を読み替える。`offline.simulate` は「予定の Activity 列を過ぎた分だけ実行する」になる。
+   - **済み（A24）**: あなたの Activity の記録は `player.json` の `presence`（キー `mode` = do・`since` = t0・`place`・`solo` ほか・`with`）。`mode` の名前は 100 か所以上で読まれているので変えていない。`with` は直下から移した（`store.migrate_with_all`）。予定は `planner` / 行動パターンのまま持ち, `activity.planned(t)` が Activity の形で読む（閉じている間の「家を空けている枠」）。`offline.simulate` の中身（`_plan_blocks` を過ぎた分だけ実行）はもともとその形だったので変えていない。外で会っている間の居場所は, あなたの側に写さず二人のお出かけの記録（相手の `override`）を `with` からたどる。
 4. **キャラの側**: スケジュールと `override` を Activity 列として扱う（定義の `schedule` はそのまま, 個体に `activity` を持つ）。ここで出先での合流・約束（共有する未来の Activity）を実装する。
 5. **記録を 1 本に**: 終わった Activity を `W/activities.json` に残し, mylog・street_log・offline timeline をその表示に置き換える（旧ファイルは読むだけ残す）。
 6. 旧来の出会いの経路（`encounters.roll` / `happen` / `bump` / `meet_stranger` と `world.encounters.rate_*`）を, 強制発生の API ごと `street` に寄せて消す。
@@ -260,7 +264,7 @@ Activity = {
 
 ## 7. 未着手の残件
 
-残件は [REMAINING.md](REMAINING.md) に一本化した（6 章の統一モデルに関わるものは A24）。
+残件は [REMAINING.md](REMAINING.md) に一本化した（6 章の統一モデルの手順 1〜3 は A24 で済。手順 4〜6 は残件にしていない）。
 
 ## 8. 開発の手順
 

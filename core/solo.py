@@ -315,8 +315,7 @@ class Solo:
         """家事の「家計簿をつける」(15 分ほど. その場で済む): 前につけたときから今までの出入りを書き込む (日を空けるほど, うろ覚え)."""
         app = self.app
         now = now or time.time()
-        p = app.presence.rec()
-        if p.get("mode") not in ("none", "busy") or app.outdoor.current(now) or                 ((app.bonds.with_rec() or {}).get("mode") in ("meet", "visit")):
+        if not app.activity.home_free(now):
             raise ValueError("家計簿は家でつけます")
         r = app.kakeibo.write(now)
         app.life.tire(1)

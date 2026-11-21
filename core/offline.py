@@ -28,11 +28,10 @@ from .places import effort as effort_of
 from .places import HOME_ME
 from . import geo as geo_mod
 from .geo import HOW_LABEL
+from . import activity as activity_mod
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ごす", "work": "仕事", "out": "外出", "chores": "家事",
-            "kakeibo": "家事（家計簿をつける）", "practice": "研鑽", "meal": "食事",
-            "parttime": "アルバイト", "jog": "ジョギング", "read": "本を読む", "movie": "映画を観る"}
+DO_LABEL = activity_mod.PLAN_LABEL       # 語彙は core/activity.py の DO
 CHORE_PARTS = {"": "全部", "mess": "部屋の片付け", "dishes": "洗い物", "laundry": "洗濯", "trash": "ゴミ出し"}
 JOG_AT = ("park", "riverside", "town")
 MEAL_HOW = {"cook": "自炊", "out": "外食", "buy": "買って食べる"}
@@ -185,36 +184,13 @@ class Offline:
         return h >= 23 or h < 7
 
     # ------------------------------------------------------------------ 閉じている間, いま家を空けている枠か
-    AWAY_DO = ("work", "parttime", "out", "jog", "exam")
+    AWAY_DO = activity_mod.AWAY_PLAN
 
     def away_closed(self, t):
         """家の画面を閉じている間の時刻 t に, 行動パターン・予定の「いまの枠」で家を空けているか (同居相手が家にいても, そばにはいない.
         スマホ用の入り口からメッセージを送れる: bonds.home_together). 閉じていた間の本当の過ごし方は, 開いたときにまとめて決まる
-        (体力・店の営業時間で変わりうる) ので, ここでは枠の種類だけで見る: 仕事・アルバイト・外出・ジョギング・試験・
-        外での約束・外食 / 買って食べる. 閉じてから間もない (まとめの対象にならない短さ) うちは, 家にいるまま."""
-        app = self.app
-        beat = app.presence.rec().get("beat", 0)
-        if not beat or t <= beat or not self.will_run(beat, t):
-            return False
-        b = None
-        if app.planner.active():
-            for s, e, kind, x in app.planner.slots(t, t + 60):
-                if not (s <= t < e):
-                    continue
-                if kind == "appoint":
-                    return x.get("place") != HOME_ME
-                if kind == "exam":
-                    return True
-                if kind == "plan":
-                    b = x
-                break
-        if b is None:
-            if not self.cfg().get("enabled"):
-                return False
-            b = next((bb for s, e, bb in self.blocks(t, t + 60) if s <= t < e), None)
-        if not b:
-            return False
-        return b.get("do") in self.AWAY_DO or (b.get("do") == "meal" and b.get("how") in ("out", "buy"))
+        (体力・店の営業時間で変わりうる) ので, ここでは枠の種類だけで見る (core/activity.py の planned / leaves_home)."""
+        return self.app.activity.leaves_home(self.app.activity.planned(t))
 
     # ------------------------------------------------------------------ 閉じていた間を過ごす
     def will_run(self, t0, t1):

@@ -60,7 +60,7 @@ def main():
         def with_a(mode, now):
             """A とそばにいる形にする (home は同居して家に)."""
             if B.with_rec():
-                B.rec()["with"] = None
+                B.wrec()["with"] = None
             for cid in (a, b):
                 B.set_stage(cid, "contact")
             SC[a] = OUT
@@ -202,7 +202,7 @@ def main():
         fresh(now)
         with_a("meet", now)
         c = PT.begin(cb, sb, "もしもし", True, now)
-        B.rec()["with"] = None
+        B.wrec()["with"] = None
         B.save()
         n0 = len(app.log(a))
         PT.hangup(now + 30)

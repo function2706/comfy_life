@@ -64,35 +64,8 @@ class Outdoor:
 
     # ------------------------------------------------------------------ いまどこにいるか
     def current(self, now=None):
-        """いまの外出 {kind: out/work/outing, place, with} (外出していなければ None)."""
-        app = self.app
-        p = app.presence.rec()
-        tr = p.get("travel")
-        if tr and p.get("mode") in ("out", "work"):        # 移動中: 通っていく道 (電車・バスなら駅前, 歩くなら街) の人の多さ
-            return {"kind": "out", "place": "station" if tr.get("how") == "transit" else "town", "with": None, "moving": True,
-                    "inside": tr.get("how") in ("car", "taxi"),        # 車・タクシーの中では, 偶然の出会いは無い
-                    "dest": tr["to"] if tr.get("dir") == "go" else places_mod.HOME_ME, "how": tr.get("how")}
-        if p.get("mode") == "out":
-            pl = p.get("place") or "town"
-            if places_mod.is_home(pl):              # 相手の家の前 (約束の訪問で待っている)
-                return {"kind": "out", "place": pl, "with": None}
-            return {"kind": "out", "place": pl if pl in PLACES else "town", "with": None}
-        if p.get("mode") == "work":
-            return {"kind": "work", "place": "office", "with": None}
-        now = now or time.time()
-        for cid in app.chars:
-            if not app.bonds.together(cid):
-                continue
-            ov = app.state(cid).get("override") or {}
-            if ov.get("outing") and ov.get("until", 0) > now:
-                trip = app.outing_trip(app.state(cid), now)
-                if trip:                # 一緒に移動中: まだ行き先にはいない (通っていく道. 一人の移動と同じ)
-                    return {"kind": "outing", "place": "station" if trip.get("legs") or trip.get("how") == "transit" else "town",
-                            "with": cid, "moving": True, "inside": trip.get("how") in ("car", "taxi"), "how": trip.get("how"),
-                            "dest": trip["to"] if trip["dir"] == "go" else places_mod.HOME_ME}
-                pl = ov.get("place") if ov.get("place") in PLACES else places_mod.from_location(ov.get("location"))
-                return {"kind": "outing", "place": pl, "with": cid}
-        return None
+        """いまの外出 {kind: out/work/outing, place, with} (外出していなければ None). 決めるのは core/activity.py."""
+        return self.app.activity.outdoor(now)
 
     def rate(self, cur, dt):
         """1時間あたりの出会いの起きやすさ."""

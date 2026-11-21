@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime
 
 from . import bonds as bonds_mod
+from . import activity as activity_mod
 from . import remote as remote_mod
 from . import push as push_mod
 from . import tailnet as tailnet_mod
@@ -248,6 +249,7 @@ class App:
         self.purse = purse_mod.Purse(self)          # キャラクターの所持金の収支 (型ごとの収入と出費. 日締め)
         self.body = body_mod.Body(self)
         self.presence = presence_mod.Presence(self)
+        self.activity = activity_mod.Activity(self)       # いつ・どこで・何を・誰と の読み出し (DESIGN 6 章)
         self.planner = planner_mod.Planner(self)
         self.manners = manners_mod.Manners(self)
         self.phonetalk = phonetalk_mod.PhoneTalk(self)
@@ -779,7 +781,7 @@ class App:
         (家に来てもらっている・同居相手と家にいるときは, 声をかけてから一人のことができる)"""
         now = now or time.time()
         w = self.bonds.with_rec()
-        cid = w.get("cid") if w and w.get("mode") in ("meet", "visit") else self.outing_now(now)[0]
+        cid = self.activity.out_with(now)
         if not cid or cid not in self.chars:
             return None
         name = self.chars[cid].get("name", "")
@@ -1014,6 +1016,7 @@ class App:
         ctx.update({
             "activity": scene["activity"], "location": scene["location"],
             "away": scene["away"], "asleep": scene["asleep"], "busy": scene["busy"],
+            "out": scene["away"],          # 本人が (自分の予定で) 出かけている. away はこのあと「あなたから見てそばにいない」に変わりうる
             "free": not (scene["away"] or scene["asleep"] or scene["busy"]),
             "phase": self.phase_at(dt).get("id", ""), "hour": dt.hour, "time": dt.hour * 60 + dt.minute,
             "weekday": dt.weekday(), "day": DAY_KEYS[dt.weekday()], "weekend": dt.weekday() >= 5,
@@ -3623,13 +3626,8 @@ class App:
         return None
 
     def outing_now(self, now=None):
-        """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None)."""
-        now = now or time.time()
-        for cid in self.bonds.company():
-            ov = self.state(cid).get("override") or {}
-            if ov.get("outing") and ov.get("until", 0) > now:
-                return cid, ov
-        return None, None
+        """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None). (core/activity.py)"""
+        return self.activity.outing(now)
 
     def _move_action(self, to, char, st):
         """行き先 to で一緒にすること (お出かけのコマンド). できるものが無ければ None."""
@@ -4582,8 +4580,7 @@ class App:
         if why:
             return {"reason": why, "wait": 0}
         a = self.action("side_job")
-        w = self.bonds.with_rec()
-        if self.presence.rec().get("mode") not in ("none", "busy") or self.outdoor.current(now) or (w and w["mode"] in ("meet", "visit")):
+        if not self.activity.home_free(now):
             return {"reason": "いまは家にいないので内職できません", "wait": 0}
         if not cond.check(a.get("when", ""), self.you_context(datetime.fromtimestamp(now))):
             return {"reason": "今は内職できません", "wait": 0}

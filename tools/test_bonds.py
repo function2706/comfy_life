@@ -150,7 +150,7 @@ def main():
         assert B.mode("hina") is None
         st["cooldowns"] = {}
         app.act("visit_home", opts=APPT)
-        B.rec()["with"]["until"] = time.time() - 1
+        B.wrec()["with"]["until"] = time.time() - 1
         app.tick("hina")
         assert B.mode("hina") is None, "遊びに来ていた時間が過ぎたら帰る"
         print("visit: OK")

@@ -53,7 +53,7 @@ def main():
             assert B.mode(cid) == "meet"
 
         def ago(sec):                   # 会ってから sec 秒たったことに
-            B.rec()["with"]["t"] = time.time() - sec
+            B.wrec()["with"]["t"] = time.time() - sec
 
         # ---- 1. もっといたいか: 会ったばかりで機嫌がいい / 長く会って疲れている / くたくた
         meet()
@@ -129,7 +129,7 @@ def main():
         app.presence.back(time.time())
         st["cooldowns"] = {}
         app.act("cafe", cid, opts=APPT)
-        B.rec()["with"]["t"] += 1
+        B.wrec()["with"]["t"] += 1
         assert not app.parting.pending(char, st, "go_home", time.time())
         assert not app.available(char, st, __import__("datetime").datetime.now())["go_home"].get("confirm")
         print("会い直し: OK")

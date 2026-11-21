@@ -51,6 +51,7 @@ def main():
             app.presence.back(time.time())
             ps["stamina"] = 60.0
             ps["last_tick"] = time.time()
+            app.body.rec()["satiety"] = 80.0     # 前の節で時間が進んで空腹になると, 体力の戻りが鈍る (body.stamina_mult)
             app.set_params({"energy": 80, "affection": 70, "mood": 70}, cid)
 
         def run(hours):
@@ -88,7 +89,7 @@ def main():
         # ---- 3. 相手の家にいる: 回復は 1 時間に 2
         reset()
         B.start(cid, "visit", time.time())
-        B.rec()["with"]["until"] = time.time() + 6 * 3600
+        B.wrec()["with"]["until"] = time.time() + 6 * 3600
         d, _ = run(3)
         assert 0 < d <= 3 * app.JOINT_REST + 0.3, d          # 空腹・体調で鈍ることはある (body.stamina_mult)
         print("相手の家: OK | 3 時間で %+.1f" % d)
