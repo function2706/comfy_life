@@ -1,7 +1,7 @@
 """罰ゲームと勝負の形 (残件 A12 / S14).
 
-ゲームは「種類 (data/minigames.json の定義) × 罰ゲーム × 勝負の形」で始める. 脱衣麻雀は「麻雀 + 脱衣 + 脱ぎきるまで」.
-定義に stages があるゲーム (野球拳・脱衣麻雀・脱衣ポーカー) は, 何も選ばずに始めると, 以前と同じ「脱衣 + 脱ぎきるまで」(既定の組み合わせ).
+ゲームは「種類 (data/minigames.json の定義) × 罰ゲーム × 勝負の形」で始める. 脱衣麻雀は「麻雀 + 脱衣 + 先に n 勝」.
+定義に stages があるゲーム (野球拳・脱衣麻雀・脱衣ポーカー) は, 何も選ばずに始めると「脱衣 + 先に n 勝」(n = あなたのライフ. 既定の組み合わせ).
 
 勝負の単位 (1 勝負): 局のあるゲーム (野球拳の 1 回のじゃんけん・麻雀の 1 局・ポーカー / ブラックジャック / こいこいの 1 局) は 1 局,
 ほかのゲーム (盤面・ヨット・数当て・スピード・神経衰弱・ババ抜き・ダウト・あっち向いてホイ) は 1 ゲーム.
@@ -13,7 +13,10 @@
           そのときの服の枚数 ÷ 残りの回数 (切り上げ) を脱ぐ. 勝ち負けは勝った数 (こいこいは点の合計)
   first   先に n 勝: 重みの合計が先に n に届いた方の勝ち. 罰は最後に負けた方へ (脱衣だけは負けるたびに, n 回で全部になる割合で)
   points  持ち点制: 二人とも n 点から. 負けると重みの分だけ減り, 尽きた方の負け. 脱衣は減った点の割合だけ脱ぐ
-  strip   脱ぎきるまで (脱衣を選んだときだけ): 負けるたびに重みの枚数を脱ぎ, 脱ぎきった方の負け (以前の脱衣ゲーム)
+  strip   脱ぎきるまで (以前の版の脱衣ゲームの途中だけ. もう選べない): 負けるたびに重みの枚数を脱ぎ, 脱ぎきった方の負け.
+          「脱衣 + 先に n 勝」と同じことなので, 選ぶ欄からは外した (2026-11-21)
+脱ぐ枚数: 相手は段階 (stages) の数 - 1 (最初の「いつもの服」を除く. 脱ぎきったところで降参), あなたはライフの数.
+  以前は相手だけ降参の 1 回ぶん多く負けられたので, そろえた.
 どの形でも, 脱ぎきった方はその場で負け (役満など).
 
 罰ゲーム (PENALTIES): 双方向. あなたが負ければ, あなたが払う・脱ぐ・家事をする・券を渡す.
@@ -39,7 +42,7 @@
 負けたあと罰を渋る・ごまかすこともある (律儀でない性格ほど. 脱衣は試合の流れの中なので渋らない).
 
 遡及: いまのセーブに罰の記録は無い. 途中の脱衣ゲーム (st["game"] に bout が無い) は, 開いたときに既定の組み合わせ
-(脱衣 + 脱ぎきるまで) として続く. 以前の成績の記録は持っていない (ゲームの記録はログにあるまま).
+(脱衣 + 脱ぎきるまで) として続く (LEGACY_STRIP). 以前の成績の記録は持っていない (ゲームの記録はログにあるまま).
 """
 import math
 import random
@@ -165,12 +168,20 @@ class Forfeit:
         from .games import STRIP_KINDS
         kind = g.get("kind")
         if kind in STRIP_KINDS or g.get("stages"):
-            return {"pens": ["strip"], "form": "strip", "n": 0, "opt": {}}
+            return {"pens": ["strip"], "form": "first", "n": int(g.get("lives", 3)), "opt": {}}
         if kind in ("koikoi", "poker", "blackjack"):
             if g.get("match") == "points":
                 return {"pens": [], "form": "n", "n": int(g.get("rounds", 3)), "opt": {}, "pts": True}
             return {"pens": [], "form": "first", "n": int(g.get("target", 3)), "opt": {}}
         return {"pens": [], "form": "one", "n": 1, "opt": {}}
+
+    @staticmethod
+    def legacy(g):
+        """以前の版で始めた途中のゲーム (bout が無い) の組み合わせ. 脱衣ゲームは脱ぎきるまで."""
+        from .games import STRIP_KINDS
+        if g.get("kind") in STRIP_KINDS or g.get("stages"):
+            return {"pens": ["strip"], "form": "strip", "n": 0, "opt": {}}
+        return Forfeit.preset(g)
 
     def normalize(self, g, char, req):
         """画面から選んだ組み合わせを確かめる. req が空なら既定."""
@@ -178,8 +189,6 @@ class Forfeit:
             return self.preset(g)
         if req.get("omakase"):           # 罰は相手が決める (pick). ここでは形だけ確かめる
             req = {"form": req.get("form"), "n": req.get("n")}
-            if req["form"] == "strip":
-                raise ValueError("「脱ぎきるまで」は、罰に脱衣を選んだときだけです（おまかせでは選べません）")
             b = self.normalize(g, char, dict(req, pens=[]))
             b["omakase"] = True
             return b
@@ -193,10 +202,10 @@ class Forfeit:
         if any(PEN[p].get("adult") for p in pens) and not adult(char):
             raise ValueError("その罰ゲームは選べません")
         form = req.get("form") or "one"
+        if form == "strip":
+            raise ValueError("「脱ぎきるまで」は無くなりました。罰に脱衣を選んで「先に n 勝」にしてください")
         if form not in FORMS:
             raise ValueError("勝負の形が違います: %s" % form)
-        if form == "strip" and "strip" not in pens:
-            raise ValueError("「脱ぎきるまで」は、罰に脱衣を選んだときだけです")
         n = 1
         if form in N_RANGE:
             lo, hi = N_RANGE[form]
@@ -206,8 +215,6 @@ class Forfeit:
                 n = 0
             if not lo <= n <= hi:
                 raise ValueError("%sの数は %d〜%d です" % (FORMS[form].replace("%d", "n").replace(" ", ""), lo, hi))
-        elif form == "strip":
-            n = 0
         o = req.get("opt") or {}
         opt = {}
         if "money" in pens:
@@ -381,7 +388,7 @@ class Forfeit:
         """途中のゲームの勝負の記録 (以前の版で始めたものは既定の組み合わせ)."""
         b = game.get("bout")
         if not b:
-            b = game["bout"] = dict(self.preset(g))
+            b = game["bout"] = dict(self.legacy(g))
         b.setdefault("me", 0)
         b.setdefault("her", 0)
         b.setdefault("units", 0)
@@ -429,9 +436,12 @@ class Forfeit:
         bare = None
         if side and "strip" in b["pens"]:
             if side == "her":
-                total = len(g.get("stages") or games.default_stages())
+                ns = len(g.get("stages") or games.default_stages())
+                total = ns - 1                     # 脱ぐ枚数 (最初の「いつもの服」を除く). 脱ぎきったら降参
                 rem = total - game.get("stage", 0)
                 k = self._pieces(b, "her", rem, steps, total)
+                if k and game.get("stage", 0) + k >= total:
+                    k = ns - game.get("stage", 0)     # 最後の段階のまま降参 (games._strip)
                 if k and games._strip(g, char, st, game, k):
                     bare = "her"
             else:
@@ -843,7 +853,7 @@ class Forfeit:
         return {"pens": [{"id": p["id"], "label": p["label"], "icon": p["icon"], "privacy": p["privacy"]}
                          for p in PENALTIES if ok_adult or not p.get("adult")],
                 "forms": [{"id": k, "label": v.replace("%d ", "n ").replace(" %d", " n").replace("%d", "n") + "（%s）" % FORM_RULE[k],
-                           "range": list(N_RANGE.get(k, (0, 0)))} for k, v in FORMS.items()],
+                           "range": list(N_RANGE.get(k, (0, 0)))} for k, v in FORMS.items() if k != "strip"],     # 脱ぎきるまでは以前のゲームの途中だけ
                 "money": list(MONEY), "dates": [{"id": d, "name": self._place_name(d)} for d in DATE_PLACES],
                 "calls": [c.replace("{player}", self.app.player_name() or "あなた") for c in CALLS], "bans": BANS}
 

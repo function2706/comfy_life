@@ -86,7 +86,7 @@ function forfeitPicker(g, gv) {
   sel.pens = sel.pens.filter((id) => o.pens.some((p) => p.id === id));
   const om = !!sel.omakase;            // 罰は相手が決める (forfeit.pick): 罰と中身は選ばず, 形だけ
   const hasPriv = !om && sel.pens.some(privOf);
-  const forms = o.forms.filter((f) => f.id !== 'strip' || (!om && sel.pens.includes('strip')));
+  const forms = o.forms;
   if (!forms.some((f) => f.id === sel.form)) sel.form = 'one';
   const rng = (o.forms.find((f) => f.id === sel.form) || {}).range || [0, 0];
   if (rng[1]) sel.n = Math.min(rng[1], Math.max(rng[0], Number(sel.n) || 3));

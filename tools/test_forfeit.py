@@ -49,10 +49,10 @@ def main():
         assert app.bonds.together(cid) and app.games.spot(cid)["private"], "二人きりの家で始める"
 
         # ---------------------------------------------------------------- 組み合わせの確かめ
-        assert F.normalize(yk, char, None) == F.preset(yk) == {"pens": ["strip"], "form": "strip", "n": 0, "opt": {}}
+        assert F.normalize(yk, char, None) == F.preset(yk) == {"pens": ["strip"], "form": "first", "n": 3, "opt": {}}
         assert F.preset(gdef["blackjack"])["form"] == "first" and F.preset(gdef["koikoi"])["form"] == "n"
         assert F.preset(c4) == {"pens": [], "form": "one", "n": 1, "opt": {}}
-        bad = [{"pens": ["nope"]}, {"pens": ["money"], "form": "strip"}, {"pens": [], "form": "n", "n": 1},
+        bad = [{"pens": ["nope"]}, {"pens": ["money"], "form": "strip"}, {"pens": ["strip"], "form": "strip"}, {"pens": [], "form": "n", "n": 1},
                {"pens": [], "form": "first", "n": 10}, {"pens": ["money"], "opt": {"money": 777}},
                {"pens": ["date"], "opt": {"date": "moon"}}, {"pens": ["ban"], "opt": {"ban": "tv"}}, {"form": "x"}]
         for b in bad:
@@ -91,13 +91,25 @@ def main():
                     break
             return out, game
 
-        # 脱ぎきるまで (以前の脱衣ゲーム): 相手は段階の数だけ, あなたは 3 回で
+        # 脱ぎきるまで (以前の版の途中のゲームだけ): 相手は脱ぐ枚数 (段階 - 1) で降参, あなたは 3 回で. 枚数はそろえる
+        mk = lambda form, n: dict(F.legacy(yk), form=form, n=n) if form == "strip" else None
+        F_norm = F.normalize
+        F.normalize = lambda g, c, req: mk(req["form"], req["n"]) or F_norm(g, c, req)
         o, _ = bout("strip", 0, seq=["p"] * 9)
-        assert len(o) == S and o[-1][2] == "win" and [x[0] for x in o] == list(range(1, S)) + [S - 1], o
+        assert len(o) == S - 1 and o[-1][2] == "win" and [x[0] for x in o] == list(range(1, S)), o
         o, _ = bout("strip", 0, seq=["a"] * 9)
         assert len(o) == 3 and o[-1] == (0, 0, "lose"), o
         o, _ = bout("strip", 0, seq=["a", None, "p"], steps={2: 2})          # 麻雀の翻: 2 枚
         assert o[-1][0] == 2 and o[-1][1] == 2 and o[-1][2] is None, o
+        F.normalize = F_norm
+        # 既定 (脱衣 + 先に 3 勝): 相手もあなたも 3 回負けで脱ぎきる. 1 回に 1 枚ずつ
+        game = {"stage": 0, "lives": 3, "lives_max": 3, "bout": F.normalize(yk, char, None)}
+        seen = [F.unit(cid, char, st, yk, game, "p", 1) or game["stage"] for _ in range(3)]
+        assert seen == [1, 2, "win"] and game["stage"] == S - 1, seen
+        game = {"stage": 0, "lives": 3, "lives_max": 3, "bout": F.normalize(yk, char, None)}
+        seen = [F.unit(cid, char, st, yk, game, "a", 1) or game["lives"] for _ in range(3)]
+        assert seen == [2, 1, "lose"], seen
+        assert "strip" not in [f["id"] for f in F.options(char, st, cid)["forms"]], "脱ぎきるまでは選べない"
         # 一発勝負: 引き分けはやり直し, 決まれば全部
         o, _ = bout("one", 1, seq=[None, None, "p"])
         assert o[-1][2] == "win" and len(o) == 3, o
@@ -134,7 +146,7 @@ def main():
         o, _ = bout("points", 3, pens=(), seq=["p", "p", "p"])
         assert o[-1][2] == "win" and len(o) == 3, o
         # 役満 (重み 99) はどの形でもその場で脱ぎきる
-        for form, n in (("n", 5), ("first", 5), ("points", 9), ("strip", 0)):
+        for form, n in (("n", 5), ("first", 5), ("points", 9)):
             o, _ = bout(form, n, seq=["p"], steps={0: 99})
             assert o[-1][2] == "win", (form, o)
         print("勝負の形: OK | 段階 %d・あなた 3" % S)
