@@ -213,6 +213,12 @@ def main():
         app.life.her_money(st)["a"] = 100
         F._pay_money(cid, char, st, c4, "her", {"money": 3000}, now, "", "")
         assert F.rec(st)["owed"] and F.rec(st)["owed"][0]["pen"] == "money"
+        # 約束には, 誰がするかと, どの勝負で負けた分か (きっかけ) が付き, 関係性にも同じものが出る (勝っても前の分・相手の分が残るため)
+        fv = F.view(char, st, now)["owed"][0]
+        assert fv["who"] == "her" and c4.get("name", "") in fv["from"] and "/" in fv["from"], fv
+        pv = next(p for p in app.people_view(now) if p["id"] == cid)
+        assert pv["forfeit"] and pv["forfeit"]["owed"][0]["from"] == fv["from"], pv.get("forfeit")
+        assert "勝負" in F._from({"t": now}) and "券" in F._from({"t": now, "src": "券"}), "古いセーブ・券のきっかけ"
         F.tick(char, st, now + DAY / 2)
         assert F.rec(st)["owed"], "まだ払えない"
         app.life.her_money(st)["a"] = 9000

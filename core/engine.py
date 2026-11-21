@@ -2726,7 +2726,7 @@ class App:
 
     def people_view(self, now=None):
         """関係性: このワールドで知っている人全員. 間柄・最後に会った日 / 連絡した日・あなたが知っていること
-        (好きなもの・聞いた話)・貸し借り・取り決め. 様子 (params) は見た目の印象用 (そばにいない人は画面で「？」)."""
+        (好きなもの・聞いた話)・貸し借り・罰ゲームの約束・取り決め. 様子 (params) は見た目の印象用 (そばにいない人は画面で「？」)."""
         now = now or time.time()
         ps = self.life.player_state()
         out = []
@@ -2742,6 +2742,7 @@ class App:
                         "sched": list(reversed(self.knowsched.view(c, st, now))),
                         "circle": self.circle.known_view(c, st),          # あなたが知っている, 相手の知り合い (core/circle.py)
                         "owed": int((ps.get("loans") or {}).get(cid, 0)),
+                        "forfeit": self.forfeit.view(c, st, now) if st.get("forfeit") else None,   # 罰ゲームの約束・一日の禁止・券
                         "living_policy": c.get("living_policy") or "split" if b["stage"] == "live" else None,
                         "pay_policy": c.get("pay_policy") or "auto",
                         "params": {k: round(v, 1) for k, v in st["params"].items()},

@@ -691,6 +691,8 @@ function renderSoloTab() {
         v.meal.health.cap < 100 ? h('span', { class: 'muted' }, `（体力の上限 ${v.meal.health.cap}）`) : '') : '',
       v.meal ? h('div', { class: 'small', style: 'margin-bottom:4px' }, `🍚 ${v.meal.hunger}`, ...(v.meal.nutri || []).map((x) => h('span', { class: 'muted' }, `・${x}`)),
         v.meal.last ? h('span', { class: 'muted' }, `（最後に食べたのは ${fmtTime(v.meal.last.t)} の${v.meal.last.label}）`) : '') : '',
+      ...(v.people || []).flatMap((p) => (p.forfeit ? ffLines(p.forfeit, p.name, 'me') : [])).map((t) =>      // あなたが受ける罰ゲーム (相手の分は関係性)
+        h('div', { class: 'small', style: 'margin-bottom:4px' }, `🎯 罰ゲーム: ${t}`)),
       h('div', { class: 'prow', title: '仕事・内職・外出・家事・デートで減り、家にいる間に時間で戻ります（寝ると早い。外出中・デート中は戻りません。カフェで座れば少し戻ります）。減っていると、構っても効きが悪くなります' },
         h('span', {}, '体力'),
         h('div', { class: 'bar' }, h('i', { style: `width:${Y.stamina ?? 100}%;background:${(Y.stamina ?? 100) >= 50 ? 'var(--good)' : (Y.stamina ?? 100) >= 20 ? 'var(--mid)' : 'var(--bad)'}` })),
@@ -3769,6 +3771,7 @@ function renderPeople() {
             `${k.label}${k.feel ? `（${CIRCLE_FEEL[k.feel] || ''}）` : ''}　${CIRCLE_VIA[k.via] || '聞いた'}・${ago(k.t)}`))) : '',
           (p.sched || []).length ? row('予定について', p.sched.slice(0, 6).map((k) => h('div', { class: k.stale || k.old ? 'muted' : '' },
             `${k.text}（${SCHED_VIA[k.via] || '聞いた'}・${ago(k.t)}）`, k.stale ? h('span', { class: 'tag', style: 'margin-left:4px' }, 'もう違うかも') : k.old ? h('span', { class: 'tag', style: 'margin-left:4px' }, '前に聞いた話') : ''))) : '',
+          p.forfeit && ffLines(p.forfeit, p.name, 'her').length ? row('罰ゲーム', ffLines(p.forfeit, p.name, 'her').map((t) => h('div', {}, t))) : '',   // あなたの受ける分は「一人で」のあなたの欄
           p.owed ? row('貸し借り', h('span', { class: 'down' }, `あなたが ${yen(p.owed)} 借りている`)) : '',
           p.living_policy ? row('生活費', { split: '折半', me: 'あなたが払う', her: `${p.name}が払う` }[p.living_policy] || '') : ''));
     }),

@@ -136,14 +136,25 @@ function boutBar(cur) {
   return h('div', { class: 'bout-bar' }, h('span', {}, `${b.label}｜${pens}`), score ? h('span', { class: 'muted' }, score) : '',
     b.between ? h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'next_unit' }) }, '次の勝負へ') : '');
 }
+/* 罰ゲームの約束・一日の禁止・券を文にする (ゲームタブ・関係性タブ・「一人で」のあなたの欄で共通).
+   約束は勝ち負けで両方向に積もる (n 回勝負は負けるたび・前の勝負の分も期限まで残る) ので, 誰がするかときっかけを必ず添える.
+   side: 'me' = あなたが受ける分だけ (あなたの欄) / 'her' = 相手が受ける分とあなたの券 (関係性) / 無し = 両方 (ゲームタブ).
+   mine: あなたの持っている券も (ゲームタブは「券を使う」の欄で出すので false) */
+function ffLines(f, name, side = null, mine = true) {
+  const who = (x) => (x.who === 'me' ? 'あなた' : name);
+  const on = (w) => !side || side === w;
+  const owed = (x) => `${side ? '' : who(x) + 'がする: '}${x.label}（${side === 'me' ? name + 'と・' : ''}${x.from ? x.from + '・' : ''}あと ${x.days} 日）`;
+  return [
+    ...f.owed.filter((x) => on(x.who)).map(owed),
+    ...f.day.filter((x) => on(x.who)).map((x) => `${side ? '' : who(x) + ': '}${x.label}（${side === 'me' ? name + 'と・' : ''}${x.until} まで）`),
+    mine && on('her') && f.tickets ? `あなたが、${name}の「何でも言うことを聞く券」を ${f.tickets} 枚持っている` : '',
+    on('me') && f.her_tickets ? `${name}が、あなたの「何でも言うことを聞く券」を ${f.her_tickets} 枚持っている` : ''].filter(Boolean);
+}
 function forfeitPanel(gv) {
   const f = gv.forfeit;
   if (!f) return '';
   const name = S.view.name;
-  const rows = [
-    ...f.owed.map((x) => h('li', {}, `${x.who === 'me' ? 'あなた' : name}の番: ${x.label}（あと ${x.days} 日）`)),
-    ...f.day.map((x) => h('li', {}, `${x.who === 'me' ? 'あなた' : name}: ${x.label}（${x.until} まで）`)),
-    f.her_tickets ? h('li', {}, `${name}が、あなたの「何でも言うことを聞く券」を ${f.her_tickets} 枚持っている`) : ''].filter(Boolean);
+  const rows = ffLines(f, name, null, false).map((t) => h('li', {}, t));
   let use = '';
   if (f.tickets) {
     S.ffReq = S.ffReq || f.requests[0].id;

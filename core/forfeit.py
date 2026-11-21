@@ -529,14 +529,14 @@ class Forfeit:
             d = app.apply_effects(st, app.trait_effects(char, {"mood": 3}))
             self._note(char, st, now, "%s\n（罰ゲームで、%sの片付けをした）" % (say, "部屋" if sp == "home" else name + "の部屋"), d, "🧹")
         else:
-            self._owe(st, who, "chores", opt, now)
+            self._owe(st, who, "chores", opt, now, src=g.get("name", ""))
             self._note(char, st, now, "%s\n（家事は、今度二人で家にいるときに）" % say, None, "🧹")
 
     def _pay_date(self, cid, char, st, g, who, opt, now, say, name):
         place = opt.get("date") if who == "her" else ""
         if not place:
             place = random.choice(DATE_PLACES)      # 勝った相手が決める (あなたが勝って決めていなければ, 相手のおまかせ)
-        self._owe(st, who, "date", opt, now, place=place)
+        self._owe(st, who, "date", opt, now, place=place, src=g.get("name", ""))
         self._note(char, st, now, "%s\n（%s約束: %s。14 日のうちに）" % (
             say, "%sが付き合う" % name if who == "her" else "あなたが連れていく", self._place_name(place)), None, "🎡")
 
@@ -544,14 +544,14 @@ class Forfeit:
         app = self.app
         m = opt.get("money")
         if m == "treat":
-            self._owe(st, who, "money", opt, now)
+            self._owe(st, who, "money", opt, now, src=g.get("name", ""))
             self._note(char, st, now, "%s\n（次に二人で払うものは、%sが払う）" % (say, name if who == "her" else "あなた"), None, "💴")
             return
         m = int(m)
         if self._give(char, st, who, m, now):
             self._note(char, st, now, "%s\n（%s円を%s）" % (say, format(m, ","), "受け取った" if who == "her" else "渡した"), None, "💴")
         else:
-            self._owe(st, who, "money", opt, now)
+            self._owe(st, who, "money", opt, now, src=g.get("name", ""))
             self._note(char, st, now, "%s\n（いま手元に無いので、%s円はあとで）" % (say, format(m, ",")), None, "💴")
 
     def _give(self, char, st, who, m, now):
@@ -726,7 +726,7 @@ class Forfeit:
             t["mine"] = int(t["mine"]) - 1
             say = self.line(char, "ff.ticket_yes", {"what": name})
             if req == "date":
-                self._owe(st, "her", "date", {}, now, place=random.choice(DATE_PLACES))
+                self._owe(st, "her", "date", {}, now, place=random.choice(DATE_PLACES), src="券")
                 e = self._note(char, st, now, "%s\n（券で、デートの約束をした。14 日のうちに）" % say, None, "🎫")
             elif req == "secret":
                 v = app.regard.rec(char, st).get("v", 50)
@@ -748,7 +748,7 @@ class Forfeit:
         t["hers"] = int(t["hers"]) - 1
         say = self.line(char, "ff.ticket_her", {"what": name})
         if cost.get("treat"):
-            self._owe(st, "me", "money", {"money": "treat"}, now)
+            self._owe(st, "me", "money", {"money": "treat"}, now, src="券")
             note = "（券を使われた: 次に二人で払うものは、あなたが払う）"
         else:
             app.life.tire(cost.get("tire", 0))
@@ -855,12 +855,21 @@ class Forfeit:
             out["score"] = dict(b["score"])
         return out
 
+    @staticmethod
+    def _from(x):
+        """約束になったきっかけ (「11/20 のトランプで負けた」など). 古いセーブの約束は, 日付だけ."""
+        d = time.strftime("%m/%d", time.localtime(x.get("t") or 0)).lstrip("0").replace("/0", "/")
+        src = x.get("src")
+        if src == "券":
+            return "%s に券で" % d
+        return "%s の%sで" % (d, src or "勝負")
+
     def view(self, char, st, now=None):
         now = now or time.time()
         r = st.get("forfeit") or {}
         owed = [{"who": x["who"], "label": self.pen_label(x["pen"], x["opt"], x["who"]) +
                  ("（%s）" % self._place_name(x["place"]) if x.get("place") and not x["opt"].get("date") else ""),
-                 "days": max(0, int((x["due"] - now) // DAY))} for x in r.get("owed") or []]
+                 "days": max(0, int((x["due"] - now) // DAY)), "from": self._from(x)} for x in r.get("owed") or []]
         day = [{"who": x["who"], "label": ("「%s」と呼ぶ" % x["name"]) if x["what"] == "call" else "%s禁止" % BANS.get(x["what"], ""),
                 "until": time.strftime("%m/%d %H:%M", time.localtime(x["until"]))} for x in r.get("day") or [] if x["until"] > now]
         t = r.get("tickets") or {}
