@@ -86,7 +86,34 @@ def main():
         assert "w=w1,w2" in open(store.dpath("server.log"), encoding="utf-8").read()
         print("対象なし・期限・例外: OK")
 
-        # ---------------------------------------------------------------- 更新での扱い
+        # ---------------------------------------------------------------- 更新での扱い (本物の git で)
+        # 以前は git の出力全体を strip していて, status の 1 行目 " D patches/…" の行頭の空白が消え,
+        # 当てて消したパッチを「書き換えたファイル: atches/…」として更新を止めていた (下の差し替えたテストでは見えなかった)
+        import subprocess
+        repo = os.path.join(TMP, "repo")
+        os.makedirs(os.path.join(repo, "patches"))
+        os.makedirs(os.path.join(repo, "core"))
+        for rel in ("patches/20261121_yakyuken_phone_ban.py", "core/engine.py"):
+            with open(os.path.join(repo, rel), "w", encoding="utf-8") as f:
+                f.write("x = 1\n")
+        g = lambda *a: subprocess.run(["git", "-C", repo] + list(a), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True)  # noqa: E731
+        g("init", "-q")
+        g("add", "-A")
+        g("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "init")
+        base0 = store.BASE
+        store.BASE = repo
+        try:
+            os.remove(os.path.join(repo, "patches", "20261121_yakyuken_phone_ban.py"))
+            assert update._status() == [(" D", "patches/20261121_yakyuken_phone_ban.py")], update._status()
+            assert update.dirty() == [], update.dirty()
+            with open(os.path.join(repo, "core", "engine.py"), "a", encoding="utf-8") as f:
+                f.write("y = 2\n")
+            assert update.dirty() == ["core/engine.py"], update.dirty()
+        finally:
+            store.BASE = base0
+        print("更新 (本物の git): OK | 当てて消したパッチは書き換えに入れない・ほかの書き換えは入れる")
+
+        # ---------------------------------------------------------------- 更新での扱い (取り込みの流れ)
         st = [(" D", "patches/20261121_yakyuken_phone_ban.py")]
         calls = []
         update._status = lambda: st

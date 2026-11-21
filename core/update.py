@@ -12,8 +12,9 @@ import subprocess
 from . import patches, store
 
 
-def _git(*args, timeout=60):
-    """git を kurashi の場所で動かす. (成功したか, 出力) を返す."""
+def _git(*args, timeout=60, strip=True):
+    """git を kurashi の場所で動かす. (成功したか, 出力) を返す.
+    strip=False: 行頭の空白を残す (status --porcelain の 1 行目は " D path" のように空白で始まる. 削ると桁がずれる)."""
     try:
         r = subprocess.run(["git", "-C", store.BASE] + list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            timeout=timeout, encoding="utf-8", errors="replace",
@@ -22,7 +23,8 @@ def _git(*args, timeout=60):
         return False, "git が見つかりません（git をインストールすると、ここから更新できます）"
     except subprocess.TimeoutExpired:
         return False, "git の応答がありません（ネットワークを確かめてください）"
-    return r.returncode == 0, (r.stdout or "").strip()
+    out = r.stdout or ""
+    return r.returncode == 0, out.strip() if strip else out.rstrip()
 
 
 def number():
@@ -45,7 +47,7 @@ def version():
 
 
 def _status():
-    ok, out = _git("status", "--porcelain", "--untracked-files=no")
+    ok, out = _git("status", "--porcelain", "--untracked-files=no", strip=False)
     return [(ln[:2], ln[3:]) for ln in out.splitlines() if ln.strip()] if ok else []
 
 
