@@ -3,12 +3,13 @@
 - 確認 (check): origin から取ってきて (fetch), 手元より新しいコミットの数と一覧, 手元で書き換えたファイル (追跡しているもの) を返す.
 - 更新 (pull): 早送りできるときだけ取り込む (git pull --ff-only). 手元で書き換えたファイルがあれば取り込まない (上書きしない).
 - 起動し直すのは server.py (更新のあと・「再起動」). データ (data/) は git の外なので, 更新では変わらない.
+- 緊急パッチ (patches/. core/patches.py) は, 当てたあと手元で消すので, 消したものは書き換えとみなさず, 取り込む前に戻す.
 git が無い・リポジトリでないときは, そう伝えるだけ.
 """
 import os
 import subprocess
 
-from . import store
+from . import patches, store
 
 
 def _git(*args, timeout=60):
@@ -43,10 +44,19 @@ def version():
     return {"number": number(), "commit": h, "date": d, "branch": br if okb else ""}
 
 
-def dirty():
-    """手元で書き換えた (追跡している) ファイル. data/ などは git の外なので入らない."""
+def _status():
     ok, out = _git("status", "--porcelain", "--untracked-files=no")
-    return [ln[3:] for ln in out.splitlines() if ln.strip()] if ok else []
+    return [(ln[:2], ln[3:]) for ln in out.splitlines() if ln.strip()] if ok else []
+
+
+def _patch_gone(code, f):
+    """当てて消した緊急パッチ (手元で消しただけ)."""
+    return code == " D" and f.startswith(patches.REL)
+
+
+def dirty():
+    """手元で書き換えた (追跡している) ファイル. data/ などは git の外なので入らない. 当てて消した緊急パッチは入れない."""
+    return [f for code, f in _status() if not _patch_gone(code, f)]
 
 
 def check():
@@ -69,6 +79,9 @@ def pull():
     d = dirty()
     if d:
         return {"ok": False, "changed": False, "text": "手元で書き換えたファイルがあるので、更新しませんでした: %s" % "、".join(d[:8])}
+    gone = [f for code, f in _status() if _patch_gone(code, f)]
+    if gone:                     # 当てて消したパッチを戻してから取り込む (次の起動で, 記録を見て消すだけ)
+        _git("checkout", "--", *gone)
     before = version()
     ok, out = _git("pull", "--ff-only", "--quiet", timeout=180)
     if not ok:

@@ -17,7 +17,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from core import comfy, engine, llm, memquiz, store, update  # noqa: E402
+from core import comfy, engine, llm, memquiz, patches, store, update  # noqa: E402
 from core.trace import brief_args  # noqa: E402
 
 STATIC = os.path.join(store.BASE, "static")
@@ -653,6 +653,7 @@ def main():
             pass
     with open(url_file, "w", encoding="utf-8") as f:
         f.write(url)
+    patches.run()                 # 緊急パッチ: 更新で届いた一回限りのデータの直し. 状態を読み込む前に当てて, 消す (core/patches.py)
     APP = engine.App()
     threading.Thread(target=ticker, daemon=True, name="remote-ticker").start()
     APP.tailnet.port = args.port
