@@ -38,6 +38,7 @@ SERVICE_SHOPS = ("mall", "electronics", "bookstore", "restaurant", "cafe", "drug
 SHOP_POS = {"supermarket": "supermarket", "convenience": "convenience store", "drugstore": "drugstore", "bookstore": "bookstore",
             "electronics": "electronics store", "mall": "shopping mall, clothing store", "cafe": "cafe, waitress",
             "family": "family restaurant, waitress", "fastfood": "fast food restaurant, counter", "restaurant": "restaurant, waitress"}
+places_mod.expand_keys(SHOP_POS)    # 2 店目以降の勤め先も (A10)
 HOBBIES = (("趣味のお絵かき", "bedroom, drawing, sketchbook, sitting at desk"), ("読書の時間", "living room, reading book, sitting on sofa"),
            ("ゲームをしている", "bedroom, playing video game, holding controller"), ("映画を観ている", "living room, watching tv, sitting on sofa"),
            ("部屋の片付け", "bedroom, cleaning, tidying up"), ("おやつを作っている", "kitchen, baking, apron"),
@@ -195,6 +196,14 @@ def pick_type(rnd, age):
     return rnd.choices([p[0] for p in pool], [p[1] for p in pool])[0]
 
 
+def _shop(kind, seed):
+    """勤め先の種類 → 店 (同じ種類の店が複数あれば, そのうちの 1 つ. A10). 別の乱数で引くので, ほかの決まりの並びは変わらない."""
+    if not kind:
+        return kind
+    bs = places_mod.branches(kind)
+    return random.Random("shop:%s:%s" % (seed, kind)).choice(bs) if len(bs) > 1 else kind
+
+
 def decide(char, traits=None, seed=None, type_id=None, src=None):
     """その人の life を決める (同じ seed・同じ人なら同じ結果). traits: 性格の傾向 (chrono を見る)."""
     seed = str(seed or char.get("id") or char.get("name") or "x")
@@ -212,7 +221,7 @@ def decide(char, traits=None, seed=None, type_id=None, src=None):
     life = {"type": tid, "v": V, "src": how or "lottery", "seed": seed, "chrono": chrono}
     days = list(range(7))
     if tid == "shift":
-        wp = rnd.choice(SHIFT_SHOPS)
+        wp = _shop(rnd.choice(SHIFT_SHOPS), seed)
         closed = shop_hours(wp)[2]
         off = set(closed)
         n_off = rnd.choice((2, 2, 3))
@@ -220,7 +229,7 @@ def decide(char, traits=None, seed=None, type_id=None, src=None):
             off.add(rnd.choice(days))
         life.update(off=[DAYS[d] for d in sorted(off)], slot=rnd.choice((0, 1)), workplace=wp)
     elif tid == "service":
-        wp = rnd.choice(SERVICE_SHOPS)
+        wp = _shop(rnd.choice(SERVICE_SHOPS), seed)
         closed = [d for d in shop_hours(wp)[2] if d < 5]
         off = set(closed)
         while len(off) < 2:
@@ -231,9 +240,9 @@ def decide(char, traits=None, seed=None, type_id=None, src=None):
         n_off = rnd.choice((2, 3))
         while len(off) < n_off:
             off.add(rnd.choice(days))
-        life.update(off=[DAYS[d] for d in sorted(off)], slot=0, workplace="convenience" if rnd.random() < 0.3 else None)
+        life.update(off=[DAYS[d] for d in sorted(off)], slot=0, workplace=_shop("convenience", seed) if rnd.random() < 0.3 else None)
     elif tid == "student":
-        life.update(off=[rnd.choice(DAYS[:5])] if rnd.random() < 0.5 else [], slot=rnd.choice((0, 1)), workplace=rnd.choice(SHIFT_SHOPS))
+        life.update(off=[rnd.choice(DAYS[:5])] if rnd.random() < 0.5 else [], slot=rnd.choice((0, 1)), workplace=_shop(rnd.choice(SHIFT_SHOPS), seed))
     elif tid == "freelance":
         off = set()
         while len(off) < 2:

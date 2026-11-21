@@ -23,7 +23,7 @@ import re
 import time
 from datetime import datetime, timedelta
 
-from .places import LEGACY_DO, OUT_PLACES, open_state, solo_kind
+from .places import LEGACY_DO, ROUTINE_OUT, open_state, solo_kind, with_branches, nearest, is_near, NEAR
 from .places import effort as effort_of
 from .places import HOME_ME
 from . import geo as geo_mod
@@ -36,7 +36,9 @@ DO_LABEL = {"sleep": "寝る", "rest": "休む", "home": "家で静かに過ご�
 CHORE_PARTS = {"": "全部", "mess": "部屋の片付け", "dishes": "洗い物", "laundry": "洗濯", "trash": "ゴミ出し"}
 JOG_AT = ("park", "riverside", "town")
 MEAL_HOW = {"cook": "自炊", "out": "外食", "buy": "買って食べる"}
-MEAL_PLACES = {"out": ["teishoku", "ramen", "fastfood", "family", "restaurant", "cafe"], "buy": ["convenience", "supermarket", "station"]}
+# 食べに行く・買って食べる店 (店ごと. 店が複数ある種類は「いちばん近い○○」も. A10)
+MEAL_PLACES = {"out": with_branches(["teishoku", "ramen", "fastfood", "family", "restaurant", "cafe"]) + [NEAR + "cafe"],
+               "buy": with_branches(["convenience", "supermarket", "station"]) + [NEAR + "convenience", NEAR + "supermarket"]}
 WEEKDAY = [{"at": "00:00", "do": "sleep"}, {"at": "07:00", "do": "meal", "how": "cook"}, {"at": "07:30", "do": "rest"},
            {"at": "09:00", "do": "work"}, {"at": "12:00", "do": "meal", "how": "buy", "place": "convenience"}, {"at": "12:45", "do": "work"},
            {"at": "18:00", "do": "out", "place": "supermarket"}, {"at": "19:00", "do": "meal", "how": "cook"}, {"at": "19:45", "do": "rest"},
@@ -70,7 +72,7 @@ def normalize(b):
     if b.get("do") in LEGACY_DO:
         b["place"] = b.get("place") or LEGACY_DO[b["do"]]
         b["do"] = "out"
-    if b.get("do") == "out" and b.get("place") not in OUT_PLACES:
+    if b.get("do") == "out" and b.get("place") not in ROUTINE_OUT:
         b["place"] = "park"
     if b.get("do") == "meal":                 # 食事: 自炊 / 外食 (食べに行く店) / 買って食べる (コンビニなど)
         b["how"] = b.get("how") if b.get("how") in MEAL_HOW else "cook"
@@ -284,6 +286,8 @@ class Offline:
             if sick_day and datetime.fromtimestamp(s).date() == sick_day and b["do"] not in ("sleep", "meal", "rest", "exam", "appoint"):
                 # 以前は早退したあとも, 昼休みのあとの勤めにまた職場へ行き, 空き時間は研鑽などをしていた
                 b = {"do": "rest", "_sick": True}
+            if is_near(b.get("place")):           # 「いちばん近い○○」: いまいる所 (出先か家) から近い, 開いている店に決める (A10)
+                b = dict(b, place=nearest(app, b["place"], back_leg[1] if back_leg else HOME_ME, max(s, t)))
             fixed = nb[0] if nb and nb[2]["do"] in ("exam", "appoint") else None     # 次が時刻の決まったこと (試験・約束): 残業はその前まで
             # 出先にいるまま続ける: 同じ場所での次の行動 (昼休みのあとも職場) / 出先のすぐあとの食事 (近くで食べる)
             stay = bool(back_leg) and (self._dest(b) == back_leg[1] or (

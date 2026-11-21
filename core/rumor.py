@@ -14,11 +14,13 @@ import time
 from datetime import datetime, timedelta
 
 from . import market as market_mod
+from .places import expand_keys as _expand_keys
 
 # 行き先 (勤め先) → 銘柄の業種
 PLACE_SECTOR = {"supermarket": "supermarket", "convenience": "convenience", "drugstore": "drugstore", "bookstore": "bookstore",
                 "electronics": "electronics", "family": "eat", "teishoku": "eat", "ramen": "eat", "fastfood": "eat", "restaurant": "eat",
                 "mall": "mall", "cafe": "cafe", "amusement": "amusement", "aquarium": "aquarium"}
+_expand_keys(PLACE_SECTOR)          # 2 店目以降の勤め先も同じ業種 (A10)
 SAY = {1: ["{name}の新商品が好評らしい", "{name}の店、最近すごく混んでるらしい", "{name}が近くに新しい店を出すって聞いた",
            "{name}、今度大きな取引が決まりそうなんだって"],
        -1: ["{name}の店、最近お客さんが減ってるらしい", "{name}、また値上げするって話があるらしい", "{name}の新商品、評判がいまいちらしい",

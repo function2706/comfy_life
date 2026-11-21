@@ -2193,11 +2193,12 @@ class App:
         if not pl or not places_mod.open_state(pl, datetime.fromtimestamp(now))["open"]:
             return None
         have = set(self.wardrobe.owned_ids(char))
-        items = [{"id": it["id"], "name": it["name"], "icon": it["icon"], "price": it["price"], "kind": it["kind"],
+        rate = places_mod.price_rate(pl)                # 店ごとの値段 (A10)
+        items = [{"id": it["id"], "name": it["name"], "icon": it["icon"], "price": int(round(it["price"] * rate / 10.0)) * 10, "kind": it["kind"],
                   "bold": it.get("bold", 0),
                   "outer": (self.wardrobe.get(it.get("outfit")) or {}).get("kind") == wardrobe_mod.OUTER}
                  for it in items_mod.CATALOG.values()
-                 if it["giftable"] and pl in it["places"] and not (it.get("outfit") and it["outfit"] in have)]
+                 if it["giftable"] and items_mod.sold_at(it, pl) and not (it.get("outfit") and it["outfit"] in have)]
         if not items:
             return None
         items.sort(key=lambda x: (x["kind"] == "outfit", not x["outer"], x["price"]))

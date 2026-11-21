@@ -14,6 +14,8 @@
 import random
 import time
 
+from . import places as places_mod
+
 # id: (名前, 印, 種類, 値段, 売っている行き先, 好みの印, プレゼントにできるか)
 _C = [
     ("rice", "お米", "🍚", "food", 1800, ["supermarket", "shopping_street", "mall"], ["food"], False),
@@ -85,6 +87,11 @@ MISSING = {"cook": "（食材がなくて、ありあわせで簡単なものし
 PRACTICE_BOOK = {"talk": "book_talk", "touch": "book_touch", "cook": "book_cook", "work": "book_work",
                  "house": "book_house", "care": "book_care", "groom": "book_groom", "budget": "book_budget",
                  "write": "book_write"}
+
+
+def sold_at(it, place):
+    """その行き先で売っているか: 種類として売っていて (CATALOG の places は種類), その店が置いていないものでない (A10)."""
+    return places_mod.kind_of(place) in it["places"] and it["id"] not in places_mod.lacks(place)
 
 
 class Items:
@@ -191,10 +198,11 @@ class Items:
         thrift = self.app.life.skill_soft("budget")          # やりくりがうまいほど, 少し安く買え, 衝動買いが減る (確定ではない)
         keep, why = self.app.life.reserve(t or time.time())  # 先の支払い (家賃など) の分は残す. 気づくか・どこまで見越すかはやりくりしだい
         held = []
+        rate = places_mod.price_rate(place)                   # 店ごとの値段 (A10: 駅前の小さなスーパーは少し高い など)
         order = sorted(ps["shop_list"].items(), key=lambda kv: (not (CATALOG.get(kv[0]) or {}).get("essential"), (CATALOG.get(kv[0]) or {}).get("price", 0)))
         for iid, want in order:
             it = CATALOG.get(iid)
-            if not it or place not in it["places"]:
+            if not it or not sold_at(it, place):
                 continue
             if strict and not it["essential"]:
                 missed.append("借金があるので、%sは見送った" % it["name"])
@@ -220,7 +228,7 @@ class Items:
                     else:
                         missed.append("%sは品切れだった" % it["name"])
                     break
-                price = int(round(it["price"] * random.uniform(0.85, 1.15 - 0.08 * thrift) / 10.0)) * 10
+                price = int(round(it["price"] * rate * random.uniform(0.85, 1.15 - 0.08 * thrift) / 10.0)) * 10
                 if ps["money"] < price:
                     missed.append("%sはお金が足りなくて買えなかった" % it["name"])
                     break
@@ -242,10 +250,10 @@ class Items:
             missed.append("%sが近いので、%sは見送った" % (why, "・".join(held)) if why == "家賃" else
                           "この先の生活費を考えて、%sは見送った" % "・".join(held))
         # 衝動買い: 安いものをたまに (長くいるほど)
-        cheap = [i for i in CATALOG.values() if place in i["places"] and i["price"] <= 1500]
+        cheap = [i for i in CATALOG.values() if sold_at(i, place) and i["price"] <= 1500]
         if cheap and not strict and random.random() < min(0.35, 0.12 * max(0.5, hours)) * (1.0 - 0.5 * thrift):
             it = random.choice(cheap)
-            price = int(round(it["price"] * random.uniform(0.85, 1.15) / 10.0)) * 10
+            price = int(round(it["price"] * rate * random.uniform(0.85, 1.15) / 10.0)) * 10
             if ps["money"] >= price + max(3000, keep):
                 ps["money"] -= price
                 self.app.life.ledger(t, -price, "food" if it["kind"] in FOOD_KINDS else "medical" if it["kind"] == "medicine" else "shopping", it["name"])
@@ -261,10 +269,10 @@ class Items:
     def _substitute(self, it, place):
         """品切れの品の代わり: 同じ種類 (食材なら同じ栄養) で, この店に売っている別の品."""
         for c in CATALOG.values():
-            if c["id"] == it["id"] or place not in c["places"]:
+            if c["id"] == it["id"] or not sold_at(c, place):
                 continue
             if (it.get("nut") and c.get("nut") == it.get("nut")) or (not it.get("nut") and c["kind"] == it["kind"] and c["kind"] != "goods"):
-                return dict(c, price=int(round(c["price"] * random.uniform(0.9, 1.1) / 10.0)) * 10)
+                return dict(c, price=int(round(c["price"] * places_mod.price_rate(place) * random.uniform(0.9, 1.1) / 10.0)) * 10)
         return None
 
     @staticmethod

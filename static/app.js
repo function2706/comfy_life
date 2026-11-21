@@ -2815,7 +2815,7 @@ const MAP_NS = 'http://www.w3.org/2000/svg';
 const mapEl = (tag, at, txt) => { const e = document.createElementNS(MAP_NS, tag); for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); if (txt != null) e.textContent = txt; return e; };
 const mapName = (id) => id === 'home:me' ? 'あなたの家' : id === 'office' ? '職場'
   : String(id).startsWith('st:') ? ((((S.view || {}).outdoor || {}).net || {}).stations || {})[id]?.name || id
-    : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).label || id;
+    : ((((S.view || {}).outdoor || {}).places || {})[id] || (((S.view || {}).outdoor || {}).near || {})[id] || {}).label || id;
 const mapIcon = (id) => id === 'home:me' ? '🏠' : id === 'office' ? '💼' : ((((S.view || {}).outdoor || {}).places || {})[id] || {}).icon || '📍';
 function mapPreset(k) {
   const M = ((S.view || {}).outdoor || {}).map || {};
@@ -4257,7 +4257,7 @@ function commandPicker(b, redraw) {
   const L = (S.boot.routine || {}).labels || {};
   const od0 = (S.view || {}).outdoor || {};
   const ch = Object.assign({}, od0.choices || {}, { out: od0.routine_choices || (od0.choices || {}).out || [] });
-  const pl = od0.places || {};
+  const pl = Object.assign({}, od0.near || {}, od0.places || {});   // 「いちばん近い○○」も (A10)
   const skills = ((S.view || {}).solo || {}).skills || {};
   const MH = (S.boot.routine || {}).meal_how || {}, MP = (S.boot.routine || {}).meal_places || {};
   const sel = (key, opts, after) => h('select', { onchange: (ev) => { b[key] = ev.target.value; if (after) after(); redraw(); } },
@@ -4414,7 +4414,7 @@ function routineEditor(days) {
   const L = (S.boot.routine || {}).labels || {};
   const od0 = (S.view || {}).outdoor || {};
   const ch = Object.assign({}, od0.choices || {}, { out: od0.routine_choices || (od0.choices || {}).out || [] });   // 人の家は行動パターンには入れない
-  const pl = od0.places || {};
+  const pl = Object.assign({}, od0.near || {}, od0.places || {});   // 「いちばん近い○○」も (A10)
   const skills = ((S.view || {}).solo || {}).skills || {};
   const MH = (S.boot.routine || {}).meal_how || {}, MP = (S.boot.routine || {}).meal_places || {};
   const cur = S.routineDay || 'mon';

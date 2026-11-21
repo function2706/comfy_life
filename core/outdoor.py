@@ -22,7 +22,7 @@ LOCATION_PLACE = places_mod.LOCATION_PLACE
 CHOICES = {"out": list(places_mod.OUT_PLACES),
            "walk": [k for k in places_mod.OUT_PLACES if places_mod.main_do(k) == "walk"],
            "shopping": [k for k in places_mod.OUT_PLACES if "shop" in PLACES[k]["does"]],
-           "cafe": ["cafe"]}
+           "cafe": places_mod.branches("cafe")}
 WEATHER = {"sunny": ("晴れ", "☀", 1.0, 1.0), "cloudy": ("くもり", "☁", 0.9, 1.0), "rain": ("雨", "☔", 0.35, 0.85),
            "snow": ("雪", "❄", 0.3, 0.8)}      # (名前, 印, 屋外の人の多さ, 屋内の人の多さ)
 SEASON_WEATHER = {"spring": (("sunny", 0.5), ("cloudy", 0.3), ("rain", 0.2)),
@@ -112,7 +112,7 @@ class Outdoor:
         from .solo import JOG_PLACES
         ch = dict(CHOICES, out=self.app.places.out_choices(), jog=list(JOG_PLACES))
         out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
-               "choices": ch, "routine_choices": list(places_mod.OUT_PLACES), "current": None}
+               "choices": ch, "routine_choices": list(places_mod.ROUTINE_OUT), "near": pv.get("near", {}), "current": None}
         if cur:
             pl = self.app.places.get(cur["place"]) or PLACES["town"]
             out["current"] = dict(cur, label=pl["label"], icon=pl["icon"],

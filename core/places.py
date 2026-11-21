@@ -90,6 +90,121 @@ HOURS = {
 }
 DAY_JA = "月火水木金土日"
 
+# 同じ種類の店を複数 (残件 A10). 1 店目は種類の id のまま (以前のワールドの行き先・予定・約束・勤め先はそのまま 1 店目),
+# 2 店目以降は "<種類>:<番号>". 店ごとに名前・位置の決まり (geo の RULES と同じ形)・営業時間 (無ければ種類と同じ)・
+# 値段の倍率 (品と食べるもの)・置いていない品 (lacks)・人の多さの倍率 (crowd) を持つ.
+FIRST_NAME = {"supermarket": "住宅街店", "convenience": "住宅街店", "cafe": "駅前店", "drugstore": "駅前店"}
+BRANCHES = {
+    "supermarket:2": {"name": "駅前店", "rule": ("station", 0.1, 0.5), "hours": {"open": "10:00", "close": "23:00"},
+                      "price": 1.06, "lacks": ["rice"], "crowd": 1.2},
+    "convenience:2": {"name": "駅前店", "rule": ("station", 0.05, 0.3), "price": 1.0, "crowd": 1.3},
+    "convenience:3": {"name": "二丁目店", "rule": ("home", 0.5, 1.1), "hours": {"open": "06:00", "close": "24:00"},
+                      "price": 1.0, "lacks": ["cold_medicine", "novel"], "crowd": 0.7},
+    "cafe:2": {"name": "住宅街店", "rule": ("home", 0.3, 0.9), "hours": {"open": "10:00", "close": "19:00", "closed_days": [2]},
+               "price": 0.95, "lacks": ["cake"], "crowd": 0.6},
+    "drugstore:2": {"name": "住宅街店", "rule": ("home", 0.3, 1.0), "hours": {"open": "09:00", "close": "21:00"},
+                    "price": 0.95, "lacks": ["book_house", "book_groom", "hairpin"], "crowd": 0.8},
+}
+NEAR = "near:"            # 行動パターン・予定の「いちばん近い○○」 ("near:supermarket". 出るときに, その場所から近い開いている店に決める)
+
+
+def _branch_tables():
+    for k, n in FIRST_NAME.items():
+        PLACES[k]["kind"] = k
+        PLACES[k]["label"] = "%s（%s）" % (PLACES[k]["label"], n)
+    for bid, b in BRANCHES.items():
+        kind = bid.split(":")[0]
+        base = PLACES[kind]
+        PLACES[bid] = dict(base, kind=kind, label="%s（%s）" % (base["label"].split("（")[0], b["name"]),
+                           crowd={ph: round(v * b.get("crowd", 1.0), 3) for ph, v in base["crowd"].items()})
+        if b.get("hours") or HOURS.get(kind):
+            HOURS[bid] = dict(b.get("hours") or HOURS[kind])
+    order = list(PLACES)                  # 表の並び: 2 店目以降は 1 店目のすぐあと (選ぶ画面で種類ごとに並ぶ)
+    order = [k for k in order if k not in BRANCHES]
+    for bid in sorted(BRANCHES, reverse=True):
+        order.insert(order.index(bid.split(":")[0]) + 1, bid)
+    t = dict(PLACES)
+    PLACES.clear()
+    for k in order:
+        PLACES[k] = t[k]
+
+
+_branch_tables()
+
+
+def kind_of(pid):
+    """行き先の種類 ("supermarket:2" → "supermarket", "near:cafe" → "cafe"). 店が 1 つの行き先・家・駅はそのまま."""
+    if not isinstance(pid, str):
+        return pid
+    if pid.startswith(NEAR):
+        return pid[len(NEAR):]
+    return (PLACES.get(pid) or {}).get("kind", pid)
+
+
+def kind_label(kind):
+    """種類の名前 (「スーパー」). 店ごとの名前の前半."""
+    return ((PLACES.get(kind_of(kind)) or {}).get("label") or kind).split("（")[0]
+
+
+def branches(kind):
+    """その種類の店 (1 店目から順に). 店が 1 つなら [kind]."""
+    kind = kind_of(kind)
+    return [kind] + sorted(b for b in BRANCHES if b.split(":")[0] == kind)
+
+
+def with_branches(kinds):
+    """種類の並び → 店の並び (種類ごとに 1 店目から)."""
+    return [p for k in kinds for p in branches(k)]
+
+
+def expand_keys(d):
+    """種類をキーにした表に, 2 店目以降のキーを足す (値は 1 店目と同じ). 表そのものを返す."""
+    for bid in BRANCHES:
+        k = bid.split(":")[0]
+        if k in d and bid not in d:
+            d[bid] = d[k]
+    return d
+
+
+def price_rate(pid):
+    """その店の値段の倍率 (1 店目と, 店が 1 つの行き先は 1)."""
+    return float((BRANCHES.get(pid) or {}).get("price", 1.0))
+
+
+def lacks(pid):
+    """その店に置いていない品 (種類としては売っているもの)."""
+    return list((BRANCHES.get(pid) or {}).get("lacks") or [])
+
+
+def rule_of(pid):
+    return (BRANCHES.get(pid) or {}).get("rule")
+
+
+def is_near(pid):
+    return isinstance(pid, str) and pid.startswith(NEAR)
+
+
+NEAR_KINDS = [k for k in FIRST_NAME]          # 「いちばん近い○○」を選べる種類 (店が複数あるもの)
+
+
+def near_label(pid):
+    return "いちばん近い%s" % kind_label(pid)
+
+
+def nearest(app, pid, frm, t):
+    """「いちばん近い○○」を店に決める: frm からの道のりで近い順に, t に開いている店. どこも閉まっていれば, いちばん近い店
+    (行けない理由はその店の営業時間で出る). near でなければそのまま."""
+    if not is_near(pid):
+        return pid
+    from datetime import datetime
+    dt = datetime.fromtimestamp(t)
+    cands = branches(kind_of(pid))
+    try:
+        cands.sort(key=lambda p: app.geo.km(frm or HOME_ME, p))
+    except Exception:
+        pass
+    return next((p for p in cands if open_state(p, dt)["open"]), cands[0])
+
 
 def _hm(s):
     h, m = s.split(":")
@@ -148,6 +263,8 @@ DO_LABEL = {"walk": "ぶらぶら歩く", "shop": "買い物", "tea": "お茶", 
 HOME_ME = "home:me"
 # 一人の外出で選べる行き先 (職場は「仕事に行く」から)
 OUT_PLACES = [k for k, v in PLACES.items() if v["group"] != "work"]
+# 行動パターン・予定の外出で選べる行き先 (公共の行き先 + 「いちばん近い○○」)
+ROUTINE_OUT = OUT_PLACES + [NEAR + k for k in NEAR_KINDS]
 
 # 以前の表し方からの読み替え
 # お出かけの一時シーンの場所 (日本語) → 行き先
@@ -194,7 +311,7 @@ def main_do(pid):
     """その行き先で, 一人で行ったときにすること (公共の行き先の最初の does. 人の家なら visit)."""
     if is_home(pid):
         return "visit"
-    return (PLACES.get(pid) or PLACES["town"])["does"][0]
+    return (PLACES.get(pid) or PLACES.get(kind_of(pid)) or PLACES["town"])["does"][0]
 
 
 def solo_kind(pid):
@@ -265,6 +382,8 @@ class Places:
                 return st["name"]
         if isinstance(pid, str) and pid.startswith("pt:"):
             return "途中の駅" if pid.count(",") >= 2 else "移動の途中"
+        if is_near(pid):
+            return near_label(pid)
         p = self.get(pid)
         if not p and is_home(pid) and home_of(pid) in self.app.chars:      # 表に無い相手の家 (頼まれごとの約束など)
             return "%sの家" % self.app.chars[home_of(pid)].get("name", "")
@@ -283,5 +402,6 @@ class Places:
             o = open_state(k, dt)
             out[k] = {"label": v["label"], "icon": v["icon"], "group": v["group"], "does": v["does"], "outdoor": v["outdoor"],
                       "open": o["open"], "note": o["note"], "hours": o["hours"], "until": o["until"]}
-        return {"places": out,
+        near = {NEAR + k: {"label": near_label(k), "icon": PLACES[k]["icon"], "hours": ""} for k in NEAR_KINDS}
+        return {"places": out, "near": near,
                 "groups": GROUP_LABEL, "does": DO_LABEL}

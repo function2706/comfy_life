@@ -40,6 +40,7 @@ KINDS = {
 SHOP_BASE = {"convenience": (3, 0.3, 0.5), "station": (3, 0.3, 0.5), "drugstore": (7, 0.35, 0.8), "bookstore": (10, 0.5, 0.8),
              "supermarket": (10, 0.3, 0.9), "shopping_street": (15, 0.4, 1.0), "electronics": (20, 0.45, 1.0), "mall": (25, 0.45, 1.0),
              "car_dealer": (45, 0.35, 1.0)}
+places_mod.expand_keys(SHOP_BASE)   # 2 店目以降も同じ (A10)
 READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (合計. 途中でやめても続きから. core/topics.py)
 JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先
 # 以前の一人の外出 (行き先しだいの「外出」に吸収した). 戻ったときの結果の種類としては使う
@@ -325,7 +326,8 @@ class Solo:
     # ------------------------------------------------------------------ 店での買い物 (画面を開いている外出)
     def _shop_items_here(self, place):
         from .items import CATALOG
-        return sum(1 for i in self.app.items.ps()["shop_list"] if place in (CATALOG.get(i) or {}).get("places", []))
+        from .items import sold_at
+        return sum(1 for i in self.app.items.ps()["shop_list"] if CATALOG.get(i) and sold_at(CATALOG[i], place))
 
     def shop_minutes(self, place, now=None):
         """店に着いてから買い物を済ませるまでの時間 (分): 店ごとの見て回る長さ (ふだんの長さのまわりに揺れる. 長居することも) +

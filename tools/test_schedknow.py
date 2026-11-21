@@ -42,7 +42,7 @@ def main():
 
         # ---- 言い方
         e = {"days": "tue", "from": "17:00", "to": "20:00", "label": "バイト中", "workplace": "supermarket", "away": True}
-        assert knowsched.phrase(app, e) == "火曜の夕方はスーパーでバイトらしい", knowsched.phrase(app, e)
+        assert knowsched.phrase(app, e) == "火曜の夕方はスーパー（住宅街店）でバイトらしい", knowsched.phrase(app, e)
         assert knowsched.phrase(app, dict(e, days="tue,thu")).startswith("火曜と木曜の")
         job = next(x for x in char["schedule"] if x.get("workplace")) if cid == "hina" else None
         if job:

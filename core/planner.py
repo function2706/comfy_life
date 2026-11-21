@@ -14,7 +14,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 
-from .places import OUT_PLACES, open_state
+from .places import HOME_ME, ROUTINE_OUT, is_near, nearest, open_state
 
 PLAN_DO = ("sleep", "rest", "home", "work", "out", "chores", "kakeibo", "practice", "meal", "parttime", "jog", "read", "movie")
 STREET_POLICY = ("chat", "nod", "decline")
@@ -76,7 +76,7 @@ class Planner:
         b = dict(b)
         if b.get("do") not in PLAN_DO:
             raise ValueError("予定にできないコマンドです: %s" % b.get("do"))
-        if b.get("do") == "out" and b.get("place") not in OUT_PLACES:
+        if b.get("do") == "out" and b.get("place") not in ROUTINE_OUT:
             raise ValueError("行き先を選んでください")
         out = normalize({k: v for k, v in b.items() if k in ("do", "place", "how", "skill", "at", "go")})
         if out["do"] == "practice" and b.get("skill"):
@@ -210,6 +210,8 @@ class Planner:
         app = self.app
         do = b["do"]
         dt = datetime.fromtimestamp(s)
+        if is_near(b.get("place")):              # 「いちばん近い○○」: 家から見て (出るときに, いまいる所から決め直す. A10)
+            b = dict(b, place=nearest(app, b["place"], HOME_ME, s))
         if do == "out":
             o = open_state(b.get("place") or "", dt)
             if not o["open"]:

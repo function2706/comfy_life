@@ -39,7 +39,7 @@ def main():
         assert 3 < sl.get("shop_need", 0) < 25 and S.shop_tick() is None and "shop_wait" in P.view(time.time())
         sl["t"] -= sl["shop_need"] * 60 + 1
         res = S.shop_tick()
-        assert res and res["label"] == "スーパー" and res["total"] == sum(b["price"] for b in res["bought"]), res
+        assert res and res["label"].startswith("スーパー（") and res["total"] == sum(b["price"] for b in res["bought"]), res
         assert P.view(time.time())["shop"]["text"] == res["text"] and S.shop_tick() is None, "一度だけ"
         n = dict(I.ps()["items"])
         S.shop_ack()

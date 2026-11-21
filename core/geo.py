@@ -129,7 +129,7 @@ class Geo:
             far = random.random() < CHAR_FAR_P
             xy = self._ring([0, 0], *(CHAR_FAR if far else CHAR_NEAR))
             return {"xy": xy, "acc": round(math.hypot(*xy), 3) if not far else round(random.uniform(0.2, 1.0), 3)}
-        base, lo, hi = RULES.get(pid, ("station", 0.3, 1.5))
+        base, lo, hi = places_mod.rule_of(pid) or RULES.get(pid, ("station", 0.3, 1.5))     # 2 店目以降は店ごとの決まり (A10)
         bxy = self.pt(places_mod.HOME_ME)["xy"] if base == "home" else [0.0, 0.0]
         xy = self._ring(bxy, lo, hi)
         d0 = math.hypot(*xy)
@@ -236,7 +236,7 @@ class Geo:
     @staticmethod
     def parking(pid):
         """車を停めるお金 (行き先ごと. 家・郊外の店・職場はただ)."""
-        if places_mod.is_home(pid or "") or pid in FREE_PARKING:
+        if places_mod.is_home(pid or "") or pid in FREE_PARKING or (places_mod.rule_of(pid) or ("",))[0] == "home":   # 住宅街の店も
             return 0
         if pid in ("aquarium", "amusement", "beach", "mountain", "hill"):
             return 1000
@@ -662,6 +662,7 @@ class Geo:
     def _route_search(self, to, at, by, frm, now):
         frm = frm or self.where(now)
         at = float(at or now)
+        to = places_mod.nearest(self.app, to, frm, at)          # 予定の「いちばん近い○○」の下見 (A10)
         if by == "now":
             at, by = now, "depart"
         if by == "first":

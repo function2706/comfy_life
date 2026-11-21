@@ -16,6 +16,7 @@ import time
 import uuid
 
 from . import nori as nori_mod
+from .places import expand_keys as _expand_keys
 
 TAGS = {"books": "本", "movies": "映画", "food": "食べ物", "sweets": "甘いもの", "animals": "動物", "nature": "自然", "sea": "海",
         "amusement": "遊園地", "shopping": "買い物", "fashion": "服", "games": "ゲーム", "work": "仕事", "money": "お金",
@@ -27,6 +28,7 @@ PLACE_TAGS = {"park": ["nature"], "riverside": ["nature"], "shopping_street": ["
               "bookstore": ["books"], "electronics": ["games"], "mall": ["shopping", "fashion"], "aquarium": ["animals", "sea"],
               "amusement": ["amusement"], "beach": ["sea", "nature"], "mountain": ["nature", "sports"], "hill": ["stars", "nature"],
               "teishoku": ["food"], "ramen": ["food"], "fastfood": ["food"], "family": ["food"], "restaurant": ["food"]}
+_expand_keys(PLACE_TAGS)            # 2 店目以降も同じ (A10)
 # 品物の好みの印 (items) → 話題の系統
 LIKE_MAP = {"food": ["food", "cooking"], "tea": ["sweets"], "sweets": ["sweets"], "practical": ["work", "money"], "books": ["books"],
             "flowers": ["nature"], "cute": ["animals"], "accessories": ["fashion"], "fashion": ["fashion", "shopping"], "games": ["games"]}

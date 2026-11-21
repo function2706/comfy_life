@@ -31,6 +31,8 @@ import random
 import time
 from datetime import datetime
 
+from .places import kind_of as _kind_of, price_rate as _price_rate, with_branches as _with_branches
+
 NUTRI = ("staple", "protein", "veg")
 NUTRI_LABEL = {"staple": "主食", "protein": "たんぱく質", "veg": "野菜"}
 SATIETY_PER_H = 4.0          # 起きている間
@@ -74,8 +76,8 @@ _BUY = [("bento", "お弁当", 550, {"staple": 11, "protein": 7, "veg": 2}, 52),
         ("sandwich_b", "サンドイッチと野菜ジュース", 480, {"staple": 7, "protein": 4, "veg": 6}, 30)]
 for _p in ("convenience", "supermarket", "station"):
     MENUS[_p] = _BUY
-EAT_OUT_PLACES = ("teishoku", "ramen", "fastfood", "restaurant", "family", "cafe")
-BUY_PLACES = ("convenience", "supermarket", "station")
+EAT_OUT_PLACES = tuple(_with_branches(("teishoku", "ramen", "fastfood", "restaurant", "family", "cafe")))   # 店ごと (A10)
+BUY_PLACES = tuple(_with_branches(("convenience", "supermarket", "station")))
 # 持ち物の食べもの (家で食べる): 品物の id → (栄養, お腹)
 ITEM_MEALS = {"bento": ({"staple": 11, "protein": 7, "veg": 2}, 52), "cup_noodle": ({"staple": 9, "protein": 1, "veg": 1}, 38)}
 FAMILIAR = 3              # 作り慣れる (レパートリーになる) までに作る回数
@@ -385,11 +387,13 @@ class Body:
     def menu(self, place, now=None):
         from datetime import datetime as _dt
         from .places import open_state
-        if place not in MENUS:
+        kind = _kind_of(place)                 # メニューは種類で, 値段は店ごと (A10)
+        if kind not in MENUS:
             return []
         if not open_state(place, _dt.fromtimestamp(now or time.time()))["open"]:
             return []
-        return [{"id": m[0], "name": m[1], "price": m[2], "nutri": m[3], "full": m[4]} for m in MENUS[place]]
+        rate = _price_rate(place)
+        return [{"id": m[0], "name": m[1], "price": int(round(m[2] * rate / 10.0)) * 10, "nutri": m[3], "full": m[4]} for m in MENUS[kind]]
 
     def eat_at(self, mid, place=None, now=None, pay=True, log=True):
         """外食・買って食べる (いる行き先のメニューから). 値段は少し上下する. pay=False なら払いは呼び出し側 (誰かとの外食)."""
@@ -419,13 +423,13 @@ class Body:
 
     def pair_cost(self, place):
         """一緒に外食したときの費用の目安 (二人分. メニューの安いほう二つの平均 x 2)."""
-        m = sorted(x[2] for x in MENUS.get(place) or [])[:2]
+        m = sorted(x[2] * _price_rate(place) for x in MENUS.get(_kind_of(place)) or [])[:2]
         return int(round(sum(m) / float(len(m)) * 2 / 100.0)) * 100 if m else 2000
 
     def eat_with(self, place, char, now=None):
         """誰かと外食したときの, あなたの食事 (払いは呼び出し側). 書き添えるナレーションを返す."""
         now = now or time.time()
-        menu = MENUS.get(place) or MENUS["family"]
+        menu = MENUS.get(_kind_of(place)) or MENUS["family"]
         m = random.choice(menu[:2])
         r = self._eat(now, "out", m[1], m[3], m[4], 0, place)
         self.app.solo.note("meal", "%sと%s" % (char.get("name", ""), r["text"]), now, id="e%d" % int(now * 1000), icon="🍽", name="外食")

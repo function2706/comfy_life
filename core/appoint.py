@@ -50,6 +50,7 @@ COUNTER_MAX = 3          # 誘いへの「別の日時なら」のやりとり�
 LIKE_PLACES = {"books": ("bookstore",), "sweets": ("cafe", "mall"), "tea": ("cafe",), "flowers": ("park", "hill"),
                "games": ("electronics", "amusement"), "food": ("teishoku", "ramen", "restaurant", "shopping_street"),
                "cute": ("aquarium", "mall"), "fashion": ("mall",), "accessories": ("mall",), "practical": ("supermarket", "mall")}
+LIKE_PLACES = {k: tuple(places_mod.with_branches(v)) for k, v in LIKE_PLACES.items()}     # 2 店目以降も (A10)
 OPEN = ("asked", "offered", "set", "waiting")
 STATUS_LABEL = {"asked": "返事待ち", "offered": "誘われている", "set": "約束した", "waiting": "待っている", "met": "会えた",
                 "stood_up": "来なかった", "missed": "行かなかった", "declined": "断られた", "cancelled": "キャンセル",
