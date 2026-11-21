@@ -66,7 +66,8 @@ def main():
         texts = []
         for _ in range(10):
             st["cooldowns"] = {}
-            texts.append(app.act("talk")["entry"]["text"])
+            # 「話したい」は弾めば対面の会話に続き, 効き目は話し終えてから (core/facetalk.py) なので, その場で効く「褒める」で見る
+            texts.append(app.act("praise")["entry"]["text"])
         assert any("うんざり" in t for t in texts), texts
         assert B.freq(st, time.time()) == 1 and st["last_touch"] > now - 60, "交流した日が記録される"
         print("repetition backfire: OK", notes, "/ 12")

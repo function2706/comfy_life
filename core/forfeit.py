@@ -8,7 +8,7 @@
 1 勝負ごとに forfeit.unit(勝った方, 重み) を呼ぶ. 重み (steps) は麻雀の翻 (役満 99)・ブラックジャックのナチュラル (2).
 
 勝負の形 (FORMS):
-  one     一発勝負: 1 回で決まる (引き分けはやり直し). 罰は負けた方に. 脱衣なら全部
+  one     一発勝負: 1 回で決まる (引き分けはやり直し. ただし罰なしの 1 ゲームものは以前どおり引き分けで終わる). 罰は負けた方に. 脱衣なら全部
   n       n 回勝負: n 回やる (引き分けも 1 回). 負けるたびに罰. 脱衣は, n 回負けると必ず全部になるよう,
           そのときの服の枚数 ÷ 残りの回数 (切り上げ) を脱ぐ. 勝ち負けは勝った数 (こいこいは点の合計)
   first   先に n 勝: 重みの合計が先に n に届いた方の勝ち. 罰は最後に負けた方へ (脱衣だけは負けるたびに, n 回で全部になる割合で)
@@ -335,7 +335,7 @@ class Forfeit:
             k = target - (total - rem)
         return max(0, min(rem, k))
 
-    def unit(self, cid, char, st, g, game, winner, steps=1, pts=None):
+    def unit(self, cid, char, st, g, game, winner, steps=1, pts=None, whole=False):
         """1 勝負の決着. winner = "p" (あなた) / "a" (相手) / None (引き分け). 試合の決着 ("win" / "lose" / "draw" / None) を返す.
         脱衣は game["stage"] (相手の脱いだ枚数) と game["lives"] (あなたの残り) を進める. 負けるたびの罰 (n 回勝負) もここで払う."""
         games = self.app.games
@@ -374,6 +374,8 @@ class Forfeit:
             ended = "win" if bare == "her" else "lose"
         elif f == "one":
             ended = {"p": "win", "a": "lose"}.get(winner)
+            if winner is None and whole and not b["pens"]:
+                ended = "draw"          # 罰なしの 1 ゲームものは, 以前どおり引き分けで終わる (罰があればやり直し)
         elif f == "first":
             ended = "win" if b["me"] >= n else "lose" if b["her"] >= n else None
         elif f == "points":

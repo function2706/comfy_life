@@ -121,7 +121,11 @@ def main():
         assert app.state_view()["encounter"]["from_world"]
         app.answer_encounter(False)
         assert len(app.chars) == 1 and app.encounters.pending() is None, "断れば登録しない"
-        r = app.encounters.happen("work", stranger=True)
+        for _ in range(30):         # 知らない人は, 登録済みの定義か新しく作る人かのくじ (新しい人も 1/(n+1)): 登録済みの人に当たるまで断る
+            r = app.encounters.happen("work", stranger=True)
+            if app.state_view()["encounter"].get("from_world"):
+                break
+            app.answer_encounter(False)
         reg = app.answer_encounter(True)["registered"]
         assert len(store.worlds_with(reg["id"])) >= 2, "同じ定義が, このワールドにも現れた (状態・ログはワールドごと)"
         assert len(app.encounters.candidates()) == 1, "このワールドにいる人は候補にしない"

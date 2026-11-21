@@ -103,6 +103,9 @@ def main():
         assert o[-1][2] == "win" and len(o) == 3, o
         o, _ = bout("one", 1, seq=["a"])
         assert o[-1] == (0, 0, "lose"), o
+        for pens, want in (((), "draw"), (("money",), None)):     # 1 ゲームものの引き分け: 罰なしは以前どおり引き分けで終わる
+            game = {"stage": 0, "lives": 3, "bout": F.normalize(c4, char, {"pens": list(pens), "form": "one"})}
+            assert F.unit(cid, char, st, c4, game, None, 1, whole=True) == want, pens
         # n 回勝負: n 回負ければ必ず全部 (途中で勝っても)
         for n in (2, 3, 5, 9):
             for seq in (["p"] * n, ["a", "p"] * n, [None] + ["p"] * n):

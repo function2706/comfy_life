@@ -133,6 +133,8 @@ def main():
         assert app.phonetalk.who_label(old, char, st) == "友達"          # 以前の記録 (pid なし) はそのまま
         st["with_log"] = [x]
         st["whoask"] = []
+        sc0 = app.scene_at          # いまは家にいる (実際の時刻しだいで, 本人の予定で外にいると「いま一人」が答えになる)
+        app.scene_at = lambda c, s_, d: dict(sc0(c, s_, d), away=False)
         for i in range(30):
             x.pop("ans", None)
             r["known"] = {}
@@ -142,7 +144,8 @@ def main():
             if key == "who_with":
                 assert ex["who"] == "友達の佐藤さん" and r["known"]["p1"]["via"] == "message"
             else:
-                assert key == "who_with_vague" and not r["known"]
+                assert key == "who_with_vague" and not r["known"], (key, r["known"])
+        app.scene_at = sc0
         print("誰といるの: OK | 正直 友達 %d/150・元恋人 %d/150" % (honest["p1"], honest["p4"]))
 
         # ---- 5. 誘いを予定で断る: 断ったときだけ知る (受けて予定をやめたときは知らない)

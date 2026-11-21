@@ -441,7 +441,7 @@ class Games:
     def _game_unit(self, cid, char, st, g, game, r):
         """1 ゲームで勝ち負けの決まるゲーム: 1 ゲーム = 1 勝負. 試合が続くなら, 決着の盤面を見せたまま「次の勝負へ」を待つ."""
         res = r["ended"]
-        ended = self.app.forfeit.unit(cid, char, st, g, game, {"win": "p", "lose": "a"}.get(res), 1)
+        ended = self.app.forfeit.unit(cid, char, st, g, game, {"win": "p", "lose": "a"}.get(res), 1, whole=True)
         if ended:
             r["ended"] = ended
             if st.get("game") is game:
