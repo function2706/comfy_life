@@ -188,7 +188,9 @@ def route(method, path, q, body):
         if path == "/api/dress":
             return a.act("_dress", cid, dress=b.get("outfit") or "")
         if path == "/api/game/start":
-            return a.face_after(a.games.start(b["game"], cid))
+            return a.face_after(a.games.start(b["game"], cid, b.get("bout")))
+        if path == "/api/forfeit/ticket":
+            return a.forfeit.use_ticket(cid, b.get("req"))
         if path == "/api/game/move":
             return a.games.move(cid, b)
         if path == "/api/game/quit":

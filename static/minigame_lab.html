@@ -63,7 +63,8 @@ async function gameAct(path, body) {
   try {
     const r = await api(path, body);
     S.view = r.view;
-    S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.ended === 'draw' ? '引き分け' : null;
+    S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.ended === 'draw' ? '引き分け' :
+      r.unit ? `この勝負は${r.unit.result === 'win' ? 'あなたの勝ち' : r.unit.result === 'lose' ? 'あなたの負け' : '引き分け'}（${r.unit.me} - ${r.unit.her}）` : null;
   } catch (e) {
     toast(e.message, 'err');
   } finally {

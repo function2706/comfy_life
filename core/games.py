@@ -16,6 +16,7 @@ from . import boardgames as BG
 from . import cond
 from .keys import line_keys
 from . import cards as CD
+from . import forfeit as FF
 from . import hanafuda as HF
 from . import mahjong as MJ
 from . import numeron as NM
@@ -31,6 +32,7 @@ ROUND_KINDS = ("koikoi", "poker", "blackjack")   # 何局かやって決着す�
 KINDS = ("yakyuken", "acchimuite", "mahjong", "connect4", "hex", "reversi", "yacht", "numeron", "speed") + CARD_KINDS
 STRIP_KINDS = ("yakyuken", "mahjong")   # stages が必須のもの
 BOARD_KINDS = ("connect4", "hex", "reversi")
+UNIT_ROUND_KINDS = ("yakyuken", "mahjong") + ROUND_KINDS     # 1 局 = 1 勝負 (ほかは 1 ゲーム = 1 勝負. core/forfeit.py)
 
 # できる場所 (A12 の 1 行目). ゲーム名ではなく, 要る道具 (needs) と罰の重さ (privacy) と, いる場所の属性の組み合わせで決める.
 # needs: 要る道具 (none = 道具なし). 道具は家 (あなたの家・相手の家) にしか無い (持ち歩かない) ので, 道具の要るゲームは家だけ.
@@ -48,9 +50,15 @@ def needs_of(g):
     return n if n in NEEDS or n == "none" else KIND_NEEDS.get(g.get("kind"), "none")
 
 
-def privacy_of(g):
+def privacy_of(g, pens=None):
+    """人前でできるか. pens (選んだ罰ゲーム) を渡せば, その組み合わせで (罰のどれかが private なら private. core/forfeit.py).
+    渡さなければ定義の既定の組み合わせ (脱衣ゲームは private)."""
     p = g.get("privacy")
-    return p if p in PRIVACY else ("private" if Games._is_strip(g) else "public")
+    if p in PRIVACY:
+        return p
+    if pens is None:
+        return "private" if Games._is_strip(g) else "public"
+    return FF.privacy_of(pens)
 
 
 def judge(me, her):
@@ -154,10 +162,11 @@ class Games:
         """段階に応じた服装 (段階 1..n を順に適用)."""
         base = self.app.scene_at(char, dict(st, game=None), datetime.now())   # 着せ替え込みの今の服
         pos, neg, remove = base["outfit"], base["outfit_neg"], []
-        stages = g.get("stages") or [{}]
+        stages = self._stages(g) or [{}]
         steps = list(stages[1:stage + 1])
-        if giveup and g.get("giveup"):
-            steps.append(g["giveup"])
+        gu = g.get("giveup") if g.get("stages") else self._default_def().get("giveup")
+        if giveup and gu:
+            steps.append(gu)
         label = stages[0].get("label", "")
         for s in steps:
             if s.get("mode") == "replace":
@@ -171,11 +180,26 @@ class Games:
 
     @staticmethod
     def _is_strip(g):
+        """定義が脱衣ゲーム (既定の組み合わせが脱衣)."""
         return g.get("kind") in STRIP_KINDS or bool(g.get("stages"))
+
+    def strips(self, g, game):
+        """いまの勝負が脱衣つきか (選んだ罰ゲームしだい)."""
+        return self.app.forfeit.strips(g, game)
+
+    def _default_def(self):
+        """脱衣の段階を持たないゲームに脱衣を選んだとき, 段階を借りる定義 (野球拳)."""
+        return next((x for x in self.app.minigames if x.get("kind") == "yakyuken" and x.get("stages")), {})
+
+    def default_stages(self):
+        return self._default_def().get("stages") or [{"label": "いつもの服"}, {"label": "上着を脱いだ"}, {"label": "下着姿"}]
+
+    def _stages(self, g):
+        return g.get("stages") or self.default_stages()
 
     def _strip(self, g, char, st, game, steps):
         """キャラが steps 段階脱ぐ. 脱ぎきったら降参して True."""
-        n = len(g.get("stages") or [])
+        n = len(self._stages(g))
         if game["stage"] + steps >= n:
             game["stage"] = n - 1
             game["outfit"] = self.stage_outfit(g, char, st, game["stage"], giveup=True)
@@ -205,15 +229,16 @@ class Games:
         sp = "her_home" if app.bonds.mode(cid, now) == "visit" else "home"
         return {"spot": sp, "indoor": True, "tools": True, "private": app.bonds.alone_with(cid, now)}
 
-    def place_why(self, g, cid, now=None, char=None):
-        """いる場所で g を遊べない理由. 遊べるなら None (そばにいないときも None: それは別に断る)."""
+    def place_why(self, g, cid, now=None, char=None, pens=None):
+        """いる場所で g を遊べない理由. 遊べるなら None (そばにいないときも None: それは別に断る).
+        pens: 選んだ罰ゲーム (人前でできない罰があれば, 二人きりの家だけ). 無ければ定義の既定の組み合わせ."""
         sp = self.spot(cid, now)
         if sp is None:
             return None
         need = needs_of(g)
         if need != "none" and not sp["tools"]:
             return "%sが無いので、ここでは遊べません（家で遊べます）" % NEEDS[need]
-        if privacy_of(g) == "private" and not (sp["indoor"] and sp["private"] and sp["tools"]):
+        if privacy_of(g, pens) == "private" and not (sp["indoor"] and sp["private"] and sp["tools"]):
             if sp["spot"] in ("home", "her_home"):
                 return "ほかの人がいるので遊べません（二人きりのときだけ）"
             return "人目があるので、ここでは遊べません（二人きりの家で）"
@@ -233,15 +258,22 @@ class Games:
             games.append({"id": g["id"], "name": g.get("name", g["id"]), "icon": g.get("icon", "🎲"), "desc": desc,
                           "kind": g.get("kind"), "ok": near and not why and cond.check(g.get("require", ""), ctx),
                           "require": g.get("require", ""), "why": why or "", "needs": needs_of(g),
-                          "privacy": privacy_of(g)})
+                          "privacy": privacy_of(g), "preset": FF.Forfeit.preset(g),
+                          "base_ok": bool(near and cond.check(g.get("require", ""), ctx)),
+                          "pub_why": (self.place_why(g, char["id"], now, pens=[]) or "") if near else ""})
         cur = st.get("game")
         out = None
+        ff = self.app.forfeit
+        opts = ff.options(char, st, char["id"])
+        sp = self.spot(char["id"], now) if near else None
+        opts["private_ok"] = bool(sp and sp["indoor"] and sp["private"] and sp["tools"])
+        fv = ff.view(char, st, now)
         if cur:
             try:
                 g = self.get(cur["id"])
             except KeyError:
                 st["game"] = None
-                return {"list": games, "current": None}
+                return {"list": games, "current": None, "options": opts, "forfeit": fv}
             kind = g.get("kind")
             out = {"id": cur["id"], "name": g.get("name"), "kind": kind, "round": cur.get("round", 0),
                    "phase": cur.get("phase", "rps")}
@@ -250,11 +282,12 @@ class Games:
                                 for h in HANDS}
                 out["dirs"] = {d: {"name": self._dir_name(g, d), "icon": (g.get("dirs") or {}).get(d, {}).get("icon", "")}
                                for d in DIRS}
-            if self._is_strip(g):
-                out.update(strip=True, stage=cur.get("stage", 0), stages=len(g.get("stages") or []),
+            out["bout"] = ff.bout_view(g, cur)
+            if self.strips(g, cur):
+                out.update(strip=True, stage=cur.get("stage", 0), stages=len(self._stages(g)),
                            stage_label=(cur.get("outfit") or {}).get("label", ""),
-                           lives=cur.get("lives", 0), lives_max=int(g.get("lives", 3)))
-            if kind == "acchimuite" or (kind in ROUND_KINDS and not self._is_strip(g)):
+                           lives=cur.get("lives", 0), lives_max=int(cur.get("lives_max") or g.get("lives", 3)))
+            if kind == "acchimuite" or (kind in ROUND_KINDS and not self.strips(g, cur)):
                 out.update(me=cur.get("me", 0), her=cur.get("her", 0), target=int(g.get("target", 3)),
                            rounds=int(g.get("rounds", 0)), match=g.get("match", "wins"))
             if kind in CARD_KINDS:
@@ -269,9 +302,10 @@ class Games:
                 out["nm"] = self._nm_view(cur)
             if kind == "speed":
                 out["speed"] = self._speed_view(cur)
-        return {"list": games, "current": out}
+        return {"list": games, "current": out, "options": opts, "forfeit": fv}
 
-    def start(self, gid, cid=None):
+    def start(self, gid, cid=None, bout=None):
+        """gid のゲームを始める. bout: 罰ゲームと勝負の形 {pens, form, n, opt} (core/forfeit.py). 無ければ定義の既定."""
         app = self.app
         with app.lock:
             char = app.char(cid)
@@ -286,50 +320,66 @@ class Games:
             if not app.bonds.together(cid):
                 raise ValueError("%sはそばにいません（会っているときに遊べます）" % char.get("name", ""))
             dt = datetime.now()
-            pw = self.place_why(g, cid, dt.timestamp())
+            b = app.forfeit.normalize(g, char, bout)
+            pw = self.place_why(g, cid, dt.timestamp(), pens=b["pens"])
             if pw:
                 raise ValueError("「%s」は%s" % (g.get("name"), pw))
             ctx = app.context(char, st, dt)
             if not cond.check(g.get("require", ""), ctx):
                 raise ValueError("今は「%s」で遊べません（%s）" % (g.get("name"), g.get("require")))
+            preset = b == app.forfeit.preset(g)
             game = {"id": gid, "round": 0, "phase": "rps", "started": time.time(), "stage": 0,
-                    "lives": int(g.get("lives", 3)), "me": 0, "her": 0}
+                    "lives": int(g.get("lives", 3)), "lives_max": int(g.get("lives", 3)), "me": 0, "her": 0, "bout": b}
             gctx = self._ctx(char, st, dt, game)
-            if not cond.check(g.get("when", ""), ctx):
+            # 定義の when (脱衣ゲームの好感度など) は, 既定の組み合わせで始めるときだけ. 選んだ組み合わせは forfeit.judge が決める
+            if not cond.check(g.get("when", "") if preset else "", ctx):
                 line = self._line(g, "refuse", gctx) if (g.get("lines") or {}).get("refuse") else \
                     {"text": "今はちょっと……", "pos": ""}
                 entry, job = self._record(cid, char, st, g, line, {}, "", None, "")
                 self._save(cid)
                 return {"entry": entry, "job": job, "refused": True}
-            if self._is_strip(g):
+            ok, say = app.forfeit.judge(char, st, b, preset, dt.timestamp())
+            if not ok:              # 罰の組み合わせが重すぎる: 断られる
+                entry = app.note_entry(char, st, dt.timestamp(), "_forfeit", "罰ゲームつきの勝負", "🙅", say)
+                self._save(cid)
+                return {"entry": entry, "job": None, "refused": True}
+            if "strip" in b["pens"]:
                 game["outfit"] = self.stage_outfit(g, char, st, 0)
-            if kind in ("yakyuken", "acchimuite"):
-                self._decide_next(g, game)
             st["game"] = game
             line = self._line(g, "start", gctx)
+            if say and not preset:
+                line = dict(line, text=say + "\n" + self._text(char, line), _pkey=None)
             entry, job = self._record(cid, char, st, g, line, {}, "", "start", "")
-            hint = None
-            if kind == "mahjong":
-                game["phase"] = "mj"
-                hint = self._mj_new_hand(cid, char, st, g, game, first=True)
-            elif kind in BOARD_KINDS:
-                hint = self._board_start(char, st, g, game)
-            elif kind == "yacht":
-                hint = self._yacht_start(char, st, g, game)
-            elif kind == "numeron":
-                game["phase"] = "numeron"
-                game["nm"] = {"phase": "secret", "p": [], "a": [], "mine": None, "hers": None}
-            elif kind == "speed":
-                game["phase"] = "speed"
-                game["sp"] = SC.new()
-                game["sp"]["start_at"] = time.time() + float(g.get("countdown", 2.0))        # 「せーの」で同時に始める
-                game["sp"]["ai_next"] = game["sp"]["start_at"] + SC.delay(SC.quickness(st["params"]))
-            elif kind in CARD_KINDS:
-                hint = self._cards_start(cid, char, st, g, game)
-            else:
-                hint = self._hint_text(char, st, g, game)
+            hint = self._init_kind(cid, char, st, g, game)
             self._save(cid)
             return {"entry": entry, "job": job, "hint": hint}
+
+    def _init_kind(self, cid, char, st, g, game):
+        """ゲームの中身を始める (1 勝負ごとに作り直すゲームは, 次の勝負でもここから)."""
+        kind = g.get("kind")
+        if kind in ("yakyuken", "acchimuite"):
+            self._decide_next(g, game)
+        hint = None
+        if kind == "mahjong":
+            game["phase"] = "mj"
+            hint = self._mj_new_hand(cid, char, st, g, game, first=True)
+        elif kind in BOARD_KINDS:
+            hint = self._board_start(char, st, g, game)
+        elif kind == "yacht":
+            hint = self._yacht_start(char, st, g, game)
+        elif kind == "numeron":
+            game["phase"] = "numeron"
+            game["nm"] = {"phase": "secret", "p": [], "a": [], "mine": None, "hers": None}
+        elif kind == "speed":
+            game["phase"] = "speed"
+            game["sp"] = SC.new()
+            game["sp"]["start_at"] = time.time() + float(g.get("countdown", 2.0))        # 「せーの」で同時に始める
+            game["sp"]["ai_next"] = game["sp"]["start_at"] + SC.delay(SC.quickness(st["params"]))
+        elif kind in CARD_KINDS:
+            hint = self._cards_start(cid, char, st, g, game)
+        else:
+            hint = self._hint_text(char, st, g, game)
+        return hint
 
     def move(self, cid=None, payload=None):
         payload = payload or {}
@@ -353,6 +403,12 @@ class Games:
                 entry, job = self._record(cid, char, st, g, line, {}, "", "quit", "")
                 self._save(cid)
                 return {"entry": entry, "job": job, "ended": "interrupted"}
+            if payload.get("act") == "next_unit" or (game.get("between") and payload.get("act") == "next"):
+                if not game.get("between"):
+                    raise ValueError("まだ勝負の途中です")
+                return self._next_unit(cid, char, st, g, game)
+            if game.get("between"):
+                raise ValueError("この勝負は終わっています（「次の勝負へ」で続けます）")
             if kind == "yakyuken":
                 r = self._move_yakyuken(cid, char, st, g, game, payload.get("hand"))
                 if st.get("game"):
@@ -377,8 +433,44 @@ class Games:
                 r = self._move_cards(cid, char, st, g, game, payload)
             else:
                 raise ValueError("未対応のゲームです: %s" % kind)
+            if kind not in UNIT_ROUND_KINDS and r.get("ended") in ("win", "lose", "draw"):
+                self._game_unit(cid, char, st, g, game, r)
             self._save(cid)
             return r
+
+    def _game_unit(self, cid, char, st, g, game, r):
+        """1 ゲームで勝ち負けの決まるゲーム: 1 ゲーム = 1 勝負. 試合が続くなら, 決着の盤面を見せたまま「次の勝負へ」を待つ."""
+        res = r["ended"]
+        ended = self.app.forfeit.unit(cid, char, st, g, game, {"win": "p", "lose": "a"}.get(res), 1)
+        if ended:
+            r["ended"] = ended
+            if st.get("game") is game:
+                game["over"] = ended
+            return
+        b = game["bout"]
+        st["game"] = game
+        if g.get("kind") == "acchimuite":           # 決着の盤面が無い: そのまま次の勝負
+            self._acchi_reset(g, game)
+            r["hint"] = self._hint_text(char, st, g, game)
+        else:
+            game["between"] = True
+        r["ended"] = None
+        r["unit"] = {"result": res, "me": b["me"], "her": b["her"], "units": b["units"]}
+        r["phase"] = game.get("phase")
+
+    def _acchi_reset(self, g, game):
+        game.update(me=0, her=0, phase="rps", over=None)
+        game.pop("her_dir", None)
+        self._decide_next(g, game)
+
+    def _next_unit(self, cid, char, st, g, game):
+        """次の勝負を始める (盤面・カードを配り直す)."""
+        for k in ("over", "between", "board", "line", "last", "yt", "nm", "sp", "cd", "moves", "_entry", "_job"):
+            game.pop(k, None)
+        game.update(round=0, phase="rps", me=0, her=0)
+        hint = self._init_kind(cid, char, st, g, game)
+        self._save(cid)
+        return {"entry": game.pop("_entry", None), "job": game.pop("_job", None), "hint": hint, "ended": None}
 
     def quit(self, cid=None):
         app = self.app
@@ -390,7 +482,7 @@ class Games:
             if not game:
                 return {"entry": None, "job": None}
             st["game"] = None
-            if game.get("over"):          # 決着後の「終わる」は記録を残さない
+            if game.get("over") and not game.get("between"):          # 決着後の「終わる」は記録を残さない (試合の途中でやめるのは残す)
                 self._save(cid)
                 return {"entry": None, "job": None, "ended": "closed"}
             g = self.get(game["id"])
@@ -426,21 +518,14 @@ class Games:
         res = judge(hand, her)
         act_pos = (g.get("hands") or {}).get(her, {}).get("pos", "")
         extra = {"her_hand": self._hand_name(g, her), "my_hand": self._hand_name(g, hand)}
-        ended = None
-        if res == 0:
+        ended = self.app.forfeit.unit(cid, char, st, g, game, {1: "p", -1: "a"}.get(res), 1)
+        if ended in ("win", "lose"):
+            event = eff = ended
+            act_pos = "" if ended == "win" else act_pos
+        elif ended == "draw":
             event = eff = "draw"
-        elif res > 0:
-            if self._strip(g, char, st, game, 1):
-                event = eff = ended = "win"
-                act_pos = ""
-            else:
-                event = eff = "round_win"
         else:
-            game["lives"] -= 1
-            if game["lives"] <= 0:
-                event = eff = ended = "lose"
-            else:
-                event = eff = "round_lose"
+            event = eff = {0: "draw", 1: "round_win", -1: "round_lose"}[res]
         extra["stage"] = (game.get("outfit") or {}).get("label", "")
         line = self._line(g, event, self._ctx(char, st, datetime.now(), game))
         entry, job = self._record(cid, char, st, g, line, extra, act_pos, eff, "（%d回戦）" % game["round"])
@@ -580,18 +665,8 @@ class Games:
                        "yakuman": res["yakuman"], "win_tile": win, "steps": steps}
         extra = {"yaku": yaku_text, "han": "役満" if res["yakuman"] else "%d翻" % res["han"],
                  "stage": ""}
-        ended = None
-        if who == "p":
-            gave_up = self._strip(g, char, st, game, 99 if res["yakuman"] else steps)
-            event = eff = "hand_win"
-            if gave_up:
-                event = eff = ended = "win"
-        else:
-            game["lives"] -= (99 if res["yakuman"] else steps)
-            event = eff = "hand_lose"
-            if game["lives"] <= 0:
-                game["lives"] = 0
-                event = eff = ended = "lose"
+        ended = self.app.forfeit.unit(cid, char, st, g, game, who, 99 if res["yakuman"] else steps)
+        event = eff = ended if ended in ("win", "lose") else ("hand_win" if who == "p" else "hand_lose")
         extra["stage"] = (game.get("outfit") or {}).get("label", "")
         if ended:
             game["over"] = ended
@@ -1051,25 +1126,11 @@ class Games:
         d = game["cd"]
         d["phase"] = "round_end"
         extra = dict(extra or {})
-        ended = None
-        if self._is_strip(g):
-            if winner == "p":
-                ended = "win" if self._strip(g, char, st, game, steps) else None
-            elif winner == "a":
-                game["lives"] -= steps
-                if game["lives"] <= 0:
-                    game["lives"], ended = 0, "lose"
-        else:
-            if g.get("match") == "points":
-                if winner in ("p", "a"):
-                    game["me" if winner == "p" else "her"] += pts if pts is not None else steps
-                if d["round"] >= int(g.get("rounds", 3)):
-                    ended = "win" if game["me"] > game["her"] else "lose" if game["me"] < game["her"] else "draw"
-            else:
-                if winner in ("p", "a"):
-                    game["me" if winner == "p" else "her"] += 1
-                tgt = int(g.get("target", 3))
-                ended = "win" if game["me"] >= tgt else "lose" if game["her"] >= tgt else None
+        b = self.app.forfeit.bout(g, game)
+        if winner in ("p", "a"):           # 画面の勝ち数・合計点 (こいこいは点. ほかは勝った数)
+            game["me" if winner == "p" else "her"] += (pts if pts is not None else steps) if b.get("pts") else 1
+        ended = self.app.forfeit.unit(cid, char, st, g, game, winner if winner in ("p", "a") else None,
+                                      steps if self.strips(g, game) else 1, pts)
         extra.update(stage=(game.get("outfit") or {}).get("label", ""), me=game.get("me", 0), her=game.get("her", 0))
         if ended:
             game["over"] = ended

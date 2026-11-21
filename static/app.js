@@ -1260,7 +1260,8 @@ async function gameAct(path, body) {
   try {
     const r = await api(path, withT(body));
     S.gameHint = r.hint || null;
-    S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.refused ? '断られてしまった…' : null;
+    S.gameResult = r.ended === 'win' ? '🎉 あなたの勝ち！' : r.ended === 'lose' ? '😵 あなたの負け…' : r.ended === 'draw' ? '引き分け' :
+      r.unit ? `この勝負は${r.unit.result === 'win' ? 'あなたの勝ち' : r.unit.result === 'lose' ? 'あなたの負け' : '引き分け'}（${r.unit.me} - ${r.unit.her}）` : r.accepted === false ? '断られてしまった…（券は手元に残る）' : r.refused ? '断られてしまった…' : null;
     if (r.entry) handleActResult(r);
   } catch (e) {
     toast(e.message, 'err');

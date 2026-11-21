@@ -251,6 +251,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-d); }
 .stage-dots { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
 .stage-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--panel3); }
 .stage-dots i.on { background: var(--accent); }
+.ff-pick { margin-top: 8px; font-size: 12.5px; }
+.ff-pick summary { cursor: pointer; color: var(--muted); }
+.ff-pens { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0; }
+.ff-pen { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+.ff-opts { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 6px 0; font-size: 12.5px; }
+.ff-panel ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; }
+.bout-bar { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12.5px; margin-bottom: 8px;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
 .hint-bubble { background: #3a2733; color: #ffd6e1; border-radius: 12px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
 .prompt-q { text-align: center; color: var(--accent2); font-size: 13px; margin-bottom: 8px; }
 .big-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

@@ -119,6 +119,9 @@ def all_keys(actions, minigames, approaches=()):
     from .askhelp import LINES as AH_LINES, SCENE_LABEL as AH_SCENES     # あなたが頼んだ手伝い: 来た・終えて求める・お金・貸し
     for k, t in AH_LINES.items():
         out[k] = {"scene": "頼んだ手伝い / %s" % AH_SCENES[k], "when": "", "text": t}
+    from .forfeit import LINES as FF_LINES, SCENE_LABEL as FF_SCENES     # 罰ゲーム: 受ける・断る・払う・渋る・券・本音
+    for k, t in FF_LINES.items():
+        out[k] = {"scene": "罰ゲーム / %s" % FF_SCENES[k], "when": "", "text": t}
     from .care import CARE_LINES, CARE_SCENE_LABEL     # 相手の風邪: 看病に来てくれた・品を渡された・看病してもらった
     for k, t in CARE_LINES.items():
         out[k] = {"scene": "看病 / %s" % CARE_SCENE_LABEL[k], "when": "", "text": t}

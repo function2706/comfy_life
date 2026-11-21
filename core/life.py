@@ -365,6 +365,11 @@ class Life:
         払えなければ ValueError. 相手が苦しいとき (purse.tight) は, おごらない: おごってもらう取り決めなら割り勘を申し出る
         (note: tight_split. 一言添える), あなたが払えなければ断られる (ValueError に相手の一言)."""
         ps, hm = self.player_state(), self.her_money(st)
+        owe = None if fixed else self.app.forfeit.treat_policy(char, st)       # 罰ゲームのおごり: 負けた方が払う
+        if owe == "her" and hm["a"] >= cost:
+            return {"payer": "her", "p": 0, "a": -cost}
+        if owe == "me" and ps["money"] >= cost:
+            return {"payer": "me", "p": -cost, "a": 0}
         pol = fixed or char.get("pay_policy") or "auto"
         tight = self.app.purse.tight(char, st)
         if tight and pol == "her":                                # おごってもらう取り決めでも, 苦しいときは割り勘を申し出る

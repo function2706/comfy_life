@@ -17,24 +17,26 @@ function renderGames() {
   if (!cur) {
     box.replaceChildren(
       S.gameResult ? h('div', { class: 'hint-bubble' }, S.gameResult) : '',
+      forfeitPanel(gv),
       ...gv.list.map((g) => h('div', { class: 'game-card' },
         h('h4', {}, g.icon, g.name),
         h('p', {}, g.desc),
         g.why ? h('p', { class: 'muted' }, g.why) : '',
         h('button', { class: 'btn primary', disabled: !g.ok || S.busy, title: g.ok ? '' : (g.why || '条件: ' + g.require),
-          onclick: () => gameAct('/api/game/start', { game: g.id }) }, g.ok ? 'あそぶ' : '今は遊べません'))),
+          onclick: () => gameAct('/api/game/start', { game: g.id }) }, g.ok ? 'あそぶ' : '今は遊べません'),
+        forfeitPicker(g, gv))),
       gv.list.length ? '' : h('p', { class: 'muted' }, 'ミニゲームがありません（設定 → ミニゲーム）'));
     return;
   }
-  if (cur.kind === 'mahjong') { box.replaceChildren(renderMahjong(cur)); return; }
-  if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(renderBoard(cur)); return; }
-  if (cur.kind === 'yacht') { box.replaceChildren(renderYacht(cur)); return; }
-  if (cur.kind === 'numeron') { box.replaceChildren(renderNumeron(cur)); return; }
-  if (cur.kind === 'speed') { box.replaceChildren(renderSpeed(cur)); spPoll(); return; }
-  if (cur.cards) { box.replaceChildren(renderCardGame(cur)); return; }
+  if (cur.kind === 'mahjong') { box.replaceChildren(boutBar(cur), renderMahjong(cur)); return; }
+  if (['connect4', 'hex', 'reversi'].includes(cur.kind)) { box.replaceChildren(boutBar(cur), renderBoard(cur)); return; }
+  if (cur.kind === 'yacht') { box.replaceChildren(boutBar(cur), renderYacht(cur)); return; }
+  if (cur.kind === 'numeron') { box.replaceChildren(boutBar(cur), renderNumeron(cur)); return; }
+  if (cur.kind === 'speed') { box.replaceChildren(boutBar(cur), renderSpeed(cur)); spPoll(); return; }
+  if (cur.cards) { box.replaceChildren(boutBar(cur), renderCardGame(cur)); return; }
   const name = S.view.name;
   let score;
-  if (cur.kind === 'yakyuken') {
+  if (cur.kind === 'yakyuken' && cur.strip) {
     score = h('div', { class: 'score' },
       h('div', {}, h('div', { class: 'sc-who' }, 'あなたのライフ'),
         h('div', { class: 'val' }, '❤️'.repeat(Math.max(0, cur.lives)) + '🤍'.repeat(Math.max(0, cur.lives_max - cur.lives)))),
@@ -44,7 +46,7 @@ function renderGames() {
   } else {
     score = h('div', { class: 'score' },
       h('div', {}, h('div', { class: 'sc-who' }, 'あなた'), h('div', { class: 'val' }, cur.me)),
-      h('div', { class: 'vs' }, `先取 ${cur.target}`),
+      h('div', { class: 'vs' }, cur.kind === 'yakyuken' ? `${cur.round}回戦` : `先取 ${cur.target}`),
       h('div', {}, h('div', { class: 'sc-who' }, name), h('div', { class: 'val' }, cur.her)));
   }
   let q, btns;
@@ -57,13 +59,95 @@ function renderGames() {
     btns = h('div', { class: 'big-btns dirs' }, Object.entries(cur.dirs).map(([k, v]) =>
       h('button', { class: 'big-btn', disabled: S.busy, onclick: () => gameAct('/api/game/move', { dir: k }) }, v.icon, h('span', {}, v.name))));
   }
-  box.replaceChildren(h('div', { class: 'board' },
+  box.replaceChildren(boutBar(cur), h('div', { class: 'board' },
     h('div', { class: 'board-head' }, h('b', {}, cur.name), h('div', { class: 'spacer' }),
       h('button', { class: 'btn ghost', disabled: S.busy, onclick: () => gameAct('/api/game/quit', {}) }, 'やめる')),
     score,
     S.gameHint ? h('div', { class: 'hint-bubble' }, '💭 ' + S.gameHint) : '',
     h('div', { class: 'prompt-q' }, q),
     btns));
+}
+
+/* ---- 罰ゲームと勝負の形 (core/forfeit.py): 始めるときに選ぶ・いまの勝負・約束になった罰と券 */
+function ffSel(g) {
+  S.ff = S.ff || {};
+  if (!S.ff[g.id]) {
+    const p = g.preset || {};
+    S.ff[g.id] = { open: false, pens: [...(p.pens || [])], form: p.form || 'one', n: p.n || 3,
+      opt: { money: '1000', date: '', call: '', ban: 'phone' } };
+  }
+  return S.ff[g.id];
+}
+function forfeitPicker(g, gv) {
+  const o = gv.options;
+  if (!o || !g.base_ok) return '';
+  const sel = ffSel(g);
+  const privOf = (id) => (o.pens.find((p) => p.id === id) || {}).privacy === 'private';
+  sel.pens = sel.pens.filter((id) => o.pens.some((p) => p.id === id));
+  const hasPriv = sel.pens.some(privOf);
+  const forms = o.forms.filter((f) => f.id !== 'strip' || sel.pens.includes('strip'));
+  if (!forms.some((f) => f.id === sel.form)) sel.form = 'one';
+  const rng = (o.forms.find((f) => f.id === sel.form) || {}).range || [0, 0];
+  if (rng[1]) sel.n = Math.min(rng[1], Math.max(rng[0], Number(sel.n) || 3));
+  const toggle = (id, on) => { sel.pens = on ? [...sel.pens, id] : sel.pens.filter((x) => x !== id); renderGames(); };
+  const pick = (key, list, label) => h('label', { class: 'ff-opt' }, label + ' ',
+    h('select', { disabled: S.busy, onchange: (e) => { sel.opt[key] = e.target.value; } },
+      list.map(([v, t]) => h('option', { value: v, selected: String(sel.opt[key]) === String(v) }, t))));
+  const opts = [];
+  if (sel.pens.includes('money')) opts.push(pick('money', [['treat', 'おごり（次の支払い）'], ...o.money.map((m) => [m, m.toLocaleString() + '円'])], '💴 お金'));
+  if (sel.pens.includes('date')) opts.push(pick('date', [['', 'おまかせ'], ...o.dates.map((d) => [d.id, d.name])], '🎡 勝ったら行く所'));
+  if (sel.pens.includes('callname')) {
+    if (!sel.opt.call) sel.opt.call = o.calls[1] || o.calls[0];
+    opts.push(pick('call', o.calls.map((c) => [c, c]), '🏷️ 負けたら呼ばせる名前'));
+  }
+  if (sel.pens.includes('ban')) opts.push(pick('ban', Object.entries(o.bans), '🚫 禁止するもの'));
+  const why = g.pub_why || (hasPriv && !o.private_ok ? '人前でできない罰（🔒）があるので、二人きりの家でだけ遊べます' : '');
+  return h('details', { class: 'ff-pick', open: sel.open, ontoggle: (e) => { sel.open = e.target.open; } },
+    h('summary', {}, '罰ゲーム・勝負の形を選んで遊ぶ'),
+    h('div', { class: 'ff-pens' }, o.pens.map((p) => h('label', { class: 'ff-pen' },
+      h('input', { type: 'checkbox', checked: sel.pens.includes(p.id), disabled: S.busy, onchange: (e) => toggle(p.id, e.target.checked) }),
+      `${p.icon}${p.label}${p.privacy === 'private' ? '🔒' : ''}`))),
+    opts.length ? h('div', { class: 'ff-opts' }, opts) : '',
+    h('div', { class: 'ff-opts' },
+      h('label', { class: 'ff-opt' }, '勝負の形 ', h('select', { disabled: S.busy, onchange: (e) => { sel.form = e.target.value; renderGames(); } },
+        forms.map((f) => h('option', { value: f.id, selected: f.id === sel.form }, f.label)))),
+      rng[1] ? h('label', { class: 'ff-opt' }, 'n = ', h('input', { type: 'number', min: rng[0], max: rng[1], value: sel.n, disabled: S.busy,
+        style: 'width:4em', onchange: (e) => { sel.n = Number(e.target.value); } })) : ''),
+    why ? h('p', { class: 'muted' }, why) : '',
+    h('p', { class: 'muted' }, sel.pens.length ? '罰はお互いさま（あなたが負ければ、あなたが払う）。受けるかは相手しだい' : '罰なしで、勝負の形だけ変えて遊ぶ'),
+    h('button', { class: 'btn', disabled: S.busy || !!why,
+      onclick: () => gameAct('/api/game/start', { game: g.id, bout: { pens: sel.pens, form: sel.form, n: sel.n, opt: sel.opt } }) },
+      'この組み合わせで遊ぶ'));
+}
+function boutBar(cur) {
+  const b = cur.bout;
+  if (!b) return '';
+  const name = S.view.name;
+  const pens = b.pens.map((p) => p.icon + p.label).join('・') || '罰なし';
+  let score = '';
+  if (b.form === 'points' && b.hp) score = `持ち点 あなた ${Math.max(0, b.hp.me)} / ${name} ${Math.max(0, b.hp.her)}`;
+  else if (b.form !== 'strip') score = `あなた ${b.score ? b.score.me : b.me} - ${b.score ? b.score.her : b.her} ${name}` + (b.form === 'n' ? `（${b.units}/${b.n} 回）` : '');
+  return h('div', { class: 'bout-bar' }, h('span', {}, `${b.label}｜${pens}`), score ? h('span', { class: 'muted' }, score) : '',
+    b.between ? h('button', { class: 'btn primary', disabled: S.busy, onclick: () => gameAct('/api/game/move', { act: 'next_unit' }) }, '次の勝負へ') : '');
+}
+function forfeitPanel(gv) {
+  const f = gv.forfeit;
+  if (!f) return '';
+  const name = S.view.name;
+  const rows = [
+    ...f.owed.map((x) => h('li', {}, `${x.who === 'me' ? 'あなた' : name}の番: ${x.label}（あと ${x.days} 日）`)),
+    ...f.day.map((x) => h('li', {}, `${x.who === 'me' ? 'あなた' : name}: ${x.label}（${x.until} まで）`)),
+    f.her_tickets ? h('li', {}, `${name}が、あなたの「何でも言うことを聞く券」を ${f.her_tickets} 枚持っている`) : ''].filter(Boolean);
+  let use = '';
+  if (f.tickets) {
+    S.ffReq = S.ffReq || f.requests[0].id;
+    use = h('div', { class: 'ff-opts' }, `🎫 ${name}の券 ${f.tickets} 枚 `,
+      h('select', { disabled: S.busy, onchange: (e) => { S.ffReq = e.target.value; } },
+        f.requests.map((r) => h('option', { value: r.id, selected: r.id === S.ffReq }, r.name))),
+      h('button', { class: 'btn', disabled: S.busy, onclick: () => gameAct('/api/forfeit/ticket', { req: S.ffReq }) }, '券を使う'));
+  }
+  if (!rows.length && !use) return '';
+  return h('div', { class: 'game-card ff-panel' }, h('h4', {}, '🎯 罰ゲーム'), rows.length ? h('ul', {}, rows) : '', use);
 }
 
 /* ---- 脱衣の進み具合 (野球拳・麻雀共通) */

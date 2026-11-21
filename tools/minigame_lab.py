@@ -31,7 +31,7 @@ STATIC = os.path.join(BASE, "static")
 TYPES = {".html": "text/html; charset=utf-8", ".js": "application/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".svg": "image/svg+xml", ".png": "image/png"}
 OPPONENT = "相手"
-KEEP = ("ended", "refused", "error", "speed")      # 応答のうち画面に返すもの (セリフ・画像・ヒントは返さない. speed はスピードの盤)
+KEEP = ("ended", "refused", "error", "speed", "unit")      # 応答のうち画面に返すもの (セリフ・画像・ヒントは返さない. speed はスピードの盤. unit は 1 勝負の結果)
 
 
 class Lab:
@@ -73,7 +73,8 @@ class Lab:
                 for x in app.minigames:              # 条件 (require / when) は無視して始める
                     x["require"], x["when"] = "", ""
                 try:
-                    r = g.start(body["game"], self.cid)
+                    app.forfeit.always = True        # 罰の組み合わせも断られない
+                    r = g.start(body["game"], self.cid, body.get("bout"))
                 finally:
                     app.minigames[:] = original
             elif what == "move":

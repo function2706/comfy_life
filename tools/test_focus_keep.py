@@ -7,6 +7,7 @@
 - 予定 (日付・時刻・コマンド・行き先・行き方・未指定時コマンド・自動の応答)・一人でタブのほかの欄・お金・ログ・関係性・
   持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
 - 設定の「表示」の知らせの音の欄 (A33)
+- 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -103,6 +104,21 @@ f.onload = () => setTimeout(async () => {
     await keepScrollAll(() => { closeModal(); w.showTab('solo'); S.planOpen = true; w.renderSoloTab(); }, '#tab-solo', 'scroll-plan');
     await keepScrollAll(() => { closeModal(); w.openMap(); S.mapSel = 'park'; w.renderMap(); }, 'dialog[open]', 'scroll-map');
     closeModal(); low.remove();
+    // 4d. 誰かと → ゲーム: 罰ゲーム・勝負の形の欄 (A12. お金・行き先・呼び方・禁止のプルダウン, 形, n).
+    // 時刻しだいで同居相手がそばにいないので, セーブエディタで家に来てもらっている形にする (あとで消す)
+    const gcid = ((S.view.people || [])[0] || {}).id;
+    const now0 = Date.now() / 1000;
+    try { await w.api('/api/save/set', { path: ['player', 'presence', 'with'], value: { cid: gcid, mode: 'guest', t: now0, until: now0 + 36000 } }); }
+    catch (e) { out.push('gsetup:' + e.message); }
+    await w.refresh();
+    await keepAll(() => {
+      closeModal(); w.showTab('with'); w.showSub('games');
+      S.ff = { connect4: { open: true, pens: ['money', 'date', 'callname', 'ban'], form: 'first', n: 3, opt: { money: '1000', date: '', call: '', ban: 'phone' } } };
+      (S.view.games.list || []).forEach((g) => { g.base_ok = true; });      // 相手の手が空いていない時刻でも欄を出す (欄のフォーカスだけを見る)
+      w.renderGames();
+    }, '#tab-games .ff-pick', 'forfeit');
+    try { await w.api('/api/save/del', { path: ['player', 'presence', 'with'] }); } catch (e) { out.push('gclean:' + e.message); }
+    await w.refresh(); closeModal();
     // 4c. 設定の「表示」: 知らせの音の欄 (A33. 種類ごとの音のプルダウン)
     await keepAll(async () => { closeModal(); await w.openSettings('display'); }, '#sbody .sound-table', 'sound');
     closeModal();
@@ -204,7 +220,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
     print("ALL OK")
 
 

@@ -38,6 +38,7 @@ from . import replyspeed as replyspeed_mod
 from . import saveedit as saveedit_mod
 from . import charmake as charmake_mod
 from . import askhelp as askhelp_mod
+from . import forfeit as forfeit_mod
 from . import encounters as encounters_mod
 from . import solo as solo_mod
 from . import outdoor as outdoor_mod
@@ -224,6 +225,7 @@ class App:
         self.knowsched = knowsched_mod.KnowSched(self)
         self.rhythm = rhythm_mod.Rhythm(self)            # 生活リズムの揺らぎ (寝坊・早寝・夜ふかし・徹夜・残業)
         self.askhelp = askhelp_mod.AskHelp(self)          # あなたから手伝いを頼む (来てもらう・見返り・貸し)
+        self.forfeit = forfeit_mod.Forfeit(self)          # 罰ゲームと勝負の形 (約束になった罰・券・一日の禁止)
         self.parting = parting_mod.Parting(self)         # 別れぎわ: 相手が応じるか (引き止める・名残惜しい)
         self.stay = stay_mod.Stay(self)                  # お泊り (相手の家に泊まる・あなたの家に泊める)
         self.care = care_mod.Care(self)                  # 相手が体調を崩す (風邪) と, 看病に呼ぶか
@@ -1163,6 +1165,8 @@ class App:
             changed = True
         if self.askhelp.live(cid, now) or self.askhelp.tick(char, st, now):     # 頼んだ手伝いの時間が来た / 貸しの催促・うやむや
             changed = True
+        if self.forfeit.tick(char, st, now):    # 罰ゲームの約束 (果たした・催促・期限) と, 相手が持っている券
+            changed = True
         self.bonds.sync(cid, st, now)         # 外で会っていたお出かけが終わった / 遊びに来ていた時間が過ぎた
         if changed:
             self.save_state(cid)
@@ -1239,6 +1243,8 @@ class App:
         fp = fixed_fp or p.get("first_person") or "私"
         fp_st = fixed_fp or p.get("first_person_stutter") or fp
         call = (char.get("player_call") or "").strip() or p.get("player_call") or "{player}"
+        if char.get("id") in self.states:
+            call = self.forfeit.call_override(char) or call        # 罰ゲームで, 一日だけ呼び方を変えている
         return fp, fp_st, call.replace("{player}", player)
 
     # ------------------------------------------------------------------ あなた (プレイヤー)
@@ -1518,7 +1524,7 @@ class App:
                 raise ValueError("%sとは、約束してから会いましょう（トークの「📅 約束する」から）" % char.get("name", ""))
             # 閉じていた間の約束をあとからまとめて進めるとき (auto_weak) は, いまの時刻ではなく約束の時刻の話なので見ない
             replay = opts.get("auto_weak") and opts.get("appointment")
-            ng = None if opts.get("deliver") or appt else self.guest_ng(a, cid)
+            ng = None if opts.get("deliver") or appt else (self.guest_ng(a, cid) or self.forfeit.allows(a, cid, now))
             if ng:                                  # 相手の家にいる (お客の立場 / 手伝いの最中)
                 raise ValueError(ng)
             if dress is not None:
@@ -1866,6 +1872,8 @@ class App:
             nursed = self.care.nursed(char, st, now) if aid == "nurse" else None     # 相手の家で看病した: 治りが早まる (一度)
             if not r.get("override") and not defer and ((plan and plan.get("payer") == "me") or gift_item or aid in ("gift", "expensive_gift")):
                 nursed = self.askhelp.iou_paid(char, st, now) or nursed      # おごった・贈った: 手伝ってもらった貸しが返った
+            if plan and plan.get("payer") in ("me", "her") and not r.get("override") and not defer:
+                nursed = self.forfeit.treat_paid(char, st, plan["payer"], now) or nursed     # 罰ゲームのおごりを果たした
             if aid == "clean" and not r.get("override"):               # 一緒に掃除: 家事
                 skill_up["house"] = self.life.train("house", 0.8 * scale)
             skill_up.update(opts.get("skill") or {})
@@ -2518,6 +2526,9 @@ class App:
 
     def reply_delay(self, char, st, now, scene, ctx):
         """時間差の返信がいつ届くか (秒, まだスマホを見ていてすぐ, たまたま手にしていてすぐ). core/replyspeed.py."""
+        ban = self.forfeit.phone_ban_until(st, now)
+        if ban:                                # 罰ゲームでスマホ禁止: 見るのは明けてから
+            return ban - now + random.uniform(300, 3600), False, False
         if self._still_on_phone(char, st, now, scene, ctx):
             return random.uniform(10, 90), True, False
         p = st["params"]
@@ -3766,6 +3777,10 @@ class App:
                 self.attach.give(char, st, "her", 2, "払ってくれた", t)
             elif (pl or {}).get("payer") == "me":
                 paid = self.askhelp.iou_paid(char, st, t)    # おごった: 手伝ってもらった貸しが返った
+                if paid:
+                    text += "\n" + paid
+            if (pl or {}).get("payer") in ("me", "her"):
+                paid = self.forfeit.treat_paid(char, st, pl["payer"], t)     # 罰ゲームのおごりを果たした
                 if paid:
                     text += "\n" + paid
             if real_note:

@@ -59,6 +59,7 @@ core/purse.py        キャラクターの所持金の収支 (型ごとの収入
 core/kakeibo.py      家計簿 (お金の出入りの裏の記録と, つけた分・見積もり)
 core/body.py         あなたの体: お腹・栄養 (主食・たんぱく質・野菜)・食事 (自炊・外食・買って食べる)・体調
 core/games.py ほか   ミニゲーム (麻雀・盤面・カード・花札・ヨット)
+core/forfeit.py      罰ゲームと勝負の形 (種類 × 罰 × 形. 1 勝負ごとの決着・脱ぐ枚数・罰の支払い・あとで果たす罰・券・一日の禁止・受けるか)
 tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シミュレーション
 ```
 
@@ -127,8 +128,13 @@ tools/test_*.py      テスト (一時データ). tools/simulate.py は長期シ
 ### 在席状態（あなた）
 `presence.mode`: none（here / idle は心拍と操作から）・busy・out・work・sleep・left, 心拍が途絶えれば gone。画面は 30 秒ごとに心拍を送る。外出 (out / work) は画面を開いている間だけ続き, 閉じたら最後の心拍で切り上げて家に帰った扱い（`outdoor.check_gap`）。寝る・離れるは閉じてもよい。黙って閉じると相手は寂しさが早く増え, 戻ると機嫌・信頼が下がる（`silent_penalty`）。
 
+### 罰ゲームと勝負の形（`core/forfeit.py`）
+ゲームは「種類 × 罰ゲーム × 勝負の形」で始める（`games.start(gid, cid, bout)`。`bout` = {pens, form, n, opt}。無ければ定義の既定 `forfeit.preset`: stages のあるゲームは脱衣 + 脱ぎきるまで, ほかは以前の勝ち数・合計点・一発）。1 勝負（局のあるゲームは 1 局, ほかは 1 ゲーム）の決着ごとに `forfeit.unit(勝った方, 重み)` が, 形（一発 / n 回 / 先に n 勝 / 持ち点 / 脱ぎきるまで）で試合の決着と脱ぐ枚数を決め, 罰を払う（n 回勝負は負けるたび, ほかは試合の決着で負けた方へ）。脱ぐ枚数は「負けた割合」で決め, n 回負ける（持ち点が尽きる）前に脱ぎきることはない（重み 99 の役満は別）。1 ゲームで決まるゲームは, 試合が続くなら決着の盤を見せたまま `between`, 「次の勝負へ」（`act: next_unit`）で `_init_kind` から作り直す。
+罰は双方向。その場で済むもの（お金・着せ替え・スキンシップ・写真・本音・呼び方・禁止）と, あとで果たすもの（`st.forfeit.owed`: 家事・デート・おごり・払えなかったお金。期限 7 / 14 日）。果たしたかは `forfeit.tick` が追う（家事は二人で家に・デートは行き先への外出 `override.activity`・おごりは `life.plan_payment` が負けた方を払い手にし, 払ったら `treat_paid`・お金は払えるようになったら）。あなたが果たさなければ約束やぶりと同じ（機嫌・信頼が下がる. `grudge`）。相手が果たさなければうやむや（記録だけ. あなたの心理の値は作らない）。一日の取り決め（`st.forfeit.day`）: 呼び方（`pronouns` が差し替え）・スマホ禁止（相手: 返事は明けてから `reply_delay` / あなた: 連絡のコマンドができない `forfeit.allows`）・おやつ禁止（`snack` ができない）。券（`st.forfeit.tickets`）: あなたが使うと中身ごとに受けるかを判定（断られても券は残る）, 相手の券はそばにいるとき 1 時間に 12% ほどで使ってくる。
+受けるか（`forfeit.judge`）: 重さ（重い罰 1 つ + 残りの半分, お金は額 ÷ 相手の懐, private は恥ずかしがり `modesty` で重く, 一発勝負の脱衣は上乗せ）と乗り気（好感度・信頼・機嫌・間柄・慎重さ `caution`・その日に頼んだ回数）で決める。既定の組み合わせは以前どおり定義の `when` だけ。負けた相手が罰を渋る見込みは律儀さ `repay`（お金は強欲 `greed` も）しだい。券と脱衣は渋らない。
+
 ### 同時にできないこと
-ミニゲームのできる場所（`games.spot` / `place_why`）: ゲームの要る道具（`needs`: none / tiles / board / dice / hanafuda / cards。定義に無ければ kind から）と罰の重さ（`privacy`: public / private。無ければ脱衣なら private）を, いる場所の属性（home あなたの家 / her_home 相手の家 / shop 人目のある店 / outdoor 屋外 / moving 移動中。道具は家だけ, 二人きりは `bonds.alone_with`）と突き合わせる。道具は持ち歩かない（家だけ）。途中で場所が合わなくなれば打ち切り。
+ミニゲームのできる場所（`games.spot` / `place_why`）: ゲームの要る道具（`needs`: none / tiles / board / dice / hanafuda / cards。定義に無ければ kind から）と罰の重さ（`privacy`: public / private。選んだ罰ゲームのどれかが private なら private（`forfeit.PENALTIES` の `privacy`）。何も選ばなければ定義の既定の組み合わせで, 脱衣なら private）を, いる場所の属性（home あなたの家 / her_home 相手の家 / shop 人目のある店 / outdoor 屋外 / moving 移動中。道具は家だけ, 二人きりは `bonds.alone_with`）と突き合わせる。道具は持ち歩かない（家だけ）。途中で場所が合わなくなれば打ち切り。
 あなたは一度に一つのことしかしない。内職・一人の時間（休む・家事・研鑽）・誰かとのミニゲームの途中は, ほかのことを始められない（`App.blocked`。理由は押す前に出す）。外出・仕事・寝る・席を外す間は, 画面ごと切り替わっていてほかの操作はできない。
 
 ### 一人の時間・あなたの予定
