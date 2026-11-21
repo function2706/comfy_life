@@ -114,6 +114,8 @@ class Stay:
                 d = app.apply_effects(st, app.trait_effects(char, {"mood": -1}))
                 key = "stay.guest_no" if guest else "stay.no"
             e = app.note_entry(char, st, now, "_stay_ask", "泊まっていく？" if guest else "泊まっていい？", "🌙", self.line(char, key), d)
+            e["stay_ok"] = bool(w.get("stay"))              # 受けてもらえたか (効き目の向きで見分けずに済むように)
+            app.save_log(cid)
             app.save_state(cid)
             return {"entry": e, "stay": bool(w.get("stay"))}
 
@@ -160,6 +162,15 @@ class Stay:
     VISIT_IN = ("visit_home", "go_her_home", "_drop_in")     # 相手の家に上がった記録
     GUEST_IN = ("invite_home", "bring_home")                 # あなたの家に招いた記録
 
+    @staticmethod
+    def _ask_ok(e):
+        """泊まっていい？ / 泊まっていく？ の記録が, 受けてもらえたものか. stay_ok が無い以前の記録は効き目の向きで
+        (受けた: 好感度・機嫌が上がる / 寂しさが下がる. 断った: 機嫌が下がるだけ. 寂しさが 0 なら下がらないので, それだけで見ない)."""
+        if "stay_ok" in e:
+            return bool(e["stay_ok"])
+        d = e.get("deltas") or {}
+        return d.get("loneliness", 0) < 0 or d.get("mood", 0) > 0 or d.get("affection", 0) > 0
+
     def restore_lost(self, now=None):
         """遡及 (一度だけ): 以前は, 泊まるのを受けてもらってから一緒に外へ出ると, 泊まる約束が消えていた (bonds.go_out).
         いまその相手と一緒にいて (家・外どちらでも), 今夜 (翌朝まで) 泊まるのを受けてもらった記録があるのに約束が無ければ, 戻す.
@@ -167,9 +178,9 @@ class Stay:
         app = self.app
         now = now or time.time()
         done = app.life.player_state().setdefault("fix_comp", {})
-        if done.get("stay_lost"):
+        if done.get("stay_lost2"):           # 1 回目 (stay_lost) は寂しさが 0 のときの受けてもらった記録を見落としていた. もう一度だけ
             return None
-        done["stay_lost"] = now
+        done["stay_lost2"] = now
         app.life.save_player()
         B = app.bonds
         w = B.with_rec()
@@ -182,7 +193,7 @@ class Stay:
             e = log[i]
             if now - e["t"] > 14 * 3600:
                 break
-            if e.get("action") == "_stay_yes" or (e.get("action") == "_stay_ask" and (e.get("deltas") or {}).get("loneliness", 0) < 0):
+            if e.get("action") == "_stay_yes" or (e.get("action") == "_stay_ask" and self._ask_ok(e)):
                 ok = i
                 break
         if ok is None or now >= self.morning(log[ok]["t"]):
@@ -206,6 +217,12 @@ class Stay:
         else:
             return None
         B.save()
+        back = -sum(float((e.get("deltas") or {}).get("mood", 0)) for e in log[ok + 1:]     # 消えたあと聞き直して断られた分の機嫌を返す
+                    if e.get("action") == "_stay_ask" and not self._ask_ok(e))
+        if back > 0:
+            st = app.state(cid)
+            app.apply_effects(st, {"mood": back}, now)
+            app.save_state(cid)
         app.logq.put("%s [INFO] 消えていた泊まる約束を戻した: %s (%s)" % (time.strftime("%m-%d %H:%M:%S"), cid, w["mode"]))
         return cid
 

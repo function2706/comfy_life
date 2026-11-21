@@ -189,7 +189,7 @@ def main():
         # ---- 9. 遡及 (一度だけ): 以前の版で, 受けてもらった泊まる約束が外出で消えていた → 起動時に戻す. 二度目はしない
         from core import stay as stay_mod
         for mode, enter, ask in (("visit", "go_her_home", "泊まっていい？"), ("guest", "bring_home", "泊まっていく？")):
-            app.life.player_state().setdefault("fix_comp", {}).pop("stay_lost", None)
+            app.life.player_state().setdefault("fix_comp", {}).pop("stay_lost2", None)
             st = at_home_date(app, cid, mode)
             now = time.time()
             app.note_entry(char, st, now - 7200, enter, "", "", "（家に）")
@@ -207,11 +207,28 @@ def main():
                 stay_mod.Stay.morning = real
             print("遡及 (%s): OK | 消えていた泊まる約束を一度だけ戻した" % mode)
         # 断られた記録だけなら戻さない
-        app.life.player_state()["fix_comp"].pop("stay_lost", None)
+        app.life.player_state()["fix_comp"].pop("stay_lost2", None)
         st = at_home_date(app, cid, "visit")
         app.note_entry(char, st, time.time() - 60, "_stay_ask", "泊まっていい？", "🌙", "ちょっと", {"mood": -1})
         assert app.stay.restore_lost() is None and not app.stay.staying(cid)
         print("遡及 (断られていた): OK | 戻さない")
+        # 寂しさが 0 で受けてもらった (loneliness の変化なし) + 消えたあと聞き直して断られた → 戻して, 断られた分の機嫌を返す
+        app.life.player_state()["fix_comp"].pop("stay_lost2", None)
+        st = at_home_date(app, cid, "visit")
+        now = time.time()
+        app.note_entry(char, st, now - 7200, "go_her_home", "", "", "（家に）")
+        app.note_entry(char, st, now - 3600, "_stay_ask", "泊まっていい？", "🌙", "いいよ", {"affection": 0.2, "mood": 0.6})
+        app.note_entry(char, st, now - 60, "_stay_ask", "泊まっていい？", "🌙", "ちょっと", {"mood": -0.9})
+        B.with_rec()["stay_asked"] = True
+        m0 = float(app.state(cid)["params"]["mood"])
+        real = stay_mod.Stay.morning
+        stay_mod.Stay.morning = lambda self, t: t + 12 * 3600
+        try:
+            assert app.stay.restore_lost(now) == cid and app.stay.staying(cid), B.with_rec()
+        finally:
+            stay_mod.Stay.morning = real
+        assert float(app.state(cid)["params"]["mood"]) > m0 or m0 >= 99, (m0, app.state(cid)["params"]["mood"])
+        print("遡及 (寂しさ 0 で受けた・聞き直して断られた): OK | 戻して機嫌も返した")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
