@@ -73,7 +73,7 @@ function ffSel(g) {
   S.ff = S.ff || {};
   if (!S.ff[g.id]) {
     const p = g.preset || {};
-    S.ff[g.id] = { open: false, pens: [...(p.pens || [])], form: p.form || 'one', n: p.n || 3,
+    S.ff[g.id] = { open: false, omakase: false, pens: [...(p.pens || [])], form: p.form || 'one', n: p.n || 3,
       opt: { money: '1000', date: '', call: '', ban: 'phone' } };
   }
   return S.ff[g.id];
@@ -84,8 +84,9 @@ function forfeitPicker(g, gv) {
   const sel = ffSel(g);
   const privOf = (id) => (o.pens.find((p) => p.id === id) || {}).privacy === 'private';
   sel.pens = sel.pens.filter((id) => o.pens.some((p) => p.id === id));
-  const hasPriv = sel.pens.some(privOf);
-  const forms = o.forms.filter((f) => f.id !== 'strip' || sel.pens.includes('strip'));
+  const om = !!sel.omakase;            // 罰は相手が決める (forfeit.pick): 罰と中身は選ばず, 形だけ
+  const hasPriv = !om && sel.pens.some(privOf);
+  const forms = o.forms.filter((f) => f.id !== 'strip' || (!om && sel.pens.includes('strip')));
   if (!forms.some((f) => f.id === sel.form)) sel.form = 'one';
   const rng = (o.forms.find((f) => f.id === sel.form) || {}).range || [0, 0];
   if (rng[1]) sel.n = Math.min(rng[1], Math.max(rng[0], Number(sel.n) || 3));
@@ -94,17 +95,20 @@ function forfeitPicker(g, gv) {
     h('select', { disabled: S.busy, onchange: (e) => { sel.opt[key] = e.target.value; } },
       list.map(([v, t]) => h('option', { value: v, selected: String(sel.opt[key]) === String(v) }, t))));
   const opts = [];
-  if (sel.pens.includes('money')) opts.push(pick('money', [['treat', 'おごり（次の支払い）'], ...o.money.map((m) => [m, m.toLocaleString() + '円'])], '💴 お金'));
-  if (sel.pens.includes('date')) opts.push(pick('date', [['', 'おまかせ'], ...o.dates.map((d) => [d.id, d.name])], '🎡 勝ったら行く所'));
-  if (sel.pens.includes('callname')) {
+  if (!om && sel.pens.includes('money')) opts.push(pick('money', [['treat', 'おごり（次の支払い）'], ...o.money.map((m) => [m, m.toLocaleString() + '円'])], '💴 お金'));
+  if (!om && sel.pens.includes('date')) opts.push(pick('date', [['', 'おまかせ'], ...o.dates.map((d) => [d.id, d.name])], '🎡 勝ったら行く所'));
+  if (!om && sel.pens.includes('callname')) {
     if (!sel.opt.call) sel.opt.call = o.calls[1] || o.calls[0];
     opts.push(pick('call', o.calls.map((c) => [c, c]), '🏷️ 負けたら呼ばせる名前'));
   }
-  if (sel.pens.includes('ban')) opts.push(pick('ban', Object.entries(o.bans), '🚫 禁止するもの'));
+  if (!om && sel.pens.includes('ban')) opts.push(pick('ban', Object.entries(o.bans), '🚫 禁止するもの'));
   const why = g.pub_why || (hasPriv && !o.private_ok ? '人前でできない罰（🔒）があるので、二人きりの家でだけ遊べます' : '');
   return h('details', { class: 'ff-pick', open: sel.open, ontoggle: (e) => { sel.open = e.target.open; } },
     h('summary', {}, '罰ゲーム・勝負の形を選んで遊ぶ'),
-    h('div', { class: 'ff-pens' }, o.pens.map((p) => h('label', { class: 'ff-pen' },
+    h('label', { class: 'ff-pen' },
+      h('input', { type: 'checkbox', checked: om, disabled: S.busy, onchange: (e) => { sel.omakase = e.target.checked; renderGames(); } }),
+      `🎲罰ゲームは${S.view.name || '相手'}におまかせ`),
+    om ? '' : h('div', { class: 'ff-pens' }, o.pens.map((p) => h('label', { class: 'ff-pen' },
       h('input', { type: 'checkbox', checked: sel.pens.includes(p.id), disabled: S.busy, onchange: (e) => toggle(p.id, e.target.checked) }),
       `${p.icon}${p.label}${p.privacy === 'private' ? '🔒' : ''}`))),
     opts.length ? h('div', { class: 'ff-opts' }, opts) : '',
@@ -114,16 +118,18 @@ function forfeitPicker(g, gv) {
       rng[1] ? h('label', { class: 'ff-opt' }, 'n = ', h('input', { type: 'number', min: rng[0], max: rng[1], value: sel.n, disabled: S.busy,
         style: 'width:4em', onchange: (e) => { sel.n = Number(e.target.value); } })) : ''),
     why ? h('p', { class: 'muted' }, why) : '',
-    h('p', { class: 'muted' }, sel.pens.length ? '罰はお互いさま（あなたが負ければ、あなたが払う）。受けるかは相手しだい' : '罰なしで、勝負の形だけ変えて遊ぶ'),
+    h('p', { class: 'muted' }, om ? `何の罰にするかは${S.view.name || '相手'}が決める（決めた罰はお互いさま。乗り気でなければ罰なし）`
+      : sel.pens.length ? '罰はお互いさま（あなたが負ければ、あなたが払う）。受けるかは相手しだい' : '罰なしで、勝負の形だけ変えて遊ぶ'),
     h('button', { class: 'btn', disabled: S.busy || !!why,
-      onclick: () => gameAct('/api/game/start', { game: g.id, bout: { pens: sel.pens, form: sel.form, n: sel.n, opt: sel.opt } }) },
+      onclick: () => gameAct('/api/game/start', { game: g.id, bout: om ? { omakase: true, form: sel.form, n: sel.n }
+        : { pens: sel.pens, form: sel.form, n: sel.n, opt: sel.opt } }) },
       'この組み合わせで遊ぶ'));
 }
 function boutBar(cur) {
   const b = cur.bout;
   if (!b) return '';
   const name = S.view.name;
-  const pens = b.pens.map((p) => p.icon + p.label).join('・') || '罰なし';
+  const pens = (b.pens.map((p) => p.icon + p.label).join('・') || '罰なし') + (b.omakase ? '（おまかせ）' : '');
   let score = '';
   if (b.form === 'points' && b.hp) score = `持ち点 あなた ${Math.max(0, b.hp.me)} / ${name} ${Math.max(0, b.hp.her)}`;
   else if (b.form !== 'strip') score = `あなた ${b.score ? b.score.me : b.me} - ${b.score ? b.score.her : b.her} ${name}` + (b.form === 'n' ? `（${b.units}/${b.n} 回）` : '');

@@ -305,7 +305,8 @@ class Games:
         return {"list": games, "current": out, "options": opts, "forfeit": fv}
 
     def start(self, gid, cid=None, bout=None):
-        """gid のゲームを始める. bout: 罰ゲームと勝負の形 {pens, form, n, opt} (core/forfeit.py). 無ければ定義の既定."""
+        """gid のゲームを始める. bout: 罰ゲームと勝負の形 {pens, form, n, opt} (core/forfeit.py). 無ければ定義の既定.
+        {omakase: true, form, n} なら罰は相手が決める (forfeit.pick)."""
         app = self.app
         with app.lock:
             char = app.char(cid)
@@ -338,7 +339,12 @@ class Games:
                 entry, job = self._record(cid, char, st, g, line, {}, "", None, "")
                 self._save(cid)
                 return {"entry": entry, "job": job, "refused": True}
-            ok, say = app.forfeit.judge(char, st, b, preset, dt.timestamp())
+            if b.get("omakase"):    # 罰は相手が決める: 自分で選ぶので断らない (乗り気でなければ罰なし)
+                sp = self.spot(cid, dt.timestamp()) or {}
+                ok, say = True, app.forfeit.pick(char, st, g, b, bool(sp.get("indoor") and sp.get("private") and sp.get("tools")),
+                                                 dt.timestamp())
+            else:
+                ok, say = app.forfeit.judge(char, st, b, preset, dt.timestamp())
             if not ok:              # 罰の組み合わせが重すぎる: 断られる
                 entry = app.note_entry(char, st, dt.timestamp(), "_forfeit", "罰ゲームつきの勝負", "🙅", say)
                 self._save(cid)

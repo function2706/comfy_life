@@ -344,6 +344,67 @@ def main():
         place_case("カフェ", {"spot": "shop", "indoor": True, "tools": False, "private": False})
         place_case("公園", {"spot": "outdoor", "indoor": False, "tools": False, "private": False})
 
+        # ---------------------------------------------------------------- おまかせ (相手が罰を決める)
+        try:
+            F.normalize(c4, char, {"omakase": True, "form": "strip"})
+            raise AssertionError("おまかせで脱ぎきるまでは選べない")
+        except ValueError:
+            pass
+        assert F.normalize(c4, char, {"omakase": True, "form": "n", "n": 3}) ==             {"pens": [], "form": "n", "n": 3, "opt": {}, "pts": False, "omakase": True}
+
+        def omakase_case(label, sp, params, ch=None, trials=60):
+            app.games.spot = lambda c, t=None: dict(sp)
+            if ch is not None:
+                app.chars[cid] = ch
+            seen, none = {}, 0
+            for _ in range(trials):
+                fresh()
+                st["params"].update(params)
+                st["game"] = None
+                r = app.games.start("connect4", cid, {"omakase": True, "form": "first", "n": 2})
+                assert not r.get("refused") and st.get("game"), "おまかせは断らない"
+                assert not F.rec(st)["asks"], "持ちかけた回数に数えない"
+                b = st["game"]["bout"]
+                assert b["omakase"] and len(b["pens"]) <= 2
+                if not b["pens"]:
+                    none += 1
+                for p in b["pens"]:
+                    seen[p] = seen.get(p, 0) + 1
+                    if not (sp["indoor"] and sp["private"] and sp["tools"]):
+                        assert FF.PEN[p]["privacy"] == "public", (label, p)
+                    if ch is not None and FF.PEN[p].get("adult"):
+                        raise AssertionError("未成年に %s" % p)
+                if b["pens"]:       # 決めた中身は, 自分で選んだときと同じ確かめを通る
+                    nb = F.normalize(c4, app.chars[cid], {"pens": b["pens"], "form": "first", "n": 2, "opt": b["opt"]})
+                    assert nb["opt"] == b["opt"], (b["opt"], nb["opt"])
+                assert app.games.view(app.chars[cid], st, app.context(app.chars[cid], st, engine.datetime.now()))[
+                    "current"]["bout"]["omakase"]
+                st["game"] = None
+            app.games.spot = sp0
+            app.chars[cid] = char
+            print("おまかせ %s: OK | 罰なし %d/%d・%s" % (label, none, trials,
+                                                   " ".join("%s%d" % (k, v) for k, v in sorted(seen.items(), key=lambda x: -x[1]))))
+            return none, seen
+
+        home = {"spot": "home", "indoor": True, "tools": True, "private": True}
+        n_hi, s_hi = omakase_case("仲がよい・二人きり", home, {})
+        n_lo, s_lo = omakase_case("仲が悪い", home, {"affection": 10, "trust": 15, "mood": 15})
+        assert n_lo > n_hi and n_lo >= 40, (n_lo, n_hi)
+        omakase_case("仲がよい・人前", {"spot": "home", "indoor": True, "tools": True, "private": False}, {})
+        omakase_case("未成年", home, {}, ch=dict(char, age=16))
+        # 相手が決めた罰で負けると, あなたが払う (お互いさま)
+        fresh()
+        app.games.spot = lambda c, t=None: dict(home)
+        for _ in range(50):
+            st["game"] = None
+            app.games.start("connect4", cid, {"omakase": True, "form": "one"})
+            if st["game"]["bout"]["pens"] and "strip" not in st["game"]["bout"]["pens"]:
+                break
+        n0 = len(app.log(cid))
+        assert F.unit(cid, char, st, c4, st["game"], "a", whole=True) == "lose" and len(app.log(cid)) > n0
+        st["game"] = None
+        app.games.spot = sp0
+
         # ---------------------------------------------------------------- 通しで遊ぶ
         fresh()
         F.always = True

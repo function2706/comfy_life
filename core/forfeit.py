@@ -32,6 +32,10 @@
 受けるか (judge): 始める前に, 組み合わせの重さを関係 (好感度・信頼・間柄)・性格 (慎重さ・恥ずかしがり)・機嫌で判定する.
 同じ日に何度も持ちかけるほど渋る (断られるたびに少し機嫌が下がる). 回数を重ねれば必ず受ける道は作らない.
 何も選ばずに始める既定の組み合わせは, 以前どおり定義の when (脱衣ゲームの好感度) だけで決める.
+おまかせ (pick): 罰を相手に決めてもらう. 相手は, その場でできる罰 (人前なら public だけ・未成年は脱衣と着せ替えなし) のうち,
+自分が受けてもいいと思えるもの (罰 1 つでの受ける見込み) から, 性格 (欲・恥ずかしがり・きれい好き・世話好き) と好感度で
+重みをつけて 1 つ (乗り気なら 2 つ) 選ぶ. 中身 (額・行き先・呼び方・禁止) も相手が決める. 乗り気でなければ罰なし.
+自分で選んだので断らない (持ちかけた回数にも数えない). 罰はお互いさま (あなたが負ければ, 相手が決めた罰をあなたが払う).
 負けたあと罰を渋る・ごまかすこともある (律儀でない性格ほど. 脱衣は試合の流れの中なので渋らない).
 
 遡及: いまのセーブに罰の記録は無い. 途中の脱衣ゲーム (st["game"] に bout が無い) は, 開いたときに既定の組み合わせ
@@ -86,6 +90,8 @@ TICKET_HER_P = 0.12      # そばにいる 1 時間あたり, 持っている券
 LINES = {
     "ff.accept": "いいよ。負けたら、ちゃんと{pen}だからね",
     "ff.refuse": "{pen}つきは……ちょっと、やめとく。ふつうに遊ぼうよ",
+    "ff.pick": "{fp}が決めていいの？ じゃあ、負けたら{pen}ね",
+    "ff.pick_none": "罰ゲームは、なしでいいよ。ふつうに遊ぼう",
     "ff.pay": "……負けは負けだもんね。約束どおり、{pen}",
     "ff.renege": "えっと……{pen}は、また今度ってことで。ね？",
     "ff.collect": "{fp}の勝ち。じゃあ、約束どおり{pen}ね",
@@ -101,6 +107,8 @@ LINES = {
 SCENE_LABEL = {
     "ff.accept": "罰ゲームつきの勝負を受ける ({pen} に罰の名前)",
     "ff.refuse": "罰ゲームつきの勝負を断る (重すぎる. {pen} に罰の名前)",
+    "ff.pick": "罰ゲームをおまかせされて, 自分で決める ({pen} に決めた罰. お互いさま)",
+    "ff.pick_none": "罰ゲームをおまかせされたが, 罰なしにする (乗り気でない・選べる罰が無い)",
     "ff.pay": "負けて, 罰ゲームを受ける ({pen} に罰の中身)",
     "ff.renege": "負けたのに, 罰ゲームを渋る・ごまかす ({pen})",
     "ff.collect": "勝って, あなたに罰ゲームをさせる ({pen})",
@@ -165,6 +173,13 @@ class Forfeit:
         """画面から選んだ組み合わせを確かめる. req が空なら既定."""
         if not req:
             return self.preset(g)
+        if req.get("omakase"):           # 罰は相手が決める (pick). ここでは形だけ確かめる
+            req = {"form": req.get("form"), "n": req.get("n")}
+            if req["form"] == "strip":
+                raise ValueError("「脱ぎきるまで」は、罰に脱衣を選んだときだけです（おまかせでは選べません）")
+            b = self.normalize(g, char, dict(req, pens=[]))
+            b["omakase"] = True
+            return b
         pens = []
         for p in req.get("pens") or []:
             if p not in PEN:
@@ -300,6 +315,63 @@ class Forfeit:
         r["asks"] = [t for t in r["asks"] if now - t < DAY] + [now]
         self.app.apply_effects(st, self.app.trait_effects(char, {"mood": -1}))
         return False, self.line(char, "ff.refuse", {"pen": pen})
+
+    def pick(self, char, st, g, b, private_ok, now=None):
+        """おまかせ: 相手が罰と中身を決めて b に入れる. 決めたときのセリフを返す (罰なしにしたときも)."""
+        from .posing import adult
+        app = self.app
+        now = now or time.time()
+        tr = app.traits(char)
+        greed = float(tr.get("greed", 0.2))
+        modesty = float(tr.get("modesty", 0))
+        aff = float(st["params"].get("affection", 50))
+        ok_adult = adult(char)
+        money = float(app.life.her_money(st).get("a", 0))
+        cands = []
+        for p in PENALTIES:
+            if p.get("adult") and not ok_adult:
+                continue
+            if p["privacy"] == "private" and not private_ok:
+                continue
+            opt = {}
+            if p["id"] == "money":     # 額: 受けてもいい額のうち, 欲が強いほど大きく. 手元が少なければおごり
+                ms = [m for m in MONEY if m <= max(1000, money)] + ["treat"]
+                ws = [self.accept_chance(char, st, {"pens": ["money"], "form": b["form"], "opt": {"money": m}}, now) ** 2
+                      * ((1.0 if m == "treat" else float(m) / 1000.0) ** greed) for m in ms]
+                opt["money"] = random.choices(ms, ws)[0]
+            elif p["id"] == "date":
+                opt["date"] = random.choice(DATE_PLACES)
+            elif p["id"] == "callname":
+                opt["call"] = random.choice(CALLS)
+            elif p["id"] == "ban":
+                opt["ban"] = random.choice(list(BANS))
+            c = self.accept_chance(char, st, {"pens": [p["id"]], "form": b["form"], "opt": opt}, now)
+            if c < 0.45:               # 自分でも受けたくない罰は選ばない
+                continue
+            tilt = 1.0
+            if p["id"] == "money":
+                tilt += 2.0 * greed
+            elif p["id"] == "chores":
+                tilt += max(0.0, float(tr.get("neat", 0))) / 5.0 + float(tr.get("carer", 0))
+            elif p["id"] in ("date", "skinship"):
+                tilt += max(0.0, aff - 50) / 50.0
+            if p["privacy"] == "private":
+                tilt *= _clamp(1.0 - modesty / 10.0, 0.2, 1.8)
+            cands.append((p["id"], opt, c * c * tilt))
+        ready = self.readiness(char, st, now)
+        if not cands or random.random() < _clamp(0.5 - ready, 0.0, 0.4):      # 乗り気でなければ, 罰なし
+            b["pens"], b["opt"] = [], {}
+            return self.line(char, "ff.pick_none")
+        k = 2 if len(cands) > 1 and random.random() < _clamp(ready - 0.6, 0.0, 0.5) else 1
+        pens, opt = [], {}
+        while len(pens) < k:
+            i = random.choices(range(len(cands)), [x[2] for x in cands])[0]
+            pid, o, _ = cands.pop(i)
+            pens.append(pid)
+            opt.update(o)
+        b["pens"] = [p["id"] for p in PENALTIES if p["id"] in pens]      # 並びは一覧の順
+        b["opt"] = opt
+        return self.line(char, "ff.pick", {"pen": "・".join(self.pen_label(p, opt) for p in b["pens"])})
 
     # ================================================================== 勝負の進み
     def bout(self, g, game):
@@ -776,7 +848,7 @@ class Forfeit:
         b = self.bout(g, game)
         out = {"form": b["form"], "n": b["n"], "label": self.label(b), "me": b["me"], "her": b["her"], "units": b["units"],
                "pens": [{"id": p, "label": self.pen_label(p, b["opt"]), "icon": PEN[p]["icon"]} for p in b["pens"]],
-               "between": bool(game.get("between"))}
+               "between": bool(game.get("between")), "omakase": bool(b.get("omakase"))}
         if b["form"] == "points":
             out["hp"] = dict(b["hp"])
         if b.get("pts"):
