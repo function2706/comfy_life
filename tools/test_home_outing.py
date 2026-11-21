@@ -1,7 +1,7 @@
 """家デートから二人で出かけて, 出た先からまたどちらかの家へ (一時データ, 画像生成なし).
 - 相手の家に来ている (visit) / 招いている (guest) ときに「移動」のコマンドで出かけたら, 家を出たので「外で会っている」(meet) になる
   (以前は visit / guest のまま外にいて,「家に寄ってもいい？」/「うちに寄っていく？」が出ず, 押せるのは解散・その場での別れだけだった)
-- 移動は出る前の家から. 来客の一時シーンは出かけた先のものに置き換わる. お泊りはそこで終わる
+- 移動は出る前の家から. 来客の一時シーンは出かけた先のものに置き換わる. 泊まる約束は続く (外にいる間は base に. tools/test_stay_outing.py)
 - 出た先で: 家に寄るコマンド 2 つが押せる (画面の available と act が一致), 「そろそろ帰るね」「送っていくね」は押せない
 - 出た先から相手の家へ / あなたの家へ: 一緒に移動して上がる
 - 出かけた先の時間が終わったら, ふつうの外デートと同じく別れる (以前は移動なしで家デートに戻っていた)
@@ -141,14 +141,14 @@ def main():
         app.home.guest_left = orig_left
         print("招いた相手と出かける: OK | 来客のあとの散らかりは出るときに一度だけ")
 
-        # ---- 6. お泊りは, 出かけたら終わる
+        # ---- 6. 泊まる約束をして出かけても, 約束は続く (以前はここで消えていた. 不具合)
         st = at_home_date(app, cid, "visit")
         B.with_rec()["stay"] = {"t": time.time()}
         B.save()
         assert app.stay.staying(cid)
         go_cafe(app, cid)
-        assert B.mode(cid) == "meet" and not app.stay.staying(cid) and not (B.with_rec() or {}).get("stay"), B.with_rec()
-        print("お泊りのあと出かける: OK | お泊りは終わり, 外で会っている")
+        assert B.mode(cid) == "meet" and B.stay_back(cid) == "visit", B.with_rec()
+        print("お泊りの約束のあと出かける: OK | 外で会っている. 泊まる約束は続いている")
 
         # ---- 7. 遡及: 1.7.0 までのセーブ (visit / guest のまま外にいる) は, 次の進みで直る. 二度目は何もしない
         for start in ("visit", "guest"):

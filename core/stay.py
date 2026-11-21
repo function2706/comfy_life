@@ -157,6 +157,58 @@ class Stay:
             app.save_state(cid)
             return {"entry": e}
 
+    VISIT_IN = ("visit_home", "go_her_home", "_drop_in")     # 相手の家に上がった記録
+    GUEST_IN = ("invite_home", "bring_home")                 # あなたの家に招いた記録
+
+    def restore_lost(self, now=None):
+        """遡及 (一度だけ): 以前は, 泊まるのを受けてもらってから一緒に外へ出ると, 泊まる約束が消えていた (bonds.go_out).
+        いまその相手と一緒にいて (家・外どちらでも), 今夜 (翌朝まで) 泊まるのを受けてもらった記録があるのに約束が無ければ, 戻す.
+        外にいるなら, 出かけた先が終わったら一緒にその家へ戻る形 (meet の base) にする. 戻したら相手を返す."""
+        app = self.app
+        now = now or time.time()
+        done = app.life.player_state().setdefault("fix_comp", {})
+        if done.get("stay_lost"):
+            return None
+        done["stay_lost"] = now
+        app.life.save_player()
+        B = app.bonds
+        w = B.with_rec()
+        if not w or w.get("stay") or B.stay_back(w["cid"], now):
+            return None
+        cid = w["cid"]
+        log = app.log(cid)
+        ok = None
+        for i in range(len(log) - 1, -1, -1):
+            e = log[i]
+            if now - e["t"] > 14 * 3600:
+                break
+            if e.get("action") == "_stay_yes" or (e.get("action") == "_stay_ask" and (e.get("deltas") or {}).get("loneliness", 0) < 0):
+                ok = i
+                break
+        if ok is None or now >= self.morning(log[ok]["t"]):
+            return None
+        mode = None
+        for e in reversed(log[:ok]):
+            if e.get("action") in self.VISIT_IN:
+                mode = "visit"
+            elif e.get("action") in self.GUEST_IN:
+                mode = "guest"
+            if mode:
+                break
+        if not mode:
+            return None
+        t, until = log[ok]["t"], self.morning(log[ok]["t"])
+        if w.get("mode") == mode:
+            w["stay"], w["stay_asked"] = {"t": t}, True
+            w["until"] = max(float(w.get("until", 0)), until)
+        elif w.get("mode") == "meet":
+            w["base"] = {"mode": mode, "t": t, "until": until, "night_end": until, "stay": {"t": t}, "stay_asked": True}
+        else:
+            return None
+        B.save()
+        app.logq.put("%s [INFO] 消えていた泊まる約束を戻した: %s (%s)" % (time.strftime("%m-%d %H:%M:%S"), cid, w["mode"]))
+        return cid
+
     # ------------------------------------------------------------------ 場面・できること
     def scene(self, char, base, t):
         """泊まっている間 / 招いている間の相手の場面. 相手の家のふだんの場面は visit.host_scene."""

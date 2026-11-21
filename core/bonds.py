@@ -178,16 +178,69 @@ class Bonds:
         """あなたと cid の二人きりか."""
         return self.company(t) == [cid]
 
+    # ------------------------------------------------------------------ 家から二人で出かけている間の, その家での約束ごと
+    # 相手の家・あなたの家から二人で出かけても, その家での約束ごと (泊まる約束・頼まれた手伝い・手伝いに来てもらう約束・看病) は続く.
+    # 出かけている間は meet の base に持ち, 同じ家に戻ったら戻す (以前は出かけたところで消えていた: 泊まるのを受けてもらって
+    # 一緒に外へ出て戻ると, 泊まる話が無かったことになっていた). 泊まる約束の値は, その夜 (翌朝 STAY_MORNING まで) だけ
+    CARRY = ("stay", "stay_asked", "stay_checked", "stay_offer", "favor", "help", "care")
+    NIGHT_KEYS = ("stay", "stay_asked", "stay_checked", "stay_offer")
+
+    def base(self, cid=None):
+        """二人で家から出かけている間の, 出た家での約束ごと ({mode, t, until, night_end, ...}). なければ None."""
+        w = self.with_rec()
+        if not w or w.get("mode") != "meet" or not w.get("base") or (cid and w.get("cid") != cid):
+            return None
+        return w["base"]
+
+    def stay_back(self, cid=None, now=None):
+        """泊まる約束をしたまま二人で出かけている: 戻る家の形 (visit = 相手の家 / guest = あなたの家). なければ None."""
+        b = self.base(cid)
+        if b and b.get("stay") and (now or time.time()) < float(b.get("night_end", 0)):
+            return b["mode"]
+        return None
+
+    def stay_home(self, cid, now=None):
+        """泊まることになっている家 (場所の id). 家にいる間も, そこから二人で出かけている間も. なければ None."""
+        from . import places as places_mod
+        w = self.with_rec()
+        if w and w.get("cid") == cid and w.get("mode") in ("visit", "guest") and w.get("stay"):
+            m = w["mode"]
+        else:
+            m = self.stay_back(cid, now)
+        if not m:
+            return None
+        return "home:" + cid if m == "visit" else places_mod.HOME_ME
+
+    def _drop_base(self, w, now):
+        """出かけた先から, 出た家に戻らずに別れた / ほかの家に移った: 約束ごとはそこで終わる.
+        頼まれた手伝いを始めていなければ, 手伝わずに帰ったことになる (家にいて帰ったときと同じ. core/visit.py)."""
+        b = (w or {}).get("base") if (w or {}).get("mode") == "meet" else None
+        if not b or w.get("cid") not in self.app.chars:
+            return
+        if b.get("favor") and hasattr(self.app, "athome"):
+            self.app.athome.favor_abandon(w["cid"], b["favor"], now)
+
     # ------------------------------------------------------------------ 会う・別れる
     def start(self, cid, mode, now=None):
         now = now or time.time()
+        prev = self.wrec().get("with") or {}
+        b = prev.get("base") if prev.get("mode") == "meet" and prev.get("cid") == cid else None
         w = {"cid": cid, "mode": mode, "t": now}
         if mode in ("visit", "guest"):
             w["until"] = now + float(self.cfg()["visit_hours"]) * 3600
+        back = bool(b and b.get("mode") == mode)
+        if back:                                    # 出た家に二人で戻った: その家での約束ごとを戻す
+            for k in self.CARRY:
+                if k in b and (k not in self.NIGHT_KEYS or now < float(b.get("night_end", 0))):
+                    w[k] = b[k]
+            w["t"] = float(b.get("t", now))         # 来た時刻 (別れぎわの「もう？」など) は, 最初に来たときのまま
+            w["until"] = max(w["until"], float(b.get("until", 0)))
+        elif prev:
+            self._drop_base(prev, now)
         self.wrec()["with"] = w
         self.save()
-        if mode == "visit" and hasattr(self.app, "athome"):
-            self.app.athome.entered(cid, now)       # 家に上げてもらった: 慣れ (core/visit.py)
+        if mode == "visit" and hasattr(self.app, "athome") and not back:
+            self.app.athome.entered(cid, now)       # 家に上げてもらった: 慣れ (core/visit.py. 出かけた先から戻ったのは数えない)
 
     def end(self, go_home=True):
         """別れる. go_home: 外で会っていた / 相手の家にいたなら, そこから家へ移動する (同居を始めたときなどは移動しない)."""
@@ -203,6 +256,7 @@ class Bonds:
                 if (st.get("override") or {}).get("activity") == "guest":
                     st["override"] = None
                     self.app.save_state(w["cid"])
+        self._drop_base(w, time.time())
         if self.wrec().get("with"):
             self.wrec()["with"] = None
             self.save()
@@ -211,18 +265,30 @@ class Bonds:
 
     def go_out(self, cid, now=None):
         """相手の家に来ている / 招いている相手と, 二人で外へ出かけた: 家を出たので「外で会っている」(meet) にする.
-        家を出るときの後始末 (手伝いの切り上げ・来客のあとの散らかり・お泊りの終わり) は別れるときと同じで, 一人で家へは帰らない.
+        家を出るときの後始末 (最中の手伝いの切り上げ・来客のあとの散らかり) は別れるときと同じで, 一人で家へは帰らない.
+        その家での約束ごと (泊まる約束・まだ始めていない手伝い・看病) は終わらせず, meet の base に持っていく (同じ家に戻れば戻る. start).
+        泊まる約束があれば, 出かけた先が終わっても別れずに, 一緒にその家へ戻る (sync).
         こうしておけば, 出た先から「家に寄ってもいい？」/「うちに寄っていく？」で, どちらの家にも一緒に移れる.
         戻り値: 切り替えたか."""
         w = self.with_rec()
         if not w or w.get("cid") != cid or w.get("mode") not in ("visit", "guest"):
             return False
+        now = now or time.time()
         st = self.app.state(cid)
         ov = st.get("override")
+        base = {"mode": w["mode"], "t": float(w.get("t", now)), "until": float(w.get("until", 0)),
+                "night_end": self.app.stay.morning(now) if hasattr(self.app, "stay") else now}
+        for k in self.CARRY:
+            if k in w and not (k == "favor" and w.get("helping")):
+                base[k] = w[k]
+        if not w.get("helping"):
+            w.pop("favor", None)         # 出かけるだけ: 手伝わずに帰ったことにはしない (戻れば手伝える. 戻らずに別れたら _drop_base)
         self.end(go_home=False)
         if ov and ov.get("outing"):
             st["override"] = ov          # 来客の一時シーンを消す後始末で, 出かけた先の一時シーンまで消さない
         self.start(cid, "meet", now)
+        self.with_rec()["base"] = base
+        self.save()
         return True
 
     def _head_home(self, w):
@@ -259,6 +325,10 @@ class Bonds:
             return False
         ov = st.get("override")
         if w["mode"] == "meet" and not (ov and ov.get("until", 0) > now and ov.get("outing")):
+            back = self.stay_back(cid, now)
+            if back:                     # 泊まる約束: 出かけた先が終わっても別れず, 一緒にその家へ戻る (帰りの移動は出たときに組んである)
+                self.start(cid, back, now)
+                return False
             self.end()
             return True
         if w["mode"] in ("visit", "guest") and ov and ov.get("outing") and ov.get("until", 0) > now and not ov.get("home_trip"):
@@ -323,6 +393,8 @@ class Bonds:
                 # 家に上がる慣れ (0〜100) と上がった回数 (core/visit.py)
                 "home_fam": round(self.app.athome.fam(cid, st, now)[0] * 100, 1) if hasattr(self.app, "athome") else 0,
                 "home_visits": self.app.athome.fam(cid, st, now)[1] if hasattr(self.app, "athome") else 0,
+                # 泊まる約束をしたまま二人で出かけている: 戻る家 (visit / guest / none). その家に「寄る」話はしない (戻るのは「帰る」で)
+                "stay_back": self.stay_back(cid, now) or "none",
                 "money_feel": self.gift_feel(char, st, now, money=True)}
 
     def allowed_apart(self, a, cid=None):

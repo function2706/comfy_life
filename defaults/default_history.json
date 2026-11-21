@@ -43,6 +43,7 @@
    "73058d9d5490ac546249c9bef4fed3d6"
   ],
   "apologize": [
+   "99a4041e4560c4ca9509929b44adffdb",
    "8b55462133d3b30901feb06c0cded916",
    "3d7221fdc7b0fd6f10056d3f3cdc2cd9",
    "e557a5a6e0f921a72a1ff01bfa047e31",
@@ -67,6 +68,10 @@
    "e2b1cfefe69429417361810fbf14dd27",
    "d079ed5a1772f6896d3b2b01c502841a"
   ],
+  "ask_single": [
+   "aa3e23034564dd7688ec54ea63536887",
+   "e2bfcc3f511a73a559a37f907c7af386"
+  ],
   "ask_visit": [
    "37df30dfe646749dad4d80303db21b8f",
    "06b8f50f56b2c8f8d7de4a07b19f2a3d"
@@ -87,7 +92,8 @@
    "ec42e2b96cde5c4fa6ee9d4544dd0cd7"
   ],
   "bring_home": [
-   "59fbe69e4d0dda9decd60daa38c8964b"
+   "59fbe69e4d0dda9decd60daa38c8964b",
+   "f2d4e4847ddcbeea19aecb7a4a66d8fd"
   ],
   "cafe": [
    "d4620d9690e8bc928b8bfed665032bf6",
@@ -115,6 +121,9 @@
   "comfort": [
    "0e3250f6ccba254a776709474b8091e4",
    "79877ee7a3fec49d7143504f78191ca7"
+  ],
+  "confront": [
+   "afa7ea0c9107fa0551ab5b6fea0cf28b"
   ],
   "congrats": [
    "553c4d891656e955e7520d6d65a08da1"
@@ -171,7 +180,8 @@
    "da3511c742b5a92faec70e329b5403c8"
   ],
   "go_her_home": [
-   "607e0e573e3e8f2327756eeefd09f5cb"
+   "607e0e573e3e8f2327756eeefd09f5cb",
+   "d3434b4072ea3f2e2cc13abaf1b597d5"
   ],
   "go_home": [
    "a696a8d76fe51cc977abca1c951eb724",
@@ -336,11 +346,11 @@
    "84ff2ee3e59c268272c0ce470aac25f9"
   ],
   "talk": [
+   "16a92893470a80508650bd25d1e80d83",
    "976a04a543f3b96a6326d767a4365a90",
    "5da30efe21feec7c2017b38d343fcf81",
    "2931d4888f4f87c8b59b79a5985dd07e",
-   "210b7f6a4cab2c0e47d78888134c3f64",
-   "16a92893470a80508650bd25d1e80d83"
+   "210b7f6a4cab2c0e47d78888134c3f64"
   ],
   "talk_topic": [
    "4157ba93f575371540e339909d4daa56"
@@ -359,6 +369,7 @@
    "15e61770f9cfe94067ec4902dd136837"
   ],
   "thank": [
+   "181cfbc8e6bb50d898299777657fbdb0",
    "d02d265f163117cc9ef618b58c63a0f9"
   ],
   "tuck_in": [

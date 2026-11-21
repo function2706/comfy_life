@@ -225,14 +225,20 @@ class Visit:
             return self._finish(w["cid"], min(now, hp["until"]))
         f = self.favor_pending(w["cid"])
         w.pop("favor", None)
+        return self.favor_abandon(w["cid"], f["id"], now) if f else None
+
+    def favor_abandon(self, cid, fid, now):
+        """頼まれた手伝いを始めないまま帰った (家から / 一緒に出かけた先から, その家に戻らずに. bonds._drop_base)."""
+        app = self.app
+        f = app.earn.favor(fid)
         if not f:
             return None
         app.earn.favor_done(f, 0.0, now)                 # 6 割に届かない: 信頼・機嫌 −1
         if f in app.earn.favors():
             app.earn.favors().remove(f)
         app.life.save_player()
-        text = "%sの%sを手伝わずに帰ってきてしまった" % (app.chars[w["cid"]].get("name", ""), re.sub("の手伝い$", "", f["label"]))
-        app.chat.add(w["cid"], "sys", "（%s）" % text, kind="favor", t=now)
+        text = "%sの%sを手伝わずに帰ってきてしまった" % (app.chars[cid].get("name", ""), re.sub("の手伝い$", "", f["label"]))
+        app.chat.add(cid, "sys", "（%s）" % text, kind="favor", t=now)
         return {"text": text}
 
     def busy_ids(self):

@@ -270,6 +270,7 @@ class App:
         self.task_fix_comp()                           # 内職の画面を開き直せず中断された分のお詫び (一度だけ)
         self.lonely_comp()                             # 寂しさだけで好感度が下がり続けていた分のお詫び (一度だけ)
         self.favor_redo_comp()                         # 手伝いを切り上げた分のお詫びと頼み直し (一度だけ)
+        self.stay.restore_lost()                       # 一緒に外へ出て消えていた, 今夜の泊まる約束を戻す (一度だけ)
         self.appt_travel_comp()                        # 約束の場所で会ったのに, 家からの移動が入っていた分 (運賃を返す・解散したデートを戻す. 一度だけ)
         self.favor_office_comp()                       # 手伝いが職場になっていた件 (最中なら相手の家へ・切り上げ・同僚の印. 一度だけ)
         self.appoint_favor_comp()                      # 応じて決まった約束にお礼の心当たりが無かった分 (2 日のうち. 一度だけ)
@@ -3556,16 +3557,18 @@ class App:
         try:
             go = self.geo.leg(frm, pl, how, now, pair=True)        # 二人で: 自転車は使わない (F13. 自転車は置いた所に残る)
             self.geo.used(go, pl)
-            back = self.geo.leg(pl, places_mod.HOME_ME, go["how"] if go["how"] == "car" else None, now, rand=False, pair=True) \
-                if self.bonds.mode(cid) == "home" else None
+            # 帰りも一緒: 同居相手とはあなたの家へ. 泊まることになっている家から出たなら, その家へ (家へ寄る移動そのものは除く)
+            home = places_mod.HOME_ME if self.bonds.mode(cid) == "home" else \
+                None if pl == places_mod.HOME_ME or str(pl).startswith("home:") else self.bonds.stay_home(cid, now)
+            back = self.geo.leg(pl, home, go["how"] if go["how"] == "car" else None, now, rand=False, pair=True) if home else None
             if back:
-                self.geo.used(back, places_mod.HOME_ME)
+                self.geo.used(back, home)
         except ValueError:
             return None
         dur = max(0.0, ov["until"] - now)                  # 現地で過ごす長さ (デート)
         if back and back.get("legs"):                    # 帰りの電車・バスは, 帰る時刻の時刻表で
             try:
-                back = self.geo.leg(pl, places_mod.HOME_ME, None, now + go["min"] * 60 + dur, rand=False, pair=True)
+                back = self.geo.leg(pl, home, None, now + go["min"] * 60 + dur, rand=False, pair=True)
             except ValueError:
                 pass
         ov["arr"] = now + go["min"] * 60
@@ -3575,14 +3578,14 @@ class App:
         ov["trips"] = [self._trip(frm, pl, go, now, "go")]
         if back:
             ov["leave"] = ov["until"] - back["min"] * 60
-            ov["trips"].append(self._trip(pl, places_mod.HOME_ME, back, ov["leave"], "home"))
+            ov["trips"].append(self._trip(pl, home, back, ov["leave"], "home"))
         fare = go["fare"] + (back["fare"] if back else 0)
         if fare:
             self.life.move(None, dp=-fare, cat="transport", note="交通費（%s）" % self.places.label(pl))
             hm = self.life.her_money(self.state(cid))
             hm["a"] = max(0, hm["a"] - fare)
         # あなたの疲れ: 一人の移動と同じ (歩いた・こいだ区間の分. 帰りの移動の分も, ここで)
-        for lg, a, b in ((go, frm, pl), (back, pl, places_mod.HOME_ME)):
+        for lg, a, b in ((go, frm, pl), (back, pl, home)):
             if lg:
                 ex, tired = self.geo.body_cost(lg, a, b)
                 self.body.add_exercise(ex)

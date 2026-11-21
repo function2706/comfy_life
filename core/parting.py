@@ -82,6 +82,8 @@ class Parting:
         """反応の条件 part を決める (ok / reluctant / hold / insist)."""
         if FIXED:
             return FIXED
+        if aid == "go_home" and self.app.bonds.stay_back(char["id"], now):
+            return "ok"                  # 泊まる約束: 「帰る」は二人でその家へ戻るだけで, 別れではない
         if self.pending(char, st, aid, now):
             part, w, v = "insist", None, None
         else:
