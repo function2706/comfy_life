@@ -620,7 +620,7 @@ class Manners:
 
     def nudge_urgent(self, char, st, pend, now):
         """催促が多少は許される急ぎの話か (約束の誘いの返事待ち・約束の直前)."""
-        if pend and pend.get("kind") in ("appoint", "appoint_change", "appoint_cancel_me"):
+        if pend and pend.get("kind") in ("appoint", "appoint_change", "appoint_cancel_me", "late"):
             return True
         return any(x["cid"] == char["id"] and x.get("status") in ("set", "waiting") and 0 <= x["t"] - now < 3 * 3600
                    for x in self.app.appoint.all())

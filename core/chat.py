@@ -14,6 +14,7 @@ import random
 import time
 from datetime import datetime
 
+from . import appoint as appoint_mod
 from . import msgpick
 from . import hima
 from . import nori
@@ -47,12 +48,13 @@ KINDS = {
     "ask_bday": ("誕生日いつ？", "🎂", "（誕生日を聞いた）"),
     "tell_bday": ("誕生日を伝える", "🎁", "（自分の誕生日を伝えた）"),
     "congrats": ("おめでとう", "🎉", "（おめでとうと送った）"),
+    "late": ("遅れる", "⏰", "（約束に遅れると伝えた）"),          # 何分遅れるかを選ぶ (core/appoint.py の tell_late. 遅れそうな約束があるときだけ)
 }
 # 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
 GROUPS = [
     ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "ask_single", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
     ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
-    ("invite", "📅", "誘う", ["invite", "ask_bday", "tell_bday"]),
+    ("invite", "📅", "誘う・約束", ["invite", "late", "ask_bday", "tell_bday"]),
     ("photo", "📷", "写真", ["photo", "ask_selfie"]),
     ("call", "☎", "電話", ["may_call"]),
 ]
@@ -208,6 +210,12 @@ LINES = {
     "chat.appoint_change_others": "📱『そうですか……。じゃあ、{what}はほかの人に頼んでみますね』",
     "chat.appoint_change_gone": "📱『あ、その約束のこと……。もう、なしになってますよね』",
     "chat.appoint_cancel_fine": "📱『わかりました。また今度にしましょう』",
+    "chat.appoint_late_fine": "📱『わかりました。気をつけて来てくださいね』",
+    "chat.appoint_late_sad": "📱『そうですか……。じゃあ、待ってますね』",
+    "chat.appoint_late_sour": "📱『……わかりました。待ってます』",
+    "chat.appoint_late_also": "📱『あ、ちょうどよかった。{fp}も少し遅れそうだったんです』",
+    "chat.appoint_late_adjust": "📱『わかりました。じゃあ{fp}も、ゆっくり向かいますね』",
+    "chat.appoint_late_gone": "📱『あ、今見ました。もう大丈夫ですよ』",
     "chat.appoint_cancel_sad": "📱『そうですか……。楽しみにしてたんですけど。また今度ですね』",
     "chat.appoint_cancel_sour": "📱『……そうですか。わかりました』",
     "chat.appoint_cancel_sour_late": "📱『今になってですか……。……わかりました』",
@@ -317,7 +325,13 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "appoint_cancel_sour_again": "約束を取りやめたい (何度も取りやめられて引っかかる)",
                "appoint_cancel_hurt": "約束を取りやめたい (傷ついた)",
                "appoint_cancel_favor": "頼まれごとを取りやめたい (ほかの人に頼む)",
-               "appoint_cancel_favor_sour": "頼まれごとを取りやめたい (当てにしていたので引っかかる)"}
+               "appoint_cancel_favor_sour": "頼まれごとを取りやめたい (当てにしていたので引っかかる)",
+               "appoint_late_fine": "約束に遅れると伝えた (すんなり. {min} は遅れる分)",
+               "appoint_late_sad": "約束に遅れると伝えた (少し残念)",
+               "appoint_late_sour": "約束に遅れると伝えた (引っかかる)",
+               "appoint_late_also": "約束に遅れると伝えた (相手もちょうど遅れそうだった)",
+               "appoint_late_adjust": "約束に遅れると伝えた (まだ出ていないので, 合わせてゆっくり向かう)",
+               "appoint_late_gone": "約束に遅れると伝えた (読んだときには, もう会えていた・約束がなくなっていた)"}
 # 相手のメッセージへの返し (core/react.py): 「返す」のまとまりにだけ出す (GROUPS には入れない)
 KINDS.update({r[0]: (r[1], r[2], r[3]) for r in react.REACTS})
 LINES.update(react.LINES)
@@ -400,6 +414,10 @@ class Chat:
             raise ValueError("メッセージの種類が違います: %s" % kind)
         if kind == "topic" and not (extra or {}).get("topic"):
             raise ValueError("話題を選んでください")
+        if kind == "late":                        # 遅れると伝える: 送った時点で, 相手はその分待つ (返事は読んでから)
+            extra = dict(extra or {})
+            x = self.app.appoint.tell_late(cid, extra.get("late") or 0, how="msg")
+            extra["appoint"] = x["id"]
         if kind == "tell_bday" and not self.app.anniv.my_birthday():
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
         if kind in react.IDS or kind in react.AP_KINDS:
@@ -630,6 +648,7 @@ class Chat:
         d = self.load(cid)
         st = app.state(cid)
         rg, tg = react.group(app, cid, st, time.time()) if not app.bonds.together(cid) else (None, None)
+        late_ok = not app.bonds.together(cid) and bool(app.appoint.late_target(cid))       # 遅れそうな約束があるときだけ「遅れる」
         return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": self.with_photos(cid, d["items"][-200:]),
                 "seen_t": d["seen_t"], "waiting": bool(st.get("msg_pending")), "together": app.bonds.together(cid),
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
@@ -638,11 +657,14 @@ class Chat:
                 "visit_now": {"why": app.appoint.now_why(cid)} if app.bonds.stage(cid) == "visit" else None,     # 今から家に行っていい？ (A25)
                 "call_ask": app.ring.ask_view(st, time.time()),          # 電話していい？ (A23 段 2. core/ring.py)
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
-                "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": ks} for g, ic, lb, ks in GROUPS],
+                "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": [k for k in ks if k != "late" or late_ok]}
+                                                  for g, ic, lb, ks in GROUPS],
+                "late_ok": late_ok,
                 "react": {"t": tg["t"]} if rg else None,     # 返していない相手のメッセージ (「返す」のまとまりを出す)
                 "pick": {"apology": "quiz", "thanks": "quiz",          # 謝る・お礼は記憶の問い (別の窓. core/memquiz.py)
                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick.CONSULT],
-                         "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS]},
+                         "stamp": [{"id": k, "icon": i, "label": w} for k, i, w in msgpick.STAMPS],
+                         "late": [{"id": m, "label": "%d分くらい" % m} for m in appoint_mod.LATE_MINS]},
                 "actions": self.phone_actions(cid)}
 
     SELFIE_MARK = "（📷 自撮りが添えられていた）"

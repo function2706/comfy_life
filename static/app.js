@@ -2181,19 +2181,19 @@ async function phoneAct(cid, action) {
 }
 // 電話 (A4): 話すことを選んでかける. 謝る・お礼・相談・話題は, もう一段選ぶ
 const CALL_TALK = [['smalltalk', '💬 話したい'], ['ask_how', '❓ 最近どう？'], ['consult', '🤔 相談する ▸'], ['thanks', '🙏 お礼を言う ▸'],
-  ['apology', '🙇 謝る ▸'], ['topic', '💬 話題を振る ▸'], ['flirt', '💕 甘える'], ['invite', '📅 会おうよ']];
+  ['apology', '🙇 謝る ▸'], ['topic', '💬 話題を振る ▸'], ['flirt', '💕 甘える'], ['invite', '📅 会おうよ'], ['late', '⏰ 約束に遅れると伝える ▸']];
 function callPicker(th) {
   const P = th.pick || {};
   const btn = (label, onclick) => h('button', { class: 'chat-kind', disabled: S.busy, onclick }, label);
   const t = S.callTalk;
   const list = t === 'topic' ? ((S.view && S.view.topics) || []).map((x) => ({ id: x.id, label: x.text })) : t ? P[t] || [] : null;
-  const key = t === 'topic' ? 'topic' : t === 'consult' ? 'consult' : 'reason';
+  const key = t === 'topic' ? 'topic' : t === 'consult' ? 'consult' : t === 'late' ? 'late' : 'reason';
   return h('div', { class: 'chat-pick' },
     h('div', { class: 'muted small' }, t ? (PICK_TITLE[t] || '何を話す？') : '電話で何を話す？（出てくれたら、その話から。長さは相手のノリしだい）'),
     h('div', { class: 'chat-pick-list' + (t === 'apology' ? ' long' : '') },
       ...(list ? [btn('← 戻る', () => { S.callTalk = null; drawChat(); }), ...(list.length ? list.map((o) => btn(o.label, () => callWith(th.id, t, { [key]: o.id })))
         : [h('span', { class: 'muted small' }, '話せる話題がまだない')])]
-        : CALL_TALK.map(([id, label]) => btn(label, () => (P[id] === 'quiz' ? quizDialog(th.id, id, `📞 ${label.replace(' ▸', '')}`, (tok) => callWith(th.id, id, { reason: tok }))
+        : CALL_TALK.filter(([id]) => id !== 'late' || th.late_ok).map(([id, label]) => btn(label, () => (P[id] === 'quiz' ? quizDialog(th.id, id, `📞 ${label.replace(' ▸', '')}`, (tok) => callWith(th.id, id, { reason: tok }))
           : label.endsWith('▸') ? (S.callTalk = id, drawChat()) : callWith(th.id, id)))))));
 }
 async function callWith(cid, talk, extra) {
@@ -2220,8 +2220,9 @@ async function askVisitNow(cid) {
 }
 // 送る欄 (A2): 分類のタブ → その分類の種類. 謝る・お礼・相談・スタンプは「何を」を選ぶ欄を開いてから送る (A1).
 // 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
-const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？' };
-const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp' };
+const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？',
+  late: 'どのくらい遅れる？（伝えた分は待ってくれる。そのうちに着けば、黙って遅れるより軽い）' };
+const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp', late: 'late' };
 // 電話の対話 (A23 段 1. core/phonetalk.py): 通話中は, 相手のひとことに返し方を選んで返す. 返さずにいると「もしもし？」, それでも黙っていると相手から切れる.
 // 画面を閉じたら電話を置いたのと同じ (閉じている間に会話は進まない). 相手が話すたびに音・振動・(見ていなければ) 通知で知らせる
 const CALL = { left: null, at: 0 };

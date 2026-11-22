@@ -2038,7 +2038,7 @@ class App:
         return out
 
     # ------------------------------------------------------------------ 電話 (A4): 話すことを選んでかける
-    CALL_TALK = ("smalltalk", "ask_how", "consult", "thanks", "apology", "topic", "flirt", "invite")
+    CALL_TALK = ("smalltalk", "ask_how", "consult", "thanks", "apology", "topic", "flirt", "invite", "late")
 
     def phone_call(self, cid, talk=None, extra=None):
         """話すことを選んで電話をかける. 出てくれたら, その話への受け答えはメッセージと同じ判定 (理由・中身を選んだ謝罪・お礼・相談も).
@@ -2052,6 +2052,8 @@ class App:
             x = self.topics.find(extra.get("topic"))
             extra["topic_text"] = x["text"]
         chk = msgpick_mod.check_extra(self, talk, extra, cid)          # 選んだ理由・中身を確かめる (メッセージと同じ)
+        if talk == "late" and not self.appoint.late_target(cid):
+            raise ValueError(self.appoint.late_why(cid) or "遅れそうな約束がありません")
         why = self.phonetalk.start_why(time.time())                    # 研鑽・読書の途中 / 運転中 は, かけられない
         if why and not self.call_now():
             raise ValueError(why)
@@ -2059,6 +2061,8 @@ class App:
         r = self.act("call", cid)
         if not r.get("call_ok"):
             return r
+        if talk == "late":                      # 出てくれた: 伝わった (出なければ伝わっていない. メッセージで伝え直す)
+            extra["appoint"] = self.appoint.tell_late(cid, extra["late"], how="call")["id"]
         with self.lock:
             char, st = self.char(cid), self.state(cid)
             now = time.time()
@@ -2615,6 +2619,8 @@ class App:
                 key, eff, extra = self.appoint.reply(char, st, pend, now, ctx)
             elif kind in ("appoint_change", "appoint_cancel_me"):     # 決まった約束を変えたい・取りやめたい への返事
                 key, eff, extra = self.appoint.change_reply(char, st, pend, now)
+            elif kind == "late":                # 約束に遅れると伝えた への返事 (待つのは, 伝えた時点で決まっている)
+                key, eff, extra = self.appoint.late_reply(char, st, dict(pend.get("meta") or {}, sent=pend.get("kind_t") or pend.get("t")), now)
             else:
                 ctx["_meta"] = pend.get("meta") or {}
                 ctx["_sent"] = pend.get("kind_t") or pend.get("t")

@@ -157,5 +157,15 @@ def check_extra(app, kind, extra, cid=None):
             raise ValueError("スタンプの種類が違います")
         ic, w = STAMP[extra["stamp"]]
         extra["said"] = "（%s %sのスタンプを送った）" % (ic, w)
+    elif kind == "late":
+        from .appoint import LATE_MINS
+        try:
+            m = int(extra.get("late") or 0)
+        except (TypeError, ValueError):
+            m = 0
+        if m not in LATE_MINS:
+            raise ValueError("どのくらい遅れるかを選んでください")
+        extra["late"] = m
+        extra["said"] = "（約束に%d分くらい遅れると伝えた）" % m
     extra.setdefault("said", KINDS[kind][2] if kind in KINDS else "")
     return extra
