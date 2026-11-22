@@ -3399,6 +3399,24 @@
   ],
   "ff.pick_none": [
    "罰はなしにしよう。今日は勝ち負けだけ見たい"
+  ],
+  "chat.appoint_late_fine": [
+   "📱『了解。到着の見込みがずれたら、また教えて』"
+  ],
+  "chat.appoint_late_sad": [
+   "📱『そっか。じゃあ、それまで近くで待ってる』"
+  ],
+  "chat.appoint_late_sour": [
+   "📱『……そう。待ってる』"
+  ],
+  "chat.appoint_late_also": [
+   "📱『ちょうどよかった。{fp}も少し遅れる見込みだったんだ』"
+  ],
+  "chat.appoint_late_adjust": [
+   "📱『わかった。じゃあ{fp}も出る時間を遅らせる。そのほうが待ち時間が減るし』"
+  ],
+  "chat.appoint_late_gone": [
+   "📱『今見た。もう大丈夫』"
   ]
  }
 }

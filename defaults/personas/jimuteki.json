@@ -3449,6 +3449,24 @@
   ],
   "ff.pick_none": [
    "罰は設けないでおくわ。勝ち負けだけで十分"
+  ],
+  "chat.appoint_late_fine": [
+   "📱『了解。到着時刻が変わったら、また連絡して』"
+  ],
+  "chat.appoint_late_sad": [
+   "📱『わかった。それまで近くで時間をつぶしておく』"
+  ],
+  "chat.appoint_late_sour": [
+   "📱『……了解。待ってる』"
+  ],
+  "chat.appoint_late_also": [
+   "📱『ちょうどいい。{fp}も少し遅れる見込みだった』"
+  ],
+  "chat.appoint_late_adjust": [
+   "📱『了解。それなら{fp}も出発を遅らせる』"
+  ],
+  "chat.appoint_late_gone": [
+   "📱『今確認した。もう問題ないわ』"
   ]
  }
 }

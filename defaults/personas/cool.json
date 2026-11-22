@@ -3437,6 +3437,24 @@
   ],
   "ff.pick_none": [
    "罰はなしでいい。そのままやろう"
+  ],
+  "chat.appoint_late_fine": [
+   "📱『わかった。気をつけて』"
+  ],
+  "chat.appoint_late_sad": [
+   "📱『そう。待ってる』"
+  ],
+  "chat.appoint_late_sour": [
+   "📱『……そう。わかった』"
+  ],
+  "chat.appoint_late_also": [
+   "📱『ちょうどいい。{fp}も少し遅れる』"
+  ],
+  "chat.appoint_late_adjust": [
+   "📱『わかった。{fp}も少し遅く出る』"
+  ],
+  "chat.appoint_late_gone": [
+   "📱『今見た。もう大丈夫』"
   ]
  }
 }

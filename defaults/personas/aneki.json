@@ -3740,6 +3740,24 @@
   ],
   "ff.pick_none": [
    "罰ゲームはなしにしておくわ。賭けなしで遊びましょ"
+  ],
+  "chat.appoint_late_fine": [
+   "📱『わかったわ。慌てなくていいから、気をつけて来なさい』"
+  ],
+  "chat.appoint_late_sad": [
+   "📱『あら、そうなの。じゃあ、のんびり待ってるわね』"
+  ],
+  "chat.appoint_late_sour": [
+   "📱『……そう。待ってるわ』"
+  ],
+  "chat.appoint_late_also": [
+   "📱『ちょうどよかった。{fp}も少し遅れそうだったのよ』"
+  ],
+  "chat.appoint_late_adjust": [
+   "📱『わかったわ。それなら{fp}も、ゆっくり出ることにする』"
+  ],
+  "chat.appoint_late_gone": [
+   "📱『今見たわ。もう大丈夫よ』"
   ]
  }
 }

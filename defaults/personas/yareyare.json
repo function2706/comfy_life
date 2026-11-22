@@ -3392,6 +3392,24 @@
   ],
   "ff.pick_none": [
    "罰ゲームはなしでいいです。ふつうにやりましょう"
+  ],
+  "chat.appoint_late_fine": [
+   "📱『わかりました。まあ、気をつけて来てください』"
+  ],
+  "chat.appoint_late_sad": [
+   "📱『そうですか。じゃあ、どこかで座って待ってます』"
+  ],
+  "chat.appoint_late_sour": [
+   "📱『……わかりました。待ってます』"
+  ],
+  "chat.appoint_late_also": [
+   "📱『ちょうどよかったです。{fp}も少し遅れそうだったので』"
+  ],
+  "chat.appoint_late_adjust": [
+   "📱『わかりました。じゃあ{fp}も、ゆっくり出ますね』"
+  ],
+  "chat.appoint_late_gone": [
+   "📱『あ、今見ました。もう大丈夫ですよ』"
   ]
  }
 }
