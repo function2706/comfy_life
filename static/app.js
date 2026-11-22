@@ -3695,7 +3695,7 @@ function renderStatus() {
   const L = t.life || {};
   const reasons = (L.reasons || []).map((r) => h('div', { class: 'reason ' + r.mood },
     h('span', {}, r.mood === 'good' ? '😊' : '😣'),
-    h('span', {}, r.tell || '？（まだ聞いていない）'),
+    h('span', {}, r.tell),
     h('span', { class: 'muted small' }, fmtTime(r.t))));
   box.replaceChildren(
     h('div', { class: 'scene-box' },

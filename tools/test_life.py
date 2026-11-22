@@ -161,6 +161,35 @@ def main():
         print("view:", {k: v[k] for k in ("my_money", "pay_policy", "hint")}, [x["tell"] for x in v["reasons"]])
         for e in app.log("hina"):
             assert "{" not in e["text"], e["text"]
+
+        # ---- 「ようす」に出る理由は, 本人が口にしたものだけ (種類 × 話したか の総当たり)
+        now = time.time()
+        st["reasons"] = []
+        cases = {}
+        for kind in ("event", "player"):
+            for told in (False, True):
+                for said in (False, True):
+                    if said and not told:
+                        continue
+                    tell = "%s-%s-%s" % (kind, told, said)
+                    r = L.add_reason(st, kind, "bad", tell, now - len(cases), told=told)
+                    if said:
+                        L.mark_told(r)
+                    cases[tell] = said or (kind == "event" and told)
+        shown = {x["tell"] for x in L.partner_view(char, st)["reasons"]}
+        for tell, want in cases.items():
+            assert (tell in shown) == want, (tell, want, shown)
+        assert all(x["tell"] for x in L.partner_view(char, st)["reasons"]), "中身のない理由が出ている"
+        # 何かあった？で聞けば, あなたのせいの理由も出る
+        st["reasons"] = []
+        app.set_params({"mood": 30, "affection": 80, "trust": 80})
+        st["cooldowns"] = {}
+        app.act("tease")
+        assert not L.partner_view(char, st)["reasons"], "からかった理由が, 聞く前から出ている"
+        st["cooldowns"] = {}
+        L.mark_told(L.dominant(st, time.time()))
+        assert L.partner_view(char, st)["reasons"], "話された理由が出ない"
+        print("ようすの理由: 口にしたものだけ OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

@@ -771,8 +771,16 @@ class Life:
                 r["resolved"] = True
 
     def mark_told(self, r):
+        """本人が理由を話した. said: あなたのせいの理由も, 話されて初めて「ようす」に出る (life_view)."""
         if r:
             r["told"] = True
+            r["said"] = True
+
+    @staticmethod
+    def shown(r):
+        """「ようす」に出してよい理由: 本人が口にしたものだけ. 出来事は話したら (told),
+        あなたのせいの理由は, 自分のしたことは分かっても機嫌がどう動いたかは分からないので, 話されたときだけ (said)."""
+        return bool(r.get("said") or (r.get("kind") == "event" and r.get("told")))
 
     def mood_ctx(self, st, now):
         d = self.dominant(st, now)
@@ -836,8 +844,8 @@ class Life:
         fmt = lambda s: (s or "").replace("{call}", call)   # noqa: E731
         req = dict(st["request"], text=fmt(st["request"].get("text")), label=fmt(st["request"].get("label")))             if st.get("request") else None
         return {"living": self.app.bonds.living() == char["id"],
-                "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"],
-                             "tell": fmt(r["tell"]) if r["told"] else None} for r in rs[:6]],
+                "reasons": [{"mood": r["mood"], "kind": r["kind"], "t": r["t"], "tell": fmt(r["tell"])}
+                            for r in rs if self.shown(r)][:6],
                 "pay_policy": char.get("pay_policy") or "auto", "living_policy": char.get("living_policy") or "split",
                 "owed": int((ps.get("loans") or {}).get(char["id"], 0)),
                 "request": req,
