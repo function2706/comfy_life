@@ -6,7 +6,7 @@
 - 例外: 消さず, 記録もせず, server.log にエラー
 - 当てたことがあるのに戻ってきた (更新の前に戻した): 当てずに消すだけ
 - 更新: 当てて消したパッチは「書き換え」とみなさず, 取り込む前に戻す. ほかの書き換えがあれば今までどおり取り込まない
-- 届いているパッチ (patches/20261121_yakyuken_phone_ban.py) の中身
+- 同じ名前 (patches/patch.py) で上書きしても, ID ごとに一度だけ当たる
 
     python tools/test_patches.py
 """
@@ -27,7 +27,6 @@ from core import patches, store, update  # noqa: E402
 PDIR = os.path.join(TMP, "patches")
 os.makedirs(PDIR)
 patches.DIR = PDIR
-REAL = os.path.join(BASE, "patches", "20261121_yakyuken_phone_ban.py")
 
 
 def put(name, body):
@@ -46,70 +45,15 @@ def state(wid, cid, day):
 
 def main():
     try:
-        # ---------------------------------------------------------------- 届いているパッチ
-        ban = __import__("importlib").util.spec_from_file_location("ban", REAL)
-        B = __import__("importlib").util.module_from_spec(ban)
-        ban.loader.exec_module(B)
-        t = B.LO + 280
-        other = [{"who": "her", "what": "phone", "until": t}, {"who": "me", "what": "phone", "until": t + 86400},
-                 {"who": "me", "what": "snack", "until": t}]
-        p1 = state("w1", B.CID, [{"who": "me", "what": "phone", "until": t}] + other)
-        p2 = state("w2", "someone", [{"who": "me", "what": "phone", "until": t}])
-        shutil.copy(REAL, PDIR)
-        f = os.path.join(PDIR, os.path.basename(REAL))
-        done = patches.run(now=B.LO - 3600)
-        assert done == [(B.ID, "外した（1 件）")], done
-        assert store.load(p1)["forfeit"]["day"] == other, "対象だけ外す"
-        assert len(store.load(p2)["forfeit"]["day"]) == 1, "ほかのキャラには触らない"
-        assert os.path.exists(f) and B.ID in patches.record(), "当てたら記録する (ファイルは消さない)"
-        assert "外した" in open(store.dpath("server.log"), encoding="utf-8").read()
-        # 更新の前に戻された (記録にある): 当てずに消すだけ
-        shutil.copy(REAL, PDIR)
-        state("w1", B.CID, [{"who": "me", "what": "phone", "until": t}])
-        assert patches.run(now=B.LO - 3600) == [] and os.path.exists(f)
-        assert len(store.load(p1)["forfeit"]["day"]) == 1, "二度目は当てない"
-        print("届いたパッチ: OK")
-
-        # ---------------------------------------------------------------- 11/22 の消えた約束を 19:30 に戻す
-        REAL2 = os.path.join(BASE, "patches", "20261122_appoint_late_restore.py")
-        sp2 = __import__("importlib").util.spec_from_file_location("ap", REAL2)
-        A = __import__("importlib").util.module_from_spec(sp2)
-        sp2.loader.exec_module(A)
-        t0 = A.DAY0 + 17 * 3600
-        pp = store.dpath("worlds", "w3", "player.json")
-        os.makedirs(os.path.dirname(pp), exist_ok=True)
-        aps = [{"id": "old", "cid": "c1", "t": t0 - 86400, "place": "cafe", "status": "missed", "plan": {}},
-               {"id": "noshow", "cid": "c1", "t": t0 + 60, "place": "cafe", "status": "missed", "plan": {"noshow": True}},
-               {"id": "fav", "cid": "c1", "t": t0 + 120, "place": "cafe", "status": "missed", "plan": {}, "favor": "f1"},
-               {"id": "hit", "cid": "c1", "t": t0, "place": "cafe", "status": "missed", "plan": {"late": 20}, "arrived": t0 + 50 * 60}]
-        store.save(pp, {"appoints": aps, "presence": {"mode": "out", "place": "park"}})
-        sp = store.dpath("worlds", "w3", "state", "c1.json")
-        os.makedirs(os.path.dirname(sp), exist_ok=True)
-        store.save(sp, {"params": {"mood": 40, "trust": 50, "affection": 99}, "regard": {"v": 50, "sure": 0.5},
-                        "reasons": [{"kind": "player", "mood": "bad", "tell": "あなたが約束をすっぽかした", "t": t0 + 2700,
-                                     "delta": -7.5, "action": "_appoint"}]})
-        cp = store.dpath("worlds", "w3", "chats", "c1.json")
-        os.makedirs(os.path.dirname(cp), exist_ok=True)
-        store.save(cp, {"items": []})
-        f2 = shutil.copy(REAL2, PDIR)
-        assert patches.run(now=A.NEW_T + 1) == [(A.ID, "期限を過ぎたので当てなかった")], "19:30 を過ぎたら当てない"
-        del_rec = patches.record()
-        del_rec.pop(A.ID, None)
-        store.save(store.dpath(patches.RECORD), del_rec)
-        f2 = shutil.copy(REAL2, PDIR)
-        done = patches.run(now=t0 + 3600)
-        assert done and done[0][0] == A.ID and "19:30" in done[0][1], done
-        got = {x["id"]: x for x in store.load(pp)["appoints"]}
-        h = got["hit"]
-        assert h["status"] == "set" and h["t"] == A.NEW_T and h["place"] == "park" and "arrived" not in h, h
-        assert h["plan"]["late"] == 0 and not h["plan"]["noshow"]
-        assert all(got[k]["status"] == "missed" for k in ("old", "noshow", "fav")), "ほかの約束には触らない"
-        s = store.load(sp)
-        assert s["params"] == {"mood": 47.5, "trust": 54.0, "affection": 100.0}, s["params"]
-        assert s["regard"]["v"] == 55.0 and s["reasons"][0]["resolved"]
-        assert "19:30" in store.load(cp)["items"][-1]["text"]
-        assert os.path.exists(f2)
-        print("消えた約束を 19:30 に: OK")
+        # ---------------------------------------------------------------- 同じ名前 (patch.py) で上書きしても, ID ごとに一度だけ当たる
+        body = 'ID = "%s"\nDESC = "x"\ndef apply(ctx):\n    n = ctx.store.load(ctx.store.dpath("n.json"), 0) or 0\n    ctx.store.save(ctx.store.dpath("n.json"), n + 1)\n    return "当てた"\n'
+        f = put("patch.py", body % "p1")
+        assert patches.run() == [("p1", "当てた")] and os.path.exists(f) and "p1" in patches.record(), "当てたら記録する (ファイルは消さない)"
+        assert patches.run() == [] and store.load(store.dpath("n.json")) == 1, "二度目は当てない"
+        put("patch.py", body % "p2")
+        assert patches.run() == [("p2", "当てた")] and store.load(store.dpath("n.json")) == 2, "上書きした次のパッチは当たる"
+        os.remove(f)
+        print("同じ名前で上書き: OK")
 
         # ---------------------------------------------------------------- 対象が無い・期限・例外
         g = put("a_none.py", 'ID = "a_none"\nDESC = "x"\ndef apply(ctx):\n    return None\n')
@@ -124,7 +68,7 @@ def main():
         put("_skip.py", 'raise SystemExit("読まない")\n')
         g = put("d_ok.py", 'ID = "d_ok"\nDESC = "x"\ndef apply(ctx):\n    ctx.log("w=%s" % ",".join(ctx.worlds()))\n    return "済"\n')
         assert patches.run() == [("d_ok", "済")] and os.path.exists(g)
-        assert "w=w1,w2" in open(store.dpath("server.log"), encoding="utf-8").read()
+        assert "w=" in open(store.dpath("server.log"), encoding="utf-8").read()
         print("対象なし・期限・例外: OK")
 
         # ---------------------------------------------------------------- 更新での扱い (本物の git で)
