@@ -61,12 +61,12 @@ def main():
         assert done == [(B.ID, "外した（1 件）")], done
         assert store.load(p1)["forfeit"]["day"] == other, "対象だけ外す"
         assert len(store.load(p2)["forfeit"]["day"]) == 1, "ほかのキャラには触らない"
-        assert not os.path.exists(f) and B.ID in patches.record(), "当てたら記録して消す"
+        assert os.path.exists(f) and B.ID in patches.record(), "当てたら記録する (ファイルは消さない)"
         assert "外した" in open(store.dpath("server.log"), encoding="utf-8").read()
         # 更新の前に戻された (記録にある): 当てずに消すだけ
         shutil.copy(REAL, PDIR)
         state("w1", B.CID, [{"who": "me", "what": "phone", "until": t}])
-        assert patches.run(now=B.LO - 3600) == [] and not os.path.exists(f)
+        assert patches.run(now=B.LO - 3600) == [] and os.path.exists(f)
         assert len(store.load(p1)["forfeit"]["day"]) == 1, "二度目は当てない"
         print("届いたパッチ: OK")
 
@@ -108,7 +108,7 @@ def main():
         assert s["params"] == {"mood": 47.5, "trust": 54.0, "affection": 100.0}, s["params"]
         assert s["regard"]["v"] == 55.0 and s["reasons"][0]["resolved"]
         assert "19:30" in store.load(cp)["items"][-1]["text"]
-        assert not os.path.exists(f2)
+        assert os.path.exists(f2)
         print("消えた約束を 19:30 に: OK")
 
         # ---------------------------------------------------------------- 対象が無い・期限・例外
@@ -116,14 +116,14 @@ def main():
         assert patches.run() == [] and os.path.exists(g) and "a_none" not in patches.record(), "対象が無ければ残す"
         os.remove(g)
         g = put("b_old.py", 'ID = "b_old"\nDESC = "x"\nUNTIL = 1\ndef apply(ctx):\n    raise AssertionError("当てない")\n')
-        assert patches.run() == [("b_old", "期限を過ぎたので当てなかった")] and not os.path.exists(g)
+        assert patches.run() == [("b_old", "期限を過ぎたので当てなかった")] and os.path.exists(g)
         g = put("c_err.py", 'ID = "c_err"\nDESC = "x"\ndef apply(ctx):\n    raise ValueError("こわれた")\n')
         assert patches.run() == [] and os.path.exists(g) and "c_err" not in patches.record(), "例外なら残す"
         assert "c_err.py を当てられませんでした" in open(store.dpath("server.log"), encoding="utf-8").read()
         os.remove(g)
         put("_skip.py", 'raise SystemExit("読まない")\n')
         g = put("d_ok.py", 'ID = "d_ok"\nDESC = "x"\ndef apply(ctx):\n    ctx.log("w=%s" % ",".join(ctx.worlds()))\n    return "済"\n')
-        assert patches.run() == [("d_ok", "済")] and not os.path.exists(g)
+        assert patches.run() == [("d_ok", "済")] and os.path.exists(g)
         assert "w=w1,w2" in open(store.dpath("server.log"), encoding="utf-8").read()
         print("対象なし・期限・例外: OK")
 

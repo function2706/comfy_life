@@ -9,9 +9,10 @@
 ctx: store (core/store.py. dpath / load / save) と, worlds() (ワールドの id の一覧) と, log(文).
 アプリの状態を読み込む前 (engine.App() の前) に当てるので, ファイルを直接書き換えてよい (メモリの状態で上書きされない).
 
-当てた・期限を過ぎたパッチは, data/patches.json に記録 (id・時刻・結果) してから, ファイルを消す.
-消したファイルは git では「手元で消した」になるので, 更新 (update.pull) はこれを書き換えとみなさず, 取り込む前に戻す.
-戻ったファイルは記録にあるので, 次の起動で当てずに消すだけ. 例外のときは記録も削除もせず, ログに残して次の起動でまた試す.
+当てた・期限を過ぎたパッチは, data/patches.json に記録 (id・時刻・結果) する. **ファイルは消さない** (記録にあれば次からは当てない).
+以前はファイルを消していて, git の作業フォルダが「手元で消した」状態になり, 更新を止めた (11/21・11/22 の二度. アプリが自分で
+git 管理のファイルを触らないこと). 当て終えた古いパッチは, 開発側のコミットで消す. 例外のときは記録せず, ログに残して次の起動でまた試す.
+以前の版で消えたままのパッチは, 更新 (update.pull) が取り込む前に戻す (互換のため残している).
 """
 import importlib.util
 import os
@@ -69,13 +70,6 @@ def _load(path):
     return mod
 
 
-def _remove(path):
-    try:
-        os.remove(path)
-    except OSError as e:
-        _log("消せませんでした %s: %s" % (os.path.basename(path), e), "error")
-
-
 def run(now=None):
     """届いているパッチを当てる. [(id, 結果)] (この起動で終えたもの) を返す."""
     now = now or time.time()
@@ -86,8 +80,7 @@ def run(now=None):
         try:
             mod = _load(path)
             pid = str(getattr(mod, "ID", "") or name[:-3])
-            if pid in rec:                 # 当てたことがある (更新で戻ってきた). 消すだけ
-                _remove(path)
+            if pid in rec:                 # 当てたことがある: 何もしない (ファイルは消さない. git の作業フォルダを汚さない)
                 continue
             until = getattr(mod, "UNTIL", None)
             if until and now > float(until):
@@ -102,6 +95,5 @@ def run(now=None):
         rec[pid] = {"t": now, "desc": str(getattr(mod, "DESC", "")), "result": str(res)}
         store.save(store.dpath(RECORD), rec)
         _log("%s: %s → %s" % (pid, getattr(mod, "DESC", ""), res))
-        _remove(path)
         done.append((pid, str(res)))
     return done
