@@ -306,7 +306,7 @@ class Ring:
             app.chat.add(cid, "me", "（📞 いまはちょっと、と返した）", kind="call_ask_no", t=now)
             w = random.uniform(0.6, 1.2) * (1.3 if a.get("why") in ("lonely", "tired") else 1.0)
             app.apply_effects(st, {"mood": -round(1.5 * w, 1)}, now)
-            app.chat.add(cid, "her", app.phonetalk.line(char, "phone.ring_ask_no"), kind="call_ask_no", t=now + random.uniform(20, 90))
+            st["call_no_reply"] = {"at": now + random.uniform(20, 90)}     # 「わかった」は, その時刻が来てから届く (先の時刻で入れると, あいだに送ったものと並びが逆になる)
         app.chat.mark_read_by_her(cid, now)
         app.save_state(cid)
         return {"ok": True}
@@ -318,6 +318,15 @@ class Ring:
         return {"t": a["t"], "until": a["until"]}
 
     # ------------------------------------------------------------------ 画面を開いている間 (state_view の心拍)
+    def deliver_no_reply(self, char, st, now):
+        """「いまはちょっと」への「わかった」を, 時刻が来たら届ける. 届けたら True."""
+        r = st.get("call_no_reply")
+        if not r or now < r["at"]:
+            return False
+        st.pop("call_no_reply", None)
+        self.app.chat.add(char["id"], "her", self.app.phonetalk.line(char, "phone.ring_ask_no"), kind="call_ask_no", t=r["at"])
+        return True
+
     def live(self, char, st, now):
         """電話していい？ の期限・いいよのあとの着信・またかけるね のかけ直し・かけ直すと伝えた約束の期限."""
         app = self.app

@@ -98,6 +98,15 @@ def main():
         m0 = st["params"]["mood"]
         R.ask_answer(cid, False, now + 10)
         assert "call_ask" not in st and st["params"]["mood"] < m0 and last("call_ask_no"), "いまはちょっと"
+        # 相手の「わかった」は時刻が来てから届く. あいだに送ったものより前に並ばない (並びの逆転)
+        assert not [x for x in last("call_ask_no") if x["who"] == "her"], "わかったがすぐ入った"
+        C.add(cid, "me", "（会おうと誘った）", kind="invite", t=now + 15)
+        assert not R.deliver_no_reply(char, st, now + 16)
+        assert R.deliver_no_reply(char, st, now + 200) and not R.deliver_no_reply(char, st, now + 201)
+        its = C.load(cid)["items"]
+        iv = next(i for i, x in enumerate(its) if x.get("kind") == "invite")
+        ok = next(i for i, x in enumerate(its) if x.get("kind") == "call_ask_no" and x["who"] == "her")
+        assert iv < ok and its[ok]["t"] <= now + 200, "並びが逆"
         try:
             R.ask_answer(cid, True, now + 20)
             raise AssertionError("答えたあとにまた答えられた")

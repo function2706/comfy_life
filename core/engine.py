@@ -3510,6 +3510,8 @@ class App:
                     ost = self.state(oid)
                     if self.presence.live(self.chars[oid], ost, now):
                         self.save_state(oid)
+                    if self.ring.deliver_no_reply(self.chars[oid], ost, now):       # 「いまはちょっと」への返事 (そばにいても届く)
+                        self.save_state(oid)
                     if oid not in company and (ost.get("call_ask") or ost.get("call_back") or ost.get("call_promise")):     # 電話していい？のあと・またかけるね (core/ring.py)
                         self.ring.live(self.chars[oid], ost, now)
                         self.save_state(oid)
