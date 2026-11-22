@@ -70,6 +70,47 @@ def main():
         assert len(store.load(p1)["forfeit"]["day"]) == 1, "二度目は当てない"
         print("届いたパッチ: OK")
 
+        # ---------------------------------------------------------------- 11/22 の消えた約束を 19:30 に戻す
+        REAL2 = os.path.join(BASE, "patches", "20261122_appoint_late_restore.py")
+        sp2 = __import__("importlib").util.spec_from_file_location("ap", REAL2)
+        A = __import__("importlib").util.module_from_spec(sp2)
+        sp2.loader.exec_module(A)
+        t0 = A.DAY0 + 17 * 3600
+        pp = store.dpath("worlds", "w3", "player.json")
+        os.makedirs(os.path.dirname(pp), exist_ok=True)
+        aps = [{"id": "old", "cid": "c1", "t": t0 - 86400, "place": "cafe", "status": "missed", "plan": {}},
+               {"id": "noshow", "cid": "c1", "t": t0 + 60, "place": "cafe", "status": "missed", "plan": {"noshow": True}},
+               {"id": "fav", "cid": "c1", "t": t0 + 120, "place": "cafe", "status": "missed", "plan": {}, "favor": "f1"},
+               {"id": "hit", "cid": "c1", "t": t0, "place": "cafe", "status": "missed", "plan": {"late": 20}, "arrived": t0 + 50 * 60}]
+        store.save(pp, {"appoints": aps, "presence": {"mode": "out", "place": "park"}})
+        sp = store.dpath("worlds", "w3", "state", "c1.json")
+        os.makedirs(os.path.dirname(sp), exist_ok=True)
+        store.save(sp, {"params": {"mood": 40, "trust": 50, "affection": 99}, "regard": {"v": 50, "sure": 0.5},
+                        "reasons": [{"kind": "player", "mood": "bad", "tell": "あなたが約束をすっぽかした", "t": t0 + 2700,
+                                     "delta": -7.5, "action": "_appoint"}]})
+        cp = store.dpath("worlds", "w3", "chats", "c1.json")
+        os.makedirs(os.path.dirname(cp), exist_ok=True)
+        store.save(cp, {"items": []})
+        f2 = shutil.copy(REAL2, PDIR)
+        assert patches.run(now=A.NEW_T + 1) == [(A.ID, "期限を過ぎたので当てなかった")], "19:30 を過ぎたら当てない"
+        del_rec = patches.record()
+        del_rec.pop(A.ID, None)
+        store.save(store.dpath(patches.RECORD), del_rec)
+        f2 = shutil.copy(REAL2, PDIR)
+        done = patches.run(now=t0 + 3600)
+        assert done and done[0][0] == A.ID and "19:30" in done[0][1], done
+        got = {x["id"]: x for x in store.load(pp)["appoints"]}
+        h = got["hit"]
+        assert h["status"] == "set" and h["t"] == A.NEW_T and h["place"] == "park" and "arrived" not in h, h
+        assert h["plan"]["late"] == 0 and not h["plan"]["noshow"]
+        assert all(got[k]["status"] == "missed" for k in ("old", "noshow", "fav")), "ほかの約束には触らない"
+        s = store.load(sp)
+        assert s["params"] == {"mood": 47.5, "trust": 54.0, "affection": 100.0}, s["params"]
+        assert s["regard"]["v"] == 55.0 and s["reasons"][0]["resolved"]
+        assert "19:30" in store.load(cp)["items"][-1]["text"]
+        assert not os.path.exists(f2)
+        print("消えた約束を 19:30 に: OK")
+
         # ---------------------------------------------------------------- 対象が無い・期限・例外
         g = put("a_none.py", 'ID = "a_none"\nDESC = "x"\ndef apply(ctx):\n    return None\n')
         assert patches.run() == [] and os.path.exists(g) and "a_none" not in patches.record(), "対象が無ければ残す"
