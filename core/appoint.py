@@ -167,19 +167,19 @@ class Appoint:
              "made": now, "favor": f["id"], "fkind": kind, "label": f["label"]}
         line, extra = "favor_ask_offer", {"what": f["label"]}
         if kind == "plants":
-            start = self._free_time(char, now, days=(1, 3), hours=(9,)) or now + 86400
+            start = self._free_time(char, now, days=(1, 3), hours=(9,)) or self._day_time(now, 1, 9)
             x.update(t=start, until=start + random.randint(2, 4) * 86400, plants=True, fixed=True, rounds=COUNTER_MAX)
             line = "favor_ask_plants"
             extra.update({"from": fmt_when(x["t"], now).split(" ")[0], "to": fmt_when(x["until"], now).split(" ")[0]})
         elif kind == "move":
-            t = self._free_time(char, now, days=(2, 6), hours=(9, 10)) or now + 3 * 86400
+            t = self._free_time(char, now, days=(2, 6), hours=(9, 10, 13)) or self._day_time(now, 3, 10)
             x.update(t=t, fixed=True, rounds=COUNTER_MAX)
             line = "favor_ask_move"
         elif legacy or random.random() < 0.4:       # いつなら空いているか, こちらに聞いてくる
-            x.update(t=now + 2 * 86400, ask=True)
+            x.update(t=self._day_time(now, 2, 10), ask=True)
             line = "favor_ask_when"
         else:
-            x["t"] = self._free_time(char, now, days=(1, 5), hours=(10, 13, 15)) or now + 2 * 86400
+            x["t"] = self._free_time(char, now, days=(1, 5), hours=(10, 13, 15)) or self._day_time(now, 2, 13)
         extra["when"] = self.when_of(x, now)
         f["appoint"] = x["id"]
         f["until"] = max(f.get("until", 0), (x.get("until") or x["t"]) + 86400)
@@ -200,14 +200,55 @@ class Appoint:
         return x
 
     def _free_time(self, char, now, days=(1, 5), hours=(10, 13, 15)):
-        """相手の予定が空いている日時 (頼まれごとの案)."""
+        """相手の予定が空いている日時 (頼まれごとの案). 候補の日 × 時刻をすべて (順は散らして) 見る.
+        (以前はくじを 12 回引くだけで, 平日の朝に働いている人だと見つからず, 頼まれた時刻ちょうどの数日後 (夜中にも) になっていた)"""
         dt0 = datetime.fromtimestamp(now)
-        for _ in range(12):
-            d = (dt0 + timedelta(days=random.randint(*days))).replace(hour=random.choice(hours), minute=0, second=0, microsecond=0)
+        cands = [(dd, hh) for dd in range(days[0], days[1] + 1) for hh in hours]
+        random.shuffle(cands)
+        for dd, hh in cands:
+            d = (dt0 + timedelta(days=dd)).replace(hour=hh, minute=0, second=0, microsecond=0)
             sc = self.app.scheduled_scene(char, d)
             if not (sc["away"] or sc["busy"] or sc["asleep"]):
                 return d.timestamp()
         return None
+
+    @staticmethod
+    def _day_time(now, days, hour):
+        """days 日後の hour 時ちょうど (空いている時刻が見つからなかったときの案. 夜中にしない)."""
+        return (datetime.fromtimestamp(now) + timedelta(days=days)).replace(hour=hour, minute=0, second=0, microsecond=0).timestamp()
+
+    NIGHT_END = 6            # 頼まれごとの約束がこれより前の時刻なら, 夜中 (以前の作りで付いてしまったもの)
+
+    def fix_night_favors(self, now=None):
+        """以前の作りで夜中 (0〜6 時) になった頼まれごとの約束 (まだ済んでいないもの) を, 同じ日の 10 時に読み替える (起動したとき.
+        読み替えたものは 10 時になるので, 二度は当たらない). 10 時がもう過ぎていれば触らない. 読み替えた数を返す."""
+        app = self.app
+        now = now or time.time()
+        n = 0
+        for x in self.all():
+            if not x.get("favor") or x.get("by") != "her" or x["status"] not in OPEN or x.get("plants"):
+                continue
+            d = datetime.fromtimestamp(x["t"])
+            if d.hour >= self.NIGHT_END:
+                continue
+            # 以前の作りの代わりの時刻 (頼まれた時刻のちょうど 2 日後・3 日後) だけ. あなたが返した日時 (夜中を選んだもの) は動かさない
+            days = (x["t"] - float(x.get("made") or 0)) / 86400.0
+            if not (abs(days - round(days)) < 1e-6 and round(days) in (2, 3)):
+                continue
+            t = d.replace(hour=10, minute=0, second=0, microsecond=0).timestamp()
+            if t < now + 30 * 60:
+                continue
+            x["t"] = t
+            f = app.earn.favor(x["favor"])
+            if f:
+                f["until"] = max(f.get("until", 0), t + 86400)
+            if x["cid"] in app.chars:
+                app.chat.add(x["cid"], "sys", "（%sの時刻は、%sからのことだった）" % (x.get("label") or "頼まれごと", self.when_of(x, now)),
+                             kind="favor", t=now)
+            n += 1
+        if n:
+            self.save()
+        return n
 
     def _favor_plan(self):
         """頼まれごとの当日の相手の側: 頼んだ側なので, すっぽかしも遅刻もまずない (日がずれる・取りやめは前日ごろに決まる)."""

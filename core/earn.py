@@ -409,7 +409,8 @@ class Earn:
             f.setdefault("kind", FAVOR_BY_LABEL.get(f["label"], "clean"))
             app.appoint.favor_offer(f, now, legacy=True)
             n += 1
-        if n:
+        fixed = app.appoint.fix_night_favors(now)        # 以前の作りで夜中になった頼まれごとの約束を, 同じ日の 10 時に (一度だけ当たる)
+        if n or fixed:
             self.L.save_player()
         return n
 
@@ -668,6 +669,12 @@ class Earn:
             self.flea_step(t, step)
         if (self.ps().get("lotto") or {}).get("tickets"):
             self.lotto_step(t)
+        due = self.ps().get("offer_due") or {}
+        for k in [k for k, v in due.items() if v <= t]:       # 副業の依頼・頼まれごとは, その日の昼間のどこかで届く
+            when = due.pop(k)
+            self.gig_offers(when) if k == "gig" else self.favor_offers(when)
+
+    OFFER_HOURS = (9, 21)     # 依頼・頼まれごとが届く時間帯 (以前は日付が替わった瞬間 0:00 すぎに届いていた)
 
     def daily(self, t, month_changed):
         """日付が替わったとき (life.tick_world から)."""
@@ -676,8 +683,13 @@ class Earn:
         self.bonus(t)
         self.app.quals.daily(t)                   # 資格の試験の日・合否
         self.check_absence(t)
-        self.gig_offers(t)
-        self.favor_offers(t)
+        # 依頼・頼まれごとは, その日の昼間の別々の時刻に届く (step で. 時刻が来たら gig_offers / favor_offers)
+        d = datetime.fromtimestamp(t)
+        due = self.ps().setdefault("offer_due", {})
+        for k in ("gig", "favor"):
+            at = d.replace(hour=random.randint(self.OFFER_HOURS[0], self.OFFER_HOURS[1] - 1), minute=random.randint(0, 59),
+                           second=random.randint(0, 59), microsecond=0).timestamp()
+            due[k] = max(at, t)
 
     def view(self, now=None):
         now = now or time.time()

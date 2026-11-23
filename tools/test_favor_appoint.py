@@ -194,6 +194,80 @@ def main():
         f, x = offer("clean")
         assert len(app.log(cid)) == n0 + 1 and app.log(cid)[-1]["action_name"] == "頼まれごと", app.log(cid)[-1]
         print("閉じていた間・対面で頼まれる: OK |", app.log(cid)[-1]["text"])
+
+        # ---- 11. 夜中 (0:01) に頼まれても, 約束の時刻は昼間. 相手の予定が埋まっていて空きが見つからなくても, 夜中にしない
+        #          (以前は 0:01 に頼まれた引っ越しが, ちょうど 3 日後の 0:01 になっていた)
+        from datetime import datetime, timedelta
+        B.set_stage(cid, "contact")
+        midnight = (datetime.fromtimestamp(now) + timedelta(days=1)).replace(hour=0, minute=1, second=51, microsecond=0).timestamp()
+        sched = app.scheduled_scene
+        for busy in (False, True):
+            if busy:
+                app.scheduled_scene = lambda c, d: dict(sched(c, d), busy=True)
+            for kind in ("move", "plants", "clean", "furniture", "pc", "carry"):
+                for _ in range(8):
+                    k, name, h, tire = EA.FAVOR_KIND[kind]
+                    f = {"id": "fn%s%d" % (kind, random.randrange(10 ** 6)), "cid": cid, "kind": kind, "label": name, "h": h,
+                         "tire": tire, "t": midnight, "until": midnight + 3 * 86400}
+                    E.favors().append(f)
+                    x = A.favor_offer(f, midnight)
+                    hr = datetime.fromtimestamp(x["t"]).hour
+                    assert 9 <= hr <= 15 and x["t"] > midnight, (kind, busy, datetime.fromtimestamp(x["t"]))
+                    E.favors().remove(f)
+                    A.all().remove(x)
+        app.scheduled_scene = sched
+        print("夜中に頼まれても約束は昼間 (空きが無くても): OK")
+
+        # ---- 12. 依頼・頼まれごとは, 日付が替わった瞬間ではなく, その日の昼間 (9〜21 時) のどこかで届く
+        ps = E.ps()
+        seen = []
+        for i in range(30):
+            ps.pop("offer_due", None)
+            calls = []
+            g0, f0 = E.gig_offers, E.favor_offers
+            E.gig_offers = lambda t: calls.append(("gig", t)) or []
+            E.favor_offers = lambda t: calls.append(("favor", t)) or []
+            try:
+                E.daily(midnight, False)
+                assert not calls, "日付が替わった瞬間に届いた"
+                t = midnight
+                while t < midnight + 86400:
+                    t += 300
+                    E.step(t, 300)
+            finally:
+                E.gig_offers, E.favor_offers = g0, f0
+            assert sorted(k for k, _ in calls) == ["favor", "gig"], calls
+            for _, at in calls:
+                hr = datetime.fromtimestamp(at).hour
+                assert 9 <= hr < 21, datetime.fromtimestamp(at)
+                seen.append(hr)
+        assert len(set(seen)) >= 5, seen               # 毎日同じ時刻ではない
+        print("依頼・頼まれごとは昼間のどこかで届く: OK | 届いた時刻 %d〜%d 時" % (min(seen), max(seen)))
+
+        # ---- 13. 以前の作りで夜中になった約束 (まだ済んでいない) は, 起動したとき同じ日の 10 時に読み替える. 二度は当たらない
+        k, name, h, tire = EA.FAVOR_KIND["move"]
+        f = {"id": "fold", "cid": cid, "kind": "move", "label": name, "h": h, "tire": tire, "t": now, "until": now + 4 * 86400}
+        E.favors().append(f)
+        x = A.favor_offer(f, now)
+        old = (datetime.fromtimestamp(now) + timedelta(days=3)).replace(hour=0, minute=1, second=51, microsecond=0)
+        x["t"] = old.timestamp()
+        x["made"] = x["t"] - 3 * 86400                 # 以前の作り: 頼まれた時刻 (0:01:51) のちょうど 3 日後
+        k2, name2, h2, tire2 = EA.FAVOR_KIND["clean"]   # あなたが夜中を返した約束 (ちょうど何日後でもない) は動かさない
+        f2 = {"id": "fmine", "cid": cid, "kind": "clean", "label": name2, "h": h2, "tire": tire2, "t": now, "until": now + 4 * 86400}
+        E.favors().append(f2)
+        x2 = A.favor_offer(f2, now)
+        x2["t"] = old.timestamp() + 1800
+        x2["made"] = now
+        n1 = A.fix_night_favors(now)
+        d = datetime.fromtimestamp(x["t"])
+        assert d.date() == old.date() and (d.hour, d.minute) == (10, 0), d
+        assert x2["t"] == old.timestamp() + 1800, "あなたが返した夜中の約束まで動いた"
+        assert f["until"] >= x["t"] + 86400
+        note = [m for m in C.load(cid)["items"] if m["who"] == "sys" and "からのことだった" in m["text"]]
+        assert len(note) == 1 and "10:00" in note[0]["text"], note
+        assert A.fix_night_favors(now) == 0
+        assert len([m for m in C.load(cid)["items"] if m["who"] == "sys" and "からのことだった" in m["text"]]) == 1
+        print("夜中の約束の読み替え (一度だけ): OK |", note[0]["text"])
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
