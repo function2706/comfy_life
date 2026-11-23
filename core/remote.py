@@ -88,6 +88,7 @@ class Remote:
                     e = app.presence.live(app.chars[cid], st, now)
                     if e:
                         app.save_state(cid)
+                    app.chat.due(cid, now)          # 先の時刻に届くメッセージ (不在着信のあと・頼みごとなど. chat.later)
                 out = app._deliver_due(now)
                 app.appoint.live(now, contact_only=True)     # 相手からの約束の誘い・日を変えたい・取りやめの連絡 (トークに入り, 通知される)
             finally:

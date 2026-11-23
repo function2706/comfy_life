@@ -712,7 +712,7 @@ class PhoneTalk:
         if last:
             self._log(c, "her", last, t)
         if c.get("req"):                                  # 頼みごとに答えないまま切れた: メッセージで届く (トークから答えられる)
-            app.appoint.post_offer(c.pop("req").get("aid"), t + 30)
+            app.appoint.post_offer(c.pop("req").get("aid"), t + 30, t)
         # 長く付き合ってくれた / 付き合った
         good_call = why not in ("silent", "cold") and c.get("turns", 0) >= 3 and avg >= -2
         if good_call:

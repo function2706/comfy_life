@@ -215,10 +215,10 @@ class Ring:
         app.chat.add(cid, "sys", "📞 不在着信（%s）" % HOW_LABEL[how], kind="missed_call", t=t)
         st.pop("call_back", None)
         if r.get("req"):                            # 頼みごと: いままでどおりメッセージで (トークから答えられる)
-            app.appoint.post_offer(r["req"], t + 30)
+            app.appoint.post_offer(r["req"], t + 30, t)
         elif how in ("missed", "declined") and random.random() < 0.55 + (0.2 if app.phonetalk.close_rel(char, st) else 0):
             key = "phone.ring_declined_msg" if how == "declined" else "phone.ring_missed_msg"
-            app.chat.add(cid, "her", app.phonetalk.line(char, key), kind="call_missed_msg", t=t + random.uniform(40, 240))
+            app.chat.later(cid, "her", app.phonetalk.line(char, key), t + random.uniform(40, 240), t, kind="call_missed_msg")
         app.trace.add("call", "不在着信 (%s)" % how, cid, t, via=r.get("via"), why=r.get("why"), req=r.get("req_kind"),
                       ease=round(ease, 2), mood=-d)
         app.save_state(cid)
@@ -234,7 +234,7 @@ class Ring:
         app.regard.note_call(char, st, r["t"], True)
         app.chat.add(cid, "sys", "📞 電話がかかってきた（話し中だったので、あとでかけ直すと伝えた）", kind="missed_call", t=now)
         if r.get("req"):                            # 頼みごとは, メッセージで (トークから答えられる)
-            app.appoint.post_offer(r["req"], now + 30)
+            app.appoint.post_offer(r["req"], now + 30, now)
         app.phonetalk.catch_wait(cid, now)
         app.trace.add("call", "割り込みの着信: かけ直すと伝えた", cid, now, via=r.get("via"), why=r.get("why"))
         app.save_state(cid)
@@ -274,7 +274,7 @@ class Ring:
         app.chat.add(cid, "sys", "📞 電話がかかってきて、少しだけ話した（%d分ほど。閉じていたあいだ・自動）" % random.randint(2, 6),
                      kind="call", t=t)
         if r.get("req"):
-            app.appoint.post_offer(r["req"], t + 60)
+            app.appoint.post_offer(r["req"], t + 60, t)
         app.trace.add("call", "閉じている間の着信に, 短く出た", cid, t, via=r.get("via"), why=r.get("why"))
         app.save_state(cid)
         return "auto"
@@ -306,7 +306,7 @@ class Ring:
             app.chat.add(cid, "me", "（📞 いまはちょっと、と返した）", kind="call_ask_no", t=now)
             w = random.uniform(0.6, 1.2) * (1.3 if a.get("why") in ("lonely", "tired") else 1.0)
             app.apply_effects(st, {"mood": -round(1.5 * w, 1)}, now)
-            st["call_no_reply"] = {"at": now + random.uniform(20, 90)}     # 「わかった」は, その時刻が来てから届く (先の時刻で入れると, あいだに送ったものと並びが逆になる)
+            app.chat.later(cid, "her", app.phonetalk.line(char, "phone.ring_ask_no"), now + random.uniform(20, 90), now, kind="call_ask_no")
         app.chat.mark_read_by_her(cid, now)
         app.save_state(cid)
         return {"ok": True}
@@ -318,15 +318,6 @@ class Ring:
         return {"t": a["t"], "until": a["until"]}
 
     # ------------------------------------------------------------------ 画面を開いている間 (state_view の心拍)
-    def deliver_no_reply(self, char, st, now):
-        """「いまはちょっと」への「わかった」を, 時刻が来たら届ける. 届けたら True."""
-        r = st.get("call_no_reply")
-        if not r or now < r["at"]:
-            return False
-        st.pop("call_no_reply", None)
-        self.app.chat.add(char["id"], "her", self.app.phonetalk.line(char, "phone.ring_ask_no"), kind="call_ask_no", t=r["at"])
-        return True
-
     def live(self, char, st, now):
         """電話していい？ の期限・いいよのあとの着信・またかけるね のかけ直し・かけ直すと伝えた約束の期限."""
         app = self.app

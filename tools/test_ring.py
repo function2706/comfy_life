@@ -78,6 +78,15 @@ def main():
             assert last("missed_call") and ring_mod.HOW_LABEL[how] in last("missed_call")[-1]["text"], last("missed_call")[-1]
             assert st["params"]["mood"] < m0, (how, m0, st["params"]["mood"])
             print("急に → %s (%s): 機嫌 %.1f → %.1f" % (how, act, m0, st["params"]["mood"]))
+            # 不在着信のあとのメッセージは, その時刻が来るまで見えない. 先に謝ったら, 謝ったほうが前に並ぶ (11/23 の並びの逆転)
+            if act != "close":
+                tm = last("missed_call")[-1]["t"]
+                assert not [it for it in C.load(cid)["items"] if it["t"] > tm + 1], "先の時刻のものが入っている"
+                C.add(cid, "me", "（ごめんねと送った）", kind="apology", t=tm + 20)
+                C.due(cid, tm + 300)
+                its = C.load(cid)["items"]
+                assert [it["t"] for it in its] == sorted(it["t"] for it in its), "並びが時刻の順でない"
+                assert not C.load(cid).get("later"), "届かないまま残った"
 
         # ---- 3. 電話していい？ → いいよ → 少しして鳴る / いまはちょっと / 返事しない
         now += 3 * 3600
@@ -101,8 +110,8 @@ def main():
         # 相手の「わかった」は時刻が来てから届く. あいだに送ったものより前に並ばない (並びの逆転)
         assert not [x for x in last("call_ask_no") if x["who"] == "her"], "わかったがすぐ入った"
         C.add(cid, "me", "（会おうと誘った）", kind="invite", t=now + 15)
-        assert not R.deliver_no_reply(char, st, now + 16)
-        assert R.deliver_no_reply(char, st, now + 200) and not R.deliver_no_reply(char, st, now + 201)
+        assert not C.due(cid, now + 16)
+        assert C.due(cid, now + 200) == 1 and not C.due(cid, now + 201)
         its = C.load(cid)["items"]
         iv = next(i for i, x in enumerate(its) if x.get("kind") == "invite")
         ok = next(i for i, x in enumerate(its) if x.get("kind") == "call_ask_no" and x["who"] == "her")
@@ -150,6 +159,8 @@ def main():
             assert len(last("appoint_invite")) == n0, "電話なのにメッセージでも来た"
             if ans == "missed":
                 R.view(now + 120)
+                assert len(last("appoint_invite")) == n0, "誘いのメッセージが届く前に見えている"
+                C.due(cid, now + 200)
                 assert x["status"] == "offered" and len(last("appoint_invite")) == n0 + 1, "出なかったのに誘いがメッセージで来ない"
                 print("頼みごと × 出ない: メッセージで届いた")
                 continue
@@ -173,6 +184,8 @@ def main():
         x = app.appoint.care_call(char, st, now, [])
         R.answer(True, now + 3)
         app.call_end(now + 5)
+        assert len(last("appoint_invite")) == n0, "誘いのメッセージが届く前に見えている"
+        C.due(cid, now + 60)
         assert x["status"] == "offered" and len(last("appoint_invite")) == n0 + 1, "答えずに切ったのに誘いが残らない"
         ring_mod.REQ_P.update(care=0.55, now=0.35, favor=0.2)
         print("頼みごと × 答えずに切る: メッセージで届いた")
@@ -246,6 +259,26 @@ def main():
         v = app.state_view(beat=True)
         assert v.get("ring") and v["ring"]["cid"] == cid, v.get("ring")
         R.answer(False)
+        # 不在着信のあとのメッセージを必ず送らせて確かめる
+        now += 3 * 3600
+        fresh(now)
+        R.start(char, st, now, "sudden", why="bored")
+        n0 = len(last("call_missed_msg"))
+        rr = random.random
+        random.random = lambda: 0.0
+        try:
+            R.answer(False, now + 5)
+        finally:
+            random.random = rr
+        assert len(last("call_missed_msg")) == n0, "届く前に見えている"
+        assert C.load(cid).get("later"), "置き場に入っていない"
+        C.add(cid, "me", "（ごめんねと送った）", kind="apology", t=now + 20)
+        assert C.due(cid, now + 300) == 1
+        its = C.load(cid)["items"]
+        ia = next(i for i, x in enumerate(its) if x.get("kind") == "apology" and x["t"] == now + 20)
+        im = next(i for i, x in enumerate(its) if x.get("kind") == "call_missed_msg" and x["t"] > now)
+        assert ia < im, "並びが逆"
+        print("不在着信のあとのメッセージ: 時刻が来てから届く")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

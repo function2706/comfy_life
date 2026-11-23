@@ -202,7 +202,7 @@ def main():
         # ---- 6. 総当たり: 気にしていること (種類) × 経過時間. 正解 1 つ・重ならない・時刻の書き方
         acts = [("_chat_late_night", "greet_night"), ("_too_often", "what_doing"), ("_chat_stamp_spam", "stamp"),
                 ("_chat_tease_hurt", "tease"), ("_greet_miss", None), ("_appoint", None), ("_drift", None), ("_home", None),
-                ("_chores_scold", None), ("_jealous", None)]
+                ("_chores_scold", None), ("_jealous", None), ("_ring_missed", None), ("_call_cut", None)]
         cmd = next(a for a in app.actions if a.get("category") not in ("system",) and not a["id"].startswith("_")
                    and a["id"] not in ("message", "call"))
         n = 0
@@ -223,6 +223,8 @@ def main():
                 assert lv == memquiz.level_of(now - items[tok(items, "fault")]["t"]) or lv in ("none", "hour", "day")
                 check(q, items, lv)
                 assert sum(1 for e in items.values() if e["type"] == "fault") == 1, (action, age)
+                if action == "_ring_missed":        # 出なかった・切った電話も, 謝る理由として正しく出る (11/23)
+                    assert "電話に出なかった" in items[tok(items, "fault")]["label"], items[tok(items, "fault")]
                 assert len(q["choices"]) >= 4, (action, age, [c["label"] for c in q["choices"]])
                 n += 1
         print("総当たり: %d 組 OK" % n)

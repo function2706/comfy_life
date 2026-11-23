@@ -30,6 +30,7 @@ SITUATIONS = [
     ("jealous", "ほかの人と仲よくしていた"),
     ("call_silent", "電話の途中で黙った"),
     ("call_cut", "電話をすぐ切った"),
+    ("call_missed", "かかってきた電話に出なかった"),
     ("face_silent", "話の途中で上の空だった"),
     ("face_cut", "話の途中でほかのことを始めた"),
 ]
@@ -41,12 +42,12 @@ ACTION_ITEM = {
     "_appoint": "appoint", "_drop_in": "drop_in", "_drift": "drift", "_street": "street", "_anniv_forgot": "anniv_forgot",
     "_home": "home", "_chores": "chores", "_chores_mine": "chores", "_chores_scold": "chores_scold",
     "_borrow": "borrow", "_money_concern": "borrow", "_pay": "pay", "_help": "help", "_fight": "fight", "_jealous": "jealous",
-    "_react": "reply_manner", "_call_silent": "call_silent", "_call_cut": "call_cut",
+    "_react": "reply_manner", "_call_silent": "call_silent", "_call_cut": "call_cut", "_ring_missed": "call_missed",
     "_face_silent": "face_silent", "_face_cut": "face_cut",
 }
 # 「近い」(それもだけど……) とみなすまとまり. 画面には出さない
 NEAR = [
-    {"no_reply", "greet_miss", "reply_manner", "msg:nudge", "call_silent", "call_cut", "face_silent", "face_cut"},
+    {"no_reply", "greet_miss", "reply_manner", "msg:nudge", "call_silent", "call_cut", "call_missed", "face_silent", "face_cut"},
     {"too_often", "late_night", "stamp_spam", "selfie_pester", "msg:what_doing", "msg:nudge", "msg:stamp"},
     {"msg:tease", "msg:flirt", "reply_manner"},
     {"appoint", "drop_in", "drift", "street"},

@@ -357,6 +357,8 @@ class Chat:
         store.save(self._path(cid), d)
 
     def add(self, cid, who, text, kind=None, t=None, **extra):
+        if who == "me":
+            self.due(cid, t or time.time())               # 送る前に, もう届いているはずのものを先に (並びが逆にならない)
         d = self.load(cid)
         it = {"t": t or time.time(), "who": who, "kind": kind, "text": text}
         it.update(extra)
@@ -368,6 +370,32 @@ class Chat:
         if who == "her":
             self.app.remote.note(cid, it)                   # いま届いたもの (スマホの通知・取り寄せ. core/remote.py)
         return it
+
+    def later(self, cid, who, text, t, now, kind=None, **extra):
+        """t に届くもの. 先の時刻のまま items に入れると, 届く前に見えて, あいだに送ったものと並びが逆になる.
+        t が来るまでは置き場 (later) に置き, due で届ける. もう過ぎていれば, すぐ add."""
+        if t <= now:
+            return self.add(cid, who, text, kind=kind, t=t, **extra)
+        d = self.load(cid)
+        it = {"t": t, "who": who, "kind": kind, "text": text}
+        it.update(extra)
+        d.setdefault("later", []).append(it)
+        self.save(cid, d)
+        return None
+
+    def due(self, cid, now):
+        """置き場のうち, 時刻が来たものを届ける. 届けた数."""
+        d = self.load(cid)
+        ls = d.get("later") or []
+        go = sorted((x for x in ls if x["t"] <= now), key=lambda x: x["t"])
+        if not go:
+            return 0
+        d["later"] = [x for x in ls if x["t"] > now]
+        self.save(cid, d)
+        for x in go:
+            x = dict(x)
+            self.add(cid, x.pop("who"), x.pop("text"), kind=x.pop("kind"), t=x.pop("t"), **x)
+        return len(go)
 
     def ref(self, cid, t, quote=True):
         """t のあなたのメッセージ (相手の返事が, どのメッセージへのものか). quote: 相手が引用を付けたか (マメさしだい.
@@ -625,6 +653,7 @@ class Chat:
         for cid, c in app.chars.items():
             if app.bonds.stage(cid) == "known":
                 continue
+            self.due(cid, time.time())
             d = self.load(cid)
             last = d["items"][-1] if d["items"] else None
             out.append({"id": cid, "name": c.get("name", ""), "face": self.face(cid), "unread": self.unread(cid, d),
@@ -645,6 +674,7 @@ class Chat:
 
     def thread(self, cid):
         app = self.app
+        self.due(cid, time.time())
         d = self.load(cid)
         st = app.state(cid)
         rg, tg = react.group(app, cid, st, time.time()) if not app.bonds.together(cid) else (None, None)

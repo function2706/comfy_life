@@ -504,7 +504,7 @@ class Earn:
         if f.get("kind") == "plants":          # 留守中の水やり: 会っていないので, お礼は帰ってきてからのメッセージで
             app.save_state(cid)
             app.chat.add(cid, "sys", "（%sの%sを終えた）" % (name, f["label"]), kind="favor", t=t)
-            app.chat.add(cid, "her", app.chat.line(char, "favor_plants_thanks", {}), kind="favor_plants_thanks", t=t + 3600)
+            app.chat.later(cid, "her", app.chat.line(char, "favor_plants_thanks", {}), t + 3600, t, kind="favor_plants_thanks")
             if f in self.favors():
                 self.favors().remove(f)
             return 0, "%sの%sを終えた。鍵をかけて帰った（お礼は、帰ってきてからメッセージで）" % (name, f["label"])

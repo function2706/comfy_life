@@ -717,12 +717,13 @@ class Appoint:
         self.save()
         return True
 
-    def post_offer(self, aid, t):
+    def post_offer(self, aid, t, now=None):
         """電話で切り出すつもりだった頼みごとを, メッセージで届ける (出なかった / あとで返事する). まだ答えていなければ."""
         x = next((y for y in self.all() if y.get("id") == aid), None)
         if not x or x.get("status") != "offered" or not x.get("offer_text"):
             return None
-        self.app.chat.add(x["cid"], "her", x.pop("offer_text"), kind=x.pop("offer_kind", "appoint_invite"), t=t, appoint=x["id"])
+        self.app.chat.later(x["cid"], "her", x.pop("offer_text"), t, t if now is None else now,
+                            kind=x.pop("offer_kind", "appoint_invite"), appoint=x["id"])
         self.save()
         return x
 
