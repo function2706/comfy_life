@@ -239,6 +239,27 @@ button.swatch.off { opacity: .25; }
 .color-dots { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; margin: 2px 4px; }
 .color-name { min-width: 3em; }
 .slot-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+/* 服の棚 (S37): 絞り込み・区分のタブ・タイル・選んだ服の操作 */
+.closet { margin: 6px 0; min-width: 0; }
+.cz-filters { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.cz-filters .cz-q { flex: 1 1 9em; min-width: 0; }
+.cz-filters .cz-style { width: auto; flex: 0 1 auto; max-width: 100%; }
+.cz-filters .cz-q { width: auto; }
+.cz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 5px; }
+.cz-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; padding: 6px 8px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 9px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.cz-tile:hover { border-color: var(--accent-d); }
+.cz-tile.on { border-color: var(--accent); outline: 1px solid var(--accent); }
+.cz-tile.off .cz-name { color: var(--muted); }
+.cz-name { font-size: 12.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.cz-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; }
+.cz-sub .swatch { width: 11px; height: 11px; }
+.cz-own { color: #8fd18f; margin-left: 2px; }
+.cz-det { margin-top: 8px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.cz-det .card { margin: 0; border: 0; padding: 0; background: none; }
+.coord-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0; }
+.coord-bar .coord-chip { background: var(--panel2); border: 1px dashed var(--line); border-radius: 7px; padding: 2px 6px; margin: 0; }
+.kind-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
 .coord-now { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0; }
 .coord-chip { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; white-space: nowrap; }
 .owned-list { margin-top: 8px; }

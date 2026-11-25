@@ -371,7 +371,8 @@ class Wardrobe:
                     "id": "outfit:" + v["key"], "name": v["name"], "icon": o["icon"], "kind": "outfit", "price": o["price"],
                     "places": o["places"], "tags": ["fashion"], "giftable": True, "essential": False,
                     "outfit": v["key"], "bold": o["bold"], "slot": o["slot"], "okind": o["kind"], "color": v["color"],
-                    "variant_of": "outfit:" + o["id"] if v["color"] else None, "base_name": o["name"]}
+                    "variant_of": "outfit:" + o["id"] if v["color"] else None, "base_name": o["name"],
+                    "otags": o["tags"], "seasons": o["seasons"]}      # 服の棚の絞り込み (S37)
 
     # ------------------------------------------------------------------ 持っている服
     @staticmethod

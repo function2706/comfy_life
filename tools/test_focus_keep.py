@@ -9,8 +9,8 @@
   持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
 - 設定の「表示」の知らせの音の欄 (A33)
 - 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
-- 誰かと → お願いの着せ替えの「部品で合わせる」のプルダウン (S30)
-- 着せ替えの持っている服の一覧が描き直しで閉じない・部品の欄の色の見本 / 買うものリストの区分のタブと色の丸 / 服の一覧の売る色 (S35)
+- 誰かと → お願いの服の棚の名前で探す欄・系統のプルダウン (S37. 以前は「部品で合わせる」のプルダウン)
+- 服の棚で選んだ服が描き直しで戻らない・コーデの下書きの色の見本 / 買うものリストの服の区分のタブと色の丸 / 服の一覧の売る色 (S35・S37)
 - 設定のキャラクター → 服の好みのプルダウンと色の丸 (S36)
 - 欄を離れたら, 待っていた描き直しをする
 
@@ -126,19 +126,23 @@ f.onload = () => setTimeout(async () => {
       (S.view.games.list || []).forEach((g) => { g.base_ok = true; });      // 相手の手が空いていない時刻でも欄を出す (欄のフォーカスだけを見る)
       w.renderGames();
     }, '#tab-games .ff-pick', 'forfeit');
-    // 4e. 誰かと → お願い: 着せ替えの「部品で合わせる」の区分ごとのプルダウン (S30)
-    await keepAll(() => { closeModal(); w.showTab('with'); w.showSub('dress'); w.renderDress(); }, '#tab-dress .coord-pick', 'coord');
-    // 4f. 着せ替え (S35): 持っている服の一覧は描き直しで閉じない. 部品の欄で選ぶと色の見本が出る
-    closeModal(); w.showTab('with'); w.showSub('dress'); S.ownOpen = true; w.renderDress();
-    await w.refresh(); await w.refresh();
-    const ol = d.querySelector('#tab-dress details.owned-list');
-    out.push('owned' + (ol && ol.open && ol.querySelectorAll('.owned-row').length && ol.querySelector('.swatch') ? ':OK' : ':NG'));
-    const csel = [...d.querySelectorAll('#tab-dress .coord-pick select')].find((x) => [...x.options].some((op) => op.value.includes(':')));
-    if (!csel) out.push('coord-swatch:NONE');
-    else {
-      csel.value = [...csel.options].find((op) => op.value.includes(':')).value; csel.dispatchEvent(new w.Event('change'));
-      const lab = [...d.querySelectorAll('#tab-dress .coord-pick label')].find((l) => l.querySelector('select') && l.querySelector('select').value.includes(':'));
-      out.push('coord-swatch' + (lab && lab.querySelector('.swatch') ? ':OK' : ':NG'));
+    // 4e. 誰かと → お願い: 服の棚 (S37) の名前で探す欄・系統のプルダウン
+    await keepAll(() => { closeModal(); w.showTab('with'); w.showSub('dress'); w.renderDress(); }, '#tab-dress .closet', 'closet');
+    // 4f. 服の棚 (S37): 選んだ服とタブは描き直しても残る (タイルに色の見本). 部品を「コーデに入れる」と下書きに色の見本つきで出る
+    closeModal(); w.showTab('with'); w.showSub('dress'); S.cz = {}; S.coordDraft = {}; w.renderDress();
+    {
+      const tiles = () => [...d.querySelectorAll('#tab-dress .cz-tile')];
+      const t1 = tiles()[1];
+      if (!t1) out.push('owned:NONE');
+      else {
+        const nm = t1.querySelector('.cz-name').textContent; t1.click();
+        await w.refresh(); await w.refresh();
+        const on = d.querySelector('#tab-dress .cz-tile.on');
+        out.push('owned' + (on && on.querySelector('.cz-name').textContent === nm && d.querySelector('#tab-dress .cz-tile .swatch') ? ':OK' : ':NG'));
+      }
+      const add = [...d.querySelectorAll('#tab-dress .cz-det button')].find((b) => b.textContent.includes('コーデに'));
+      if (!add) out.push('coord-swatch:NONE');
+      else { add.click(); out.push('coord-swatch' + (d.querySelector('#tab-dress .coord-bar .swatch') ? ':OK' : ':NG')); }
     }
     // スマホ幅 (375px) で, 着せ替えの部品の欄・色の見本・持っている服が, タブの欄から横にはみ出さない
     f.style.width = '375px'; await sleep(600); w.renderDress(); await sleep(100);
@@ -150,8 +154,8 @@ f.onload = () => setTimeout(async () => {
     S.coordDraft = {};
     try { await w.api('/api/save/del', { path: ['player', 'presence', 'with'] }); } catch (e) { out.push('gclean:' + e.message); }
     await w.refresh(); closeModal();
-    // 4g. 買うものリスト (S35): 服は区分のタブ, 色は色の丸. 選んだ色とタブは描き直しても残る
-    closeModal(); w.openShopList('kind');
+    // 4g. 買うものリスト (S35・S37): 種類ごとのサブタブ「服」は服の棚 (区分のタブ), 色は色の丸. 選んだ色とタブは描き直しても残る
+    closeModal(); S.slKind = 'clothes'; w.openShopList('kind');
     const tabs = () => [...d.querySelectorAll('dialog[open] .slot-tabs button')];
     if (tabs().length < 3) out.push('shop-tabs:NG(' + tabs().length + ')');
     else {
@@ -172,7 +176,8 @@ f.onload = () => setTimeout(async () => {
     f.style.width = '1280px'; await sleep(400);
     S.slDlg.close();
     // 4h. 設定の服の一覧 (S35): 売る色を色の丸で切り替える (全部付いている = 空, 1 つ外すと 13 色)
-    closeModal(); await w.openSettings('outfits');
+    closeModal(); S.cz = Object.assign(S.cz || {}, { olist: { tab: 'bottom', sel: 'p_miniskirt', q: '', style: '', season: false } });
+    await w.openSettings('outfits');
     const sc = [...d.querySelectorAll('#sbody .color-dots')].find((x) => x.closest('.card').textContent.includes('ミニスカート'));
     if (!sc) out.push('sell-colors:NONE');
     else {

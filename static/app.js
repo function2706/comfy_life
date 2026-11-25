@@ -1228,7 +1228,7 @@ function shopGiftPicker(t) {
   };
   const draw = () => dlg.replaceChildren(h('div', { style: 'padding:16px' }, h('h3', {}, `${sg.label}で、${t.name}に買ってあげる`),
     h('p', { class: 'muted small' }, `あなたの手元 ${yen(money)}。受け取ってくれるかは相手しだいで、断られたら品物はあなたの手元に残ります。色違いの服は色の丸から選んでください（相手が持っている色は出ません）。`),
-    ...clothesTabs(groupVariants(sg.items), row, draw),
+    ...clothesTabs(groupVariants(sg.items), row, draw, 'shop-gift'),
     h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn', onclick: close }, 'やめる'))));
   draw();
   document.body.append(dlg);
@@ -1267,28 +1267,79 @@ function colorDots(variants, onchange) {
 const SHOP_TABS = ['hat', 'top', 'onepiece', 'bottom', 'legwear', 'shoes', 'acc', 'lingerie', 'outer', 'set', 'costume'];
 const shopTab = (it) => (it.okind === 'costume' ? 'costume' : it.outer ? 'outer' : it.slot || 'set');
 const tabName = (k) => (k === 'costume' ? 'コスプレ' : k === 'set' ? '一式' : slotName(k) || k);
-function clothesTabs(list, rowFn, redraw) {
+// 店の品のうち服は服の棚に, ほかは 1 行ずつ (S37)
+function clothesTabs(list, rowFn, redraw, key = 'shop') {
   const cl = list.filter((it) => it.kind === 'outfit'), rest = list.filter((it) => it.kind !== 'outfit');
-  if (!cl.length) return rest.map(rowFn);
-  const tabs = SHOP_TABS.filter((k) => cl.some((it) => shopTab(it) === k));
-  const cur = tabs.includes(S.shopSlot) ? S.shopSlot : tabs[0];
-  return [...rest.map(rowFn),
-    h('div', { class: 'slot-tabs' }, tabs.map((k) => h('button', { class: 'btn small' + (k === cur ? ' primary' : ' ghost'),
-      onclick: () => { S.shopSlot = k; redraw(); } }, `${tabName(k)} ${cl.filter((it) => shopTab(it) === k).length}`))),
-    ...cl.filter((it) => shopTab(it) === cur).map(rowFn)];
+  return [...rest.map(rowFn), cl.length ? closet(key, cl, { tab: shopTab, detail: rowFn, redraw }) : ''];
+}
+
+/* ---------------------------------------------------------------- 服の棚 (S37) */
+// 服を区分のタブ・名前・いまの季節・系統で絞ってタイルで並べ, 選んだ 1 着の操作 (detail) を下に出す. お願い・店・設定で共通.
+// key: 絞り込みと選んだ服を覚える名前 (S.cz[key]. 描き直しても戻らない). list: 服 (店の品・持っている服・服の一覧).
+// opts: tab(it) 区分のタブ / owned(it) 持っているか (渡すと「持っている服だけ」が出る) / ownDefault / detail(it) 選んだ服の操作 /
+//       redraw 全体の描き直し / sub(it) タイルの下の行 / note(tab) タブの説明
+const clothTab = (it) => (it.okind === 'costume' || it.kind === 'costume' ? 'costume'
+  : it.outer || it.kind === 'outer' || it.slot === 'outer' ? 'outer' : it.slot || 'set');
+function closet(key, list, opts = {}) {
+  S.cz = S.cz || {};
+  const O = (S.boot || {}).outfits || {};
+  const st = S.cz[key] = S.cz[key] || { q: '', own: !!opts.ownDefault, season: false, style: '' };
+  const tabOf = opts.tab || clothTab;
+  const season = ((S.view || {}).outdoor || {}).season;
+  const words = (it) => [it.base_name, it.name, it.pos].join(' ').toLowerCase();
+  const pass = (it) => (!st.q || words(it).includes(st.q.toLowerCase()))
+    && (!st.own || !opts.owned || opts.owned(it))
+    && (!st.season || !season || !(it.seasons || []).length || it.seasons.includes(season))
+    && (!st.style || (it.otags || it.tags || []).includes(st.style));
+  const root = h('div', { class: 'closet' });
+  const tabsBox = h('div', { class: 'slot-tabs' }), body = h('div');
+  const chip = (on, label, fn) => h('button', { type: 'button', class: 'btn small' + (on ? ' primary' : ' ghost'), onclick: fn }, label);
+  const filters = h('div', { class: 'cz-filters' });
+  const drawFilters = () => filters.replaceChildren(
+    h('input', { type: 'text', class: 'cz-q', value: st.q, placeholder: '名前で探す', oninput: (ev) => { st.q = ev.target.value; paint(); } }),
+    opts.owned ? chip(st.own, '持っている服だけ', () => { st.own = !st.own; drawFilters(); paint(); }) : '',
+    season ? chip(st.season, `いまの季節（${(O.seasons || {})[season] || season}）`, () => { st.season = !st.season; drawFilters(); paint(); }) : '',
+    h('select', { class: 'cz-style', onchange: (ev) => { st.style = ev.target.value; paint(); } },
+      h('option', { value: '' }, '系統: すべて'),
+      Object.entries(O.styles || {}).map(([k, l]) => h('option', { value: k, selected: st.style === k }, l))));
+  const tile = (it, on) => {
+    const vs = it.variants || [];
+    const dots = vs.length ? [...vs.slice(0, 7).map((v) => swatch(v.color)), vs.length > 7 ? h('span', { class: 'muted' }, `+${vs.length - 7}`) : '']
+      : it.color ? [swatch(it.color)] : [];
+    const own = opts.owned && opts.owned(it);
+    return h('button', { type: 'button', class: 'cz-tile' + (on ? ' on' : '') + (opts.owned && !own ? ' off' : ''),
+      onclick: () => { st.sel = it.id; st.selRef = it; paint(); } },
+      h('span', { class: 'cz-name' }, `${it.icon || '👕'} ${it.base_name || it.name}${boldMark(it.bold)}`),
+      h('span', { class: 'cz-sub small' }, ...dots, own ? h('span', { class: 'cz-own' }, '持っている') : '', opts.sub ? h('span', { class: 'muted' }, opts.sub(it)) : ''));
+  };
+  const paint = () => {
+    const shown = list.filter(pass);
+    const tabs = SHOP_TABS.filter((k) => list.some((it) => tabOf(it) === k));
+    const cur = tabs.includes(st.tab) ? st.tab : (tabs.find((k) => shown.some((it) => tabOf(it) === k)) || tabs[0]);
+    st.tab = cur;
+    tabsBox.replaceChildren(...tabs.map((k) => h('button', { type: 'button', class: 'btn small' + (k === cur ? ' primary' : ' ghost'),
+      onclick: () => { st.tab = k; paint(); } }, `${tabName(k)} ${shown.filter((it) => tabOf(it) === k).length}`)));
+    const rows = shown.filter((it) => tabOf(it) === cur);
+    const sel = rows.find((it) => it === st.selRef) || rows.find((it) => it.id === st.sel) || rows[0];
+    if (sel) { st.sel = sel.id; st.selRef = sel; }
+    body.replaceChildren(
+      opts.note && opts.note(cur) ? h('p', { class: 'muted small', style: 'margin:2px 0 6px' }, opts.note(cur)) : '',
+      rows.length ? h('div', { class: 'cz-grid' }, rows.map((it) => tile(it, it === sel))) : h('p', { class: 'muted small' }, '当てはまる服がありません'),
+      sel && opts.detail ? h('div', { class: 'cz-det' }, opts.detail(sel)) : '');
+  };
+  drawFilters();
+  paint();
+  root.append(filters, tabsBox, body);
+  return root;
 }
 
 function renderDress() {
   const t = T();
   if (!t) { $('#tab-dress').replaceChildren(); return; }
   const d = t.dress;
-  const outers = (t.wardrobe || []).filter((o) => o.kind === 'outer');
-  const items = (t.wardrobe || []).filter((o) => o.kind !== 'outer' && (o.slot || 'set') === 'set');
-  const parts = (t.wardrobe || []).filter((o) => o.kind !== 'outer' && o.slot && o.slot !== 'set');
-  const card = (id, icon, name, ok, tip) => h('button', {
-    class: 'outfit' + (d.current === id ? ' on' : ''), disabled: !d.can || !ok || S.busy,
-    title: tip || '', onclick: () => doAct('_dress', id),
-  }, h('span', { class: 'ic' }, icon), h('span', {}, name));
+  const own = (t.wardrobe || []).map((o) => Object.assign({}, o, { id: o.key || o.id }));
+  const items = own.filter((o) => o.kind !== 'outer' && (o.slot || 'set') === 'set');
+  const parts = own.filter((o) => o.kind !== 'outer' && o.slot && o.slot !== 'set');
   const ty = t.tryon;
   $('#tab-dress').replaceChildren(
     ty ? h('div', { class: 'cat' }, h('div', { class: 'cat-title' }, '買ってあげたアウター'),
@@ -1301,39 +1352,70 @@ function renderDress() {
       h('div', {}, h('code', {}, d.outfit || '—')),
       d.fixed ? h('div', { class: 'muted small' }, '※ 今の場面は服装固定（就寝中など）なので、着せ替えは場面が変わってから反映されます') : '',
       !d.can ? h('div', { class: 'muted small' }, d.place_ok === false ? d.why : `今は着替えられません（${d.why}）`) : ''),
-    d.place_ok === false ? '' : h('div', { class: 'outfits' },
-      card('', '🔄', 'おまかせ', true, 'スケジュール通りの服に戻す'),
-      items.map((o) => card(o.key || o.id, o.icon || '👕', (o.name || o.id) + boldMark(o.bold), d.items[o.key || o.id],
-        (o.when ? '条件: ' + o.when + ' / ' : '') + (o.bold ? `大胆さ ${o.bold}（着てくれるかは仲・気分・性格しだい）` : o.pos)))),
+    d.place_ok === false ? '' : h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+      h('button', { class: 'btn small' + (d.current === '' ? ' primary' : ''), disabled: !d.can || S.busy, title: 'スケジュール通りの服に戻す',
+        onclick: () => doAct('_dress', '') }, '🔄 おまかせ')),
     items.length || parts.length || d.place_ok === false ? '' : h('p', { class: 'muted small' }, '持っている服がありません。店で服を買って贈るか、設定 → キャラクター → 着せ替え で持たせられます。'),
     d.place_ok === false || !parts.length ? '' : coordPicker(t, d, parts),
-    outers.length ? h('p', { class: 'muted small', style: 'margin-top:8px' }, `持っているアウター: ${outers.map((o) => o.name).join('、')}（出かけるとき、季節が合えば本人が羽織ります）`) : '',
-    ownedList(t),
+    own.length ? closet('dress', own, { redraw: renderDress, detail: (o) => dressDetail(t, d, o),
+      note: (k) => (k === 'outer' ? '出かけるとき、季節が合えば本人が羽織ります（こちらからは着せられません）' : '') }) : '',
     d.place_ok === false ? '' : h('p', { class: 'hint', style: 'margin-top:12px' }, t.dress_reset_on_sleep !== false
       ? '着替えてもらった服は、寝るとスケジュール通りの服に戻ります。' : '着替えてもらった服は「おまかせ」を選ぶまで続きます。'),
     ...poseSections(t),
   );
 }
 
-// 部品で合わせる (S30): 区分ごとに持っている部品から選び, 「この組み合わせで」. 下書きは S.coordDraft (相手ごと)
+// 部品で合わせる (S30 → S37): 服の棚で選んだ部品を「コーデに入れる」と, この下書きに区分ごとに入る. 「この組み合わせで」で着てもらう.
+// 下書きは S.coordDraft (相手ごと). ワンピースを入れるとトップス・ボトムスを外す (逆も)
 const COORD_SLOTS = ['hat', 'top', 'onepiece', 'bottom', 'legwear', 'shoes', 'acc', 'lingerie'];
-function coordPicker(t, d, parts) {
+const coordDraft = (t, d) => {
   S.coordDraft = S.coordDraft || {};
-  const cd = S.coordDraft[t.character] = S.coordDraft[t.character] || Object.assign({}, d.coord || {});
-  const slots = COORD_SLOTS.filter((sl) => parts.some((o) => o.slot === sl));
-  const one = !!cd.onepiece;
-  const pick = () => Object.fromEntries(Object.entries(cd).filter(([sl, k]) => k && !(one && (sl === 'top' || sl === 'bottom'))));
+  return (S.coordDraft[t.character] = S.coordDraft[t.character] || Object.assign({}, d.coord || {}));
+};
+function coordPut(t, d, o, on) {
+  const cd = coordDraft(t, d);
+  if (!on) delete cd[o.slot];
+  else {
+    cd[o.slot] = o.key || o.id;
+    if (o.slot === 'onepiece') { delete cd.top; delete cd.bottom; }
+    if (o.slot === 'top' || o.slot === 'bottom') delete cd.onepiece;
+  }
+  renderDress();
+}
+function coordPicker(t, d, parts) {
+  const cd = coordDraft(t, d);
+  const pick = () => Object.fromEntries(Object.entries(cd).filter(([sl, k]) => k && parts.some((o) => o.key === k)));
+  const chips = COORD_SLOTS.filter((sl) => cd[sl]).map((sl) => {
+    const o = parts.find((x) => x.key === cd[sl]) || {};
+    return h('span', { class: 'coord-chip' }, h('span', { class: 'muted' }, slotName(sl)), ' ', swatch(o.color), ' ', o.base_name || o.name || cd[sl],
+      h('button', { class: 'btn ghost small', title: '外す', style: 'padding:0 5px', onclick: () => coordPut(t, d, { slot: sl }, false) }, '✕'));
+  });
   return h('div', { class: 'coord-pick', style: 'margin-top:10px' },
     h('div', { class: 'sect' }, '🧩 部品で合わせる', d.current === 'coord' ? h('span', { class: 'muted small' }, '（いまは組み合わせを着ている）') : ''),
-    h('div', { class: 'coord-grid' }, slots.map((sl) => h('label', { class: 'small' },
-      h('span', {}, slotName(sl), ' ', swatch((parts.find((o) => o.key === cd[sl]) || {}).color)),
-      h('select', { disabled: S.busy || (one && (sl === 'top' || sl === 'bottom')), onchange: (ev) => { cd[sl] = ev.target.value; renderDress(); } },
-        h('option', { value: '' }, 'なし'),
-        parts.filter((o) => o.slot === sl).map((o) => h('option', { value: o.key, selected: cd[sl] === o.key }, o.name + boldMark(o.bold))))))),
-    h('div', { class: 'row', style: 'margin-top:6px' },
+    h('div', { class: 'coord-bar' }, chips.length ? chips : h('span', { class: 'muted small' }, '下の服の棚で部品を選んで「コーデに入れる」')),
+    h('div', { class: 'row', style: 'margin-top:4px;flex-wrap:wrap' },
       h('button', { class: 'btn small primary', disabled: !d.can || S.busy || !Object.keys(pick()).length,
         onclick: () => doAct('_dress', { coord: pick() }) }, 'この組み合わせで'),
       h('span', { class: 'muted small', style: 'margin-left:8px' }, '靴は外にいるときだけ、ランジェリーは上に何も着ていないときだけ絵に出ます')));
+}
+// 服の棚で選んだ服の操作 (お願い): 一式は着てもらう, 部品はコーデに入れる・外す, アウターは見るだけ
+function dressDetail(t, d, o) {
+  const tip = (o.when ? '条件: ' + o.when + ' / ' : '') + (o.bold ? `大胆さ ${o.bold}（着てくれるかは仲・気分・性格しだい）` : '');
+  const head = h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px 8px' }, h('b', {}, `${o.icon || '👕'} ${o.base_name || o.name}${boldMark(o.bold)}`),
+    swatch(o.color), o.color ? h('span', { class: 'muted small' }, colorName(o.color)) : '',
+    h('span', { class: 'muted small' }, OWNED_FROM[o.owned_from] || ''));
+  if (o.kind === 'outer') return [head];
+  if ((o.slot || 'set') === 'set') {
+    return [head, h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap;gap:6px' },
+      h('button', { class: 'btn small primary', disabled: !d.can || !d.items[o.id] || S.busy, title: tip || o.pos || '', onclick: () => doAct('_dress', o.id) },
+        d.current === o.id ? 'いま着ている' : 'これを着てもらう'),
+      tip ? h('span', { class: 'muted small' }, tip) : '')];
+  }
+  const cd = coordDraft(t, d), inIt = cd[o.slot] === o.key;
+  return [head, h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap;gap:6px' },
+    h('button', { class: 'btn small' + (inIt ? '' : ' primary'), disabled: S.busy, onclick: () => coordPut(t, d, o, !inIt) },
+      inIt ? 'コーデから外す' : (cd[o.slot] ? `コーデの${slotName(o.slot)}をこれに替える` : 'コーデに入れる')),
+    tip ? h('span', { class: 'muted small' }, tip) : '')];
 }
 
 // いま着ている組み合わせを, 区分の順に色の見本つきで (S35)
@@ -1345,18 +1427,6 @@ function coordNow(t, coord) {
   });
   return rows.length ? h('div', { class: 'coord-now' }, rows) : '';
 }
-// 持っている服 (相手の服を見る所. S35): 区分ごとにまとめ, 色は見本で. 開いているかは S.ownOpen に覚える (描き直しで閉じない)
-function ownedList(t) {
-  const own = t.wardrobe || [];
-  if (!own.length) return '';
-  const tab = (o) => (o.kind === 'costume' ? 'costume' : o.kind === 'outer' ? 'outer' : o.slot || 'set');
-  return h('details', { class: 'owned-list', open: !!S.ownOpen, ontoggle: (ev) => { S.ownOpen = ev.target.open; } },
-    h('summary', { class: 'small' }, `👚 持っている服（${own.length}）`),
-    SHOP_TABS.filter((k) => own.some((o) => tab(o) === k)).map((k) => h('div', { class: 'owned-row small' },
-      h('span', { class: 'muted owned-slot' }, tabName(k)),
-      h('span', {}, own.filter((o) => tab(o) === k).map((o) => h('span', { class: 'coord-chip' }, swatch(o.color), ' ', (o.base_name || o.name) + boldMark(o.bold)))))));
-}
-
 // ポーズを取って / 見せて (大人のキャラだけ. 断られることもある. 頼んだものは相手が好みとして覚える)
 function poseSections(t) {
   const ps = t.posing;
@@ -1753,8 +1823,8 @@ function phonePanel() {
 const PLACE_LABEL = (id) => ((S.view.outdoor || {}).places || {})[id] ? `${S.view.outdoor.places[id].icon}${S.view.outdoor.places[id].label}` : id;
 // 買うものリスト: 品物の一行 (リストに入れる数 −/＋ と 常備 −/＋). 持ち物タブとリストのウィンドウで同じ形
 const SL_GROUPS = [['food', '🍚 食べ物', ['food', 'meal']], ['tea', '☕ お茶・おやつ', ['tea', 'sweets']], ['daily', '🧴 日用品・薬', ['detergent', 'medicine']],
-  ['book', '📚 本・教材', null], ['gift', '🎁 服・小物・プレゼント', null]];
-const slGroup = (it) => (SL_GROUPS.find(([, , ks]) => ks && ks.includes(it.kind)) || (String(it.kind).startsWith('book') ? SL_GROUPS[3] : SL_GROUPS[4]))[0];
+  ['book', '📚 本・教材', null], ['clothes', '👗 服', ['outfit']], ['gift', '🎁 小物・プレゼント', null]];
+const slGroup = (it) => (SL_GROUPS.find(([, , ks]) => ks && ks.includes(it.kind)) || (String(it.kind).startsWith('book') ? SL_GROUPS[3] : SL_GROUPS[5]))[0];
 async function shopListSet(path, id, qty) {
   try { await api(path, { id, qty }); await refresh(); } catch (e) { toast(e.message, 'err'); }
   if (S.slDlg && S.slDlg.open) drawShopList();
@@ -1846,12 +1916,15 @@ function drawShopList() {
         h('button', { class: 'btn small' + (pl === cur ? ' primary' : ' ghost'), onclick: () => { S.slStore = pl; drawShopList(); } },
           `${PLACE_LABEL(pl)}${inList(pl) ? `（${inList(pl)}）` : ''}`))),
       h('div', { class: 'muted small', style: 'margin-bottom:6px' }, `${PLACE_LABEL(cur)}で売っているもの${P.hours ? `・${P.hours}` : ''}${P.open === false ? `・いまは${P.note || '閉まっている'}` : ''}。（ ）はリストの中でこの店で買えるもの`),
-      ...clothesTabs(stores[cur], (it) => slRow(it, iv, { where: false }), drawShopList)];
-  } else if (view === 'kind') {
-    body = SL_GROUPS.map(([g, label]) => {
-      const its = cat.filter((it) => slGroup(it) === g);
-      return its.length ? h('div', { class: 'pgroup' }, h('h4', {}, label), ...clothesTabs(its, (it) => slRow(it, iv), drawShopList)) : '';
-    });
+      ...clothesTabs(stores[cur], (it) => slRow(it, iv, { where: false }), drawShopList, 'shop-store')];
+  } else if (view === 'kind') {          // 種類ごとはサブタブ (S37. 服は服の棚)
+    const gs = SL_GROUPS.filter(([g]) => cat.some((it) => slGroup(it) === g));
+    const g = gs.some(([x]) => x === S.slKind) ? S.slKind : (gs[0] || [])[0];
+    S.slKind = g;
+    const its = cat.filter((it) => slGroup(it) === g);
+    body = [h('div', { class: 'kind-tabs' }, gs.map(([x, label]) => h('button', { class: 'btn small' + (x === g ? ' primary' : ' ghost'),
+        onclick: () => { S.slKind = x; drawShopList(); } }, `${label} ${cat.filter((it) => slGroup(it) === x).length}`))),
+      ...clothesTabs(its, (it) => slRow(it, iv), drawShopList, 'shop-kind')];
   } else {
     body = sm.list.length ? [
       h('div', { class: 'small', style: 'margin-bottom:6px' }, `${sm.list.length}品・およそ ${yen(sm.total)}`),
@@ -5085,8 +5158,12 @@ SEC.wardrobe = () => {
   c.clothes = c.clothes || [];
   c.dress_reset_on_sleep = c.dress_reset_on_sleep !== false;
   const list = h('div');
-  const draw = () => {
-    list.replaceChildren(...all.map((o) => {
+  const owns = (o) => c.clothes.some((x) => x.id === o.id);
+  const draw = () => {               // 服の棚で選んだ 1 着のカードだけ出す (S37)
+    list.replaceChildren(closet('cw:' + c.id, all, { owned: owns, redraw: draw, detail: (o) => cardOf(o),
+      sub: (o) => (owns(o) && (o.pos || '').includes('{color}') ? `${c.clothes.filter((x) => x.id === o.id).length}色` : '') }));
+  };
+  const cardOf = (o) => {
       if ((o.pos || '').includes('{color}')) {        // 色違いの部品 (S30): 持っている色を選ぶ (同じ部品の別の色も持てる)
         const cs = (o.colors && o.colors.length) ? o.colors : Object.keys((S.boot.outfits || {}).colors || {});
         const owns = c.clothes.filter((x) => x.id === o.id);
@@ -5116,7 +5193,6 @@ SEC.wardrobe = () => {
           h('div', { class: 'grid4' },
             fld('Positive（空欄なら一覧のまま）', inp(own, 'pos', { type: 'textarea', rows: 2, ph: o.pos }), null, 'span2'),
             fld('Negative', inp(own, 'neg', { type: 'textarea', rows: 2, ph: o.neg }), null, 'span2'))) : '');
-    }));
   };
   draw();
   return [
@@ -5182,8 +5258,11 @@ SEC.outfits = () => {
     h('input', { type: 'checkbox', checked: (o.seasons || []).includes(k), onchange: (ev) => {
       o.seasons = (o.seasons || []).filter((x) => x !== k).concat(ev.target.checked ? [k] : []);
     } }), label)), h('span', { class: 'muted small' }, '（どれも付けなければ通年）'));
-  const draw = () => {
-    list.replaceChildren(...items.map((o, i) => h('div', { class: 'card' },
+  const draw = () => {               // 服の棚で選んだ 1 着の編集カードだけ出す (S37)
+    list.replaceChildren(closet('olist', items, { redraw: draw, detail: (o) => cardOf(o, items.indexOf(o)),
+      sub: (o) => (o.price ? yen(o.price) : '店に並べない') }));
+  };
+  const cardOf = (o, i) => (h('div', { class: 'card' },
       h('div', { class: 'card-head', style: 'flex-wrap:wrap' }, h('b', { style: 'white-space:nowrap' }, `${o.icon || '👕'} ${o.name || o.id}${boldMark(o.bold)}`), h('code', { class: 'muted small' }, o.id),
         h('div', { class: 'spacer' }),
         h('button', { class: 'btn ghost', onclick: () => { moveIn(items, i, -1); draw(); } }, '↑'),
@@ -5208,8 +5287,7 @@ SEC.outfits = () => {
         h('div', { class: 'fld span2 outfit-tags' }, h('span', { class: 'fl' }, '系統'), tagRow(o, O.styles)),
         h('div', { class: 'fld span2 outfit-tags' }, h('span', { class: 'fl' }, '種類'), tagRow(o, O.types)),
         fld('文の中で同じ部品とみなす語', inp(o, 'match', { fmt: (v) => (v || []).join(', '), parse: (v) => v.split(/\s*[,、]\s*/).filter(Boolean) }),
-          'いつもの服・予定の服装の文にこの語があれば、その人の色を付けて描きます（例: mini skirt）', 'span2')))));
-  };
+          'いつもの服・予定の服装の文にこの語があれば、その人の色を付けて描きます（例: mini skirt）', 'span2'))));
   draw();
   return [
     saveBar('服の一覧', async () => {
@@ -5221,7 +5299,12 @@ SEC.outfits = () => {
     fld('サンプル画像のプロンプト', inp(st.images, 'sample_prompt', { type: 'textarea', rows: 3, ph: O.sample_prompt }),
       '{outfit} がその服の服装（Positive）に置き換わります。空欄なら既定。共通プロンプトの前置きも付きます'),
     list,
-    h('button', { class: 'btn', onclick: () => { items.push({ id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', slot: 'set', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', neg: '' }); draw(); } }, '＋服を追加'),
+    h('button', { class: 'btn', onclick: () => {
+      const n = { id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', slot: 'set', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', neg: '' };
+      items.push(n);
+      Object.assign((S.cz || (S.cz = {})).olist || (S.cz.olist = {}), { tab: 'set', sel: n.id, selRef: n, q: '', style: '', season: false });
+      draw();
+    } }, '＋服を追加'),
   ];
 };
 
