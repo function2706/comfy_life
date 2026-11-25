@@ -27,7 +27,9 @@ PLACE_TAGS = {"park": ["nature"], "riverside": ["nature"], "shopping_street": ["
               "town": ["shopping"], "cafe": ["sweets"], "supermarket": ["cooking"], "convenience": ["food"], "drugstore": ["shopping"],
               "bookstore": ["books"], "electronics": ["games"], "mall": ["shopping", "fashion"], "aquarium": ["animals", "sea"],
               "amusement": ["amusement"], "beach": ["sea", "nature"], "mountain": ["nature", "sports"], "hill": ["stars", "nature"],
-              "teishoku": ["food"], "ramen": ["food"], "fastfood": ["food"], "family": ["food"], "restaurant": ["food"]}
+              "teishoku": ["food"], "ramen": ["food"], "fastfood": ["food"], "family": ["food"], "restaurant": ["food"],
+              "boutique": ["shopping", "fashion"], "used_clothes": ["shopping", "fashion"], "sports_shop": ["shopping", "sports"],
+              "costume_shop": ["shopping", "fashion"], "kimono_shop": ["shopping", "fashion"]}
 _expand_keys(PLACE_TAGS)            # 2 店目以降も同じ (A10)
 # 品物の好みの印 (items) → 話題の系統
 LIKE_MAP = {"food": ["food", "cooking"], "tea": ["sweets"], "sweets": ["sweets"], "practical": ["work", "money"], "books": ["books"],

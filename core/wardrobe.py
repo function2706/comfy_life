@@ -330,9 +330,30 @@ class Wardrobe:
 
     def load(self):
         items = store.sync_list_defaults("outfits.json")     # 既定に後から増えた服も足す (消したものは戻さない)
+        items = self._resync_shops(items)
         self.items = [_norm(o) for o in items]
         self._register_shop()
         return self.items
+
+    SHOPS_MARK = "outfits.json.shops"
+
+    def _resync_shops(self, items):
+        """服屋の多様化 (1.8.0beta) を, いまの服の一覧へ一度だけ当てる: 既定にある服で, 売っている店が以前の既定の形
+        (モールと商店街だけ) のままのものを, 新しい既定の店に. 店を自分で変えた服・自作の服は触らない. 当てたら印を残す."""
+        mark = store.dpath(self.SHOPS_MARK)
+        if os.path.exists(mark):
+            return items
+        dmap = {d.get("id"): d for d in store.load(os.path.join(store.DEFAULTS, "outfits.json"), []) or []}
+        n = 0
+        for o in items:
+            d, pl = dmap.get(o.get("id")), list(o.get("places") or ["mall"])
+            if d and "mall" in pl and set(pl) <= {"mall", "shopping_street"} and pl != d.get("places"):
+                o["places"] = list(d.get("places") or ["mall"])
+                n += 1
+        if n:
+            store.save(self.path(), items)
+        store.save(mark, {"t": time.time(), "n": n})
+        return items
 
     def all(self):
         return self.items if self.items is not None else self.load()

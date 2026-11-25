@@ -5290,7 +5290,7 @@ SEC.outfits = () => {
         fld('大胆さ', inp(o, 'bold', { type: 'select', options: O.bold.map((l, b) => [String(b), `${b} ${l}`]), parse: Number })),
         h('div', { class: 'fld' }, h('span', { class: 'fl' }, '外出'), chk(o, 'outing_ok', '外に着ていける')),
         fld('値段（0 で店に並べない）', inp(o, 'price', { type: 'number' })),
-        fld('売っている店', inp(o, 'places', { fmt: (v) => (v || []).join(', '), parse: (v) => v.split(/[,、\s]+/).filter(Boolean) }), 'mall, shopping_street など'),
+        fld('売っている店', inp(o, 'places', { fmt: (v) => (v || []).join(', '), parse: (v) => v.split(/[,、\s]+/).filter(Boolean) }), 'mall, shopping_street, boutique, used_clothes, sports_shop, costume_shop, kimono_shop'),
         h('div', { class: 'fld spanall' }, h('span', { class: 'fl' }, '季節'), seasons(o)),
         fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
         fld('Positive（服装）', inp(o, 'pos', { type: 'textarea', rows: 2 }), '部品は {color} を入れると色違いで売ります（例: {color} pleated skirt）', 'span2'),

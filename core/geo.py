@@ -38,7 +38,7 @@ JAM = 1.35                 # 朝夕の渋滞 (車・タクシー)
 GAS_PER_KM = 12            # ガソリン代 (円/km)
 TAXI_BASE, TAXI_KM = 500, 400
 FARE_NOTE = {"transit": "交通費", "taxi": "タクシー代", "car": "ガソリン・駐車場", "walk": "交通費", "bike": "交通費", "run": "交通費"}
-FREE_PARKING = ("park", "riverside", "convenience", "supermarket", "mall", "electronics", "car_dealer", "driving_school", "clinic",
+FREE_PARKING = ("park", "riverside", "convenience", "supermarket", "mall", "electronics", "car_dealer", "driving_school", "clinic", "sports_shop",
                 "office", "hill")
 
 # 位置の決まり: (基準, 最小 km, 最大 km). 基準は station (駅前) か home (あなたの家)
@@ -49,7 +49,8 @@ RULES = dict({k: ("station", 0.08, 0.6) for k in NEAR_STATION},
              mall=("station", 2.0, 5.0), electronics=("station", 1.8, 4.5), hill=("station", 3.0, 7.0),
              aquarium=("station", 12.0, 35.0), amusement=("station", 12.0, 35.0), beach=("station", 25.0, 60.0),
              mountain=("station", 25.0, 60.0), office=("station", 3.0, 20.0), car_dealer=("station", 2.0, 6.0),
-             driving_school=("station", 1.5, 5.0))
+             driving_school=("station", 1.5, 5.0), boutique=("station", 0.1, 0.7), used_clothes=("station", 0.2, 1.0),
+             costume_shop=("station", 0.2, 0.9), kimono_shop=("station", 0.1, 0.6), sports_shop=("station", 1.5, 4.5))
 HOME_KM = (0.35, 1.15)     # あなたの家と駅の距離
 CHAR_NEAR, CHAR_FAR = (0.3, 2.5), (4.0, 20.0)
 CHAR_FAR_P = 0.2

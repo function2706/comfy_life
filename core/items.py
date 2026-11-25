@@ -44,7 +44,7 @@ _C = [
     ("book_groom", "身だしなみの本", "📙", "book_groom", 1400, ["bookstore", "mall", "drugstore"], ["books", "fashion"], True),
     ("book_budget", "家計の本", "📘", "book_budget", 1500, ["bookstore", "station", "mall"], ["books", "practical"], True),
     ("book_write", "文章の書き方の本", "📒", "book_write", 1400, ["bookstore", "station", "mall"], ["books"], True),
-    ("clothes", "自分の服", "👕", "clothes", 4000, ["mall", "shopping_street"], ["fashion"], False),
+    ("clothes", "自分の服", "👕", "clothes", 4000, ["mall", "shopping_street", "boutique", "used_clothes", "sports_shop"], ["fashion"], False),
     ("novel", "小説", "📖", "goods", 1200, ["bookstore", "station", "mall", "convenience"], ["books"], True),
     ("bicycle", "自転車", "🚲", "vehicle", 25000, ["mall", "electronics"], ["practical"], False),
     ("car", "中古車", "🚗", "vehicle", 800000, ["car_dealer"], [], False),

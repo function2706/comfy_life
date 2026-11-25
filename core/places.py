@@ -50,6 +50,11 @@ PLACES = {
     "bookstore": _p("本屋", "📚", "shop", False, "shop", ["shop"]),
     "electronics": _p("家電量販店", "🔌", "shop", False, "shop", ["shop"]),
     "mall": _p("ショッピングモール", "🏬", "shop", False, "mall", ["shop", "walk"]),
+    "boutique": _p("ブティック", "👠", "shop", False, "shop", ["shop"]),
+    "used_clothes": _p("古着屋", "🧥", "shop", False, "shop", ["shop"]),
+    "sports_shop": _p("スポーツ用品店", "👟", "shop", False, "shop", ["shop"]),
+    "costume_shop": _p("衣装の店", "🎭", "shop", False, "shop", ["shop"]),
+    "kimono_shop": _p("呉服屋", "👘", "shop", False, "shop", ["shop"]),
     "aquarium": _p("水族館", "🐠", "fun", False, "leisure", ["see"], fee=2500),
     "amusement": _p("遊園地", "🎡", "fun", True, "leisure", ["see"], fee=6000),
     "beach": _p("海", "🏖", "fun", True, "far", ["walk"]),
@@ -74,6 +79,11 @@ HOURS = {
     "bookstore": {"open": "10:00", "close": "21:00"},
     "electronics": {"open": "10:00", "close": "21:00"},
     "mall": {"open": "10:00", "close": "21:00"},
+    "boutique": {"open": "11:00", "close": "20:00", "closed_days": [2]},
+    "used_clothes": {"open": "12:00", "close": "20:00", "closed_days": [1]},
+    "sports_shop": {"open": "10:00", "close": "20:00"},
+    "costume_shop": {"open": "12:00", "close": "21:00"},
+    "kimono_shop": {"open": "10:00", "close": "18:00", "closed_days": [3]},
     "aquarium": {"open": "09:30", "close": "17:30"},
     "amusement": {"open": "09:00", "close": "21:00"},
     "beach": {"open": "06:00", "close": "19:00", "months": [4, 5, 6, 7, 8, 9, 10]},
@@ -166,9 +176,12 @@ def expand_keys(d):
     return d
 
 
+KIND_PRICE = {"used_clothes": 0.6}      # 種類ごとの値段の倍率 (古着は 6 割)
+
+
 def price_rate(pid):
-    """その店の値段の倍率 (1 店目と, 店が 1 つの行き先は 1)."""
-    return float((BRANCHES.get(pid) or {}).get("price", 1.0))
+    """その店の値段の倍率 (1 店目と, 店が 1 つの行き先は 1. 古着屋は KIND_PRICE)."""
+    return float((BRANCHES.get(pid) or {}).get("price", KIND_PRICE.get(kind_of(pid), 1.0)))
 
 
 def lacks(pid):
@@ -273,7 +286,9 @@ LOCATION_PLACE = {"公園": "park", "商店街": "shopping_street", "河川敷":
                   "遊園地": "amusement", "水族館": "aquarium", "丘の上": "hill", "山道": "mountain", "山": "mountain",
                   "スーパー": "supermarket", "コンビニ": "convenience", "ドラッグストア": "drugstore", "本屋": "bookstore",
                   "家電量販店": "electronics", "星空の見える丘": "hill", "定食屋": "teishoku", "ラーメン屋": "ramen",
-                  "ファストフード": "fastfood", "ファミレス": "family", "レストラン": "restaurant", "病院": "clinic"}
+                  "ファストフード": "fastfood", "ファミレス": "family", "レストラン": "restaurant", "病院": "clinic",
+                  "ブティック": "boutique", "古着屋": "used_clothes", "スポーツ用品店": "sports_shop", "衣装の店": "costume_shop",
+                  "呉服屋": "kimono_shop"}
 # 一人の時間・行動パターンの「散歩・買い物・カフェ」→ 外出の既定の行き先
 LEGACY_DO = {"walk": "park", "shopping": "shopping_street", "cafe": "cafe"}
 

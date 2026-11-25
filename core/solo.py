@@ -39,7 +39,8 @@ KINDS = {
 # リストの品 1 つあたり (その店に売っているものだけ). コンビニに 15 分いることはまず無く, モールは 30 分ほどいることが多い
 SHOP_BASE = {"convenience": (3, 0.3, 0.5), "station": (3, 0.3, 0.5), "drugstore": (7, 0.35, 0.8), "bookstore": (10, 0.5, 0.8),
              "supermarket": (10, 0.3, 0.9), "shopping_street": (15, 0.4, 1.0), "electronics": (20, 0.45, 1.0), "mall": (25, 0.45, 1.0),
-             "car_dealer": (45, 0.35, 1.0)}
+             "car_dealer": (45, 0.35, 1.0), "boutique": (15, 0.45, 1.0), "used_clothes": (20, 0.5, 1.0),
+             "sports_shop": (20, 0.4, 1.0), "costume_shop": (15, 0.45, 1.0), "kimono_shop": (20, 0.4, 1.0)}
 places_mod.expand_keys(SHOP_BASE)   # 2 店目以降も同じ (A10)
 READ_H, MOVIE_H = 1.5, 2.0      # 読み終える・観終わるのにかかる時間 (合計. 途中でやめても続きから. core/topics.py)
 JOG_PLACES = ("park", "riverside", "town")       # 走れる行き先

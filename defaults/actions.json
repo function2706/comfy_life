@@ -2249,6 +2249,11 @@
   "places": [
    "shopping_street",
    "mall",
+   "boutique",
+   "used_clothes",
+   "sports_shop",
+   "costume_shop",
+   "kimono_shop",
    "supermarket",
    "station",
    "drugstore",
