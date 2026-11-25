@@ -156,6 +156,8 @@ class Solo:
             kind = "out"
         if kind == "out" and places_mod.is_home(place):      # 相手の家を訪ねる
             self._place(kind, place)
+            if app.places.with_why(place):
+                raise ValueError(app.places.with_why(place))
             if frm != place:                                  # まず相手の家まで移動する (着いたら arrive_then)
                 now = time.time()
                 app.presence.declare("out", now)

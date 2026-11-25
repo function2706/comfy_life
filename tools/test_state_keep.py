@@ -7,7 +7,9 @@ test_state_matrix の状態と押すもの (誰かと・一人で・ゲーム・
 
     python tools/test_state_keep.py            # すべての状態
     python tools/test_state_keep.py stay       # 名前に stay を含む状態だけ
+    python tools/test_state_keep.py =stay,=meet   # = を付けると名前が一致する状態だけ (カンマで並べられる)
     python tools/test_state_keep.py --report   # 落とさずに, 消えたものを全部並べる (スクリーニング用)
+見つけたものはその場で出す (長いので, 打ち切られても途中までは残る).
 """
 import os
 import random
@@ -87,8 +89,59 @@ def s_care_visit(app, cid):       # 風邪の相手の家に看病に来てい�
     app.bonds.save()
 
 
+OWE_PLACE = "mountain"
+
+
+def _owe(app, cid):               # 相手と罰のデートの約束がある (家事の罰は, 家に二人いれば次の tick で果たされるので使わない)
+    st = app.state(cid)
+    app.forfeit._owe(st, "her", "date", {}, time.time(), place=OWE_PLACE)
+    app.save_state(cid)
+
+
+def s_stay_game(app, cid):        # 相手の家に泊まっていて, ゲームの途中 (罰の約束もある)
+    M.s_stay(app, cid)
+    _owe(app, cid)
+    char, st = app.char(cid), app.state(cid)
+    from datetime import datetime
+    gv = app.games.view(char, st, app.context(char, st, datetime.now()))
+    gid = next(g["id"] for g in gv["list"] if g["ok"])
+    app.games.start(gid, cid)
+
+
+def s_live_owed(app, cid):        # 同居相手と家にいて, 相手が罰を果たす約束がある
+    M.s_live_home(app, cid)
+    _owe(app, cid)
+
+
+def s_call(app, cid):             # 一人で家にいて, 相手と電話中
+    M.s_alone(app, cid)
+    app.phonetalk.begin(app.char(cid), app.state(cid), "もしもし。", True, time.time())
+    b = app.phonetalk.rec().get("beat")
+    if b:                         # 押すものを順に試す数分のうちに, 返事待ちの期限が過ぎて相手から切れないように
+        b["due"] = time.time() + 3600
+    app.presence.save()
+    app.save_state(cid)
+
+
+@M._at(23)
+def s_me_asleep(app, cid):        # 夜 23 時, 同居相手と家にいて, あなたが寝ている
+    M.s_live_home(app, cid)
+    app.solo.start("sleep")
+
+
+def s_outing_home_appt(app, cid):  # 同居相手と出かけた帰りの移動中に, 夜の別の約束 (別の場所) がある
+    M.s_outing_home(app, cid)
+    A = app.appoint
+    t = time.time() + 5 * 3600
+    A.all().append({"id": "xn", "cid": cid, "t": t, "place": "cafe", "do": "cafe", "by": "me", "status": "set", "made": time.time(),
+                    "plan": {"noshow": False, "late": 0, "cancel_checked": True}})
+    A.save()
+
+
 EXTRA = [("stay_guest", s_stay_guest), ("stay_asked", s_stay_asked), ("stay_out", s_stay_out),
-         ("favor_wait", s_favor_wait), ("guest_help", s_guest_help), ("care_visit", s_care_visit)]
+         ("favor_wait", s_favor_wait), ("guest_help", s_guest_help), ("care_visit", s_care_visit),
+         ("stay_game", s_stay_game), ("live_owed", s_live_owed), ("call", s_call), ("me_asleep", s_me_asleep),
+         ("outing_home_appt", s_outing_home_appt)]
 STATES = M.STATES + EXTRA
 
 
@@ -185,7 +238,23 @@ ENDS = [
 ]
 
 
-def allowed(sname, key, pid, kind):
+# 一緒にいることにくっついている状態: 別れれば一緒に終わる (その家での約束ごとは, 別れて帰れば終わり. core/bonds.py end / _drop_base)
+WITH_KEYS = ("一緒にいる", "一緒のお出かけ", "泊まる約束", "今日はもう聞いた", "頼まれた手伝い", "手伝いの最中", "招いた手伝い", "看病の記録",
+             "相手の過ごし方:")
+
+
+def allowed(sname, key, pid, kind, after=None):
+    parted = after is not None and "一緒にいる" not in after
+    if parted and key.startswith(WITH_KEYS) and (kind in ("一人で", "地図") or pid in LEAVE):
+        return True           # 告げて出かける・席を外す・寝る・別の所へ行く = 別れて行く (core/engine.py act の parting)
+    if key.startswith(("一緒のお出かけ", "泊まる約束", "今日はもう聞いた")) and pid == "bring_home":
+        return True           # 泊まる約束で出た先から, あなたの家へ連れて帰る: 相手の家に泊まる約束は終わる
+    if key.startswith("一緒のお出かけ") and pid == "move_out":
+        return True           # 同居をやめる
+    if key.startswith("罰の約束") and pid == OWE_PLACE:
+        return True           # 罰のデートの約束の場所へ行った (着いたら果たされる)
+    if key == "あなた:out" and kind == "地図" and pid == "home:me":
+        return True           # 家へ帰る
     if key.startswith("あなた:") and (kind == "一人で" or kind == "誰かと" or kind == "ゲーム"):
         return True           # 一人のこと・誰かとのことを始めれば, いまのあなたの予定は終わる (相手を待つ約束は別)
     if key == "会って話している" and kind != "時間":
@@ -196,6 +265,17 @@ def allowed(sname, key, pid, kind):
         if (s == "*" or sname.startswith(s)) and key.startswith(k) and pid in ids:
             return True
     return False
+
+
+def pick(only, sname):
+    if only.startswith("="):
+        return sname in [x.lstrip("=") for x in only.split(",")]
+    return only in sname
+
+
+def note(found, f):
+    found.append(f)
+    print("  ✗ [%s] %s（%s）: %s — %s" % f, flush=True)
 
 
 def main():
@@ -216,7 +296,7 @@ def main():
         snap0 = os.path.join(base, "snap0")
         shutil.copytree(store.DATA, snap0)
         for sname, fn in STATES:
-            if only and only not in sname:
+            if only and not pick(only, sname):
                 continue
             M.FORCE.clear()
             M.CLK["dt"] = getattr(fn, "clock", None)
@@ -251,7 +331,7 @@ def main():
                 except ValueError:
                     continue
                 except Exception as e:  # noqa: BLE001
-                    found.append((sname, pid, name, "例外", "%s: %s" % (type(e).__name__, e)))
+                    note(found, (sname, pid, name, "例外", "%s: %s" % (type(e).__name__, e)))
                     continue
                 n += 1
                 k += 1
@@ -265,20 +345,18 @@ def main():
                     t1 = time.time() + ui["d"] + 60
                     for key, te in ex.items():
                         if key not in after and te > t1:
-                            found.append((sname, pid, name, "終わる前に消えた: %s (あと %d 分あったはず)" % (key, (te - t1) // 60), kind))
+                            note(found, (sname, pid, name, "終わる前に消えた: %s (あと %d 分あったはず)" % (key, (te - t1) // 60), kind))
                     continue
                 after = lasting(app2, cid)
                 for key in before:
-                    if key in after or allowed(sname, key, pid, kind):
+                    if key in after or allowed(sname, key, pid, kind, after):
                         continue
-                    found.append((sname, pid, name, "消えた: " + key, kind))
+                    note(found, (sname, pid, name, "消えた: " + key, kind))
             print("%s: %d 件 (続いている: %s)" % (sname, k, ", ".join(before) or "なし"), flush=True)
     finally:
         M.CLK["dt"] = None
         engine.App.scheduled_scene = sched
         shutil.rmtree(base, ignore_errors=True)
-    for f in found:
-        print("  ✗ [%s] %s（%s）: %s — %s" % f)
     print("確かめた組み合わせ %d / 消えた %d" % (n, len(found)))
     if not report:
         assert not found

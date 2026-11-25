@@ -347,7 +347,7 @@ def map_probes(app, cid):
         goable = (pid not in ("office", "station")) or pid in out_choices
         modes_ok = any(m.get("ok") for m in (r.get("modes") or {}).values())
         ok = bool(free and goable and not here and not heading and not no_with and not od.get("out_with") and pl.get("open") is not False
-                  and not (wo and pid == "home:me") and modes_ok)
+                  and not (wo and pid == "home:me") and modes_ok and pid not in (od.get("with_home") or {}))
         why = "free=%s here=%s heading=%s open=%s modes=%s" % (free, here, heading, pl.get("open"), modes_ok)
 
         def run(app2, pid=pid):

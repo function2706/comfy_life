@@ -86,6 +86,7 @@ class Outdoor:
         ch = dict(CHOICES, out=self.app.places.out_choices(), jog=list(JOG_PLACES))
         out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
                "choices": ch, "routine_choices": list(places_mod.ROUTINE_OUT), "near": pv.get("near", {}), "current": None}
+        out["with_home"] = {k: self.app.places.with_why(k) for k in ch["out"] if self.app.places.with_why(k)}     # 一緒にいる人の家 (F18)
         if cur:
             pl = self.app.places.get(cur["place"]) or PLACES["town"]
             out["current"] = dict(cur, label=pl["label"], icon=pl["icon"],

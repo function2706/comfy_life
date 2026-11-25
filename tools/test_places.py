@@ -4,6 +4,7 @@
 - 店ごとの品ぞろえ (買うものリストの品は, 売っている店でだけ買える)
 - 誰かとのお出かけも表の行き先 (選べるものは選べる). 以前の一時シーン (日本語の場所だけ) も読み替える
 - 約束なしに相手の家を訪ねる: 留守・出てこない・迎えてくれる・断られる (状況・仲・性格しだい. 補正なし)
+- いま一緒にいる相手 (家に来ている・泊まっている・外で会っている) の家へは, 一人では行けない (相手が二か所にいた. F18)
 - 行動パターンの 散歩・買い物・カフェ は, 起動時に 外出 + 行き先 に書き換える
 
     python tools/test_places.py
@@ -114,6 +115,24 @@ def main():
                 app.come_back()
         assert low["visit"] < got["visit"], (low, got)
         assert any(x.get("action") == "_drop_in" for x in st["reasons"]), "急に来られて断ったことは, 機嫌の理由に残る"
+        # 一緒にいる相手の家へは, 一人で行けない (地図にも出ない理由を出す)
+        home = "home:" + cid
+        for mode, stay in (("guest", False), ("guest", True), ("meet", False)):
+            B.start(cid, mode)
+            if stay:
+                B.with_rec()["stay"] = {"t": time.time()}
+                B.save()
+            w0 = dict(B.with_rec())
+            assert app.outdoor.view()["with_home"].get(home), (mode, stay)
+            try:
+                app.solo.start("out", None, home)
+                raise AssertionError("一緒にいる相手の家へ一人で行けた: %s stay=%s" % (mode, stay))
+            except ValueError as e:
+                assert mode == "meet" or "一緒にいます" in str(e), e      # 外で会っている間は「解散してから」が先に効く
+            assert B.with_rec() == w0, "断られても, 一緒にいることも泊まる約束もそのまま"
+            B.end(go_home=False)
+        assert not app.outdoor.view()["with_home"]
+        print("with home: OK")
         B.set_stage(cid, "contact")
         try:
             app.drop_in(cid)

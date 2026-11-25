@@ -389,6 +389,15 @@ class Places:
             return "%sの家" % self.app.chars[home_of(pid)].get("name", "")
         return p["label"] if p else pid
 
+    def with_why(self, pid):
+        """相手の家へ一人で行けない理由: その人がいまあなたと一緒にいる (家に来ている・外で会っている). 行けるなら None.
+        (以前は行けてしまい, あなたの家に泊まっている相手が, 自分の家であなたを出迎えていた. F18)"""
+        owner = home_of(pid) if isinstance(pid, str) else None
+        w = self.app.bonds.with_rec() or {}
+        if owner and owner != "me" and w.get("cid") == owner and w.get("mode") != "visit":
+            return "%sはいまあなたと一緒にいます" % self.app.chars.get(owner, {}).get("name", "")
+        return None
+
     def out_choices(self):
         """一人の外出の行き先 (公共の行き先 + 訪ねられる相手の家)."""
         return OUT_PLACES + [k for k in self.homes() if k != HOME_ME]
