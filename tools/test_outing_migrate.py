@@ -75,7 +75,7 @@ def main():
         ov["until"] = now.timestamp() + 3600
         st["override"] = ov
         s = app.scene_at(app.char(), st, now)
-        assert "pajamas" not in s["outfit"] and s["outfit"] == app.char()["outfit_outing"], s["outfit"]
+        assert "pajamas" not in s["outfit"] and s["outfit"] == app.wardrobe.resolve(app.char(), app.char()["outfit_outing"]), s["outfit"]
         st["dress"] = {"id": "onepiece"}
         s = app.scene_at(app.char(), st, now)
         assert "one-piece" in s["outfit"], s["outfit"]

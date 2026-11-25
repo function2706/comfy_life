@@ -9,6 +9,7 @@
   持ち物のタブ・トークの約束の欄 (出ている欄はすべて)
 - 設定の「表示」の知らせの音の欄 (A33)
 - 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
+- 誰かと → お願いの着せ替えの「部品で合わせる」のプルダウン (S30)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -122,6 +123,8 @@ f.onload = () => setTimeout(async () => {
       (S.view.games.list || []).forEach((g) => { g.base_ok = true; });      // 相手の手が空いていない時刻でも欄を出す (欄のフォーカスだけを見る)
       w.renderGames();
     }, '#tab-games .ff-pick', 'forfeit');
+    // 4e. 誰かと → お願い: 着せ替えの「部品で合わせる」の区分ごとのプルダウン (S30)
+    await keepAll(() => { closeModal(); w.showTab('with'); w.showSub('dress'); w.renderDress(); }, '#tab-dress .coord-pick', 'coord');
     try { await w.api('/api/save/del', { path: ['player', 'presence', 'with'] }); } catch (e) { out.push('gclean:' + e.message); }
     await w.refresh(); closeModal();
     // 4c. 設定の「表示」: 知らせの音の欄 (A33. 種類ごとの音のプルダウン)

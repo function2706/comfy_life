@@ -124,13 +124,20 @@ def _rename_deep(o, ren):
     return o
 
 
-IGNORE_KEYS = ("prompt_history", "met", "icon", "icon_seed", "imported", "origin")
+IGNORE_KEYS = ("prompt_history", "met", "icon", "icon_seed", "imported", "origin", "usual_seen")
+
+
+def _clothes(v):
+    """持っている服から, いつもの服の文から起動時に持たせた部品 (S30. 色つき・最初から・時刻なし) を除いたもの.
+    その部品は文 (outfit_default) から決まるので, 版の違いで片方にだけあっても別の人にしない."""
+    return [x for x in v or [] if not (x.get("color") and x.get("from") == "default" and not x.get("t"))]
 
 
 def same_person(here, c):
     """同じ人の定義か: 両方にある項目がすべて同じ. 片方にしかない項目は, 版の違いで後から補われた既定値のことが多いので見ない."""
     keys = (set(here) & set(c)) - set(IGNORE_KEYS)
-    return all(store.obj_hash(here[k]) == store.obj_hash(c[k]) for k in keys)
+    norm = {"clothes": _clothes}
+    return all(store.obj_hash(norm.get(k, lambda v: v)(here[k])) == store.obj_hash(norm.get(k, lambda v: v)(c[k])) for k in keys)
 
 
 def import_world(data, name=None):

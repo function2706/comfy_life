@@ -13,7 +13,14 @@
   羽織っていくことがある (outer_pick). 一緒の買い物で買ってあげたものは, その場で「いま着てみて」と聞ける (tryon_feel.
   受け取ってくれても, 季節・気分しだいで「帰ってから」になる. 聞けるのは一度だけ)
 - 以前の形式 (キャラごとの wardrobe) は起動時に一覧へ移し, 元のキャラの持っている服にする (中身が同じものは 1 つに).
+- 部品 (S30): 服は区分 slot (SLOTS) を持つ. set (一式. いまの服とコスプレ・水着など) は着ると outer 以外を覆う. 部品の pos に {color} が
+  あれば色違いで売る (COLORS. 品の鍵は "<id>:<色>", 持ち物は "outfit:<鍵>"). 部品の組み合わせ (コーデ) は st.dress = {coord: {区分: 鍵}}.
+  靴は外にいるときだけ, ランジェリーはトップスもワンピースも無いときだけ描く. 大胆さは描かれる部品のいちばん大胆なもの.
+- 文の服装の色を固定する (resolve): いつもの服・予定の服装・一式の pos の中の部品の名前に, その人の色を付けて描く (毎回同じ色).
+  いつもの服とお出かけ着の文から見つかった部品は, その色でその人の持っている服になる (seed_usual).
 """
+import hashlib
+import re
 import datetime
 import math
 import random
@@ -25,7 +32,20 @@ from . import outdoor as outdoor_mod
 from . import store
 
 KINDS = {"casual": "普段着", "lounge": "部屋着", "formal": "よそ行き", "work": "仕事着", "pajamas": "パジャマ",
-         "swim": "水着", "costume": "衣装", "outer": "アウター"}
+         "swim": "水着", "costume": "衣装", "outer": "アウター", "part": "部品"}
+# 区分: 描く順. onepiece は top と bottom を兼ねる. set (一式) は outer 以外を覆う
+SLOTS = {"hat": "ハット", "top": "トップス", "onepiece": "ワンピース", "bottom": "ボトムス", "legwear": "ソックス・タイツ",
+         "shoes": "靴", "acc": "アクセサリー", "lingerie": "ランジェリー", "outer": "アウター", "set": "一式"}
+COORD_SLOTS = ("hat", "top", "onepiece", "bottom", "legwear", "shoes", "acc", "lingerie")
+# 色 (固定): id: (日本語, 英語のタグ, 無彩色か)
+COLORS = {"white": ("白", "white", True), "black": ("黒", "black", True), "grey": ("グレー", "grey", True),
+          "navy": ("紺", "navy blue", True), "blue": ("青", "blue", False), "light_blue": ("水色", "light blue", False),
+          "red": ("赤", "red", False), "pink": ("ピンク", "pink", False), "yellow": ("黄", "yellow", False),
+          "green": ("緑", "green", False), "khaki": ("カーキ", "khaki", True), "beige": ("ベージュ", "beige", True),
+          "brown": ("茶", "brown", True), "purple": ("紫", "purple", False)}
+# 文の中の色の語 (これがあれば色を足さない)
+COLOR_WORDS = re.compile(r"\b(white|black|gr[ae]y|navy|blue|red|pink|yellow|green|khaki|beige|brown|purple|ivory|cream|"
+                         r"orange|gold|golden|silver|denim|pastel|lavender|burgundy|camel|olive|mint|multicolored|rainbow)\b", re.I)
 OUTER = "outer"                       # 上に羽織るもの (コート・ジャケット). 着せ替えの一式ではなく, いまの服の上に重ねる
 TRYON_MIN = 60                        # 買ってもらったアウターを「いま着てみて」と頼める時間 (分)
 SEASONS = {"spring": "春", "summer": "夏", "autumn": "秋", "winter": "冬"}
@@ -38,7 +58,8 @@ STARTER = ("casual", "lounge", "pajamas")     # 新しい人が最初から持�
 # サンプル画像のプロンプト. {outfit} がその服の服装のプロンプトに置き換わる (設定 images.sample_prompt で変えられる)
 SAMPLE_PROMPT = ("{outfit}, black hair, straight hair, medium hair, black eyes, looking at viewer, expressionless, full body, "
                  "contrapposto, simple background, 1girl, solo, masterpiece, best quality, amazing quality")
-FIELDS = ("id", "name", "icon", "kind", "bold", "outing_ok", "seasons", "price", "places", "when", "pos", "neg", "sample")
+FIELDS = ("id", "name", "icon", "kind", "slot", "bold", "outing_ok", "seasons", "price", "places", "when", "pos", "neg", "colors",
+          "match", "sample")
 
 
 def _norm(o):
@@ -47,6 +68,18 @@ def _norm(o):
     o.setdefault("name", o["id"])
     o.setdefault("icon", "👕")
     o["kind"] = o.get("kind") if o.get("kind") in KINDS else "casual"
+    slot = o.get("slot")
+    if slot not in SLOTS:                     # 区分の無い服 (以前の形): アウターは outer, ほかは一式
+        slot = "outer" if o["kind"] == OUTER else ("top" if o["kind"] == "part" else "set")
+    o["slot"] = slot
+    if slot == "outer":
+        o["kind"] = OUTER
+    elif slot != "set":
+        o["kind"] = "part"
+    elif o["kind"] == "part":
+        o["kind"] = "casual"
+    o["colors"] = [c for c in o.get("colors") or [] if c in COLORS]
+    o["match"] = [str(m).strip().lower() for m in o.get("match") or [] if str(m).strip()]
     o["bold"] = max(0, min(3, int(o.get("bold") or 0)))
     o["outing_ok"] = bool(o.get("outing_ok"))
     o["seasons"] = [s for s in o.get("seasons") or [] if s in SEASONS]
@@ -55,6 +88,46 @@ def _norm(o):
     for k in ("when", "pos", "neg"):
         o[k] = o.get(k) or ""
     return o
+
+
+def colored(o):
+    """色違いで売る服か ({color} を含む)."""
+    return "{color}" in (o.get("pos") or "")
+
+
+def sell_colors(o):
+    return (o.get("colors") or list(COLORS)) if colored(o) else []
+
+
+def split_key(key):
+    """品の鍵 "<id>:<色>" → (id, 色). 色の無い服は (id, None)."""
+    key = str(key or "")
+    if ":" in key:
+        i, c = key.rsplit(":", 1)
+        if c in COLORS:
+            return i, c
+    return key, None
+
+
+def key_of(oid, color=None):
+    return "%s:%s" % (oid, color) if color else oid
+
+
+def paint(o, color):
+    """服の一覧の 1 着に色を付けたもの (鍵・名前・pos)."""
+    if not colored(o):
+        return dict(o, key=o["id"], color=None)
+    color = color if color in sell_colors(o) else sell_colors(o)[0]
+    return dict(o, key=key_of(o["id"], color), color=color, base_name=o["name"],
+                name="%s（%s）" % (o["name"], COLORS[color][0]), pos=o["pos"].replace("{color}", COLORS[color][1]))
+
+
+def _base_tags(o):
+    """文の中でこの部品とみなす語 (pos から {color} を抜いたもの + 別名)."""
+    if o["slot"] in ("set", "outer", "lingerie") or not colored(o):
+        return []
+    first = o["pos"].split(",")[0].replace("{color}", "").strip().lower()
+    return [t for t in [first] + o["match"] if t]
 
 
 def _same(a, b):
@@ -81,7 +154,12 @@ class Wardrobe:
         return self.items if self.items is not None else self.load()
 
     def get(self, oid):
-        return next((o for o in self.all() if o["id"] == oid), None)
+        """服の一覧の 1 着 (id で. 色の付いた鍵なら, その色を付けたもの)."""
+        i, c = split_key(oid)
+        o = next((o for o in self.all() if o["id"] == i), None)
+        if o and c:
+            return paint(o, c) if colored(o) else None
+        return o
 
     def save_all(self, items):
         """設定から一覧を保存する. id が重なれば断る. 持っている人がいる服を消しても, その人の持ち物からは外れるだけ."""
@@ -111,7 +189,8 @@ class Wardrobe:
         s = self.app.settings
         pr = s.get("prompt") or {}
         tmpl = ((s.get("images") or {}).get("sample_prompt") or SAMPLE_PROMPT)
-        body = tmpl.replace("{outfit}", o.get("pos", "")) if "{outfit}" in tmpl else "%s, %s" % (o.get("pos", ""), tmpl)
+        pos = o.get("pos", "").replace("{color}", "white")        # 色違いの部品は白で描く
+        body = tmpl.replace("{outfit}", pos) if "{outfit}" in tmpl else "%s, %s" % (pos, tmpl)
         from .engine import join_tags
         return join_tags([pr.get("prefix_pos", ""), body]), join_tags([pr.get("prefix_neg", ""), o.get("neg", "")])
 
@@ -120,24 +199,29 @@ class Wardrobe:
         for k in [k for k in items_mod.CATALOG if k.startswith("outfit:")]:
             del items_mod.CATALOG[k]
         for o in self.items:
-            if o["price"] > 0:
-                items_mod.CATALOG["outfit:" + o["id"]] = {
-                    "id": "outfit:" + o["id"], "name": o["name"], "icon": o["icon"], "kind": "outfit", "price": o["price"],
+            if o["price"] <= 0:
+                continue
+            for v in [paint(o, c) for c in sell_colors(o)] or [dict(o, key=o["id"], color=None)]:   # 色違いは色ごとに 1 品
+                items_mod.CATALOG["outfit:" + v["key"]] = {
+                    "id": "outfit:" + v["key"], "name": v["name"], "icon": o["icon"], "kind": "outfit", "price": o["price"],
                     "places": o["places"], "tags": ["fashion"], "giftable": True, "essential": False,
-                    "outfit": o["id"], "bold": o["bold"]}
+                    "outfit": v["key"], "bold": o["bold"], "slot": o["slot"], "color": v["color"],
+                    "variant_of": "outfit:" + o["id"] if v["color"] else None, "base_name": o["name"]}
 
     # ------------------------------------------------------------------ 持っている服
     @staticmethod
     def owned_ids(char):
-        return [x.get("id") for x in char.get("clothes") or []]
+        """持っている服の鍵 (色違いの部品は "<id>:<色>")."""
+        return [key_of(x.get("id"), x.get("color")) for x in char.get("clothes") or []]
 
     def owned(self, char):
-        """その人が持っている服 (一覧の中身に, その人用の上書きを重ねたもの)."""
+        """その人が持っている服 (一覧の中身に, その人用の上書きを重ねたもの. 色違いの部品は色を付けて. key が鍵)."""
         out = []
         for x in char.get("clothes") or []:
-            o = self.get(x.get("id"))
+            o = next((o for o in self.all() if o["id"] == x.get("id")), None)
             if not o:
                 continue
+            o = paint(o, x.get("color") or self._color(char, o))
             o = dict(o, owned_from=x.get("from", "default"), owned_t=x.get("t") or 0)
             for k in ("pos", "neg"):
                 if (x.get(k) or "").strip():
@@ -145,19 +229,174 @@ class Wardrobe:
             out.append(o)
         return out
 
-    def item(self, char, oid):
-        return next((o for o in self.owned(char) if o["id"] == oid), None)
+    def item(self, char, key):
+        """持っている服 (鍵で. 色違いの部品で色の無い鍵なら, 持っている最初の色)."""
+        own = self.owned(char)
+        return next((o for o in own if o["key"] == key), None) or next((o for o in own if o["id"] == key), None)
 
-    def give_to(self, char, oid, src, t=None):
-        """持っている服に足す (定義は全体なので, 全ワールドで持っていることになる)."""
-        if oid in self.owned_ids(char):
+    def give_to(self, char, key, src, t=None):
+        """持っている服に足す (定義は全体なので, 全ワールドで持っていることになる). key は鍵 (色違いの部品は "<id>:<色>")."""
+        if key in self.owned_ids(char):
             return False
+        oid, color = split_key(key)
         c = store.all_characters().get(char["id"]) or char
-        c.setdefault("clothes", []).append({"id": oid, "from": src, "t": t or time.time()})
+        x = {"id": oid, "from": src, "t": t or time.time()}
+        if color:
+            x["color"] = color
+        c.setdefault("clothes", []).append(x)
         store.save_character(c)
         if char is not c:
             char["clothes"] = c["clothes"]
         return True
+
+    # ------------------------------------------------------------------ 部品の組み合わせ (コーデ) と色
+    @staticmethod
+    def _color(char, o, rng=None, near=()):
+        """その人のその部品の色 (持っていなければ, キャラ id と部品から毎回同じに決まる. 無彩色に寄せる).
+        near: 一緒に着る部品の色 (違う有彩色どうしは選ばれにくい)."""
+        cs = sell_colors(o)
+        if not cs:
+            return None
+        if rng is None:
+            h = int(hashlib.md5(("%s|%s" % (char.get("id", ""), o["id"])).encode("utf-8")).hexdigest()[:8], 16)
+            rng = random.Random(h)
+        w = []
+        for c in cs:
+            x = 2.0 if COLORS[c][2] else 1.0
+            for b in near:
+                x *= Wardrobe._match(c, b)
+            w.append(x)
+        return rng.choices(cs, w)[0]
+
+    def own_color(self, char, oid):
+        """その人が持っているその部品の色 (最初に手に入れたもの). 持っていなければ None."""
+        return next((x.get("color") for x in char.get("clothes") or [] if x.get("id") == oid and x.get("color")), None)
+
+    def _parts_index(self):
+        out = []
+        for o in self.all():
+            for t in _base_tags(o):
+                out.append((t, re.compile(r"(?<![\w-])%s(?![\w-])" % re.escape(t), re.I), o))
+        out.sort(key=lambda x: -len(x[0]))
+        return out
+
+    def find_parts(self, text):
+        """文を , で区切り, 部品の名前を含むかけらを探す: [(かけら, 部品 or None)]."""
+        idx = self._parts_index()
+        out = []
+        for tok in [t.strip() for t in (text or "").split(",")]:
+            if not tok:
+                continue
+            hit = next((o for _, rx, o in idx if rx.search(tok)), None)
+            out.append((tok, hit))
+        return out
+
+    def resolve(self, char, text):
+        """文の服装の中の部品に, その人の色を付ける (色の語があるかけらはそのまま). 描くたびに色が変わらないように."""
+        if not text or not char:
+            return text or ""
+        out = []
+        for tok, o in self.find_parts(text):
+            if o and not COLOR_WORDS.search(tok):
+                c = self.own_color(char, o["id"]) or self._color(char, o)
+                tok = "%s %s" % (COLORS[c][1], tok)
+            out.append(tok)
+        return ", ".join(out)
+
+    def seed_usual(self, char):
+        """いつもの服・お出かけ着の文に出てくる部品を, その色でその人の持っている服にする (文ごとに一度だけ). 足した数を返す."""
+        texts = [char.get("outfit_default") or "", char.get("outfit_outing") or ""]
+        seen = list(char.get("usual_seen") or [])
+        todo = [t for t in texts if t and t not in seen]
+        if not todo:
+            return 0
+        n = 0
+        have = {x.get("id") for x in char.get("clothes") or []}
+        for t in todo:
+            near = []
+            for tok, o in self.find_parts(t):
+                if not o:
+                    continue
+                if o["id"] in have:
+                    near.append(self.own_color(char, o["id"]))
+                    continue
+                m = COLOR_WORDS.search(tok)
+                c = next((k for k, v in COLORS.items() if m and m.group(1).lower() in (k, v[1].split()[0])), None)
+                if c not in sell_colors(o):
+                    c = self._color(char, o, near=[x for x in near if x])
+                near.append(c)
+                # 時刻は付けない (最初から持っている服と同じ. 別の PC で同じ人を読み込んでも同じ定義になるように)
+                char.setdefault("clothes", []).append({"id": o["id"], "color": c, "from": "default"})
+                have.add(o["id"])
+                n += 1
+        char["usual_seen"] = (seen + todo)[-6:]
+        store.save_character(char)
+        return n
+
+    def coord_items(self, char, coord):
+        """コーデ {区分: 鍵} を, 持っている服の並び (区分の順) に. 持っていない・区分の合わないものは除く."""
+        out = []
+        for slot in COORD_SLOTS:
+            key = (coord or {}).get(slot)
+            o = self.item(char, key) if key else None
+            if o and o["slot"] == slot:
+                out.append(o)
+        if any(o["slot"] == "onepiece" for o in out):
+            out = [o for o in out if o["slot"] not in ("top", "bottom")]
+        return out
+
+    @staticmethod
+    def drawn(parts, outing):
+        """描く部品: 靴は外にいるときだけ, ランジェリーはトップスもワンピースも無いときだけ."""
+        covered = any(o["slot"] in ("top", "onepiece") for o in parts)
+        return [o for o in parts if not (o["slot"] == "shoes" and not outing) and not (o["slot"] == "lingerie" and covered)]
+
+    def coord_bold(self, char, coord, outing=False):
+        """コーデの大胆さ: 描かれる部品のいちばん大胆なもの."""
+        return max([o["bold"] for o in self.drawn(self.coord_items(char, coord), outing)] or [0])
+
+    def coord_view(self, char, coord, outing=False):
+        """コーデを, 一式の服と同じ形の 1 着に (pos・名前・大胆さ・外に着ていけるか)."""
+        parts = self.coord_items(char, coord)
+        d = self.drawn(parts, outing)
+        top = any(o["slot"] in ("top", "onepiece") for o in parts)
+        low = any(o["slot"] in ("bottom", "onepiece") for o in parts)
+        worn = [o for o in parts if not (o["slot"] == "lingerie" and top)]       # 上に着ていれば下着は外から見えない
+        return {"id": "coord", "key": "coord", "slot": "coord", "kind": "coord", "icon": "👚",
+                "name": "・".join(o["name"] for o in parts if o["slot"] != "lingerie" or not top) or "（何も着ていない）",
+                "pos": ", ".join(o["pos"] for o in d), "neg": ", ".join(o["neg"] for o in d if o.get("neg")),
+                "bold": max([o["bold"] for o in d] or [0]), "when": "", "seasons": [],
+                "outing_ok": top and low and all(o["outing_ok"] for o in worn),
+                "coord": {o["slot"]: o["key"] for o in parts}}
+
+    def norm_coord(self, char, coord):
+        """画面から来たコーデを確かめる (持っている・区分が合う). 合わなければ ValueError."""
+        if not isinstance(coord, dict):
+            raise ValueError("組み合わせの形が違います")
+        out = {}
+        for slot, key in coord.items():
+            if not key:
+                continue
+            if slot not in COORD_SLOTS:
+                raise ValueError("その区分は組み合わせに入れられません: %s" % slot)
+            o = self.item(char, key)
+            if not o or o["slot"] != slot:
+                raise KeyError("服が見つかりません: %s" % key)
+            out[slot] = o["key"]
+        if not out:
+            raise ValueError("服を選んでください")
+        if "onepiece" in out:
+            out.pop("top", None)
+            out.pop("bottom", None)
+        return out
+
+    def worn(self, char, st, outing=False):
+        """いま着せている服 (st.dress. 一式なら持っている 1 着, コーデなら coord_view). 無ければ None."""
+        d = st.get("dress") or {}
+        if d.get("coord"):
+            v = self.coord_view(char, d["coord"], outing)
+            return v if v["pos"] else None
+        return self.item(char, d.get("id")) if d.get("id") else None
 
     # ------------------------------------------------------------------ 移行
     def migrate(self):
@@ -273,9 +512,65 @@ class Wardrobe:
             w *= max(0.3, 1.0 + 0.15 * float((st.get("prefs") or {}).get("outfit:" + o["id"], 0.0)))     # あなたの好み (着せた服)
             cands.append(o)
             weights.append(w)
+        co = self._pick_coord(char, st, rng, season, outing, cap, aff)
+        if co:                            # 持っている部品から組んだコーデも候補に (一式 1 着と同じ重み)
+            cands.append(co)
+            weights.append(1.0)
         if not cands:
             return None
         return rng.choices(cands, weights)[0]
+
+    @staticmethod
+    def _match(a, b):
+        """色の合わせ: 無彩色はどれとも合う・同じ色は合う. 違う有彩色どうしは合いにくい."""
+        if not a or not b or a == b or COLORS[a][2] or COLORS[b][2]:
+            return 1.0
+        return 0.3
+
+    def _pick_coord(self, char, st, rng, season, outing, cap, aff):
+        """持っている部品から本人が組むコーデ (トップス + ボトムス か ワンピース. 外なら靴. ときどきソックス・ハット・アクセサリー).
+        組めなければ None."""
+        prefs = st.get("prefs") or {}
+        by = {}
+        for o in self.owned(char):
+            if o["slot"] not in COORD_SLOTS or o["slot"] == "lingerie" or o["bold"] > cap or o.get("when"):
+                continue
+            if o["seasons"] and season not in o["seasons"]:
+                continue
+            if outing and not o["outing_ok"]:
+                continue
+            by.setdefault(o["slot"], []).append(o)
+
+        def pick(slot, base=None):
+            xs = by.get(slot) or []
+            if not xs:
+                return None
+            w = []
+            for o in xs:
+                x = max(0.5, min(2.5, 1 + (aff - 45) / 30.0)) if o.get("owned_from") == "player" else 1.0
+                x *= max(0.3, 1.0 + 0.15 * float(prefs.get("outfit:" + o["key"], 0.0)))
+                for b in base or []:
+                    x *= self._match(o.get("color"), b.get("color"))
+                w.append(x)
+            return rng.choices(xs, w)[0]
+        two = bool(by.get("top") and by.get("bottom"))
+        if by.get("onepiece") and (not two or rng.random() < 0.35):
+            parts = [pick("onepiece")]
+        elif two:
+            t = pick("top")
+            parts = [t, pick("bottom", [t])]
+        else:
+            return None
+        if outing:
+            sh = pick("shoes", parts)
+            if sh:
+                parts.append(sh)
+        for slot, p in (("legwear", 0.4), ("hat", 0.25 if outing else 0.0), ("acc", 0.3)):
+            if rng.random() < p:
+                x = pick(slot, parts)
+                if x:
+                    parts.append(x)
+        return self.coord_view(char, {o["slot"]: o["key"] for o in parts}, outing)
 
     # ------------------------------------------------------------------ アウター (上に羽織るもの)
     @staticmethod
@@ -323,17 +618,24 @@ class Wardrobe:
         money = self.app.life.her_money(st)["a"]
         have = set(self.owned_ids(char))
         cap = self.comfort(char, st)
-        cands = [o for o in self.all() if o["id"] not in have and 0 < o["price"] <= money * 0.3 and o["bold"] <= cap
-                 and o["kind"] in ("casual", "formal", "lounge", "pajamas", "work", OUTER) and not o.get("when")]
+        cands = [o for o in self.all() if 0 < o["price"] <= money * 0.3 and o["bold"] <= cap and o["slot"] != "lingerie"
+                 and o["kind"] in ("casual", "formal", "lounge", "pajamas", "work", OUTER, "part") and not o.get("when")]
+        cands = [o for o in cands if colored(o) or o["id"] not in have]
         if not cands:
             return None
         o = random.choice(cands)
+        if colored(o):                    # 色は無彩色に寄せたくじ (好みの色は S36). 持っている色なら買わない
+            o = paint(o, self._color(char, o, random))
+            if o["key"] in have:
+                return None
+        else:
+            o = dict(o, key=o["id"])
         self.app.life.her_money(st)["a"] -= o["price"]
-        self.give_to(char, o["id"], "self", t)
+        self.give_to(char, o["key"], "self", t)
         return o
 
     # ------------------------------------------------------------------ 画面
     def catalog_view(self):
         return {"items": self.all(), "kinds": KINDS, "seasons": SEASONS, "bold": BOLD_LABEL,
-                "sample_prompt": SAMPLE_PROMPT}
+                "sample_prompt": SAMPLE_PROMPT, "slots": SLOTS, "colors": {k: {"name": v[0], "tag": v[1]} for k, v in COLORS.items()}}
 

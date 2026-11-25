@@ -343,6 +343,7 @@ class App:
                 d = store.load(os.path.join(store.DEFAULTS, "characters", c["id"] + ".json")) or {}
                 c["clothes"] = d.get("clothes") or [{"id": i, "from": "default"} for i in wardrobe_mod.STARTER]
                 store.save_character(c)
+            self.wardrobe.seed_usual(c)           # いつもの服・お出かけ着の文の部品を, その色で持たせる (文ごとに一度だけ. S30)
 
     # 以前の既定の性格の説明文 (キャラにコピーされたものがこのままなら, 今の既定に置き換える. 書き換えていれば触らない)
     OLD_PERSONA_TEXT = {
@@ -906,7 +907,7 @@ class App:
             s["outfit"], s["outfit_neg"], s["dress"] = go.get("pos", ""), go.get("neg", ""), go.get("label") or None
             s["remove_tags"] = go.get("remove") or []
             return s
-        o = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
+        o = self.wardrobe.worn(char, st, outing=s["outing"])     # 着せた一式か, 部品の組み合わせ (S30)
         if o and s["outing"] and not o.get("outing_ok"):
             o = None          # 部屋着・パジャマなどは外に着ていかない (お出かけ着のまま)
         if not o and dt is not None and s.get("plain_outfit") and not s["fixed_outfit"] and not s["asleep"]:
@@ -914,6 +915,7 @@ class App:
             s["self_picked"] = bool(o)
         if o and not s["fixed_outfit"]:
             s["outfit"], s["outfit_neg"], s["dress"] = o.get("pos", ""), o.get("neg", ""), o.get("name", o["id"])
+        s["outfit"] = self.wardrobe.resolve(char, s["outfit"])   # 文の服装の部品に, その人の色を付ける (毎回同じ色)
         return self._apply_outer(char, st, s, dt)
 
     def _apply_outer(self, char, st, s, dt):
@@ -965,7 +967,7 @@ class App:
             else:
                 s = self._norm_scene(char.get("default_activity") or {}, char, "default")
         s["plain_outfit"] = not s["outfit"]       # 予定に服の指定が無い (普段着): 本人が選ぶことがある
-        s["outfit"] = s["outfit"] or char.get("outfit_default", "")
+        s["outfit"] = s["outfit"] or char.get("outfit_default", "") or (self.wardrobe.get("casual") or {}).get("pos", "")
         return s
 
     def scene_at(self, char, st, dt):
@@ -1024,7 +1026,7 @@ class App:
             "phase": self.phase_at(dt).get("id", ""), "hour": dt.hour, "time": dt.hour * 60 + dt.minute,
             "weekday": dt.weekday(), "day": DAY_KEYS[dt.weekday()], "weekend": dt.weekday() >= 5,
             "absent": round((dt.timestamp() - st.get("last_interaction", dt.timestamp())) / 3600.0, 2),
-            "repeat": 0, "outfit": (st.get("dress") or {}).get("id", ""),
+            "repeat": 0, "outfit": (st.get("dress") or {}).get("id", "") or ("coord" if (st.get("dress") or {}).get("coord") else ""),
             "outing": scene.get("outing", False),
             # 行動による一時的な過ごし方 (ゲーム・映画・散歩など) の最中か. 寝ているのは除く
             "overriding": scene.get("source") == "override" and not scene["asleep"],
@@ -1595,16 +1597,24 @@ class App:
                     self.save_state(cid)
                     return {"entry": dis, "job": None, "llm_error": None, "disagree": True}
             outfit = None
-            if dress is not None:
+            coord = None
+            if isinstance(dress, dict):              # 部品の組み合わせ (S30): {"coord": {区分: 鍵}}
+                coord = self.wardrobe.norm_coord(char, dress.get("coord") or {})
+                outfit = self.wardrobe.coord_view(char, coord)
+                dress = "coord"
+            elif dress is not None:
                 if dress and (self.wardrobe.get(dress) or {}).get("kind") == wardrobe_mod.OUTER:
                     raise ValueError("アウターは着せ替えでは選べません（出かけるときに羽織るものです）")
                 if dress:
                     outfit = self.wardrobe_item(char, dress)
                     if not outfit:
                         raise KeyError("服が見つかりません: %s" % dress)
+                    if outfit["slot"] != "set":
+                        raise ValueError("部品は「部品で合わせる」から選んでください")
                     if not cond.check(outfit.get("when", ""), ctx):
                         raise ValueError("今は「%s」に着替えられません（%s）" % (outfit.get("name", dress), outfit.get("when", "")))
-                ctx["outfit"] = dress   # 反応の条件では「着替え先」を outfit として参照できる
+            if dress is not None:
+                ctx["outfit"] = dress   # 反応の条件では「着替え先」を outfit として参照できる (組み合わせは coord)
                 # 大胆な服: 着てくれるか (照れながら・渋々・ノリノリ・断る・しつこくて怒る). 反応の条件 dress_feel / dress_bold
                 ctx["dress_feel"] = self.wardrobe.accept(char, st, outfit, now, others=len(self.bonds.company(now)) > 1) \
                     if outfit else "ok"
@@ -1626,7 +1636,10 @@ class App:
                 ctx["pose_bold"] = pose["bold"]
                 opts.setdefault("extra", {})["item"] = pose["name"]
                 self.posing.learn(st, "%s:%s" % (pose["type"], pose["id"]), 1.0)     # 頼んだもの = あなたの好み
-            if dress:
+            if coord:
+                for k in coord.values():
+                    self.posing.learn(st, "outfit:" + k, 0.5)     # 組み合わせは部品ごとに少しずつ
+            elif dress:
                 self.posing.learn(st, "outfit:" + dress, 1.0)
             tryon = None
             if aid == "_tryon":                       # 買ってあげたアウターを, その場で着てみてもらう (聞けるのは一度だけ)
@@ -1810,7 +1823,7 @@ class App:
                     # 相手の家・あなたの家から二人で出かけた: 家を出たので「外で会っている」に (移動は出る前の家から組んである).
                     # 出た先から「家に寄ってもいい？」/「うちに寄っていく？」で, どちらの家にも移れる
                     self.bonds.go_out(cid, now)
-                worn = self.wardrobe_item(char, (st.get("dress") or {}).get("id"))
+                worn = self.wardrobe.worn(char, st, outing=True)
                 if ov.get("outing") and worn and worn["outing_ok"] and worn["bold"] > 0 and self.wardrobe.accept(
                         char, st, worn, now, outside=True, others=1, record=False) in ("refuse", "angry"):
                     st["dress"] = None            # 外では, 大胆な服は性格と場所しだいで嫌がる
@@ -1840,7 +1853,7 @@ class App:
             if a.get("end_override") and not r.get("override") and not home_go:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
-                st["dress"] = {"id": dress, "t": now} if dress else None
+                st["dress"] = ({"coord": coord, "t": now} if coord else {"id": dress, "t": now}) if dress else None
             if tryon and not r.get("override"):
                 st["outer"] = {"id": tryon["id"], "t": now}       # 羽織ってくれた (寝るまで. 外にいる間の服装に重なる)
             home_note = None
@@ -2221,7 +2234,8 @@ class App:
         have = set(self.wardrobe.owned_ids(char))
         rate = places_mod.price_rate(pl)                # 店ごとの値段 (A10)
         items = [{"id": it["id"], "name": it["name"], "icon": it["icon"], "price": int(round(it["price"] * rate / 10.0)) * 10, "kind": it["kind"],
-                  "bold": it.get("bold", 0),
+                  "bold": it.get("bold", 0), "variant_of": it.get("variant_of"), "color": it.get("color"),
+                  "base_name": it.get("base_name"), "slot": it.get("slot"),
                   "outer": (self.wardrobe.get(it.get("outfit")) or {}).get("kind") == wardrobe_mod.OUTER}
                  for it in items_mod.CATALOG.values()
                  if it["giftable"] and items_mod.sold_at(it, pl) and not (it.get("outfit") and it["outfit"] in have)]
@@ -4015,11 +4029,12 @@ class App:
         place_ok = self.bonds.together(char["id"]) and not self.outside_with(char["id"])
         if not place_ok:                    # 着替えられるのは家の中だけ (act と同じ判定)
             can, why = False, "外では着替えられません。家か、%sの家にいるときに" % char.get("name", "相手")
-        return {"current": (st.get("dress") or {}).get("id", ""), "wearing": scene["dress"], "self": bool(scene.get("self_picked")),
+        return {"current": (st.get("dress") or {}).get("id", "") or ("coord" if (st.get("dress") or {}).get("coord") else ""), "wearing": scene["dress"], "self": bool(scene.get("self_picked")),
                 "outer": scene.get("outer"), "place_ok": place_ok,
                 "outfit": scene["outfit"], "fixed": scene["fixed_outfit"], "can": can, "why": why,
-                "items": {o["id"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)
-                          if o["kind"] != wardrobe_mod.OUTER}}
+                "items": {o["key"]: cond.check(o.get("when", ""), ctx) for o in self.wardrobe.owned(char)
+                          if o["kind"] != wardrobe_mod.OUTER},
+                "coord": (st.get("dress") or {}).get("coord") or {}}
 
     # ------------------------------------------------------------------ 在席・働きかけ・仕事・投資
     def come_back(self, cid=None, at=None, quiet=False, arrived=False, onward=False, how=None):
