@@ -3410,6 +3410,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『あ、今見ました。もう大丈夫ですよ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "お、これはいいですね。好きな感じです。ありがとうございます、ちゃんと着ます"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}ですか。どうも、使わせてもらいます"
+  ],
+  "gift.gift_outfit_meh": [
+   "あ……どうも。（{item}は、あまり好みではなかったようだ）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがとうございます。……ただ、こういうのは自分で選びたいんですよね。次は一緒に行きましょう"
   ]
  }
 }

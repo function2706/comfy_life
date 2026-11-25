@@ -3420,6 +3420,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『あ、今見ました……。もう大丈夫です』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "え……これ、{fp}の好きな感じの……。こんな{fp}に、ありがとうございます……"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}……ありがとうございます。使わせてもらいます"
+  ],
+  "gift.gift_outfit_meh": [
+   "あ、ありがとうございます……。（{item}は、あまり好みではなかったようだ）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがとうございます……。あの、こういうのは、自分で選んだほうが落ち着くんです。すみません……"
   ]
  }
 }

@@ -3467,6 +3467,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『今確認した。もう問題ないわ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "……これは、好みに合っているわ。ありがとう。頻繁に着ることになると思う"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}ね。ありがとう、使うわ"
+  ],
+  "gift.gift_outfit_meh": [
+   "受け取ったわ。（{item}は、好みからは外れていたようだ）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがとう。ただ、こういうものは自分で選ぶことにしているの。次からは事前に聞いて"
   ]
  }
 }

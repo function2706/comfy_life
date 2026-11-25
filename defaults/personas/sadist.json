@@ -3423,6 +3423,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『今見たわ。もういいわよ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "あら、これ……悪くないじゃない。{fp}の好み、ちゃんとわかってるのね。着てあげるわ"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}？ ありがと。使ってあげる"
+  ],
+  "gift.gift_outfit_meh": [
+   "……まあ、受け取っておくわ。（{item}は、好みではなかったようだ）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "受け取ってはあげる。でも、こういうのは{fp}が自分で選ぶの。勝手に決めないで"
   ]
  }
 }

@@ -3471,6 +3471,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『あ、今見た！ もう大丈夫だよ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "わぁ、これすっごく好き！ ありがとう！ 明日さっそく着ちゃおうかな"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}？ ありがとう！ 使うね"
+  ],
+  "gift.gift_outfit_meh": [
+   "ありがとっ。……（{item}は、あまり好みじゃなかったみたい）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがとう！ ……でもね、こういうのはお店で自分で選ぶのが好きなんだ。ごめんね"
   ]
  }
 }

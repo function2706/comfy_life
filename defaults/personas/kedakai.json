@@ -3453,6 +3453,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『今見たわ。もう構わないわ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "……あら。なかなか{fp}の好みをわかっているじゃない。ありがとう、着させてもらうわ"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}ね。ありがとう、使うわ"
+  ],
+  "gift.gift_outfit_meh": [
+   "……いただいておくわ。（{item}は、好みに合わなかったらしい）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがとう。けれど、こういうものは自分で選ぶものよ。次は{fp}に選ばせて"
   ]
  }
 }

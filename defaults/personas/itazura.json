@@ -3915,6 +3915,18 @@
   ],
   "chat.appoint_late_gone": [
    "📱『今見た。もう大丈夫だよ』"
+  ],
+  "gift.gift_outfit_love__gift_feel_ge_30": [
+   "え、これ……ふーん、{fp}の好み、ちゃんと見てたんだ。……うん、好き。ありがと"
+  ],
+  "gift.gift_outfit_plain__gift_feel_ge_30": [
+   "{item}？ ありがと、使ってあげる"
+  ],
+  "gift.gift_outfit_meh": [
+   "ありがと〜。……（{item}は、好みとは違ったようだ）"
+  ],
+  "gift.gift_outfit_fussy": [
+   "ありがと。でもさ、こういうのは{fp}が自分で選びたいの。次は一緒に行こ？"
   ]
  }
 }
