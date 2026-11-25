@@ -11,37 +11,76 @@
 
 ## まとまりの表（1 行 = 1 セッション）
 
-同じファイル・画面・判定を触るものを 1 つのセッションにまとめたもの。上から順に進めるのが基本（順の列に前提が無いものは、どれから始めてもよい）。
+同じファイル・画面・判定を触るものを 1 つのセッションにまとめたもの。さらに、互いに干渉しない**群**に分けてある: 群が違えば、触るファイル・判定・順の前提が重ならない（どこでも触る `core/engine.py`・`static/app.js`・`core/places.py`・性格プリセットは除く）。
+群 1 を先に。あとの群はどれから始めてもよい。群の中は上から順に進めるのが基本（順の列に前提が無いものは、どれから始めてもよい）。
 設計: 「要」は実装の前に、設計を項目に書く（A17 の「設計」の形）。「済」は書いてある。「不要」は項目の内容だけで実装できる。
+
+群のあいだの弱いつながり（順しだいで少し得をするだけで、前提ではない）:
+- S38（群 3）が S34（群 4）より先なら、猛暑・大雪をドタキャン・遅刻の理由に使える。
+- S43（群 4）と S44（群 3）はどちらも `core/posing.py` を触るが、関数が別（S43 は `learn` / `pref`、S44 は組み合わせと `_pose` / `_show`）。
+- S43（群 4）は誘うゲームの候補で `core/games.py` を読む。群 2 でゲームが増えていれば候補に足す。
+- S26（群 2）は `core/appoint.py` も触る（同じ席の約束）。群 4 と同時に進めないだけでよい。
+
+### 群 1 状態の点検（最優先）
+
+状態全般を洗うので、どの群より先に。
 
 | まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
 |---|---|---|---|---|---|
-| S13 性格を足す | A14 | 中〜重 | 要（誰を足すか） | 性格の `traits` に `chrono`（−1 朝型〜+1 夜型）も書く。見立ての読み方（`regard.READING` に 1 行）も。1 性格ずつ。セリフ 900 行超 / 性格 | 性格プリセット |
+| S40 状態の重ねがけのスクリーニング | F18 | 中 | 不要 | 前提なし。ほかより先に（状態の初歩的な不具合を残さない） | `tools/test_state_keep.py`・`tools/test_state_matrix.py`・見つかった所しだい（`core/bonds.py`・`core/engine.py`・`core/presence.py` など） |
+
+### 群 2 卓・ゲーム・賭け事
+
+`core/games.py`・`static/minigames.js`・卓・雀荘を共有。
+
+| まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
+|---|---|---|---|---|---|
+| S29 「脱衣」の名前をなくし、段階を始めるときに決める | A36 | 中 | 要（名前・始める画面と設定の既定の形） | 前提なし。S22〜S25 より先にやると、卓のゲームも新しい名前で作れる | `core/forfeit.py`・`core/games.py`（`STRIP_KINDS`・`default_stages`）・`core/mahjong.py`・`static/app.js`・`static/minigames.js`・性格プリセット 27 個・README |
 | S22 3 人以上のゲームの土台 | A27 + A28 | 中 + 中 | 要 | S23・S24・S25 の前提。重ければ A28 を次のセッションに分ける。雀荘は S48（A52）と共有（先にやった方が足す） | `core/games.py`・`engine.blocked`・`static/minigames.js`・`core/places.py`・`core/items.py`（ゲーム機） |
 | S23 4 人麻雀（鳴きなし） | A29 段 1 | 中 | 要 | S22 のあと。新しいセリフ 約 200 行 | `core/mahjong.py`・卓・`core/keys.py` |
 | S24 4 人麻雀の鳴き | A29 段 2 | 重 | 要 | S23 のあと | `core/mahjong.py`・卓の割り込み・画面 |
 | S25 3 人以上のカードゲーム | A30 | 軽〜中（1 種ずつ） | 要（大富豪・ハーツ・セブンブリッジ・ラミーの決まり、ホールデムの賭けの形、UNO 風を独自カードにするかページワンにするか） | S22 のあと。大富豪・ハーツ・ホールデムは 1 種 1 セッション（ホールデムは賭けがあるので一番重い。店で遊ぶ場所は S48 のポーカールーム） | `core/cards.py`・卓 |
 | S26 キャラ同士が同じ席に着く | A31 | 重 | 要（範囲をユーザーに聞く） | S22 のあと（前提だった A24「外にいる」の一本化は済。「誰と」は `presence.with`） | `core/bonds.py`・`core/appoint.py`・卓 |
-| S29 「脱衣」の名前をなくし、段階を始めるときに決める | A36 | 中 | 要（名前・始める画面と設定の既定の形） | 前提なし。S22〜S25 より先にやると、卓のゲームも新しい名前で作れる | `core/forfeit.py`・`core/games.py`（`STRIP_KINDS`・`default_stages`）・`core/mahjong.py`・`static/app.js`・`static/minigames.js`・性格プリセット 27 個・README |
+| S31 バックギャモン | A38 | 中 | 要（ダブリングキューブを入れるか） | 前提なし（2 人用。卓は要らない） | `core/games.py`・`core/boardgames.py`・`static/minigames.js`・`tools/minigame_lab.py` |
+| S32 すごろく | A39 | 中 | 要（盤とマスの出来事・決着） | 2 人の形は前提なし。3 人以上は S22 のあと | `core/games.py`・`static/minigames.js`・マスの定義・セリフ |
+| S48 賭け事の店（土台・パチンコ / スロット） | A52 段 1 | 中〜重 | 要（賭けの扱い・入れる店・相手の暮らしと借金をユーザーに聞く） | 前提なし。S22 より先なら、A28 の雀荘はここの店を使う（逆なら S22 の雀荘をここで使う）。新しいセリフは実装と同じ作業で全性格ぶん（別コミット） | `core/places.py`・`core/geo.py`・`core/moneytalk.py`・`core/life.py` の `ledger`・`core/engine.py` の `blocked`・`static/minigames.js`・性格プリセット（好み） |
+| S49 場外馬券場とその他の賭け事の店 | A52 段 2 | 中 | 要（S48 の設計に含めて書く） | S48 のあと | `core/places.py`・`core/earn.py`（宝くじの後で知らせる作り）・`static/app.js` |
+
+### 群 3 服・季節・ポーズ・書き出し
+
+`core/wardrobe.py`（服の部品・暖かさ・大胆さ）と、その移行を共有。
+
+| まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
+|---|---|---|---|---|---|
 | S30 服を部品に分け、色別に売る（土台） | A37 の「画像の服がまちまち」「部品ごとに、色別に売る」 | 重 | 要（部品の区分と重ね方・色の一覧と持ち方・一式の服の扱い・プロンプトの組み立て・移行） | 前提なし。S35・S36・S37 の前提。A36（S29）が先に済んでいれば、脱ぐ段階を部品に結び付ける。画面は最小限（買える・着られる）にとどめ、作り込みは S35 | `core/wardrobe.py`・`core/engine.py` の `_apply_dress` / `_base_scene`・`defaults/outfits.json`・`core/items.py`（持ち物 `outfit:`）・`engine.give_item` の服の所・`core/charmake.py` |
 | S35 服の店・着せ替え・服の一覧の画面 | A37 の「画面」 | 中 | 要（店のタブと色の選び方・着せ替えの欄・コーデを取っておくか） | S30 のあと | `static/app.js`（店・着せ替え・設定の服の一覧）・`static/style.css`・`tools/test_focus_keep.py` |
 | S36 服の好みを細かく | A37 の「本人の好みの系統」「好みを細かく」 | 中 | 要（色・種類・部品のこだわりの値の形と効き方・初期値の決め方） | S30 のあと。新しいセリフは実装と同じ作業で全性格ぶん（別コミット） | `core/wardrobe.py` の `gift_feel` / `self_pick` / `step`・`core/charmake.py`・性格プリセット・`core/keys.py` |
 | S37 服を増やす（部品・コスプレ） | A37 の「服を増やす」 | 中 | 要（増やす部品と種類の一覧、コスプレの入れ替え候補をユーザーに見せる） | S30 のあと（S36 の種類のタグと合わせるなら S36 のあと） | `defaults/outfits.json`・参考の `costumes.yaml` |
-| S31 バックギャモン | A38 | 中 | 要（ダブリングキューブを入れるか） | 前提なし（2 人用。卓は要らない） | `core/games.py`・`core/boardgames.py`・`static/minigames.js`・`tools/minigame_lab.py` |
-| S32 すごろく | A39 | 中 | 要（盤とマスの出来事・決着） | 2 人の形は前提なし。3 人以上は S22 のあと | `core/games.py`・`static/minigames.js`・マスの定義・セリフ |
 | S38 季節と気温の土台（服・体調・外出の気分） | A42 段 1 | 重 | 要（気温の作り方・暑がり寒がりの値・服の暖かさの持ち方・効かせる強さ） | 前提なし。S30（服の部品）が先に済んでいれば、暖かさを部品ごとに持たせて重ね着で合わせる（済んでいなければ一式の服に持たせ、S30 で部品へ移す）。S34（約束のブレ）より先なら、猛暑・大雪をドタキャン・遅刻の理由に使える | 新しい `core/season.py`・`core/outdoor.py` の `weather`/`SEASONS`・`core/engine.py` の `SEASONS` と文脈・`core/wardrobe.py` の `season`/`outer_pick`・`core/body.py` の `risk`・`core/care.py` の風邪・相手の外出 / 誘いの判定・性格プリセット（traits）・画面の天気の表示 |
 | S39 季節と気温のつながり（シナジー） | A42 段 2 | 中〜重 | 要（候補のどれを入れるかユーザーに聞く） | S38 のあと。候補ごとに軽いものはまとめ、重いもの（同居のエアコン・季節の行事）は 1 つで 1 セッション | 候補しだい（`core/home.py`・`core/life.py`・`core/care.py`・`core/presence.py`・`defaults/events.json`・`core/market.py` など） |
-| S40 状態の重ねがけのスクリーニング | F18 | 中 | 不要 | 前提なし。ほかより先に（状態の初歩的な不具合を残さない） | `tools/test_state_keep.py`・`tools/test_state_matrix.py`・見つかった所しだい（`core/bonds.py`・`core/engine.py`・`core/presence.py` など） |
-| S34 約束の相手のブレ（遅刻・ドタキャン・予定変更・切り上げ） | A41 | 中 | 要（頻度の目安・理由の決め方・連絡の形の割合） | 前提なし。デート中のスマホの返事は済（F13: 一緒にいる間は `engine._deliver_due` が返事を持ち越す。判定は `bonds.together`）。遅刻・ドタキャンの連絡も、会っている最中は同じ判定に合わせる。セリフが多いので、別のコミットで | `core/appoint.py` の `_plan` と当日の判定・`core/parting.py`（相手からの切り上げ）・`core/keys.py`・性格プリセット |
+| S44 ポーズの組み合わせと、見せてのポーズ付き | A46 + A47 | 中 + 軽 | 要（部位の区分・組み合わせの大胆さの式・照れくささを分けるか） | 前提なし。S30（服の部品）が先なら服の大胆さは部品から。A47 は A46 のあと（同じセッションで続けて） | `defaults/poses.json`・`core/posing.py`・`core/wardrobe.py` の `accept`・`core/engine.py` の `_pose` / `_show`・`static/app.js`・`tools/test_focus_keep.py` |
+| S46 書き出し・読み込みで全部を復元できる | A50 | 中 | 不要（書き出す設定の範囲を着手前に聞く。丸ごと書き出しは入れる） | 前提なし。S30（服の部品）・S44（ポーズの部位）と順が前後したら、後のほうが読み込みの移行を合わせる | `core/transfer.py`・`core/wardrobe.py`・`core/posing.py`・`core/store.py`・`static/app.js` の「設定 → データ」・`tools/test_transfer.py` |
+
+### 群 4 出先・約束・誘い・引っ越し
+
+`core/appoint.py`・`core/parting.py`・`core/presence.py`・`core/topics.py` を共有。
+
+| まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
+|---|---|---|---|---|---|
 | S41 出先で疲れた相手を休ませる・気づかう | A43 | 軽〜中 | 不要（帰り道の負担を入れるかだけ着手前に聞く） | 前提なし。S34 より先にやると、S34 の疲れの切り上げが場所で変わる相手の体力に乗る。新しいセリフは実装と同じ作業で全性格ぶん（別コミット） | `core/engine.py` の `with_load` / `outing_move` / 毎時の変化・`core/parting.py`・`core/places.py`・`defaults/actions.json`・`tools/test_stamina_with.py` |
+| S34 約束の相手のブレ（遅刻・ドタキャン・予定変更・切り上げ） | A41 | 中 | 要（頻度の目安・理由の決め方・連絡の形の割合） | 前提なし。デート中のスマホの返事は済（F13: 一緒にいる間は `engine._deliver_due` が返事を持ち越す。判定は `bonds.together`）。遅刻・ドタキャンの連絡も、会っている最中は同じ判定に合わせる。セリフが多いので、別のコミットで | `core/appoint.py` の `_plan` と当日の判定・`core/parting.py`（相手からの切り上げ）・`core/keys.py`・性格プリセット |
 | S42 映画のジャンルを増やす | A45 | 軽 | 不要（足すジャンルだけ着手前に聞く） | 前提なし。S43 より先に（すすめるときに新しいジャンルを使う） | `core/topics.py` の `MOVIE_GENRES`・ジャンルの系統の名前・性格プリセットの好み・`tools/test_topics.py` |
 | S43 好みを覚えて相手から働きかける | A44 | 中〜重 | 要（覚える範囲・鍵の形・増え方と薄れ方・働きかけへの掛け方） | S42 のあと。S41 が先なら、疲れているときの誘いを座れる店に寄せる。新しいセリフは実装と同じ作業で全性格ぶん（別コミット） | `core/posing.py` の `learn` / `pref`・`core/presence.py`・`defaults/approaches.json`・`core/appoint.py` の `_maybe_invite`・`core/topics.py`・`core/games.py` |
-| S44 ポーズの組み合わせと、見せてのポーズ付き | A46 + A47 | 中 + 軽 | 要（部位の区分・組み合わせの大胆さの式・照れくささを分けるか） | 前提なし。S30（服の部品）が先なら服の大胆さは部品から。A47 は A46 のあと（同じセッションで続けて） | `defaults/poses.json`・`core/posing.py`・`core/wardrobe.py` の `accept`・`core/engine.py` の `_pose` / `_show`・`static/app.js`・`tools/test_focus_keep.py` |
-| S45 ランダムに作る人の性格・未登録の人の編集 | A48 + A49 | 軽 + 軽〜中 | 不要（A48 の既定・範囲・埋まったときと、A49 の消す操作を着手前に聞く） | 前提なし（どちらも出会いでランダムに作る人まわり） | `core/encounters.py` の `generate`・`core/street.py` の `people`・既定の設定・サーバの API・`static/app.js` のキャラ設定と設定画面 |
-| S46 書き出し・読み込みで全部を復元できる | A50 | 中 | 不要（書き出す設定の範囲を着手前に聞く。丸ごと書き出しは入れる） | 前提なし。S30（服の部品）・S44（ポーズの部位）と順が前後したら、後のほうが読み込みの移行を合わせる | `core/transfer.py`・`core/wardrobe.py`・`core/posing.py`・`core/store.py`・`static/app.js` の「設定 → データ」・`tools/test_transfer.py` |
 | S47 相手が自分で引っ越す | A51 | 重 | 要（知っている値の形・起きやすさ・約束の付け替え・教える / 聞くの式） | 前提なし。新しいセリフが多いので別のコミット。重ければ「引っ越しと知っている値・遡及」と「教える・聞く・一緒に寄る・セリフ」の 2 段に分ける | `core/geo.py`・`core/places.py` の `homes`・`core/bonds.py`・`core/appoint.py`・`core/earn.py` の `FAVORS`・`core/chat.py`・`core/presence.py`・`core/offline.py`・`static/app.js` |
-| S48 賭け事の店（土台・パチンコ / スロット） | A52 段 1 | 中〜重 | 要（賭けの扱い・入れる店・相手の暮らしと借金をユーザーに聞く） | 前提なし。S22 より先なら、A28 の雀荘はここの店を使う（逆なら S22 の雀荘をここで使う）。新しいセリフは実装と同じ作業で全性格ぶん（別コミット） | `core/places.py`・`core/geo.py`・`core/moneytalk.py`・`core/life.py` の `ledger`・`core/engine.py` の `blocked`・`static/minigames.js`・性格プリセット（好み） |
-| S49 場外馬券場とその他の賭け事の店 | A52 段 2 | 中 | 要（S48 の設計に含めて書く） | S48 のあと | `core/places.py`・`core/earn.py`（宝くじの後で知らせる作り）・`static/app.js` |
+
+### 群 5 単独（ほかのどれとも干渉しない）
+
+行どうしも互いに独立。いつ挟んでもよい。
+
+| まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
+|---|---|---|---|---|---|
+| S13 性格を足す | A14 | 中〜重 | 要（誰を足すか） | 性格の `traits` に `chrono`（−1 朝型〜+1 夜型）も書く。見立ての読み方（`regard.READING` に 1 行）も。1 性格ずつ。セリフ 900 行超 / 性格 | 性格プリセット |
+| S45 ランダムに作る人の性格・未登録の人の編集 | A48 + A49 | 軽 + 軽〜中 | 不要（A48 の既定・範囲・埋まったときと、A49 の消す操作を着手前に聞く） | 前提なし（どちらも出会いでランダムに作る人まわり） | `core/encounters.py` の `generate`・`core/street.py` の `people`・既定の設定・サーバの API・`static/app.js` のキャラ設定と設定画面 |
 | S50 画像の表示を速くする（優先度かなり低い） | A53 | 中〜重（段に分ける） | 要（段の切り方・鍵の作り方・先回りの量） | 優先度かなり低い。ほかのまとまりが片付いてから、またはユーザーに言われてから。まず段 0（測る）だけで 1 セッション | `core/comfy.py`・`core/engine.py` の生成の列（`_worker`・`cancel_job`）と `_base_scene`・`static/app.js` の画像の表示・`tools/mock_comfy.py` |
 
 ## 修正
