@@ -172,6 +172,28 @@ def main():
         assert reply("thanks", memquiz.resolve(app, cid, "thanks", tok(items, "other")))[0] == "thanks_wrong"
         print("お礼:", [c["label"] for c in q["choices"]])
 
+        # ---- 3b. 実機 11/24: 話してくれた・許してくれたのあとに自撮りの心当たり. 同じころほかの人も自撮りをくれた.
+        # 自撮りが数の上限で落ち, 同じ文の「ほかの人の自撮り」が人違いの札で出ていた → まだお礼していないことは全部出す・同じ文の人違いは出さない
+        fresh()
+        M.favor(st, "selfie", now - 390)
+        M.favor(st, "told", now - 270)
+        st["apology_last"] = {"t": now - 210, "action": "_offline", "out": "half", "s": 0.5}
+        M.favor(app.state(other), "selfie", now - 60)
+        q, items = quiz("thanks")
+        check(q, items, "none")
+        sel = [e for e in items.values() if e["label"] == "自撮りを送ってくれた"]
+        assert len(sel) == 1 and sel[0]["type"] == "favor", list(items.values())
+        assert all(e["type"] != "other" or e["label"] not in ("自撮りを送ってくれた", "話を聞いてくれた") for e in items.values())
+        k = next(k for k, e in items.items() if e["label"] == "自撮りを送ってくれた")
+        assert reply("thanks", memquiz.resolve(app, cid, "thanks", k))[0] == "thanks"
+        # 同じころ別のことをしてくれたほかの人は, 人違いの札として今までどおり出る
+        fresh()
+        M.favor(st, "selfie", now - 390)
+        M.favor(app.state(other), "treat", now - 60)
+        q, items = quiz("thanks")
+        assert any(e["type"] == "other" for e in items.values()), list(items.values())
+        print("お礼 (同じ文の人違いを出さない): OK")
+
         # ---- 4. 以前の形 (更新前に送った, 項目 id の文字列) も読める
         fresh()
         L.add_reason(st, "player", "bad", "連絡が多くて疲れた", now - 600, told=True, delta=-3.0, action="_too_often")

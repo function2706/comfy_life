@@ -324,6 +324,9 @@ def build(app, cid, kind, now, tries=0):
         if sum(1 for x in items if x["type"] in ("real", "favor", "forgave")) >= n_real:
             break
         put(e, e["type"])
+    if kind == "thanks":        # まだお礼していない「してくれたこと」は, 数を超えても全部出す (お礼を言いたいことが選べないのはおかしい)
+        for e in fresh:
+            put(e, "favor")
     center = anchor["t"] if anchor else lv_t
     oth = sorted(others(app, cid, kind, max(now - REAL_SPAN, center - OTHER_SPAN), min(now, center + OTHER_SPAN)),
                  key=lambda e: abs(e["t"] - center))
@@ -331,6 +334,8 @@ def build(app, cid, kind, now, tries=0):
     for e in oth[:6]:
         if sum(1 for x in items if x["type"] == "other") >= n_oth:
             break
+        if label(app, e, now, level) in truth:     # 文が本当のこと (この相手もしてくれた・した) と同じ: 人違いの札にしない (11/24)
+            continue
         put(e, "other")
     # 足りない分は, 細部だけ違う外れ (正解から先に)
     srcs = ([anchor] if anchor else []) + real[:3] + ([] if anchor or real else oth[:2])
