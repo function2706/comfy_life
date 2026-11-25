@@ -1367,16 +1367,26 @@ function renderDress() {
 
 // 部品で合わせる (S30 → S37): 服の棚で選んだ部品を「コーデに入れる」と, この下書きに区分ごとに入る. 「この組み合わせで」で着てもらう.
 // 下書きは S.coordDraft (相手ごと). ワンピースを入れるとトップス・ボトムスを外す (逆も)
-const COORD_SLOTS = ['hat', 'top', 'onepiece', 'bottom', 'legwear', 'shoes', 'acc', 'lingerie'];
+// コーデの鍵: アクセサリーは 3 つまで (acc・acc2・acc3. S37)
+const ACC_KEYS = ['acc', 'acc2', 'acc3'];
+const COORD_SLOTS = ['hat', 'top', 'onepiece', 'bottom', 'legwear', 'shoes', ...ACC_KEYS, 'lingerie'];
+const keySlot = (k) => (ACC_KEYS.includes(k) ? 'acc' : k);
 const coordDraft = (t, d) => {
   S.coordDraft = S.coordDraft || {};
   return (S.coordDraft[t.character] = S.coordDraft[t.character] || Object.assign({}, d.coord || {}));
 };
+// o.slot には鍵 (acc2 など) も来る (下書きの札の ✕). アクセサリーは空いている鍵に入れ, 外したら acc から詰め直す
 function coordPut(t, d, o, on) {
   const cd = coordDraft(t, d);
-  if (!on) delete cd[o.slot];
+  const k = o.key || o.id;
+  if (keySlot(o.slot) === 'acc') {
+    let accs = ACC_KEYS.map((x) => cd[x]).filter(Boolean);
+    if (!on) accs = accs.filter((x, i) => (ACC_KEYS.includes(o.slot) && !k ? ACC_KEYS[i] !== o.slot : x !== k));
+    else if (!accs.includes(k) && accs.length < ACC_KEYS.length) accs.push(k);
+    ACC_KEYS.forEach((x, i) => { if (accs[i]) cd[x] = accs[i]; else delete cd[x]; });
+  } else if (!on) delete cd[o.slot];
   else {
-    cd[o.slot] = o.key || o.id;
+    cd[o.slot] = k;
     if (o.slot === 'onepiece') { delete cd.top; delete cd.bottom; }
     if (o.slot === 'top' || o.slot === 'bottom') delete cd.onepiece;
   }
@@ -1387,7 +1397,7 @@ function coordPicker(t, d, parts) {
   const pick = () => Object.fromEntries(Object.entries(cd).filter(([sl, k]) => k && parts.some((o) => o.key === k)));
   const chips = COORD_SLOTS.filter((sl) => cd[sl]).map((sl) => {
     const o = parts.find((x) => x.key === cd[sl]) || {};
-    return h('span', { class: 'coord-chip' }, h('span', { class: 'muted' }, slotName(sl)), ' ', swatch(o.color), ' ', o.base_name || o.name || cd[sl],
+    return h('span', { class: 'coord-chip' }, h('span', { class: 'muted' }, slotName(keySlot(sl))), ' ', swatch(o.color), ' ', o.base_name || o.name || cd[sl],
       h('button', { class: 'btn ghost small', title: '外す', style: 'padding:0 5px', onclick: () => coordPut(t, d, { slot: sl }, false) }, '✕'));
   });
   return h('div', { class: 'coord-pick', style: 'margin-top:10px' },
@@ -1411,10 +1421,13 @@ function dressDetail(t, d, o) {
         d.current === o.id ? 'いま着ている' : 'これを着てもらう'),
       tip ? h('span', { class: 'muted small' }, tip) : '')];
   }
-  const cd = coordDraft(t, d), inIt = cd[o.slot] === o.key;
+  const cd = coordDraft(t, d);
+  const acc = o.slot === 'acc', accs = ACC_KEYS.map((x) => cd[x]).filter(Boolean);
+  const inIt = acc ? accs.includes(o.key) : cd[o.slot] === o.key;
+  const full = acc && !inIt && accs.length >= ACC_KEYS.length;
   return [head, h('div', { class: 'row', style: 'margin-top:6px;flex-wrap:wrap;gap:6px' },
-    h('button', { class: 'btn small' + (inIt ? '' : ' primary'), disabled: S.busy, onclick: () => coordPut(t, d, o, !inIt) },
-      inIt ? 'コーデから外す' : (cd[o.slot] ? `コーデの${slotName(o.slot)}をこれに替える` : 'コーデに入れる')),
+    h('button', { class: 'btn small' + (inIt ? '' : ' primary'), disabled: S.busy || full, onclick: () => coordPut(t, d, o, !inIt) },
+      inIt ? 'コーデから外す' : full ? 'アクセサリーは 3 つまで' : (!acc && cd[o.slot] ? `コーデの${slotName(o.slot)}をこれに替える` : 'コーデに入れる')),
     tip ? h('span', { class: 'muted small' }, tip) : '')];
 }
 
@@ -1423,7 +1436,7 @@ function coordNow(t, coord) {
   const own = t.wardrobe || [];
   const rows = COORD_SLOTS.filter((sl) => coord[sl]).map((sl) => {
     const o = own.find((x) => x.key === coord[sl]) || {};
-    return h('span', { class: 'coord-chip' }, h('span', { class: 'muted' }, slotName(sl)), ' ', swatch(o.color), ' ', o.base_name || o.name || coord[sl]);
+    return h('span', { class: 'coord-chip' }, h('span', { class: 'muted' }, slotName(keySlot(sl))), ' ', swatch(o.color), ' ', o.base_name || o.name || coord[sl]);
   });
   return rows.length ? h('div', { class: 'coord-now' }, rows) : '';
 }

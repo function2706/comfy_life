@@ -3,6 +3,7 @@
 
     python tools/test_parts.py
 """
+import collections
 import os
 import random
 import shutil
@@ -129,7 +130,25 @@ def main():
         assert "black bra" in under["pos"] and under["bold"] == 3 and not under["outing_ok"], under
         assert W.coord_bold(char, {"top": top, "bottom": "p_miniskirt:black"}) == 1
         assert home["pos"].index("blouse") < home["pos"].index("skirt"), "区分の順"
-        print("組み合わせ: OK", home["name"])
+        # アクセサリーは 3 つまで (S37): acc・acc2・acc3 に詰める. 同じ品の重なり・4 つ目の鍵は通さない. 以前の {acc} もそのまま
+        for k in ("p_glasses", "p_necklace", "p_hairpin:pink", "p_watch"):
+            W.give_to(char, k, "default")
+        char = app.char(cid)
+        three = W.norm_coord(char, {"top": top, "acc2": "p_necklace", "acc3": "p_glasses", "acc": "p_hairpin:pink"})
+        assert three == {"top": top, "acc": "p_hairpin:pink", "acc2": "p_necklace", "acc3": "p_glasses"}, three
+        assert W.norm_coord(char, {"top": top, "acc2": "p_glasses"}) == {"top": top, "acc": "p_glasses"}, "acc から詰める"
+        assert W.norm_coord(char, {"top": top, "acc": "p_glasses", "acc2": "p_glasses"}) == {"top": top, "acc": "p_glasses"}, "同じ品は 1 つ"
+        for bad in ({"top": top, "acc4": "p_watch"}, {"acc2": top}):
+            try:
+                W.norm_coord(char, bad)
+                raise AssertionError("通ってしまった: %s" % bad)
+            except (KeyError, ValueError):
+                pass
+        v3 = W.coord_view(char, three)
+        assert all(x in v3["pos"] for x in ("pink hairpin", "necklace", "glasses")) and v3["coord"] == three, v3
+        assert W.coord_view(char, {"top": top, "acc": "p_glasses"})["coord"] == {"top": top, "acc": "p_glasses"}, "以前の形"
+        assert W_mod.pack_coord([W.item(char, k) for k in ("p_glasses", "p_necklace", "p_hairpin:pink", "p_watch")]) ==             {"acc": "p_glasses", "acc2": "p_necklace", "acc3": "p_hairpin:pink"}, "4 つ目は入れない"
+        print("組み合わせ: OK", home["name"], "/", v3["name"])
 
         # ---- 5. 着せ替え: 部品で合わせる (画面の形のまま) → 描く服装・反応の条件・寝たら戻る
         st = app.state(cid)
@@ -232,7 +251,17 @@ def main():
         lows = [W._pick_coord(test_c, st, random.Random(i), "spring", False, 1, 40)["coord"]["bottom"] for i in range(400)]
         red = lows.count("p_jeans:blue") / 400.0
         assert 0.12 < red < 0.35, red
-        print("本人の組み合わせ: OK %d / %d 日, 赤と青の組み合わせ %.2f" % (len(cos), len(days), red))
+        # 本人が組むとき, アクセサリーは重ねることもある (2 つ以上はたまに. 3 つまで・同じ品は重ねない)
+        acc_c = {"id": "accs", "clothes": [{"id": "p_tshirt", "color": "white"}, {"id": "p_jeans", "color": "blue"}, {"id": "p_glasses"},
+                                            {"id": "p_necklace"}, {"id": "p_watch"}, {"id": "p_bracelet"}], "persona_id": char.get("persona_id")}
+        ns = []
+        for i in range(2000):
+            c2 = W._pick_coord(acc_c, st, random.Random(i), "spring", False, 1, 40)["coord"]
+            ac = [c2[k] for k in W_mod.ACC_KEYS if k in c2]
+            assert len(ac) == len(set(ac)) <= 3 and all(k in W_mod.COORD_KEYS for k in c2), c2
+            ns.append(len(ac))
+        assert 0.2 < sum(1 for n in ns if n) / 2000.0 < 0.4 and 0.03 < sum(1 for n in ns if n >= 2) / 2000.0 < 0.15 and 3 in ns,             collections.Counter(ns)
+        print("本人の組み合わせ: OK %d / %d 日, 赤と青の組み合わせ %.2f, アクセサリーの数 %s" % (len(cos), len(days), red, dict(collections.Counter(ns))))
 
         # ---- 9. 本人が買う: 部品も色つきで. 持っている色は買わない
         app.life.her_money(st)["a"] = 300000

@@ -14,7 +14,8 @@
   受け取ってくれても, 季節・気分しだいで「帰ってから」になる. 聞けるのは一度だけ)
 - 以前の形式 (キャラごとの wardrobe) は起動時に一覧へ移し, 元のキャラの持っている服にする (中身が同じものは 1 つに).
 - 部品 (S30): 服は区分 slot (SLOTS) を持つ. set (一式. いまの服とコスプレ・水着など) は着ると outer 以外を覆う. 部品の pos に {color} が
-  あれば色違いで売る (COLORS. 品の鍵は "<id>:<色>", 持ち物は "outfit:<鍵>"). 部品の組み合わせ (コーデ) は st.dress = {coord: {区分: 鍵}}.
+  あれば色違いで売る (COLORS. 品の鍵は "<id>:<色>", 持ち物は "outfit:<鍵>"). 部品の組み合わせ (コーデ) は st.dress = {coord: {区分: 鍵}}
+  (アクセサリーは 3 つまで: 鍵 acc・acc2・acc3. S37).
   靴は外にいるときだけ, ランジェリーはトップスもワンピースも無いときだけ描く. 大胆さは描かれる部品のいちばん大胆なもの.
 - 文の服装の色を固定する (resolve): いつもの服・予定の服装・一式の pos の中の部品の名前に, その人の色を付けて描く (毎回同じ色).
   いつもの服とお出かけ着の文から見つかった部品は, その色でその人の持っている服になる (seed_usual).
@@ -41,6 +42,27 @@ KINDS = {"casual": "普段着", "lounge": "部屋着", "formal": "よそ行き",
 SLOTS = {"hat": "ハット", "top": "トップス", "onepiece": "ワンピース", "bottom": "ボトムス", "legwear": "ソックス・タイツ",
          "shoes": "靴", "acc": "アクセサリー", "lingerie": "ランジェリー", "outer": "アウター", "set": "一式"}
 COORD_SLOTS = ("hat", "top", "onepiece", "bottom", "legwear", "shoes", "acc", "lingerie")
+# コーデの鍵 (S37): アクセサリーは 3 つまで (acc・acc2・acc3. どれも区分は acc). ほかの鍵は区分と同じ
+ACC_KEYS = ("acc", "acc2", "acc3")
+COORD_KEYS = ("hat", "top", "onepiece", "bottom", "legwear", "shoes") + ACC_KEYS + ("lingerie",)
+
+
+def key_slot(k):
+    """コーデの鍵 → 区分 (acc2・acc3 は acc)."""
+    return "acc" if k in ACC_KEYS else k
+
+
+def pack_coord(parts):
+    """部品の並び → コーデ {鍵: 品の鍵}. アクセサリーは acc・acc2・acc3 に順に詰める (同じ品は 1 つ. 4 つ目からは入れない)."""
+    out, accs = {}, []
+    for o in parts:
+        if o["slot"] == "acc":
+            if o["key"] not in accs and len(accs) < len(ACC_KEYS):
+                accs.append(o["key"])
+        else:
+            out[o["slot"]] = o["key"]
+    out.update(zip(ACC_KEYS, accs))
+    return out
 # 色 (固定): id: (日本語, 英語のタグ, 無彩色か)
 COLORS = {"white": ("白", "white", True), "black": ("黒", "black", True), "grey": ("グレー", "grey", True),
           "navy": ("紺", "navy blue", True), "blue": ("青", "blue", False), "light_blue": ("水色", "light blue", False),
@@ -505,10 +527,10 @@ class Wardrobe:
     def coord_items(self, char, coord):
         """コーデ {区分: 鍵} を, 持っている服の並び (区分の順) に. 持っていない・区分の合わないものは除く."""
         out = []
-        for slot in COORD_SLOTS:
-            key = (coord or {}).get(slot)
+        for k in COORD_KEYS:
+            key = (coord or {}).get(k)
             o = self.item(char, key) if key else None
-            if o and o["slot"] == slot:
+            if o and o["slot"] == key_slot(k) and o["key"] not in [x["key"] for x in out]:
                 out.append(o)
         if any(o["slot"] == "onepiece" for o in out):
             out = [o for o in out if o["slot"] not in ("top", "bottom")]
@@ -536,22 +558,25 @@ class Wardrobe:
                 "pos": ", ".join(o["pos"] for o in d), "neg": ", ".join(o["neg"] for o in d if o.get("neg")),
                 "bold": max([o["bold"] for o in d] or [0]), "when": "", "seasons": [],
                 "outing_ok": top and low and all(o["outing_ok"] for o in worn),
-                "coord": {o["slot"]: o["key"] for o in parts}}
+                "coord": pack_coord(parts)}
 
     def norm_coord(self, char, coord):
         """画面から来たコーデを確かめる (持っている・区分が合う). 合わなければ ValueError."""
         if not isinstance(coord, dict):
             raise ValueError("組み合わせの形が違います")
-        out = {}
-        for slot, key in coord.items():
+        parts = []
+        for k in COORD_KEYS:                     # 鍵の順に見る (アクセサリーは acc → acc2 → acc3)
+            key = coord.get(k)
             if not key:
                 continue
-            if slot not in COORD_SLOTS:
-                raise ValueError("その区分は組み合わせに入れられません: %s" % slot)
             o = self.item(char, key)
-            if not o or o["slot"] != slot:
+            if not o or o["slot"] != key_slot(k):
                 raise KeyError("服が見つかりません: %s" % key)
-            out[slot] = o["key"]
+            parts.append(o)
+        bad = [k for k, v in coord.items() if v and k not in COORD_KEYS]
+        if bad:
+            raise ValueError("その区分は組み合わせに入れられません: %s" % bad[0])
+        out = pack_coord(parts)                   # 同じアクセサリーの重なりを除き, acc から詰める
         if not out:
             raise ValueError("服を選んでください")
         if "onepiece" in out:
@@ -756,7 +781,13 @@ class Wardrobe:
                 x = pick(slot, parts)
                 if x:
                     parts.append(x)
-        return self.coord_view(char, {o["slot"]: o["key"] for o in parts}, outing)
+        while parts[-1]["slot"] == "acc" and rng.random() < 0.3:      # アクセサリーは重ねることもある (3 つまで. S37)
+            rest = [o for o in by.get("acc") or [] if o["key"] not in [x["key"] for x in parts]]
+            if not rest or sum(1 for x in parts if x["slot"] == "acc") >= len(ACC_KEYS):
+                break
+            by["acc"] = rest
+            parts.append(pick("acc", parts))
+        return self.coord_view(char, pack_coord(parts), outing)
 
     # ------------------------------------------------------------------ アウター (上に羽織るもの)
     @staticmethod
