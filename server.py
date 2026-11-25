@@ -159,6 +159,8 @@ def route(method, path, q, body):
             if not c:
                 raise LookupError("キャラの定義が見つかりません")
             return {"character": c}
+        if path == "/api/person":          # 出会ったまだ登録していない人 (people.json) の定義
+            return {"character": a.get_person(_q(q, "id", ""))}
         if path == "/api/chats":
             a.deliver_due()             # トークを開いている間も, すぐの返信が届くように
             return {"chats": a.chat.list_view(), "unread": a.chat.unread_total()}
@@ -446,6 +448,10 @@ def route(method, path, q, body):
                 return {"poses": a.posing.save_all(b["items"])}
         if path == "/api/outfit/sample":
             return {"job": a.make_sample(b["id"])}
+        if path == "/api/person/save":
+            return {"character": a.save_person(b["id"], b["data"])}
+        if path == "/api/person/icon":
+            return {"job": a.make_person_icon(b["id"], force=True)}
         if path == "/api/character/icon":
             return {"job": a.make_icon(b["id"], force=True)}
         if path == "/api/character/delete":

@@ -3989,7 +3989,7 @@ let SE = {}; // 編集中のワーキングコピー
 async function editChar() {
   const id = S.editCid || tid() || S.boot.character.id;
   if (id === S.boot.character.id) return clone(S.boot.character);
-  try { return clone((await api('/api/character?id=' + encodeURIComponent(id))).character); } catch (e) { return clone(S.boot.character); }
+  try { return clone((await api(charUrl(id))).character); } catch (e) { return clone(S.boot.character); }
 }
 async function openSettings(sec) {
   SE = {
@@ -3999,6 +3999,9 @@ async function openSettings(sec) {
   $('#settings-dlg').showModal();
   showSection(sec || SE.sec || 'char');
 }
+// 編集するキャラの id. 「p:」で始まるのは出会ったまだ登録していない人 (people.json). 保存先もそちら
+const charUrl = (id) => id.startsWith('p:') ? '/api/person?id=' + encodeURIComponent(id.slice(2)) : '/api/character?id=' + encodeURIComponent(id);
+const saveCharData = (c) => c._pid ? api('/api/person/save', { id: c._pid, data: c }) : api('/api/character/save', { data: c });
 // キャラごとの設定: 「キャラクター」の中のタブ (上に編集するキャラの選択). ほかは全体の設定
 const CHAR_SECS = [['char', '基本・外見'], ['schedule', '生活スケジュール'], ['wardrobe', '着せ替え']];
 function charHead(cur) {
@@ -4008,8 +4011,10 @@ function charHead(cur) {
       h('select', { onchange: (ev) => editDefinition(ev.target.value) },
         [['このワールドにいる', true], ['このワールドにはいない（定義だけ）', false]].map(([label, here]) => {
           const xs = allDefs().filter((x) => x.here === here);
-          return xs.length ? h('optgroup', { label }, xs.map((x) => h('option', { value: x.id, selected: x.id === c.id }, x.name))) : '';
-        }))),
+          return xs.length ? h('optgroup', { label }, xs.map((x) => h('option', { value: x.id, selected: !c._pid && x.id === c.id }, x.name))) : '';
+        }),
+        (() => { const xs = (S.boot.people || []).filter((x) => !x.def);
+          return xs.length ? h('optgroup', { label: '出会った人（未登録）' }, xs.map((x) => h('option', { value: 'p:' + x.pid, selected: c._pid === x.pid }, x.name))) : ''; })())),
     h('div', { class: 'seg char-tabs' }, CHAR_SECS.map(([id, label]) => h('button', { class: id === cur ? 'on' : '', onclick: () => showSection(id) }, label))));
 }
 function showSection(sec) {
@@ -4534,7 +4539,7 @@ SEC.player = () => {
 SEC.char = () => {
   const c = SE.char, st = SE.settings;
   // 同じワールドのほかのキャラとの関係 (c から見た向き). 再描画しても編集中の値を保つ
-  const hereNow = S.boot.characters.some((x) => x.id === c.id);     // 定義だけ (このワールドにいない人) を編集中なら, 関係は扱わない
+  const hereNow = !c._pid && S.boot.characters.some((x) => x.id === c.id);     // 定義だけ (このワールドにいない人) を編集中なら, 関係は扱わない
   const others = hereNow ? S.boot.characters.filter((x) => x.id !== c.id) : [];
   if (!SE.rels || SE.rels.cid !== c.id || SE.rels.boot !== S.boot) {
     const mine = (S.boot.relations || {})[c.id] || {};
@@ -4556,13 +4561,14 @@ SEC.char = () => {
   }
   return [
     saveBar('キャラクター', async () => {
-      await api('/api/character/save', { data: c });
-      if (others.length && S.boot.characters.some((x) => x.id === c.id)) await api('/api/relations', { id: c.id, relations: rels });
+      await saveCharData(c);
+      if (others.length && hereNow) await api('/api/relations', { id: c.id, relations: rels });
       await reloadAll('char');
     }, h('div', { class: 'row' },
-      h('button', { class: 'btn ghost', title: 'このキャラの定義を JSON で保存（データ → キャラクターを読込 で戻せる）', onclick: () => downloadJson(`character_${c.id}.json`, c) }, '書き出す'),
+      c._pid ? '' : h('button', { class: 'btn ghost', title: 'このキャラの定義を JSON で保存（データ → キャラクターを読込 で戻せる）', onclick: () => downloadJson(`character_${c.id}.json`, c) }, '書き出す'),
       h('button', { class: 'btn', onclick: newCharacterDialog }, '＋新規'))),
     charHead('char'),
+    c._pid ? h('p', { class: 'lead' }, `${c.name}は出先で出会った、まだ登録していない人です（このワールドだけ）。ここで直したものは、出先で会ったときの名前・外見・性格になり、連絡先を交換して登録すると、直した定義のままキャラクターになります。よく会う場所と時間帯は変わりません。`) :
     h('p', { class: 'lead' }, 'キャラクターの定義（名前・外見・性格・服・スケジュールなど）は全ワールド共通で、ここでの変更は全ワールドに反映されます。状態・ログ・あなたとの間柄・キャラ同士の関係はワールドごとです。どこかのワールドに現れている（知り合っている）キャラは削除できません。外見の SD プロンプトは保存のたびに履歴へ残り、いつでも復元できます。あなた自身の情報は「あなた」で設定します。'),
     h('div', { class: 'grid4' },
       fld('名前', inp(c, 'name')),
@@ -4622,7 +4628,7 @@ function iconRow(c) {
   };
   btn.onclick = async () => {
     try {
-      const r = await api('/api/character/icon', { id: c.id });
+      const r = c._pid ? await api('/api/person/icon', { id: c._pid }) : await api('/api/character/icon', { id: c.id });
       toast('顔のアイコンを作っています（保存済みの外見で。できたら入れ替わります）', 'ok');
       if (r && r.job) watch(r.job);
     } catch (e) { toast(e.message, 'err'); }
@@ -4695,13 +4701,36 @@ function othersSection() {
         onclick: async () => {
           if (!confirm(`「${c.name}」の定義を消しますか？（どのワールドの出会いの候補からも外れます）`)) return;
           try { await api('/api/character/delete', { id: c.id }); await reloadAll('char'); } catch (e) { toast(e.message, 'err'); }
-        } }, '削除'))));
+        } }, '削除'))),
+    peopleSection());
+}
+// 出先で出会った, まだ登録していない人 (このワールドの people.json). 定義と同じ画面で直せる. 他ワールドの定義の人は定義の側を開く
+function peopleSection() {
+  const ppl = S.boot.people || [];
+  const pname2 = (id) => ((S.boot.personas || []).find((p) => p.id === id) || {}).name || '性格なし';
+  const st = S.boot.settings || {};
+  const fmt = (t) => t ? new Date(t * 1000).toLocaleDateString() : '';
+  return h('div', {},
+    h('div', { class: 'sect' }, `出会った人（未登録・このワールド・${ppl.length}人）`),
+    h('p', { class: 'hint' }, '出先で出会って、まだ連絡先を交換していない人です。名前・外見・性格・服・暮らし方を、上のキャラクターと同じ画面で直せます（よく会う場所と時間帯は変わりません）。ほかのワールドで登録した人は、キャラクターの定義の側を直します。'),
+    ppl.length ? ppl.map((x) => h('div', { class: 'row reg-row' + ((SE.char || {})._pid === x.pid ? ' on' : '') },
+      h('div', { style: 'flex:1;min-width:12em' },
+        h('b', {}, x.name), h('span', { class: 'muted small' }, `　${pname2(x.persona_id)}`),
+        h('div', { class: 'small' }, `${x.stage}（会った回数 ${x.meets}）`, h('span', { class: 'muted' }, x.first ? `　初めて会った日: ${fmt(x.first)}` : '')),
+        h('div', { class: 'muted small' }, x.def ? 'ほかのワールドで登録した人（定義の側を直します）' : `よく会う所: ${x.haunts.join('、') || '—'}`)),
+      h('button', { class: 'btn small', onclick: () => editDefinition(x.def || 'p:' + x.pid) }, '編集')))
+      : h('p', { class: 'hint' }, 'まだいません。'),
+    h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: st.unique_random_persona !== false, onchange: async (ev) => {
+      try { await api('/api/settings', { settings: { unique_random_persona: ev.target.checked } }); S.boot.settings.unique_random_persona = ev.target.checked; if (SE.settings) SE.settings.unique_random_persona = ev.target.checked; toast('保存しました', 'ok'); }
+      catch (e) { ev.target.checked = !ev.target.checked; toast(e.message, 'err'); }
+    } }), ' 出会いで新しく作る人には、すでにいる性格を使わない'),
+    h('p', { class: 'hint' }, 'キャラクターの定義と、このワールドで出会ったまだ登録していない人の性格を避けて、新しい人の性格をくじで選びます。全部の性格がすでにいるときだけ、重なります。すでにいる人は変わりません。'));
 }
 // 定義を編集する (このワールドにいない人も). いる人ならそのキャラを選ぶ
 async function editDefinition(id) {
   S.editCid = id;
   try {
-    SE.char = clone((await api('/api/character?id=' + encodeURIComponent(id))).character); SE.rels = null;
+    SE.char = clone((await api(charUrl(id))).character); SE.rels = null;
     showSection(CHAR_SECS.some(([x]) => x === SE.sec) ? SE.sec : 'char');
   }
   catch (e) { toast(e.message, 'err'); }
@@ -4888,7 +4917,7 @@ SEC.schedule = () => {
   };
   draw();
   return [
-    saveBar(`${c.name}の生活スケジュール`, async () => { await api('/api/character/save', { data: c }); await reloadAll(); }),
+    saveBar(`${c.name}の生活スケジュール`, async () => { await saveCharData(c); await reloadAll(); }),
     charHead('schedule'),
     c.schedule.some((e) => e.asleep) ? '' : h('p', { class: 'hint' }, '⚠ 睡眠（状態の「睡眠」）の予定がありません。このままだと 1:00〜7:00 は寝ていることにします（予定が一致しない時間だけ）。'),
     h('p', { class: 'lead' }, '実際の時刻に合わせて、上から順に最初に一致した予定が「いまの場面」になります。どれにも一致しなければ「普段」が使われます。日をまたぐ予定（22:00〜02:00 など）も書けます。毎時の効果は滞在 1 時間あたりのパラメータ変化です。'),
@@ -4930,7 +4959,7 @@ SEC.wardrobe = () => {
   };
   draw();
   return [
-    saveBar(`${c.name}の着せ替え`, async () => { await api('/api/character/save', { data: c }); await reloadAll('wardrobe'); }),
+    saveBar(`${c.name}の着せ替え`, async () => { await saveCharData(c); await reloadAll('wardrobe'); }),
     charHead('wardrobe'),
     h('p', { class: 'lead' }, `${c.name}が持っている服です。「お願い」タブの着替えには、持っている服だけが並びます（アウターは並ばず、出かけるときに本人が羽織ります）。服そのもの（名前・プロンプト・大胆さ・季節など）は「服の一覧」で全員共通に編集します。持っている服は、あなたが店で買って贈る（受け取るかは大胆さ・仲・好みしだい）か、本人が自分で買うことでも増えます。頼まれていないときは、本人が気分・季節・天気で普段着や外出の服を選ぶこともあります。`),
     h('div', { class: 'row', style: 'margin-bottom:10px' }, chk(c, 'dress_reset_on_sleep', '寝たらスケジュール通りの服に戻す')),

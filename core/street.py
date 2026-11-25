@@ -69,6 +69,24 @@ class Street:
     def save_people(self, ppl):
         store.save(store.wpath("people.json"), ppl)
 
+    PHASE_JA = {"morning": "朝", "noon": "昼", "evening": "夕方", "night": "夜"}
+
+    def unregistered(self):
+        """設定のキャラ一覧に出す, このワールドで出会ったまだ登録していない人. 他ワールドの定義の人 (def) は, 定義の id を添える."""
+        out = []
+        for pid, pr in self.people().items():
+            if pr.get("cid"):
+                continue
+            c, src = pr["char"], pr.get("src") or {}
+            hs = ["%s%s" % ((PLACES.get(p) or {}).get("label", "職場" if p == "office" else p), "（%s）" % self.PHASE_JA[ph] if ph in self.PHASE_JA else "")
+                  for p, ph in (pr.get("haunts") or [])]
+            out.append({"pid": pid, "name": c.get("name", ""), "persona_id": c.get("persona_id", ""),
+                        "stage": STAGES[min(int(pr.get("stage", 0)), len(STAGES) - 1)], "meets": pr.get("meets", 0),
+                        "first": pr.get("first", 0), "haunts": hs,
+                        "def": src.get("id") if src.get("type") == "def" and src.get("id") in store.all_characters() else None})
+        out.sort(key=lambda x: -(x["first"] or 0))
+        return out
+
     def rec(self):
         return self.app.presence.rec()
 

@@ -189,6 +189,10 @@ class Encounters:
         used = {c.get("name") for c in app.chars.values()}
         name = random.choice([n for n in NAMES if n not in used] or NAMES)
         ps = [p for p in app.personas.values() if not p.get("_custom")] or list(app.personas.values())
+        if app.settings.get("unique_random_persona", True):
+            # すでにいる性格 (全体の定義と, このワールドで出会ったまだ登録していない人) は避ける. 埋まっていたら, そのときだけ重なりを許す
+            taken = self.taken_personas()
+            ps = [p for p in ps if p.get("id") not in taken] or ps
         p = random.choice(ps) if ps else {}
         look = ", ".join(x for x in ["1girl, solo", random.choice(HAIR_COLOR), random.choice(HAIR_STYLE), random.choice(EYES),
                                      random.choice(EXTRA)] if x)
@@ -198,6 +202,13 @@ class Encounters:
              "prompt_history": []}
         # 暮らし方 (生活の型) は人ごとにくじで決め, 予定はそこから作る (以前は, そばにいる相手の予定をそのまま写していた)
         return lifetype.assign(c, p.get("traits") or {}, seed=uuid.uuid4().hex[:12])
+
+    def taken_personas(self):
+        """すでにいる人の性格: 全体のキャラの定義・このワールドで出会ったまだ登録していない人・いま登録を尋ねている人."""
+        out = {c.get("persona_id") for c in store.all_characters().values()}
+        out |= {(pr.get("char") or {}).get("persona_id") for pr in self.app.street.people().values() if not pr.get("cid")}
+        out.add(((self.pending() or {}).get("char") or {}).get("persona_id"))
+        return out - {None, ""}
 
     def _starter_clothes(self):
         """新しく作る人の持っている服: 普段着・部屋着・パジャマと, 一覧のふつうの服からいくつか."""

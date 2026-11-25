@@ -2,6 +2,7 @@
  "player_name": "ユウ",
  "active_character": "hina",
  "auto_generate": true,
+ "unique_random_persona": true,
  "images": {
   "mode": "reuse",
   "max_per_prompt": 8,

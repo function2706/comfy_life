@@ -4709,7 +4709,7 @@ class App:
 
     def boot_view(self):
         return {"settings": self.settings, "params": self.params, "worlds": self.worlds_view(), "relations": self.relations,
-                "others": self.others_list(), "defs": self.defs_list(), "catalog": items_mod.Items.catalog(), "outfits": self.wardrobe.catalog_view(), "poses": self.posing.catalog_view(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
+                "others": self.others_list(), "defs": self.defs_list(), "people": self.street.unregistered(), "catalog": items_mod.Items.catalog(), "outfits": self.wardrobe.catalog_view(), "poses": self.posing.catalog_view(), "puzzles": puzzles.catalog(), "persona_likes": items_mod.PERSONA_LIKES,
                 "routine": {"days": self.offline.cfg()["days"], "labels": offline_mod.DO_LABEL, "meal_how": offline_mod.MEAL_HOW, "meal_places": offline_mod.MEAL_PLACES}, "actions": self.actions, "world": self.world,
                 "characters": [{"id": c["id"], "name": c.get("name", "")} for c in self.chars.values()],
                 "character": self.char(), "placeholders": list(comfy.PLACEHOLDERS),
@@ -4771,12 +4771,7 @@ class App:
             if not c.get("id"):
                 raise ValueError("id がありません")
             old = self.chars.get(c["id"]) or store.all_characters().get(c["id"])
-            hist = list((old or {}).get("prompt_history") or [])
-            if old and not hist:
-                hist.insert(0, {"t": time.time() - 1, "pos": old.get("pos", ""), "neg": old.get("neg", "")})
-            if not old or not hist or hist[0].get("pos") != c.get("pos") or hist[0].get("neg") != c.get("neg"):
-                hist.insert(0, {"t": time.time(), "pos": c.get("pos", ""), "neg": c.get("neg", "")})
-            c["prompt_history"] = hist[:200]
+            self._push_prompt_history(c, old)
             for k in ("icon", "icon_seed"):      # 設定を開いている間にできた顔のアイコンを, 古い画面の保存で消さない
                 if k not in c and (old or {}).get(k):
                     c[k] = old[k]
@@ -4784,7 +4779,18 @@ class App:
             if c["id"] in self.chars or c["id"] in store.load_cast():     # このワールドに現れている人だけ手元に
                 self.chars[c["id"]] = c
             store.save_character(c)              # 定義は全体 (全ワールドに反映)
+            self._sync_people_def(c)
             return c
+
+    @staticmethod
+    def _push_prompt_history(c, old):
+        """外見のプロンプトが変わったら履歴に残す (保存のたび. 履歴が無かった人は, 前の外見も先に残す)."""
+        hist = list((old or {}).get("prompt_history") or [])
+        if old and not hist:
+            hist.insert(0, {"t": time.time() - 1, "pos": old.get("pos", ""), "neg": old.get("neg", "")})
+        if not old or not hist or hist[0].get("pos") != c.get("pos") or hist[0].get("neg") != c.get("neg"):
+            hist.insert(0, {"t": time.time(), "pos": c.get("pos", ""), "neg": c.get("neg", "")})
+        c["prompt_history"] = hist[:200]
 
     NEW_STAGES = ("contact", "known", "absent", "random")
 
@@ -4883,7 +4889,57 @@ class App:
         if "persona_id" in c and p2 and not c.get("persona"):
             old["persona"] = p2.get("persona", "")
         store.save_character(old)
+        self._sync_people_def(old)
         return old
+
+    # ------------------------------------------------------------------ 出会ったまだ登録していない人 (people.json) の編集
+    def get_person(self, pid):
+        """編集画面に出す, 未登録の人の定義. _pid で保存先 (people.json) を見分ける. アイコンは人の記録の側にある."""
+        pr = self.street.people().get(pid)
+        if not pr or pr.get("cid"):
+            raise KeyError("その人が見つかりません（登録した人は、キャラの定義から編集します）")
+        c = json.loads(json.dumps(pr["char"]))
+        c["_pid"] = pid
+        if pr.get("icon"):
+            c["icon"] = pr["icon"]
+        return c
+
+    def save_person(self, pid, c):
+        """未登録の人の定義を直す. 登録したら, 直した定義のまま入る (encounters.answer が写す).
+        他ワールドの定義の人 (src def) は全体の定義そのものなので, ここでは直さない (定義の側を直すと写しも合う)."""
+        with self.lock:
+            ppl = self.street.people()
+            pr = ppl.get(pid)
+            if not pr or pr.get("cid"):
+                raise KeyError("その人が見つかりません（登録した人は、キャラの定義から編集します）")
+            src = pr.get("src") or {}
+            if src.get("type") == "def" and src.get("id") in store.all_characters():
+                raise ValueError("ほかのワールドで登録した人なので、キャラの定義の側で編集してください")
+            old = pr["char"]
+            c = {k: v for k, v in c.items() if not k.startswith("_") and k not in ("id", "met", "icon", "icon_seed")}
+            self._push_prompt_history(c, old)
+            lifetype_mod.ensure(self, c, old)
+            pr["char"] = c
+            self.street.save_people(ppl)
+            enc = self.encounters.pending()
+            if enc and enc.get("pid") == pid:         # 登録を尋ねている最中なら, 尋ねている定義も直す
+                enc["char"] = {k: v for k, v in json.loads(json.dumps(c)).items() if k not in ("prompt_history",)}
+                p = self.personas.get(c.get("persona_id") or "") or {}
+                enc["persona_name"] = p.get("name", "")
+                self.life.save_player()
+            return self.get_person(pid)
+
+    def _sync_people_def(self, d):
+        """全体の定義を直したら, まだ登録していない「他ワールドの定義の人」の写し (どのワールドの people.json も) を合わせる."""
+        for f in glob.glob(store.dpath("worlds", "*", "people.json")):
+            ppl = store.load(f, {}) or {}
+            hit = False
+            for pr in ppl.values():
+                if not pr.get("cid") and (pr.get("src") or {}).get("type") == "def" and (pr.get("src") or {}).get("id") == d.get("id"):
+                    pr["char"] = {k: v for k, v in json.loads(json.dumps(d)).items() if k not in ("prompt_history", "met", "id")}    # pick_new_face と同じ写し方
+                    hit = True
+            if hit:
+                store.save(f, ppl)
 
     def delete_character(self, cid):
         """定義の抹消 (全ワールドに波及). どこかのワールドに現れている (知り合い・同居など) キャラは消せない. 変更はできる."""
