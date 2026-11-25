@@ -798,11 +798,12 @@ function howPicker(onchange) {
       onclick: () => { S.how = k; (onchange || renderSoloTab)(); } }, HOW_NAME[k])),
     where ? h('span', { class: 'muted small' }, `（${where}）`) : '', ...fetch);
 }
-async function fetchVehicle(vid) {
+async function fetchVehicle(vid, how0) {
   if (S.busy) return;
   S.busy = true;
   try {
-    const how = ['bike', 'car', 'auto'].includes(S.how) ? null : S.how;
+    const hw = how0 === undefined ? S.how : how0;
+    const how = ['bike', 'car', 'auto'].includes(hw) ? null : hw;
     const r = await api('/api/vehicle/fetch', { vid, how });
     toast((r.done || '').replace(/^（|）$/g, '') || '取りに向かった', 'ok');
   } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); }
@@ -3370,7 +3371,12 @@ function renderMap() {
     workAway ? h('div', { class: 'small muted' }, tv && tv.dir !== 'home' ? '行き先を押すと、仕事には行かずにそちらへ向かいます。'
       : '行き先を押すと、仕事を終えて（働いた時間ぶんのお給料が入ります）、家に寄らずにそちらへ向かいます。') : '',
     !free ? h('div', { class: 'small muted' }, '出かけられるのは、家にいるか外出中のときです（作業・仕事などを終えてから）。') : '',
-    out ? shopCard(pres, true) : '');
+    out ? shopCard(pres, true) : '',
+    // 出先に置いてきた乗り物: 家から取りに行く (おまかせで向かい, 着いたら乗って家へ. 店が閉まっていても行ける. F14)
+    ...Object.entries((od.vehicles || {}).own || {}).filter(([, w]) => w.fetch).map(([vid, w]) => h('div', { class: 'row', style: 'gap:6px;align-items:center;margin-top:6px' },
+      h('span', { class: 'small muted' }, `${w.label}は${w.at_label}に置いてある`),
+      h('button', { class: 'btn small', disabled: S.busy, title: `${w.at_label}までおまかせで行き、${w.label}に乗って家へ帰る（店が閉まっていても行けます）`,
+        onclick: async () => { await fetchVehicle(vid, null); renderMap(); } }, `${vid === 'car' ? '🚗' : '🚲'} ${w.label}を取りに行く`))));
   // 選んだ行き先: 行き方ごとの「行く」
   let detail = '';
   if (sel && String(sel).startsWith('st:')) detail = stationBox(sel);
