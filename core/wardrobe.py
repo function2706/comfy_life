@@ -43,6 +43,12 @@ COLORS = {"white": ("白", "white", True), "black": ("黒", "black", True), "gre
           "red": ("赤", "red", False), "pink": ("ピンク", "pink", False), "yellow": ("黄", "yellow", False),
           "green": ("緑", "green", False), "khaki": ("カーキ", "khaki", True), "beige": ("ベージュ", "beige", True),
           "brown": ("茶", "brown", True), "purple": ("紫", "purple", False)}
+# 画面の色の見本 (S35)
+HEX = {"white": "#f4f4f2", "black": "#222222", "grey": "#9a9a9a", "navy": "#1f2a52", "blue": "#2f6fd6", "light_blue": "#8fd0f0",
+       "red": "#d23a3a", "pink": "#f29bc0", "yellow": "#f2d33c", "green": "#3f9b4f", "khaki": "#a69a6a", "beige": "#e2d3b0",
+       "brown": "#7a4f2e", "purple": "#8a55b8"}
+# サンプル画像で, 部品 1 つのときに足す無地の既定 (S35. 区分 -> その区分が無いときに足すもの)
+SAMPLE_FILL = (("top", "plain grey t-shirt"), ("bottom", "plain black long pants"))
 # 文の中の色の語 (これがあれば色を足さない)
 COLOR_WORDS = re.compile(r"\b(white|black|gr[ae]y|navy|blue|red|pink|yellow|green|khaki|beige|brown|purple|ivory|cream|"
                          r"orange|gold|golden|silver|denim|pastel|lavender|burgundy|camel|olive|mint|multicolored|rainbow)\b", re.I)
@@ -190,6 +196,9 @@ class Wardrobe:
         pr = s.get("prompt") or {}
         tmpl = ((s.get("images") or {}).get("sample_prompt") or SAMPLE_PROMPT)
         pos = o.get("pos", "").replace("{color}", "white")        # 色違いの部品は白で描く
+        sl = o.get("slot")
+        if sl not in ("set", "outer", "lingerie", "onepiece"):   # 部品 1 つ: ほかは無地の既定で (上か下が無いと裸に描かれる)
+            pos = ", ".join([pos] + [f for k, f in SAMPLE_FILL if k != sl])
         body = tmpl.replace("{outfit}", pos) if "{outfit}" in tmpl else "%s, %s" % (pos, tmpl)
         from .engine import join_tags
         return join_tags([pr.get("prefix_pos", ""), body]), join_tags([pr.get("prefix_neg", ""), o.get("neg", "")])
@@ -205,7 +214,7 @@ class Wardrobe:
                 items_mod.CATALOG["outfit:" + v["key"]] = {
                     "id": "outfit:" + v["key"], "name": v["name"], "icon": o["icon"], "kind": "outfit", "price": o["price"],
                     "places": o["places"], "tags": ["fashion"], "giftable": True, "essential": False,
-                    "outfit": v["key"], "bold": o["bold"], "slot": o["slot"], "color": v["color"],
+                    "outfit": v["key"], "bold": o["bold"], "slot": o["slot"], "okind": o["kind"], "color": v["color"],
                     "variant_of": "outfit:" + o["id"] if v["color"] else None, "base_name": o["name"]}
 
     # ------------------------------------------------------------------ 持っている服
@@ -637,5 +646,5 @@ class Wardrobe:
     # ------------------------------------------------------------------ 画面
     def catalog_view(self):
         return {"items": self.all(), "kinds": KINDS, "seasons": SEASONS, "bold": BOLD_LABEL,
-                "sample_prompt": SAMPLE_PROMPT, "slots": SLOTS, "colors": {k: {"name": v[0], "tag": v[1]} for k, v in COLORS.items()}}
+                "sample_prompt": SAMPLE_PROMPT, "slots": SLOTS, "colors": {k: {"name": v[0], "tag": v[1], "hex": HEX[k]} for k, v in COLORS.items()}}
 

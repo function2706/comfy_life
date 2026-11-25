@@ -10,6 +10,7 @@
 - 設定の「表示」の知らせの音の欄 (A33)
 - 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
 - 誰かと → お願いの着せ替えの「部品で合わせる」のプルダウン (S30)
+- 着せ替えの持っている服の一覧が描き直しで閉じない・部品の欄の色の見本 / 買うものリストの区分のタブと色の丸 / 服の一覧の売る色 (S35)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -44,7 +45,8 @@ f.onload = () => setTimeout(async () => {
     if (d.activeElement !== el) return;              // 隠れている・押せない欄は数えない
     await w.refresh(); await w.refresh();
     if (S.chatDlg && S.chatDlg.open) await w.drawChat(true);
-    out.push(name + (d.activeElement === el && d.contains(el) ? ':OK' : ':NG'));
+    out.push(name + (d.activeElement === el && d.contains(el) ? ':OK'
+      : ':NG(' + el.tagName + '.' + (el.className || el.type || '') + (el.title ? '/' + el.title : '') + (el.parentNode ? '<' + (el.parentNode.textContent || '').slice(0, 20) : '') + ')'));
   };
   // 場所 (root) にある欄をすべて (プルダウン・時刻・日付・数字・文字). 描き直しで作り直されるので, 毎回探し直す
   const FIELDS = 'select, input[type=time], input[type=date], input[type=number], input[type=text], input:not([type]), textarea';
@@ -125,8 +127,59 @@ f.onload = () => setTimeout(async () => {
     }, '#tab-games .ff-pick', 'forfeit');
     // 4e. 誰かと → お願い: 着せ替えの「部品で合わせる」の区分ごとのプルダウン (S30)
     await keepAll(() => { closeModal(); w.showTab('with'); w.showSub('dress'); w.renderDress(); }, '#tab-dress .coord-pick', 'coord');
+    // 4f. 着せ替え (S35): 持っている服の一覧は描き直しで閉じない. 部品の欄で選ぶと色の見本が出る
+    closeModal(); w.showTab('with'); w.showSub('dress'); S.ownOpen = true; w.renderDress();
+    await w.refresh(); await w.refresh();
+    const ol = d.querySelector('#tab-dress details.owned-list');
+    out.push('owned' + (ol && ol.open && ol.querySelectorAll('.owned-row').length && ol.querySelector('.swatch') ? ':OK' : ':NG'));
+    const csel = [...d.querySelectorAll('#tab-dress .coord-pick select')].find((x) => [...x.options].some((op) => op.value.includes(':')));
+    if (!csel) out.push('coord-swatch:NONE');
+    else {
+      csel.value = [...csel.options].find((op) => op.value.includes(':')).value; csel.dispatchEvent(new w.Event('change'));
+      const lab = [...d.querySelectorAll('#tab-dress .coord-pick label')].find((l) => l.querySelector('select') && l.querySelector('select').value.includes(':'));
+      out.push('coord-swatch' + (lab && lab.querySelector('.swatch') ? ':OK' : ':NG'));
+    }
+    // スマホ幅 (375px) で, 着せ替えの部品の欄・色の見本・持っている服が, タブの欄から横にはみ出さない
+    f.style.width = '375px'; await sleep(600); w.renderDress(); await sleep(100);
+    const td = d.querySelector('#tab-dress'), tr = td.getBoundingClientRect().right;
+    const over = [...td.querySelectorAll('*')].filter((e) => e.offsetParent && e.getBoundingClientRect().right > tr + 1)
+      .map((e) => e.tagName + '.' + (e.className || '') + '<' + (e.textContent || '').slice(0, 12)).slice(0, 4).join('|');
+    out.push('narrow-dress' + (tr > 200 && !over ? ':OK' : ':NG(' + Math.round(tr) + '/' + over + ')'));
+    f.style.width = '1280px'; await sleep(400);
+    S.coordDraft = {};
     try { await w.api('/api/save/del', { path: ['player', 'presence', 'with'] }); } catch (e) { out.push('gclean:' + e.message); }
     await w.refresh(); closeModal();
+    // 4g. 買うものリスト (S35): 服は区分のタブ, 色は色の丸. 選んだ色とタブは描き直しても残る
+    closeModal(); w.openShopList('kind');
+    const tabs = () => [...d.querySelectorAll('dialog[open] .slot-tabs button')];
+    if (tabs().length < 3) out.push('shop-tabs:NG(' + tabs().length + ')');
+    else {
+      const t2 = tabs().find((b) => b.textContent.startsWith('ボトムス'));
+      t2.click();
+      const dots = () => [...d.querySelectorAll('dialog[open] .color-dots')][0];
+      const pick = dots().querySelectorAll('button.swatch')[2];
+      const name = pick.title; pick.click();
+      await w.refresh(); await w.refresh(); w.drawShopList();
+      const on = dots().querySelector('button.swatch.on');
+      out.push('shop-tabs' + (tabs().find((b) => b.classList.contains('primary')).textContent.startsWith('ボトムス') && on && on.title === name
+        && dots().querySelector('.color-name').textContent === name ? ':OK' : ':NG'));
+    }
+    // スマホ幅 (375px) で, 区分のタブ・色の丸が買うものリストの窓から横にはみ出さない
+    f.style.width = '375px'; await sleep(600); w.drawShopList();
+    const sd = d.querySelector('dialog[open]');
+    out.push('narrow-shop' + (sd.scrollWidth - sd.clientWidth <= 1 ? ':OK' : ':NG(' + (sd.scrollWidth - sd.clientWidth) + ')'));
+    f.style.width = '1280px'; await sleep(400);
+    S.slDlg.close();
+    // 4h. 設定の服の一覧 (S35): 売る色を色の丸で切り替える (全部付いている = 空, 1 つ外すと 13 色)
+    closeModal(); await w.openSettings('outfits');
+    const sc = [...d.querySelectorAll('#sbody .color-dots')].find((x) => x.closest('.card').textContent.includes('ミニスカート'));
+    if (!sc) out.push('sell-colors:NONE');
+    else {
+      sc.querySelector('button.swatch').click();
+      const sc2 = [...d.querySelectorAll('#sbody .color-dots')].find((x) => x.closest('.card').textContent.includes('ミニスカート'));
+      out.push('sell-colors' + (sc2.querySelectorAll('button.swatch.off').length === 1 && sc2.textContent.includes('13 色') ? ':OK' : ':NG'));
+    }
+    closeModal();
     // 4c. 設定の「表示」: 知らせの音の欄 (A33. 種類ごとの音のプルダウン)
     await keepAll(async () => { closeModal(); await w.openSettings('display'); }, '#sbody .sound-table', 'sound');
     closeModal();
@@ -228,7 +281,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "map-top:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "map-top:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and {"owned:OK", "shop-tabs:OK", "sell-colors:OK", "narrow-shop:OK", "narrow-dress:OK"} <= set(items)         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
     print("ALL OK")
 
 

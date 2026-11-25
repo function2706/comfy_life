@@ -254,6 +254,27 @@ def main():
         assert len(before["clothes"]) < len(c["clothes"]) and transfer.same_person(c, before)
         assert not transfer.same_person(c, dict(before, clothes=before["clothes"][:-1])), "持っている服が本当に違えば別の人"
         print("読み込みの同じ人: OK")
+
+        # ---- 13. 画面 (S35): 色の見本・衣装の区別・部品のサンプル画像は無地の既定で上下をそろえる
+        cv = W.catalog_view()
+        assert all(v.get("hex", "").startswith("#") for v in cv["colors"].values()) and set(cv["colors"]) == set(W_mod.COLORS)
+        assert items_mod.CATALOG["outfit:p_jeans:blue"]["okind"] == "part"
+        cos = next(o for o in W.all() if o["kind"] == "costume" and o["price"] > 0)
+        assert items_mod.CATALOG["outfit:" + cos["id"]]["okind"] == "costume"
+        for oid, want, no in (("p_jeans", "t-shirt", "long pants"), ("p_miniskirt", "t-shirt", "long pants")):
+            pos, _ = W.sample_prompt(W.get(oid))
+            assert want in pos and no not in pos and "{color}" not in pos, (oid, pos)
+        tops = [o for o in W.all() if o["slot"] == "top"]
+        pos, _ = W.sample_prompt(tops[0])
+        assert "long pants" in pos and "t-shirt" not in pos.replace(tops[0]["pos"].replace("{color}", "white"), ""), pos
+        for sl in ("hat", "shoes", "acc", "legwear"):
+            o = next(o for o in W.all() if o["slot"] == sl)
+            pos, _ = W.sample_prompt(o)
+            assert "t-shirt" in pos and "long pants" in pos, (sl, pos)
+        for o in (cos, next(o for o in W.all() if o["slot"] == "onepiece"), next(o for o in W.all() if o["slot"] == "outer")):
+            pos, _ = W.sample_prompt(o)
+            assert "plain grey t-shirt" not in pos and "plain black long pants" not in pos, (o["id"], pos)
+        print("画面の色の見本・サンプル画像: OK")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
