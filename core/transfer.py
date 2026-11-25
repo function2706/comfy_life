@@ -124,7 +124,7 @@ def _rename_deep(o, ren):
     return o
 
 
-IGNORE_KEYS = ("prompt_history", "met", "icon", "icon_seed", "imported", "origin", "usual_seen")
+IGNORE_KEYS = ("prompt_history", "met", "icon", "icon_seed", "imported", "origin", "usual_seen", "fashion")
 
 
 def _clothes(v):

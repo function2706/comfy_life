@@ -208,6 +208,8 @@ def bootstrap():
     migrate_with_all(meta)
     from . import lifetype
     lifetype.migrate_defs()          # 生活の型 (life の無い定義だけ. 済んでいれば何もしない)
+    from . import wardrobe
+    wardrobe.migrate_fashion()       # 服の好み (fashion の無い定義だけ. 生活の型のあと: 初期値が暮らしを見る)
     if meta.get("current") not in [w["id"] for w in meta["worlds"]]:
         meta["current"] = meta["worlds"][0]["id"]
         save(dpath("worlds.json"), meta)
@@ -480,7 +482,9 @@ def save_persona(p):
 
 
 def save_character(c):
-    """定義を保存する (全ワールドに反映)."""
+    """定義を保存する (全ワールドに反映). 服の好みが無ければ初期値を書く (S36)."""
+    from .wardrobe import default_fashion, norm_fashion
+    c["fashion"] = norm_fashion(c["fashion"]) if isinstance(c.get("fashion"), dict) else default_fashion(c)
     save(dpath("characters", c["id"] + ".json"), c)
 
 

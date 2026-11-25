@@ -4687,6 +4687,7 @@ SEC.char = () => {
       fld('あなたの呼び方（固定）', inp(c, 'player_call', { ph: `空欄＝プリセット（${(curPersona(c) || {}).player_call || '{player}'}）` }),
         '{player} = あなたの名前。空欄なら性格プリセットに従う')),
     likesEditor(c),
+    fashionEditor(c),
     h('div', { class: 'sect' }, '外見プロンプト'),
     iconRow(c),
     fld('Positive（外見・固有の特徴）', posEl),
@@ -4881,6 +4882,43 @@ function likesEditor(c) {
     row('likes', 0, '好きなもの'), row('dislikes', 1, '苦手なもの'),
     h('div', { class: 'row' }, h('span', { class: 'hint' }, c.likes == null && c.dislikes == null ? '性格プリセットの既定に従っています' : '自分で決めた好み'),
       h('button', { class: 'btn small', onclick: () => { c.likes = null; c.dislikes = null; showSection('char'); } }, '性格プリセットの既定に戻す')));
+}
+
+// 服の好み (S36): 系統・好きな色・苦手な色・種類の好き嫌い・部位のこだわり. 遊ぶ画面には出さない (ここで作る・直すだけ)
+function fashionEditor(c) {
+  const O = S.boot.outfits || {};
+  const box = h('div', { class: 'fashion-edit' });
+  const draw = () => {
+    const f = c.fashion;
+    if (!f) { box.replaceChildren(h('p', { class: 'hint' }, '保存すると、性格・年齢・暮らしから決まります（そのあとここで直せます）')); return; }
+    f.styles = f.styles || []; f.colors = f.colors || []; f.bad_colors = f.bad_colors || []; f.types = f.types || {}; f.fuss = f.fuss || {};
+    const dots = (k, max, other) => h('span', { class: 'color-dots' }, Object.keys(O.colors || {}).map((col) => h('button', {
+      type: 'button', class: 'swatch' + (f[k].includes(col) ? ' on' : ' off'), style: `background:${colorHex(col)}`, title: colorName(col), 'aria-label': colorName(col),
+      onclick: () => {
+        if (f[k].includes(col)) f[k] = f[k].filter((x) => x !== col);
+        else { f[k] = f[k].concat([col]).slice(-max); f[other] = f[other].filter((x) => x !== col); }
+        draw();
+      } })), h('span', { class: 'small color-name' }, f[k].map(colorName).join('・') || 'なし'));
+    const sel = (obj, key, opts, def) => h('select', { onchange: (ev) => {
+      const v = Number(ev.target.value);
+      if (v === def) delete obj[key]; else obj[key] = v;
+    } }, opts.map(([v, l]) => h('option', { value: String(v), selected: (obj[key] === undefined ? def : obj[key]) === v }, l)));
+    box.replaceChildren(
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '系統（2 つまで）'),
+        h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px 10px' }, Object.entries(O.styles || {}).map(([k, l]) => h('label', { class: 'check' },
+          h('input', { type: 'checkbox', checked: f.styles.includes(k), onchange: (ev) => {
+            f.styles = ev.target.checked ? f.styles.concat([k]).slice(-2) : f.styles.filter((x) => x !== k); draw();
+          } }), l)))),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '好きな色（3 つまで）'), dots('colors', 3, 'bad_colors')),
+      h('div', { class: 'fld' }, h('span', { class: 'fl' }, '苦手な色（2 つまで）'), dots('bad_colors', 2, 'colors')),
+      h('div', { class: 'grid4 fashion-types' }, Object.entries(O.types || {}).map(([k, l]) => fld(l, sel(f.types, k, [[1, '好き'], [0, 'ふつう'], [-1, '苦手']], 0)))),
+      h('div', { class: 'grid4 fashion-fuss' }, Object.entries(O.fuss || {}).map(([k, l]) => fld(l + 'へのこだわり', sel(f.fuss, k, [[2, 'こだわる'], [1, 'ふつう'], [0, 'どうでもいい']], 1)))));
+  };
+  draw();
+  return h('div', {},
+    h('div', { class: 'sect' }, '服の好み（自分で買う・選ぶ服と、贈られた服の受け取り方）'),
+    h('p', { class: 'hint' }, '好みは確率で効くだけで、合う服を贈っても必ず喜ぶわけではありません。こだわる部位は好みで反応がぶれやすく、どうでもいい部位は何でも受け取りますが喜びも小さめです。遊ぶ画面には出ません'),
+    box);
 }
 
 const curPersona = (c) => (S.boot.personas || []).find((p) => p.id === c.persona_id);
@@ -5126,6 +5164,11 @@ SEC.outfits = () => {
         } catch (e) { toast(e.message, 'err'); }
       } }, o.sample ? 'サンプル画像を作り直す' : 'サンプル画像を作る'));
   };
+  // 系統・種類のタグ (S36. 本人の好みと照らす)
+  const tagRow = (o, dict) => h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px 10px' }, Object.entries(dict || {}).map(([k, l]) => h('label', { class: 'check' },
+    h('input', { type: 'checkbox', checked: (o.tags || []).includes(k), onchange: (ev) => {
+      o.tags = (o.tags || []).filter((x) => x !== k).concat(ev.target.checked ? [k] : []);
+    } }), l)));
   const watchSample = (jid, o) => {
     const tick = async () => {
       const j = await api('/api/job?id=' + jid).catch(() => null);
@@ -5162,6 +5205,8 @@ SEC.outfits = () => {
         fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2'),
         h('div', { class: 'fld span2' }, h('span', { class: 'fl' }, '売る色'), sellColors(o),
           h('span', { class: 'muted small' }, (o.pos || '').includes('{color}') ? '押して切り替え（全部消すと全色）' : 'Positive に {color} を入れた部品だけ色違いで売ります')),
+        h('div', { class: 'fld span2 outfit-tags' }, h('span', { class: 'fl' }, '系統'), tagRow(o, O.styles)),
+        h('div', { class: 'fld span2 outfit-tags' }, h('span', { class: 'fl' }, '種類'), tagRow(o, O.types)),
         fld('文の中で同じ部品とみなす語', inp(o, 'match', { fmt: (v) => (v || []).join(', '), parse: (v) => v.split(/\s*[,、]\s*/).filter(Boolean) }),
           'いつもの服・予定の服装の文にこの語があれば、その人の色を付けて描きます（例: mini skirt）', 'span2')))));
   };

@@ -4915,6 +4915,7 @@ class App:
             raise KeyError("その人が見つかりません（登録した人は、キャラの定義から編集します）")
         c = json.loads(json.dumps(pr["char"]))
         c["_pid"] = pid
+        c["fashion"] = wardrobe_mod.fashion_of(c)       # 服の好み (無ければ初期値を見せる. 保存すれば書かれる)
         if pr.get("icon"):
             c["icon"] = pr["icon"]
         return c
@@ -4934,6 +4935,8 @@ class App:
             c = {k: v for k, v in c.items() if not k.startswith("_") and k not in ("id", "met", "icon", "icon_seed")}
             self._push_prompt_history(c, old)
             lifetype_mod.ensure(self, c, old)
+            if isinstance(c.get("fashion"), dict):
+                c["fashion"] = wardrobe_mod.norm_fashion(c["fashion"])
             pr["char"] = c
             self.street.save_people(ppl)
             enc = self.encounters.pending()

@@ -18,8 +18,12 @@
   靴は外にいるときだけ, ランジェリーはトップスもワンピースも無いときだけ描く. 大胆さは描かれる部品のいちばん大胆なもの.
 - 文の服装の色を固定する (resolve): いつもの服・予定の服装・一式の pos の中の部品の名前に, その人の色を付けて描く (毎回同じ色).
   いつもの服とお出かけ着の文から見つかった部品は, その色でその人の持っている服になる (seed_usual).
+- 服の好み (S36): 服に tags (系統 STYLES・種類 TYPES). キャラの定義の fashion = {styles, colors, bad_colors, types, fuss}
+  (default_fashion で性格・年齢・暮らしから毎回同じに決まる初期値). fit で合う度を出し, 本人が選ぶ・買う・贈られたとき・着てみてに
+  確率で効かせる (必ず喜ぶ道は作らない). 値は遊ぶ画面に出さない (設定のキャラクターの「服の好み」だけ).
 """
 import hashlib
+import os
 import re
 import datetime
 import math
@@ -65,7 +69,155 @@ STARTER = ("casual", "lounge", "pajamas")     # 新しい人が最初から持�
 SAMPLE_PROMPT = ("{outfit}, black hair, straight hair, medium hair, black eyes, looking at viewer, expressionless, full body, "
                  "contrapposto, simple background, 1girl, solo, masterpiece, best quality, amazing quality")
 FIELDS = ("id", "name", "icon", "kind", "slot", "bold", "outing_ok", "seasons", "price", "places", "when", "pos", "neg", "colors",
-          "match", "sample")
+          "match", "tags", "sample")
+
+# ---- 服の好み (S36)
+STYLES = {"casual": "カジュアル", "girly": "ガーリー", "elegant": "きれいめ", "street": "ストリート", "natural": "ナチュラル",
+          "mode": "モード", "sporty": "スポーティ", "jirai": "地雷系"}
+TYPES = {"skirt": "スカート", "pants": "パンツ", "mini": "ミニ丈", "long": "ロング丈", "boots": "ブーツ", "sneakers": "スニーカー",
+         "heels": "ヒール"}
+# こだわりの部位 (区分 → 部位. ワンピースはトップスと同じ)
+FUSS_PART = {"hat": "hat", "top": "top", "onepiece": "top", "bottom": "bottom", "legwear": "legwear", "shoes": "shoes", "acc": "acc",
+             "outer": "outer"}
+FUSS_LABEL = {"hat": "ハット", "top": "トップス・ワンピース", "bottom": "ボトムス", "legwear": "ソックス・タイツ", "shoes": "靴",
+              "acc": "アクセサリー", "outer": "アウター"}
+FUSS_MUL = {0: 0.3, 1: 1.0, 2: 1.6}
+# 性格ごとの系統 (1 つ目は必ず, 2 つ目は寄せる)
+PERSONA_STYLE = {
+    "teinei": ("elegant", "natural"), "amaenbo": ("girly", "jirai"), "aneki": ("elegant", "mode"), "boyish": ("sporty", "street"),
+    "cool": ("mode", "elegant"), "genki": ("casual", "sporty"), "jimuteki": ("elegant", "casual"), "kedakai": ("elegant", "mode"),
+    "mukuchi": ("natural", "casual"), "ojousama": ("elegant", "girly"), "osananajimi": ("casual", "girly"),
+    "otokomae": ("street", "sporty"), "ottori": ("natural", "girly"), "tenshin": ("girly", "casual"), "tsundere": ("girly", "street"),
+    "uchiki": ("natural", "girly"), "sadist": ("mode", "jirai"), "itazura": ("street", "casual"), "hikutsu": ("casual", "natural"),
+    "byoujaku": ("natural", "elegant"), "hitonatsukko": ("casual", "girly"), "fushigi": ("natural", "jirai"),
+    "rikejo": ("casual", "mode"), "shikkari": ("elegant", "casual"), "yareyare": ("casual", "street"),
+    "rakuten": ("casual", "sporty"), "seijitsu": ("elegant", "natural")}
+STYLE_COLORS = {"casual": ("white", "navy", "grey", "blue", "beige"), "girly": ("pink", "white", "light_blue", "beige", "red"),
+                "elegant": ("white", "beige", "navy", "black", "grey"), "street": ("black", "khaki", "grey", "red", "yellow"),
+                "natural": ("beige", "brown", "khaki", "green", "white"), "mode": ("black", "white", "grey", "navy", "purple"),
+                "sporty": ("blue", "white", "black", "yellow", "green", "red"), "jirai": ("black", "pink", "white", "purple", "red")}
+STYLE_TYPES = {"casual": {"pants": 1, "sneakers": 1}, "girly": {"skirt": 1}, "elegant": {"heels": 1},
+               "street": {"pants": 1, "sneakers": 1}, "natural": {"long": 1, "heels": -1}, "mode": {"boots": 1},
+               "sporty": {"sneakers": 1, "pants": 1, "heels": -1}, "jirai": {"mini": 1, "skirt": 1, "sneakers": -1}}
+
+
+def _age(char):
+    try:
+        return int(char.get("age"))
+    except (TypeError, ValueError):
+        return None
+
+
+def default_fashion(char):
+    """服の好みの初期値 (キャラ id・性格・年齢・暮らし・好きなものから. 毎回同じ)."""
+    pid = char.get("persona_id") or ""
+    rng = random.Random(int(hashlib.md5(("%s|%s|fashion" % (char.get("id", ""), pid)).encode("utf-8")).hexdigest()[:8], 16))
+    first, second = PERSONA_STYLE.get(pid, ("casual", "natural"))
+    styles = [first]
+    if rng.random() < 0.6:
+        age, life = _age(char), (char.get("life") or {}).get("type")
+        w = {k: (8.0 if k == second else 1.0) for k in STYLES if k != first}
+        if "elegant" in w and ((age is not None and age >= 30) or life == "office"):
+            w["elegant"] *= 2
+        if age is not None and age <= 20:
+            for k in ("girly", "street"):
+                if k in w:
+                    w[k] *= 2
+        ks = sorted(w)
+        styles.append(rng.choices(ks, [w[k] for k in ks])[0])
+    pal = []
+    for s in styles:
+        pal += [c for c in STYLE_COLORS[s] if c not in pal]
+    colors = []
+    for _ in range(rng.choice((1, 2, 2, 3))):
+        colors.append(rng.choice([c for c in pal if c not in colors]))
+    out_pal = [c for c in COLORS if c not in pal and not COLORS[c][2]]
+    bad = rng.sample(out_pal, min(len(out_pal), rng.choice((0, 1, 1, 2))))
+    types = {}
+    for s in styles:
+        for t, v in STYLE_TYPES[s].items():
+            types[t] = types.get(t, 0) + v
+    types = {t: (1 if v > 0 else -1) for t, v in types.items() if v}
+    if rng.random() < 0.3:                    # ひとつ, 系統と関係ない好き嫌い
+        types.setdefault(rng.choice(sorted(TYPES)), rng.choice((1, -1)))
+    dl, dd = items_mod.PERSONA_LIKES.get(pid, ([], []))
+    likes = char.get("likes") if char.get("likes") is not None else dl
+    dislikes = char.get("dislikes") if char.get("dislikes") is not None else dd
+    fuss = {}
+    for _ in range(2 if "fashion" in (likes or []) else 1):
+        fuss[rng.choice([x for x in ("shoes", "top", "bottom", "acc") if x not in fuss])] = 2
+    lo = [x for x in ("hat", "legwear", "acc", "outer") if x not in fuss]
+    for p in rng.sample(lo, 2 if "fashion" in (dislikes or []) else rng.choice((1, 2))):
+        fuss[p] = 0
+    return {"styles": styles, "colors": colors, "bad_colors": bad, "types": types, "fuss": fuss}
+
+
+def _int(v, d=0):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return d
+
+
+def norm_fashion(f):
+    """服の好みを確かめる (知らない語は捨てる・数の上限・好きな色と苦手な色は重ねない)."""
+    f = f if isinstance(f, dict) else {}
+    colors = [c for c in f.get("colors") or [] if c in COLORS][:3]
+    return {"styles": [s for s in f.get("styles") or [] if s in STYLES][:2], "colors": colors,
+            "bad_colors": [c for c in f.get("bad_colors") or [] if c in COLORS and c not in colors][:2],
+            "types": {t: (1 if _int(v) > 0 else -1) for t, v in (f.get("types") or {}).items() if t in TYPES and _int(v)},
+            "fuss": {p: (2 if _int(v, 1) >= 2 else 0) for p, v in (f.get("fuss") or {}).items() if p in FUSS_LABEL and _int(v, 1) != 1}}
+
+
+def fashion_of(char):
+    """キャラの服の好み (定義に無ければ初期値)."""
+    f = char.get("fashion")
+    return norm_fashion(f) if isinstance(f, dict) else default_fashion(char)
+
+
+def fuss_of(char, slot):
+    """その区分へのこだわり: 0 どうでもいい / 1 ふつう / 2 こだわる (一式・ランジェリーは 1)."""
+    p = FUSS_PART.get(slot)
+    return int(fashion_of(char)["fuss"].get(p, 1)) if p else 1
+
+
+def fit(char, o, color=None):
+    """その服がその人の好みに合う度 (-1〜+1 に切ってから, こだわる部位は ×1.6, どうでもいい部位は ×0.3).
+    color: 色 (省くと o の色. "" で色を見ない)."""
+    f = fashion_of(char)
+    tags = o.get("tags") or []
+    x = 0.0
+    st = [t for t in tags if t in STYLES]
+    if st and f["styles"]:
+        x += 0.5 if any(t in f["styles"] for t in st) else -0.2
+    x += sum(0.4 * f["types"].get(t, 0) for t in tags if t in TYPES)
+    color = o.get("color") if color is None else color
+    if color and color in f["colors"]:
+        x += 0.4
+    elif color and color in f["bad_colors"]:
+        x -= 0.6
+    return max(-1.0, min(1.0, x)) * FUSS_MUL[fuss_of(char, o.get("slot"))]
+
+
+def migrate_fashion():
+    """服の好みの無いキャラの定義に, 初期値を一度だけ書く (S36). 書いた数を返す."""
+    n = 0
+    for c in store.all_characters().values():
+        if "fashion" not in c:
+            store.save_character(c)           # save_character が初期値を書く
+            n += 1
+    return n
+
+
+_DEF_TAGS = {}
+
+
+def _default_tags():
+    """既定の服の一覧の id → tags (S36 より前の一覧でタグの無い服を補う)."""
+    if not _DEF_TAGS:
+        for o in store.load(os.path.join(store.DEFAULTS, "outfits.json"), []) or []:
+            _DEF_TAGS[o.get("id")] = list(o.get("tags") or [])
+    return _DEF_TAGS
 
 
 def _norm(o):
@@ -86,6 +238,10 @@ def _norm(o):
         o["kind"] = "casual"
     o["colors"] = [c for c in o.get("colors") or [] if c in COLORS]
     o["match"] = [str(m).strip().lower() for m in o.get("match") or [] if str(m).strip()]
+    tags = o.get("tags")
+    if tags is None:                          # タグの無い服 (S36 より前の一覧): 既定の同じ id のタグで補う (データは書き換えない)
+        tags = _default_tags().get(o["id"]) or []
+    o["tags"] = [t for t in tags if t in STYLES or t in TYPES]
     o["bold"] = max(0, min(3, int(o.get("bold") or 0)))
     o["outing_ok"] = bool(o.get("outing_ok"))
     o["seasons"] = [s for s in o.get("seasons") or [] if s in SEASONS]
@@ -260,9 +416,10 @@ class Wardrobe:
 
     # ------------------------------------------------------------------ 部品の組み合わせ (コーデ) と色
     @staticmethod
-    def _color(char, o, rng=None, near=()):
+    def _color(char, o, rng=None, near=(), pref=None):
         """その人のその部品の色 (持っていなければ, キャラ id と部品から毎回同じに決まる. 無彩色に寄せる).
-        near: 一緒に着る部品の色 (違う有彩色どうしは選ばれにくい)."""
+        near: 一緒に着る部品の色 (違う有彩色どうしは選ばれにくい). pref: 服の好み (本人が買うときだけ. 好きな色 ×3・苦手 ×0.15.
+        描く色の既定は変えない)."""
         cs = sell_colors(o)
         if not cs:
             return None
@@ -272,6 +429,8 @@ class Wardrobe:
         w = []
         for c in cs:
             x = 2.0 if COLORS[c][2] else 1.0
+            if pref:
+                x *= 3.0 if c in pref["colors"] else 0.15 if c in pref["bad_colors"] else 1.0
             for b in near:
                 x *= Wardrobe._match(c, b)
             w.append(x)
@@ -479,13 +638,26 @@ class Wardrobe:
             st[asks_key] = (asks + [{"t": now, "ok": feel not in ("refuse", "angry"), "bold": bold}])[-10:]
         return feel
 
-    def gift_feel(self, char, st, oid, now):
-        """服を贈られたとき: yes (受け取る) / bold_no (大胆すぎて受け取れない). 着るのとは別で, 受け取るほうが少し易しい."""
+    def gift_feel(self, char, st, oid, now, rnd=random):
+        """服を贈られたとき: bold_no (大胆すぎて受け取れない. 着るのとは別で, 受け取るほうが少し易しい) /
+        plain (どうでもいい部位: 受け取るが喜びは小さい) / love (好みに合って喜ぶ) / meh (好みに合わず微妙) /
+        fussy (こだわる部位で好みに合わず, そう言う) / yes. 好みは確率で効くだけ (合っても必ず love ではない)."""
         o = self.get(oid) or {}
-        if int(o.get("bold") or 0) <= 0:
+        if int(o.get("bold") or 0) > 0:
+            f = self.accept(char, st, dict(o, bold=max(1, int(o["bold"]) - 1)), now, record=False)
+            if f in ("refuse", "angry"):
+                return "bold_no"
+        if not o:
             return "yes"
-        f = self.accept(char, st, dict(o, bold=max(1, int(o["bold"]) - 1)), now, record=False)
-        return "bold_no" if f in ("refuse", "angry") else "yes"
+        fs = fuss_of(char, o.get("slot"))
+        if fs == 0:
+            return "plain"
+        x = fit(char, o)
+        if x >= 0.35 and rnd.random() < min(0.8, 0.3 + 0.5 * x):
+            return "love"
+        if x <= -0.35 and rnd.random() < min(0.85, 0.3 - 0.4 * x):
+            return "fussy" if fs == 2 else "meh"
+        return "yes"
 
     # ------------------------------------------------------------------ 本人の服選び
     def comfort(self, char, st):
@@ -513,8 +685,9 @@ class Wardrobe:
                 continue
             if o["bold"] > cap or o.get("when"):
                 continue
-            w = 1.0
-            if o.get("owned_from") == "player":          # 贈ってもらった服: 仲しだいで選びやすい (必ずではない)
+            x = fit(char, o)
+            w = math.exp(0.8 * x)                         # 本人の好み (S36)
+            if o.get("owned_from") == "player" and x >= -0.3:   # 贈ってもらった服: 仲しだいで選びやすい (好みに外れたものは着ない)
                 w *= max(0.5, min(2.5, 1 + (aff - 45) / 30.0))
             if outing and rain and o["kind"] == "formal":
                 w *= 0.4
@@ -556,7 +729,10 @@ class Wardrobe:
                 return None
             w = []
             for o in xs:
-                x = max(0.5, min(2.5, 1 + (aff - 45) / 30.0)) if o.get("owned_from") == "player" else 1.0
+                fx = fit(char, o)
+                x = math.exp(0.8 * fx)
+                if o.get("owned_from") == "player" and fx >= -0.3:
+                    x *= max(0.5, min(2.5, 1 + (aff - 45) / 30.0))
                 x *= max(0.3, 1.0 + 0.15 * float(prefs.get("outfit:" + o["key"], 0.0)))
                 for b in base or []:
                     x *= self._match(o.get("color"), b.get("color"))
@@ -612,7 +788,8 @@ class Wardrobe:
             return "mood"
         aff = p.get("affection", 40)
         likes = self.app.items.likes(char)
-        chance = 0.6 + (aff - 50) / 120.0 + (0.1 if "fashion" in likes[0] else -0.1 if "fashion" in likes[1] else 0)             - self.modesty(char) / 60.0
+        chance = 0.6 + (aff - 50) / 120.0 + (0.1 if "fashion" in likes[0] else -0.1 if "fashion" in likes[1] else 0) \
+            - self.modesty(char) / 60.0 + 0.15 * fit(char, o)
         if random.random() >= max(0.25, min(0.92, chance)):
             return "later"
         return "glad" if aff >= 60 and p.get("mood", 50) >= 60 and random.random() < 0.5 else "yes"
@@ -632,9 +809,9 @@ class Wardrobe:
         cands = [o for o in cands if colored(o) or o["id"] not in have]
         if not cands:
             return None
-        o = random.choice(cands)
-        if colored(o):                    # 色は無彩色に寄せたくじ (好みの色は S36). 持っている色なら買わない
-            o = paint(o, self._color(char, o, random))
+        o = random.choices(cands, [math.exp(fit(char, x, color="")) for x in cands])[0]     # 好みの系統・種類に寄せる
+        if colored(o):                    # 色は無彩色と好きな色に寄せたくじ. 持っている色なら買わない
+            o = paint(o, self._color(char, o, random, pref=fashion_of(char)))
             if o["key"] in have:
                 return None
         else:
@@ -646,5 +823,5 @@ class Wardrobe:
     # ------------------------------------------------------------------ 画面
     def catalog_view(self):
         return {"items": self.all(), "kinds": KINDS, "seasons": SEASONS, "bold": BOLD_LABEL,
-                "sample_prompt": SAMPLE_PROMPT, "slots": SLOTS, "colors": {k: {"name": v[0], "tag": v[1], "hex": HEX[k]} for k, v in COLORS.items()}}
+                "sample_prompt": SAMPLE_PROMPT, "slots": SLOTS, "styles": STYLES, "types": TYPES, "fuss": FUSS_LABEL, "colors": {k: {"name": v[0], "tag": v[1], "hex": HEX[k]} for k, v in COLORS.items()}}
 

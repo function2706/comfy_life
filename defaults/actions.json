@@ -2968,6 +2968,52 @@
     "neg": ""
    },
    {
+    "text": "わ……これ、すごく好きな感じです。{item}、大事に着ますね",
+    "when": "gift_outfit=love, gift_feel>=30",
+    "priority": 3,
+    "effects": {
+     "mood": 6,
+     "heart": 4,
+     "affection": 1
+    },
+    "pos": "holding clothes, happy, sparkling eyes, blush",
+    "neg": ""
+   },
+   {
+    "text": "{item}ですか。ありがとうございます、使わせてもらいますね",
+    "when": "gift_outfit=plain, gift_feel>=30",
+    "priority": 2,
+    "effects": {
+     "mood": 2
+    },
+    "pos": "holding clothes, smile",
+    "neg": ""
+   },
+   {
+    "text": "あ、ありがとうございます。（{item}は、あまり好みじゃなかったみたいだ）",
+    "when": "gift_outfit=meh",
+    "priority": 3,
+    "override": true,
+    "taken": true,
+    "effects": {
+     "mood": -1
+    },
+    "pos": "awkward smile, holding clothes",
+    "neg": ""
+   },
+   {
+    "text": "ありがとうございます。……でも、こういうのは自分で選びたいほうなんです",
+    "when": "gift_outfit=fussy",
+    "priority": 3,
+    "override": true,
+    "taken": true,
+    "effects": {
+     "mood": -2
+    },
+    "pos": "awkward smile, holding clothes, looking away",
+    "neg": ""
+   },
+   {
     "text": "こ、こういう服は……ごめんなさい、受け取れません",
     "when": "gift_outfit=bold_no",
     "priority": 4,

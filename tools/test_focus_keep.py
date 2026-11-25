@@ -11,6 +11,7 @@
 - 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
 - 誰かと → お願いの着せ替えの「部品で合わせる」のプルダウン (S30)
 - 着せ替えの持っている服の一覧が描き直しで閉じない・部品の欄の色の見本 / 買うものリストの区分のタブと色の丸 / 服の一覧の売る色 (S35)
+- 設定のキャラクター → 服の好みのプルダウンと色の丸 (S36)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -178,6 +179,19 @@ f.onload = () => setTimeout(async () => {
       sc.querySelector('button.swatch').click();
       const sc2 = [...d.querySelectorAll('#sbody .color-dots')].find((x) => x.closest('.card').textContent.includes('ミニスカート'));
       out.push('sell-colors' + (sc2.querySelectorAll('button.swatch.off').length === 1 && sc2.textContent.includes('13 色') ? ':OK' : ':NG'));
+    }
+    closeModal();
+    // 4i. 設定のキャラクター → 服の好み (S36): 種類の好き嫌い・部位のこだわりのプルダウン. 色の丸と系統を押しても描き直しで戻らない
+    await keepAll(async () => { closeModal(); await w.openSettings('char'); }, '#sbody .fashion-edit', 'fashion');
+    {
+      const fe = () => d.querySelector('#sbody .fashion-edit');
+      const dot = fe() && [...fe().querySelectorAll('.color-dots')][0].querySelector('button.swatch.off');
+      if (!dot) out.push('fashion-dot:NONE');
+      else {
+        const nm = dot.title; dot.click();
+        await w.refresh(); await w.refresh();
+        out.push('fashion-dot' + (fe() && fe().textContent.includes(nm) && [...fe().querySelectorAll('.color-dots')][0].querySelector('button.swatch.on[title="' + nm + '"]') ? ':OK' : ':NG'));
+      }
     }
     closeModal();
     // 4c. 設定の「表示」: 知らせの音の欄 (A33. 種類ごとの音のプルダウン)
