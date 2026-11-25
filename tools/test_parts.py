@@ -35,9 +35,24 @@ def main():
         allo = W.all()
         slots = {o["id"]: o["slot"] for o in allo}
         assert slots["casual"] == "set" and slots["trench"] == "outer" and slots["bikini"] == "set", slots
-        assert sum(1 for o in allo if o["slot"] == "outer") == 6 and sum(1 for o in allo if o["slot"] == "set") == 46
+        assert sum(1 for o in allo if o["slot"] == "outer") == 14 and sum(1 for o in allo if o["slot"] == "set") == 63
         parts = [o for o in allo if o["slot"] not in ("set", "outer")]
-        assert len(parts) >= 40 and all(o["kind"] == "part" for o in parts)
+        assert len(parts) == 106 and all(o["kind"] == "part" for o in parts)
+        # 既定の服の形 (S37): 区分・タグ・色・季節が正しい. 色付きの部品は {color} を持つ. id は重ならない
+        raw_def = store.load(os.path.join(store.DEFAULTS, "outfits.json"))
+        assert len({o["id"] for o in raw_def}) == len(raw_def), "既定の id が重なっている"
+        for o in raw_def:
+            n = W_mod._norm(o)
+            assert o.get("kind") in W_mod.KINDS and n["tags"] == list(o.get("tags") or []), ("タグ・種類", o["id"])
+            assert all(c in W_mod.COLORS for c in o.get("colors") or []) and all(x in W_mod.SEASONS for x in o.get("seasons") or []), o["id"]
+            if o.get("kind") == "part":
+                assert o.get("slot") in W_mod.SLOTS and o["slot"] not in ("set", "outer"), o["id"]
+                assert not o.get("colors") or "{color}" in o["pos"], ("売る色を絞るなら {color} が要る", o["id"])
+        # 部品の名前が別の部品に横取りされない: 各部品の名前 (pos の先頭) だけの文は, その部品に当たる
+        for o in parts:
+            for t in W_mod._base_tags(o):
+                hit = W.find_parts(t)[0][1]
+                assert hit and hit["id"] == o["id"], ("名前の横取り", t, o["id"], hit and hit["id"])
         raw = store.load(store.dpath("outfits.json"))
         assert "slot" not in next(o for o in raw if o["id"] == "casual"), "以前の服のデータは書き換えない"
         assert "outfit:p_pleated:navy" in items_mod.CATALOG and "outfit:p_pleated" not in items_mod.CATALOG
@@ -60,7 +75,8 @@ def main():
         assert W.resolve(char, "white blouse, maid headdress") == "white blouse, maid headdress", "色の語・語の途中"
         assert W.resolve(char, "turtleneck sweater").endswith("turtleneck sweater") and \
             W.find_parts("turtleneck sweater")[0][1]["id"] == "p_turtleneck", "長く当たるものを優先"
-        assert W.find_parts("plaid mini skirt")[0][1]["id"] == "p_miniskirt", "別名"
+        assert W.find_parts("black mini skirt")[0][1]["id"] == "p_miniskirt", "別名"
+        assert W.find_parts("plaid mini skirt")[0][1]["id"] == "p_plaid_mini", "長い名前が優先 (S37)"
         assert W.find_parts("pantyhose")[0][1]["id"] == "p_pantyhose" and W.find_parts("pants")[0][1]["id"] == "p_wide_pants"
         assert W.find_parts("sports bra")[0][1] is None, "ランジェリーは文からは当てない"
         other = dict(char, id="someone_else", clothes=[])
@@ -73,7 +89,7 @@ def main():
         # ---- 3. いつもの服・お出かけ着の文の部品を, その色で持たせる (文ごとに一度だけ)
         c = store.all_characters()[cid]
         own = {x["id"]: x.get("color") for x in c["clothes"]}
-        for pid in ("p_knit", "p_long_skirt", "p_blouse", "p_cardigan", "p_tote"):
+        for pid in ("p_knit", "p_long_skirt", "p_blouse", "p_cardigan", "p_shoulder_bag"):
             assert pid in own and own[pid] in W_mod.COLORS, (pid, own)
         assert own["p_blouse"] == "white", "文に色があればその色"
         n = len(c["clothes"])

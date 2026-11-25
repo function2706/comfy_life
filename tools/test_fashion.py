@@ -6,6 +6,7 @@
 import collections
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
@@ -23,6 +24,17 @@ fix_noon(engine)
 
 LIKE = {"styles": ["girly"], "colors": ["pink"], "bad_colors": ["green"], "types": {"skirt": 1, "sneakers": -1},
         "fuss": {"shoes": 2, "hat": 0}}
+
+
+def persona_lines(prefix):
+    """性格別のセリフ (defaults/personas/*.json) のうち, 鍵が prefix で始まるもの (条件つきの鍵も含む)."""
+    out = set()
+    d = os.path.join(store.DEFAULTS, "personas")
+    for f in os.listdir(d):
+        for k, v in ((store.load(os.path.join(d, f), {}) or {}).get("lines") or {}).items():
+            if isinstance(v, list) and (k == prefix or k.startswith(prefix + "__")):
+                out.update(x for x in v if isinstance(x, str))
+    return out
 
 
 def main():
@@ -141,7 +153,7 @@ def main():
                 app.items.add("outfit:" + key)
                 res = app.give_item("outfit:" + key, cid)
                 text = (res.get("entry") or {}).get("text", "")
-                assert word in text, (feel, text)
+                assert word in text or any(re.fullmatch(re.sub(r"\\{\w+\\}", ".+", re.escape(x)), text) for x in persona_lines("gift.gift_outfit_" + feel)), (feel, text)   # 共通のセリフか性格別のセリフ
                 assert key in W.owned_ids(store.all_characters()[cid]), "受け取って持っている (%s)" % feel
                 m1 = app.state(cid)["params"]["mood"]
                 assert (m1 > m0) if feel in ("love", "plain") else (m1 <= m0), (feel, m0, m1)
