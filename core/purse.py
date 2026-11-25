@@ -32,6 +32,8 @@ BONUS = 0.8                 # 賞与: 月給の何か月ぶん
 HOME, LIVING, FUN = 0.4, 0.35, 0.25      # 1 日の出費の基準の内訳 (住まい・暮らし・買い物と交際費)
 FUN_RATE = 0.35             # 買い物・交際費のある日の割合
 TIGHT_DAYS = 10             # 暮らし何日ぶんを切ったら「苦しい」
+TELL = {"plain": ("今月ちょっとお金がきびしい", "今月ちょっとお金が足りない"),      # 聞かれて話す中身 (「〜んです」「〜の」「〜。」の前に入る文のかけら)
+        "vague": ("最近ちょっと出費が続いてる", "今月はちょっと節約してる")}
 START_TYPE = {"office": 1.2, "night": 1.2, "service": 1.0, "shift": 0.8, "student": 0.4, "freelance": 1.0}   # 初めの所持金の倍率
 
 
@@ -119,6 +121,37 @@ class Purse:
     def tight(self, char, st):
         """苦しい: 所持金が暮らし 10 日ぶんを切っている (その場の残高から)."""
         return self.app.life.her_money(st)["a"] < TIGHT_DAYS * self.living_per_day(char)
+
+    def open_score(self, char, st):
+        """苦しいことを打ち明ける気 (目安 0〜1): 誇り (traits.money. 低いほど隠す)・好感度・信頼・同居 (隠しにくい)."""
+        p = st["params"]
+        s = 0.15 + float(self.app.traits(char).get("money", 0)) / 50.0 \
+            + (p.get("affection", 40) - 50) / 200.0 + (p.get("trust", 40) - 50) / 200.0
+        return s + (0.1 if self.lives_here(char) else 0.0)
+
+    def surface(self, char, st, t):
+        """苦しいあいだ, 聞けば分かる話として機嫌の理由を置く (ev=purse_tight. 様子を聞く・電話の話題・会って話す が拾う).
+        打ち明けるか (言う / 濁す / 言わない) は一日ごとに決める (open_score + 揺らぎ). 言わない日は何も置かない.
+        苦しくなくなったら (お小遣いをもらうなど), その場で解決済みにする. 相談などで解決済みにされたら, 12 時間は置き直さない."""
+        L = self.app.life
+        mine = [r for r in st.get("reasons") or [] if r.get("ev") == "purse_tight" and t - r.get("t", 0) <= 12 * 3600]
+        if not self.tight(char, st):
+            for r in mine:
+                r["resolved"] = True
+            return None
+        if mine or any(r.get("ev") == "money_tight" for r in L.reasons(st, t)):     # もう置いてある / 出来事「お金がピンチ」が話せる
+            return None
+        hm = L.her_money(st)
+        day = datetime.fromtimestamp(t).date().isoformat()
+        h = hm.get("hint") or {}
+        if h.get("d") != day:
+            s = self.open_score(char, st) + random.gauss(0, 0.25)
+            how = "plain" if s >= 0.55 else "vague" if s >= 0.3 else "none"
+            h = hm["hint"] = {"d": day, "how": how, "tell": random.choice(TELL[how]) if how != "none" else ""}
+            self.app.trace.add("purse", "苦しいことを打ち明けるか: %s" % how, char.get("id"), t, s=round(s, 2))
+        if h["how"] == "none":
+            return None
+        return L.add_reason(st, "event", "bad", h["tell"], t, told=False, ev="purse_tight")
 
     # ------------------------------------------------------------------ 日締め
     def _ot(self, char, st, d):

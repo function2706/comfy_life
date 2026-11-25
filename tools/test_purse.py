@@ -272,6 +272,90 @@ def main():
         blob = json.dumps(app.state_view(), ensure_ascii=False, default=str)
         assert '"tight"' not in blob and '"pay": {"last"' not in blob
         print("画面に出ない: OK")
+
+        # ---- 12. 苦しいことが, 聞けば分かる話になる (性格・仲しだいで 言う / 濁す / 言わない. 一日ごとに決める)
+        now = time.time()
+        today = datetime.fromtimestamp(now).date().isoformat()
+
+        def mine():
+            return [r for r in st.get("reasons") or [] if r.get("ev") == "purse_tight" and not r.get("resolved")]
+
+        def fresh(money):
+            st["reasons"] = []
+            hm.pop("hint", None)
+            hm["a"] = money
+            return P.surface(char, st, now)
+
+        rate = {}
+        for pid in ("amaenbo", "tsundere", "kedakai"):
+            char["persona_id"] = pid
+            for aff in (45, 85):
+                app.set_params({"affection": aff, "trust": aff, "mood": 50})
+                n = {"plain": 0, "vague": 0, "none": 0}
+                for _ in range(600):
+                    fresh(int(lim) - 3000)
+                    n[hm["hint"]["how"]] += 1
+                    assert bool(mine()) == (hm["hint"]["how"] != "none"), hm["hint"]      # 言わない日は何も置かない
+                rate[pid, aff] = n
+            assert sum(rate[pid, 45].values()) == 600
+            open45 = 1 - rate[pid, 45]["none"] / 600.0
+            open85 = 1 - rate[pid, 85]["none"] / 600.0
+            assert open45 < open85, (pid, rate)                                           # 仲が深いほど打ち明ける
+        op = {k: 1 - v["none"] / 600.0 for k, v in rate.items()}
+        assert op["kedakai", 45] < op["tsundere", 45] < op["amaenbo", 45], op            # 誇りの高い性格ほど隠す
+        assert op["kedakai", 85] > 0.1 and op["amaenbo", 85] < 1.0, op                   # 必ずではない (公理)
+        assert rate["amaenbo", 85]["plain"] > rate["amaenbo", 85]["vague"] and rate["kedakai", 45]["vague"] > rate["kedakai", 45]["plain"], rate
+        # 苦しくなければ何も置かない
+        assert fresh(int(lim) + 3000) is None and not mine() and "hint" not in hm
+        # 同じ日は決め直さない (言わない日はその日ずっと言わない)
+        char["persona_id"] = "amaenbo"
+        app.set_params({"affection": 85, "trust": 85, "mood": 50})
+        fresh(int(lim) - 3000)
+        hm["hint"] = {"d": today, "how": "none", "tell": ""}
+        st["reasons"] = []
+        for _ in range(50):
+            assert P.surface(char, st, now) is None and not mine()
+        # 言う日: 置くのは一つ. 苦しさが抜けると, その場で解決済み
+        hm["hint"] = {"d": today, "how": "plain", "tell": purse.TELL["plain"][0]}
+        P.surface(char, st, now)
+        P.surface(char, st, now + 60)
+        assert len(mine()) == 1 and mine()[0]["kind"] == "event" and mine()[0]["mood"] == "bad" and not mine()[0]["told"]
+        hm["a"] = int(lim) + 3000
+        P.surface(char, st, now + 120)
+        assert not mine(), "苦しさが抜けたら消える"
+        # 相談などで解決済みにされたら, 12 時間は置き直さない
+        hm["a"] = int(lim) - 3000
+        st["reasons"] = []
+        P.surface(char, st, now)
+        L.resolve(st, "bad", now + 60)
+        assert P.surface(char, st, now + 120) is None and not mine()
+        assert P.surface(char, st, now + 13 * 3600) and mine()
+        # 出来事「お金がピンチ」が話せるうちは, 重ねて置かない
+        st["reasons"] = []
+        L.add_reason(st, "event", "bad", "今月ちょっとお金が厳しい", now, told=False, ev="money_tight")
+        assert P.surface(char, st, now + 60) is None and not mine()
+        # 聞けば分かる: 「最近どう？」で話す. 話したあとは「ようす」に出る
+        C = app.chat
+        st["reasons"] = []
+        P.surface(char, st, now)
+        key, eff, extra = C.reply(char, st, "ask_how", now + 60, {})       # 届いた「最近どう？」への返事の中身 (同居なので送る経路は通らない)
+        assert key == "ask_how" and purse.TELL["plain"][0] in extra.get("news", ""), (key, extra)
+        assert any(r["tell"] == purse.TELL["plain"][0] for r in app.life.partner_view(char, st)["reasons"])
+        # 電話の話題: お金のことは「今日、」の包みにしない
+        st["reasons"] = []
+        hm["hint"] = {"d": today, "how": "vague", "tell": purse.TELL["vague"][0]}
+        P.surface(char, st, now)
+        r0 = random.random
+        random.random = lambda: 0.0
+        try:
+            kind, key, text = app.phonetalk._topic(char, st, {"deep": 0}, now + 60)
+        finally:
+            random.random = r0
+        assert purse.TELL["vague"][0] in text and "今日" not in text, text
+        blob = json.dumps(app.state_view(), ensure_ascii=False, default=str)
+        assert '"how": "' not in blob and '"a": %d' % hm["a"] not in blob          # その日の決め・所持金の額は出ない
+        print("苦しいことの打ち明け: OK | 打ち明ける割合 (好感度 45 / 85) " + " ".join(
+            "%s %.2f/%.2f" % (pid, op[pid, 45], op[pid, 85]) for pid in ("amaenbo", "tsundere", "kedakai")))
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

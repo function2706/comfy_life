@@ -417,6 +417,7 @@ class Life:
             self.app.chores.daily(char, st, t1)                  # 同居相手: 今日, 自分の担当の家事をやる時刻
         self.app.circle.step(char, st, t0, t1)                   # 知り合いとの仲の動き・言い寄る人 / 元恋人からの連絡 (core/circle.py 段 3)
         self.app.manners.settle(char, st, t1)                    # 「態度で」の理由が消える・あいさつの習慣が途切れた
+        self.app.purse.surface(char, st, t1)                     # 所持金が苦しい: 聞けば分かる話として置く (性格・仲しだい. core/purse.py)
         dt = datetime.fromtimestamp(t1)
         ctx = self.app.context(char, st, dt, view=False)         # 本人の過ごし方 (離れていても)
         if ctx["asleep"]:

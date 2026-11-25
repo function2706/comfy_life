@@ -423,6 +423,10 @@ class PhoneTalk:
             r["told"] = True
             app.bonds.remember(char, st, t)
             news = r["tell"].replace("{call}", call)
+            if r.get("ev") in ("purse_tight", "money_tight"):     # お金のことは「今日あったこと」ではないので, 近況の包みで話す
+                from .chat import LINES as CHAT_LINES
+                return "topic", "phone.topic_news", (app.persona_text(char, "chat.ask_how_news")
+                                                     or CHAT_LINES["chat.ask_how_news"]).replace("{tell}", news)
             return "topic", "phone.topic_news", self.line(char, "phone.topic_news", news=news)
         if random.random() < 0.25 + 0.2 * deep:
             from . import hima
