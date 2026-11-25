@@ -128,6 +128,23 @@ NEW = [
     part("p_gloves", "手袋", "🧤", "acc", C + "knit gloves", ["elegant", "casual"], 2500, seasons=["winter"],
          match=["mittens"]),
     part("p_backpack", "リュック", "🎒", "acc", C + "backpack", ["casual", "sporty", "street"], 6000),
+    part("p_hairpin", "ヘアピン", "📍", "acc", C + "hairpin", ["girly", "natural", "casual"], 600, match=["hair pin"]),
+    # ---- ランジェリー (上に何も着ていないときだけ描かれる. 文の照合には入らない)
+    part("p_sports_bra", "スポーツブラ", "🎽", "lingerie", C + "sports bra, {color} boyshorts", ["sporty", "casual"], 2500, bold=2,
+         outing=False, places=MS),
+    part("p_cotton_lingerie", "コットンの下着", "🩲", "lingerie", C + "cotton bra, {color} panties", ["natural", "casual"], 2000, bold=3,
+         outing=False, places=MS),
+    part("p_bralette", "ブラレット", "🎀", "lingerie", C + "lace bralette, {color} panties", ["girly", "natural"], 3500, bold=3,
+         outing=False, places=MS),
+    part("p_frill_lingerie", "フリルの下着", "🎀", "lingerie", C + "frilled bra, {color} frilled panties", ["girly", "jirai"], 4000,
+         bold=3, outing=False),
+    part("p_lace_lingerie", "レースの下着", "🎀", "lingerie", C + "lace bra, {color} lace panties", ["elegant", "mode"], 5000, bold=3,
+         outing=False),
+    part("p_strapless_bra", "ストラップレスブラ", "🎀", "lingerie", C + "strapless bra, {color} panties", ["mode", "elegant"], 4500,
+         bold=3, outing=False),
+    part("p_chemise", "シュミーズ", "🕯", "lingerie", C + "chemise, lace trim", ["elegant", "girly"], 5000, bold=2, outing=False),
+    part("p_garter_set", "ガーターベルトの下着", "🎀", "lingerie", C + "lace bra, {color} panties, {color} garter belt",
+         ["mode", "elegant"], 6000, bold=3, outing=False),
     # ---- アウター (色は文に書く. いまのアウターと同じ形)
     whole("leather_jacket", "レザージャケット", "🧥", "outer", "black leather jacket, open jacket", 18000,
           seasons=["spring", "autumn"], tags=["street", "mode"], outing=True, places=MS),
@@ -171,6 +188,17 @@ NEW = [
     whole("vampire", "ヴァンパイア", "🦇", "costume", "vampire, cosplay, black gown, cape, fangs, boots", 9000),
     whole("angel", "天使", "😇", "costume", "angel, cosplay, white dress, yellow halo, white feather wings, sandals", 9000),
     whole("princess", "お姫様", "👑", "costume", "princess, tiara, gown, puffy sleeves, elbow gloves, high heels", 10000),
+    # ---- 一式: 衣装 (latex 系. nsfw/latex.yaml の組み方: ブラ + ミニスカート / ショーツ + ロンググローブ + ブーツ)
+    whole("latex_bondage", "ラテックスのボンデージ", "⛓", "costume",
+          "black latex bra, black latex miniskirt, black latex elbow gloves, black latex thigh boots, shiny clothes", 12000, bold=3),
+    whole("latex_red", "赤いラテックス", "💋", "costume",
+          "red latex strapless bra, red latex panties, red latex elbow gloves, red latex knee boots, garter belt, shiny clothes", 12000, bold=3),
+    whole("latex_bodysuit", "ラバースーツ", "🖤", "costume", "black latex bodysuit, shiny clothes, high heels", 14000, bold=2),
+    whole("catsuit", "キャットスーツ", "🐈", "costume", "black latex catsuit, cat ears, cat tail, shiny clothes, high heels", 13000, bold=2),
+    whole("latex_nurse", "ラテックスナース", "💉", "costume",
+          "nurse, white latex dress, nurse cap, white latex gloves, white thighhighs, shiny clothes", 12000, bold=2),
+    whole("latex_bunny", "ラテックスのバニー", "🐰", "costume",
+          "playboy bunny, black latex leotard, rabbit ears, fishnet pantyhose, high heels, shiny clothes", 12000, bold=3),
 ]
 
 

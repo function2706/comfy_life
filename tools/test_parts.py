@@ -35,9 +35,9 @@ def main():
         allo = W.all()
         slots = {o["id"]: o["slot"] for o in allo}
         assert slots["casual"] == "set" and slots["trench"] == "outer" and slots["bikini"] == "set", slots
-        assert sum(1 for o in allo if o["slot"] == "outer") == 14 and sum(1 for o in allo if o["slot"] == "set") == 63
+        assert sum(1 for o in allo if o["slot"] == "outer") == 14 and sum(1 for o in allo if o["slot"] == "set") == 69
         parts = [o for o in allo if o["slot"] not in ("set", "outer")]
-        assert len(parts) == 106 and all(o["kind"] == "part" for o in parts)
+        assert len(parts) == 115 and all(o["kind"] == "part" for o in parts)
         # 既定の服の形 (S37): 区分・タグ・色・季節が正しい. 色付きの部品は {color} を持つ. id は重ならない
         raw_def = store.load(os.path.join(store.DEFAULTS, "outfits.json"))
         assert len({o["id"] for o in raw_def}) == len(raw_def), "既定の id が重なっている"
