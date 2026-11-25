@@ -198,14 +198,16 @@ class Offline:
         c = self.cfg()
         return (c.get("enabled") or self.app.planner.active()) and t1 - t0 >= float(c.get("min_minutes", 30)) * 60
 
-    def simulate(self, t0, t1, start=None):
+    def simulate(self, t0, t1, start=None, lead=None):
         """画面を閉じていた t0 (最後の心拍) 〜 t1 (いま). 行動パターンに沿って過ごした結果のまとめを返す (対象でなければ None).
-        start: 閉じたときにいた場所 (出先・移動の行き先). そこから予定・行動パターンの次の場所へ向かう (すぐ始まるならそのまま.
-        次が家でのこと・なにも無ければ, 家へ帰る)."""
+        start: 閉じたときにいた場所 (出先・移動の行き先・相手の家). そこから予定・行動パターンの次の場所へ向かう (すぐ始まるならそのまま.
+        次が家でのこと・なにも無ければ, 家へ帰る).
+        lead: (閉じた時刻, 文). t0 より前に, 閉じたまま誰かと一緒に過ごしていた (相手の家に泊まった など. outdoor.check_gap).
+        まとめの始めに載せ, 体力はその間も戻る (寝ていれば寝ている速さで)."""
         app, L = self.app, self.app.life
         c = self.cfg()
         use_plan = app.planner.active()          # 予定・未指定時コマンドを組んでいれば, そちらが先 (core/planner.py)
-        if (not c.get("enabled") and not use_plan) or t1 - t0 < float(c.get("min_minutes", 30)) * 60:
+        if (not c.get("enabled") and not use_plan) or t1 - (lead[0] if lead else t0) < float(c.get("min_minutes", 30)) * 60:
             return None
         ps = L.player_state()
         econ = L.econ()
@@ -255,6 +257,10 @@ class Offline:
                                                                "・%s円" % format(lg["fare"], ",") if lg["fare"] else "",
                                                                "。" + lg["note"] if lg.get("note") else ""), "skipped": False, "plan": None})
             t += lg["min"] * 60
+
+        if lead and lead[0] < t0:                  # 閉じたまま誰かと一緒にいた間 (相手の家に泊まった など)
+            recover(lead[0], t0, None)
+            timeline.append({"t": lead[0], "end": t0, "do": "with", "label": "一緒に", "text": lead[1], "skipped": False, "plan": None})
 
         sick_day = None                            # 体調が悪くて早退した日: その日はもう出かけず, 家で休む
 
@@ -426,7 +432,7 @@ class Offline:
         L.save_player()
         msgs = self._messages(t0, t1)
         calls = app.ring.offline(t0, t1, timeline)          # かかってきた電話 (寝ていた・仕事中は不在着信. ほかは短く出たことに)
-        rep = {"from": t0, "to": t1, "works": works, "timeline": timeline, "pay": int(ps["money"]) - money0, "calls": calls,
+        rep = {"from": lead[0] if lead else t0, "to": t1, "works": works, "timeline": timeline, "pay": int(ps["money"]) - money0, "calls": calls,
                "wage": sum(int(w.get("pay") or 0) for w in works) + pt_pay,      # 給料・バイト代 (pay は使った分も引いた増減)
                "bought": [x for ent in timeline for x in ent.get("bought") or []],
                "stamina": [round(s0, 1), round(stamina, 1)], "meets": meets, "messages": msgs, "seen": False}
@@ -619,9 +625,16 @@ class Offline:
         lv = self.app.body.level()
         if lv >= 3 or (lv == 2 and random.random() < 0.4):           # 体調が悪くて休んだ
             return {"start": s, "end": s, "hours": 0.0, "paid_h": 0.0, "pay": 0, "skill": 0, "notes": ["体調が悪くて、仕事を休んだ"], "sick": True}
-        if random.random() < 0.03 + (0.35 if stamina < 25 else 0.12 if stamina < 45 else 0.0) + (0.3 if lv == 2 else 0.1 if lv == 1 else 0.0):
-            end = s + (e - s) * random.uniform(0.3, 0.8)                  # 体調が悪くて早退
+        p_body = (0.35 if stamina < 25 else 0.12 if stamina < 45 else 0.0) + (0.3 if lv == 2 else 0.1 if lv == 1 else 0.0)
+        r = random.random()
+        if r < p_body:
+            end = s + (e - s) * random.uniform(0.3, 0.8)                  # 疲れ・体調が悪くて早退 (その日はもう休む)
             notes.append("体調がすぐれず、早退した")
+        elif r < p_body + 0.03:
+            # 元気でも, まれに急な用事で抜ける. 体調のせいではないので, その日の残りの勤めはふだんどおり
+            # (以前は元気なときも「体調がすぐれず」になり, 午後の勤めまで休みにしていた)
+            end = s + (e - s) * random.uniform(0.3, 0.8)
+            notes.append("急な用事ができて、途中で抜けた")
         elif random.random() < 0.15:
             end = e + random.uniform(0.5, 2.0) * 3600                       # 残業
             if limit:

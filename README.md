@@ -412,6 +412,8 @@ python tools/minigame_lab.py --port 8792 --no-browser
 `core/offline.py`。画面を閉じていた間（心拍が `gone_minutes` 以上途絶え、`offline.min_minutes` 以上）は、設定 `offline.days`（全体共通。曜日ごとの `[{at, do, place?, skill?}]`、各行動は次の行動の時刻まで）に沿って過ごしたことにする（`outdoor.check_gap` → `offline.simulate(最後の心拍, いま)`）。以前の `offline.work`（曜日ごとの勤務時間）は `from_work` で流れに読み替える。
 
 - `do`: sleep / rest / home / work / out / chores / practice（`DO_LABEL`）。`out` は `place`（公共の行き先。人の家は入れない）しだいで、歩く・買い物・お茶など。仕事は `_work`（早退・叱られる・残業、同僚との出会いは無難な対応）、外出・家事・研鑽は `solo.result`（一人の時間と同じ結果）、出先の出会いは `_outing_meets`（無難な対応）。以前の `shopping` / `walk` / `cafe` は `offline.normalize` で外出 + 行き先に読み替え、設定も起動時に書き換える（`store.migrate_routine`、移行前に自動バックアップ）。
+- 早退（`_work`）: 疲れ・体調の見込みで当たれば「体調がすぐれず」でその日はもう休む（`sick_day`）。元気なときのまれな 3% は「急な用事」で、その日の残りはふだんどおり。
+- 誰かと一緒のまま閉じた（`outdoor.check_gap` → `simulate(lead=…)`）: 相手の家・招いている（泊まり）は、別れる時刻（`_with_leave`: 泊まりなら朝 `stay.STAY_MORNING`、その前に家を空ける予定があればその時刻。泊まらないなら `until`）まで一緒。それより前に開けばまだ一緒。相手の家からは `start=home:<id>` で次の予定へ。外で会っていたなら閉じた時刻にその場所から帰る。
 - 予定どおりにいかない（`_skip`）: 雨・雪で（屋外を歩く）外出をやめる、疲れて家事・研鑽を飛ばす、疲れきって出かけない。
 - 体力: 寝る（`stamina_recover_sleep`）・休む（`stamina_recover_rest`）・家で（`stamina_recover`）で戻り、仕事・外出・家事で減る。
 - 離れているキャラ（連絡先以上）から、働きかけ（`"apart": true`）がメッセージとして届くことがある。返事の遅れで機嫌が下がる量は `absence` × (1.3 − 信頼/100)。開いてから 30 分は返事ができる。
@@ -690,6 +692,7 @@ tools/test_contacts.py  連絡しすぎ（挨拶は軽い・会話の往復は�
 tools/test_reply_catchup.py  閉じていた間に読めたはずの返信が、その時刻にさかのぼって届くことのテスト
 tools/test_remote_rest.py  閉じている間の同居相手との連絡・相手からの約束の連絡のテスト
 tools/test_phone.py  スマホでの連絡（寝ている相手・折り返し・連絡しすぎ・夜中・仕事中・一人の時間中）のテスト
+tools/test_offline_with.py  誰かと一緒のまま閉じた（泊まり・招いた・外で会っていた）と、閉じていた間の早退の理由のテスト
 tools/test_offline.py  オフラインモード（予定・仕事のうまくいかない／早退／残業・職場の出会い・メッセージと返事の遅れ・まとめ）のテスト
 tools/test_street.py  出先でのばったり（顔なじみ・段階的に知り合う・声をかけられたときの反応と時間切れ・同僚）のテスト
 tools/test_solo.py  一人の時間（休む・家事・研鑽・外出・日記）のテスト

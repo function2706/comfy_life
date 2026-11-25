@@ -14,6 +14,7 @@ from datetime import datetime
 
 from . import places as places_mod
 from . import store
+from .stay import STAY_MORNING
 
 # 行き先の表 (core/places.py) を, 以前の名前でも引けるように
 PLACES = places_mod.PLACES
@@ -173,6 +174,22 @@ class Outdoor:
         lg.append({"t": now or time.time(), "text": text})
         del lg[:-20]
 
+    def _with_leave(self, w, beat):
+        """閉じたまま一緒にいた相手と別れる時刻: いる時間の終わり (泊まりなら朝 stay.morning) か, それより前に
+        閉じている間の予定で家を空ける (仕事・外出など) 最初の時刻 (泊まりなら朝 5 時から見る)."""
+        app = self.app
+        until = float(w.get("until", beat))
+        t = beat
+        if w.get("stay"):
+            until = max(until, app.stay.morning(float(w["stay"].get("t", beat))))
+            t = max(beat, until - (STAY_MORNING - 5) * 3600)
+        t = math.ceil(t / 900.0) * 900
+        while t < until:
+            if app.offline.away_closed(t):
+                return t
+            t += 900
+        return until
+
     def check_gap(self, now=None):
         """心拍が途絶えていたら, 最後の心拍の時点で外出を終える (家に帰って静かに過ごしていた). 終えたら説明を返す.
         移動中に閉じたなら, 移動は続く (core/geo.py): 着いて ARRIVE_GRACE 以内に開けば, そのまま行き先にいる (帰る途中なら家に着く).
@@ -189,18 +206,52 @@ class Outdoor:
         if tr and tr.get("doing"):                     # 移動中に読んでいた・観ていた: 着くまで (閉じていても) 続けていた
             app.geo.finish_doing(tr, tr["arr"])
         msgs = []
-        # 誰かとのお出かけ: そのまま解散して, それぞれ家へ
+        start = None
+        # 誰かとのお出かけ: そのまま解散して, それぞれ家へ (帰り道は閉じた時刻から. 以前は開いた時刻に帰り道を組み, 運賃もそのときに払っていた).
+        # 泊まる約束をして家から出てきていたなら, 一緒にその家へ戻る (そのあとは下の「一緒にいる」で)
         for cid in list(app.chars):
             st = app.state(cid)
             ov = st.get("override") or {}
             if ov.get("outing") and ov.get("until", 0) > beat:
                 st["override"] = None
-                app.bonds.sync(cid, st, now)
+                w = app.bonds.with_rec()
+                if w and w.get("cid") == cid and w.get("mode") == "meet":
+                    back = app.bonds.stay_back(cid, beat)
+                    if back:
+                        app.bonds.start(cid, back, beat)
+                    else:
+                        loc = w.get("place") or ov.get("place") or "town"
+                        app.bonds.end(go_home=False)
+                        if p.get("mode") not in ("out", "work") and not places_mod.is_home(loc):
+                            start = loc
+                        msgs.append("%sとのお出かけは、そのまま解散して家に帰った" % app.chars[cid].get("name", ""))
+                else:
+                    app.bonds.sync(cid, st, now)
+                    msgs.append("%sとのお出かけは、そのまま解散して家に帰った" % app.chars[cid].get("name", ""))
                 app.save_state(cid)
-                msgs.append("%sとのお出かけは、そのまま解散して家に帰った" % app.chars[cid].get("name", ""))
         mode = p.get("mode")
         home_at = beat
-        start = None
+        lead = None
+        # 相手の家にいる / 家に招いている (泊まっている) まま閉じた: 閉じていても一緒にいて, 別れる時刻 (泊まりなら朝. それより前に
+        # 出かける予定 (仕事など) があればその時刻) に別れたことにする. 相手の家からなら, そこから次の予定へ向かう.
+        # 以前は閉じた時刻から家で過ごしたことにしたうえで, 開いた時刻にあらためて相手の家から帰っていた (運賃もそのとき)
+        w = app.bonds.with_rec()
+        if mode not in ("out", "work") and w and w.get("mode") in ("visit", "guest") and w.get("cid") in app.chars                 and app.offline.will_run(beat, now):
+            leave = self._with_leave(w, beat)
+            if leave > now:
+                return None                            # まだ一緒にいる時間 (泊まっていて, 朝より前に開いた など)
+            cid = w["cid"]
+            name = app.chars[cid].get("name", "")
+            stay = bool(w.get("stay"))
+            if w["mode"] == "visit":
+                text = "%sの家に%s" % (name, "泊まった" if stay else "いた")
+                start = "home:" + cid
+            else:
+                text = "%sが家に%s" % (name, "泊まっていった" if stay else "来ていた")
+            app.bonds.end(go_home=False)
+            app.bonds.sync(cid, app.state(cid), now)
+            app.save_state(cid)
+            lead, home_at = (beat, text), leave
         # 出先・向かう途中で閉じた: 行動パターン・予定で過ごすなら, 家に寄らずにその場所から次の場所へ (なにも無ければ家へ).
         # 向かう途中なら, 着いて, ふだんどおりの長さ (買い物なら店のふだんの長さ, ほかは 45 分ほど) を過ごしてから
         place = tr["to"] if tr and tr.get("dir") == "go" else (None if tr else p.get("pos"))
@@ -243,7 +294,7 @@ class Outdoor:
                                                    if home_at - t_out >= 300 or t_out != beat else ""))
         p["pos"] = places_mod.HOME_ME
         # オフラインモード: 閉じていた間は, 予定 (勤務時間) に沿って過ごした
-        rep = app.offline.simulate(home_at, now, start=start)
+        rep = app.offline.simulate(home_at, now, start=start, lead=lead)
         if not msgs and not rep:
             return None
         if rep:

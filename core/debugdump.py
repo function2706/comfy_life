@@ -171,6 +171,11 @@ class DebugDump:
                 "money=%s stamina=%s presence=%s place=%s solo=%s" % (ps.get("money"), ps.get("stamina"), pr.get("mode"), pr.get("place"),
                                                                    _j(pr.get("solo"))),
                 "skills=%s" % _j({k: round(v, 1) for k, v in (ps.get("skills") or {}).items()}),
+                "body: health=%s satiety=%s exercise=%s lazy_days=%s nutri=%s" % (
+                    _j(app.body.rec().get("health")), round(float(app.body.rec().get("satiety", 0)), 1),
+                    round(float(app.body.rec().get("exercise", 0)), 1), app.body.rec().get("lazy_days"),
+                    _j({k: round(v, 1) for k, v in (app.body.rec().get("nutri") or {}).items()})),
+                "with=%s" % _j(app.bonds.with_rec()),
                 "plan.items=%s" % _j(P.get("items")), "plan.fallback=%s" % _j(P.get("fallback")), "plan.auto=%s" % _j(P.get("auto")),
                 "offline.enabled=%s routine(today)=%s" % (off.get("enabled"), _j(off["days"][["mon", "tue", "wed", "thu", "fri", "sat", "sun"][
                     datetime.fromtimestamp(now).weekday()]])),
