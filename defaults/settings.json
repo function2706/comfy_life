@@ -5,7 +5,8 @@
  "images": {
   "mode": "reuse",
   "max_per_prompt": 8,
-  "busy_reuse": true
+  "busy_reuse": true,
+  "swap_after_gen": false
  },
  "comfy": {
   "host": "127.0.0.1",

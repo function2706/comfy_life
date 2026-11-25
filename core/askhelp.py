@@ -378,7 +378,7 @@ class AskHelp:
             app.life.add_reason(st, "player", "bad", "手伝ったお礼のおごりが、うやむやになった", now, told=False, delta=d.get("mood", 0),
                                 action="_help")
             return True
-        if age >= IOU_REMIND_D and not iou.get("reminded"):
+        if age >= IOU_REMIND_D and not iou.get("reminded") and not app.bonds.together(char["id"]):     # 目の前にいるときはスマホで催促しない
             iou["reminded"] = True
             app.chat.add(char["id"], "her", app.chat.line(char, "help_iou_remind", {"what": iou.get("what", "")}), kind="help_iou", t=now)
             app.picked_up_phone(char, st, now)

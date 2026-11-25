@@ -62,14 +62,14 @@
   "ignore": {"text": "（{name}は一人分だけ作って、静かに食べた）", "effects": {"mood": -3, "loneliness": 4}}
  },
  {
-  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
+  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, energy>=25, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
   "text": "ねえ、一緒にゲームしません？", "pos": "holding game controller, excited, looking at viewer", "neg": "",
   "accept": {"label": "やろう", "action": "game", "text": "やった！ 負けませんよ？", "effects": {"boredom": -15, "mood": 5}},
   "later": {"label": "あとでね", "text": "約束ですよ？", "effects": {"mood": -1}},
   "ignore": {"text": "（{name}は一人でゲームを始めた）", "effects": {"mood": -2, "boredom": 2}}
  },
  {
-  "id": "walk_invite", "label": "散歩に誘ってきた", "icon": "🚶", "when": "mood>=50, phase=morning|noon|evening, outing=false", "weight": 1, "cooldown_h": 6,
+  "id": "walk_invite", "label": "散歩に誘ってきた", "icon": "🚶", "when": "mood>=50, energy>=25, phase=morning|noon|evening, outing=false", "weight": 1, "cooldown_h": 6,
   "text": "天気いいですし、ちょっと散歩でも行きません？", "pos": "standing by window, sunlight, smile, looking at viewer", "neg": "",
   "accept": {"label": "行こう", "action": "walk", "text": "やった、行きましょう！", "effects": {"mood": 4}},
   "later": {"label": "また今度", "text": "そうですか……。また今度、ですね。", "effects": {"mood": -1}},

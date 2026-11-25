@@ -361,7 +361,7 @@ mark.hit { background: rgba(243,194,124,.35); color: inherit; border-radius: 3px
 <h3>同じプロンプトの画像があるとき</h3>
 <div class="flow">
   <div class="box q"><b>合成後のプロンプトが同じ画像がある？</b><small>Positive と Negative が完全に一致するもの</small></div><div class="arr">→</div>
-  <div class="box hl"><b>ある → すぐ表示</b><small>ランダムに1枚。上限枚数に届くまでは、裏で新しく生成して差し替える</small></div><div class="arr">／</div>
+  <div class="box hl"><b>ある → すぐ表示</b><small>ランダムに1枚。上限枚数に届くまでは、裏で新しく生成して次からの候補に（差し替えるかは設定で。既定は差し替えない）</small></div><div class="arr">／</div>
   <div class="box"><b>ない → 生成</b><small>できあがったら表示</small></div>
 </div>
 <ul>

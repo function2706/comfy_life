@@ -54,10 +54,25 @@ def main():
         if same:
             assert r2["entry"]["reused"] and r2["entry"]["image"], "既存画像がすぐ表示されること"
             assert r2["job"], "上限未満なので新規生成も行う"
-            wait(app, r2["job"])
+            j2 = wait(app, r2["job"])
+            # A35: 既定は, 裏で描き終えても出している画像を切り替えない (描いた画像は候補に入る)
+            assert j2["shown"] is False, j2
+            e2 = app.find_entry("hina", r2["entry"]["id"])
+            assert e2["image"] == r2["entry"]["image"] and len(e2.get("images") or []) == 1, e2
             r3 = look()
             assert r3["entry"]["reused"] and r3["job"] is None, "上限 (2) に達したら生成しない"
+            assert r3["entry"]["same_prompt"] == 2, "裏で描いた分も候補に入る"
             print("reuse: OK (same_prompt=%d)" % r3["entry"]["same_prompt"])
+            # 設定で切り替える
+            app.save_settings({"images": {"mode": "reuse", "max_per_prompt": 3, "swap_after_gen": True}})
+            r4 = look()
+            assert r4["entry"]["reused"] and r4["job"], r4["entry"]
+            before = r4["entry"]["image"]
+            j4 = wait(app, r4["job"])
+            e4 = app.find_entry("hina", r4["entry"]["id"])
+            assert j4["shown"] is True and e4["image"] == j4["image"] != before, (j4, e4["image"])
+            app.save_settings({"images": {"mode": "reuse", "max_per_prompt": 2, "swap_after_gen": False}})
+            print("swap_after_gen: 既定は切り替えない / 設定で切り替える: OK")
             rr = app.reroll(r3["entry"]["id"])
             print("reroll ->", rr["entry"]["image"])
 

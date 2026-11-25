@@ -406,7 +406,10 @@ function renderState(v) {
 function renderStateNow(v) {
   // そばにいる顔ぶれが変わったら, ステージは描き直す (一人なら何も出さない)
   const who = (v.company || []).map((c) => c.id).join(',');
-  if (S.lastCompany !== undefined && S.lastCompany !== who) { S.current = null; clearStage(); }
+  if (S.lastCompany !== undefined && S.lastCompany !== who) {
+    // 別れぎわ (見送る・解散・帰る …) に出したセリフは, 一人になっても見届けるまで残す (holdFarewell). それ以外は描き直す
+    if (!(who === '' && S.current && Date.now() - (S.currentAt || 0) < 15000 && holdFarewell())) { endFarewell(true); S.current = null; clearStage(); }
+  }
   if (S.lastCompany !== who && S.tab !== 'with' && v.target && S.lastCompany !== undefined) showTab('with');
   S.lastCompany = who;
   renderTop();
@@ -517,7 +520,7 @@ function renderTop() {
 
 // 一人のとき (誰もそばにいないとき), ステージ (画像と会話欄) には何も出さない. 画像は常にキャラクターのものだけ
 function renderStageMode() {
-  const alone = !T();
+  const alone = !T() && !S.farewell;
   $('#stage').classList.toggle('alone', alone);
   const t = T();
   const sc = t && t.scene;
@@ -533,6 +536,31 @@ function renderGamingMode() {
   S.gaming = gaming;
   $('.layout').classList.toggle('gaming', gaming);
   applyUi();
+}
+// 一人になる直前に出したセリフ: 一人のときはステージを使わない決まり (showEntry の冒頭・renderStageMode) の例外として,
+// 名前・セリフ・絵を残す. 次にあなたが何かする (ステージの外を押す) か, 1 文字ずつ出し終えてから数秒で片付ける.
+// そのあいだも行動の欄は一人のもの (相手への操作は出さない). 別の人が来たら (顔ぶれが変わったら) すぐ描き直す
+function holdFarewell() {
+  endFarewell(true);
+  S.farewell = true;
+  const wait = () => {
+    if (!S.farewell) return;
+    if (S.typing) { S.farewellTimer = setTimeout(wait, 300); return; }
+    S.farewellTimer = setTimeout(() => endFarewell(), Math.max(6000, [...(S.typingText || '')].length * 80));
+  };
+  wait();
+  S.farewellClick = (ev) => { if (!ev.target.closest('#stage')) endFarewell(); };
+  setTimeout(() => { if (S.farewell) document.addEventListener('click', S.farewellClick, true); }, 0);
+  return true;
+}
+function endFarewell(quiet) {
+  if (S.farewellTimer) { clearTimeout(S.farewellTimer); S.farewellTimer = null; }
+  if (S.farewellClick) { document.removeEventListener('click', S.farewellClick, true); S.farewellClick = null; }
+  if (!S.farewell) return;
+  S.farewell = false;
+  if (quiet) return;
+  if (!T()) { S.current = null; clearStage(); }
+  renderStageMode();
 }
 function clearStage() {
   if (S.typing) { clearInterval(S.typing); S.typing = null; }
@@ -1391,7 +1419,7 @@ function setDialogue(text, animate, name) {
 
 function showEntry(e, animate) {
   if (!T()) { if (e.image) openLightbox(e, { path: e.image, seed: e.seed, pos: e.pos, neg: e.neg, t: e.t }); return; }   // 一人のときはステージを使わない
-  S.current = e;
+  S.current = e; S.currentAt = Date.now();
   setDialogue(e.text || `（${e.action_name}）`, animate, e.who_name || cname(e.who));
   $('#dtime').textContent = `${fmtTime(e.t)}・${e.icon || ''}${e.action_name}${e.text_src === 'llm' ? '・LLM' : ''}`
     + (e.reused ? `・既存${e.same_prompt || ''}枚から表示${e.job ? '（新規生成中）' : e.busy_skip ? '（生成中のため新規生成なし）' : ''}` : '');
@@ -1435,6 +1463,7 @@ async function pollJobsOnce() {
     if (j.status === 'done') {
       S.jobs.delete(jid);
       if (j.kind === 'icon') { /* 顔のアイコン: ステージの画像は変えない */ }
+      else if (j.shown === false) { /* 既存の画像を出したうえで裏で描いた分: 切り替えない (設定「裏で描いた画像に切り替える」) */ }
       else if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
       else if (!S.current || S.current.t <= (S.view.log.find((x) => x.id === j.entry) || {}).t) setImage(j.image);
       refresh();
@@ -5415,6 +5444,7 @@ SEC.comfy = () => {
         '「すぐ表示」のとき、この枚数に達するまでは裏で新規生成も行う（1 = 1枚あれば以降は生成しない）'),
       fld('顔アイコンに足すタグ（Positive）', inp(st.images, 'icon_pos', { ph: 'portrait,looking at viewer,simple background,1girl,solo,masterpiece,best quality,amazing quality' }), '空欄なら既定。キャラの外見のプロンプトのあとに足して、顔だけの画像を一度だけ作ります（共通プロンプトは入れないので、画質のタグもここに）', 'span2'),
       fld('顔アイコンの Negative', inp(st.images, 'icon_neg', { ph: 'full body,wide shot,multiple views,worst quality,bad quality,(monochrome),3d,(shiny skin:1.2),worst detail,text,logo,cropped,deformed,blurry,sketch,censor' })),
+      h('div', { class: 'fld spanall' }, chk(st.images, 'swap_after_gen', '「すぐ表示」で既存の画像を出したあと、裏で描き終えた新しい画像に切り替える（切り替えなくても、描いた画像は保存されギャラリーと次からの候補に入る）')),
       h('div', { class: 'fld spanall' }, chk(st.images, 'busy_reuse', '生成中にコマンドを実行したら、既存の画像があればそれを表示して新規生成しない（なければ待ち行列に追加）'))),
     h('p', { class: 'hint' }, '同じプロンプト = 合成後の Positive と Negative が完全に一致するもの（キャラをまたいでも共有）。表示中の画像は 🎲 で同じプロンプトの別の画像に、⟳ で新規生成に切り替えられます。'),
     h('div', { class: 'sect' }, 'ワークフロー'),

@@ -1201,7 +1201,10 @@ class App:
         for tg in self.active_tags(ctx):
             parts.append({"src": "状態: " + tg["label"], "pos": tg["pos"], "neg": tg["neg"]})
         if act:
-            parts.append({"src": "行動: " + act.get("name", ""), "pos": act.get("pos", ""), "neg": act.get("neg", "")})
+            # 断った (反応の override. taken = 受け取りはした, を除く): 受け取る・飲む・食べる・お金を持つ … の行動の絵は描かない. 反応の絵だけ
+            refused = bool(reaction and reaction.get("override") and not reaction.get("taken"))
+            parts.append({"src": "行動: " + act.get("name", "") + ("（断られたので描かない）" if refused else ""),
+                          "pos": "" if refused else act.get("pos", ""), "neg": act.get("neg", "")})
         if reaction and (reaction.get("pos") or reaction.get("neg")):
             parts.append({"src": "反応", "pos": reaction.get("pos", ""), "neg": reaction.get("neg", "")})
         parts = [p for p in parts if p["pos"] or p["neg"]]
@@ -1352,8 +1355,11 @@ class App:
             out[k] = float(v) * float((gain if good else hurt).get(k, 1))
         return out
 
-    def pick_reaction(self, act, ctx):
-        cands = [r for r in act.get("reactions") or [] if cond.check(r.get("when", ""), ctx)]
+    def pick_reaction(self, act, ctx, invited=False):
+        """invited: 相手から誘ったことに応じた (働きかけの accept.action). 言い出したのは相手なので, 断る反応 (override.
+        taken = 受け取りはした, を除く) は選ばない (誘っておいて, 応じたら断る形にしない)."""
+        cands = [r for r in act.get("reactions") or [] if cond.check(r.get("when", ""), ctx)
+                 and not (invited and r.get("override") and not r.get("taken"))]
         if not cands:
             return {"text": ""}
         top = max(int(r.get("priority", 0)) for r in cands)
@@ -1692,7 +1698,7 @@ class App:
                 ctx["hima"] = hima
                 ctx["hima_close"] = hima_mod.close(self, char, st)
                 self.trace.add("talk", "話したい (会って): " + hima_mod.LABEL[hima], cid, now, **hv)
-            r = self.pick_reaction(a, ctx)
+            r = self.pick_reaction(a, ctx, invited=bool(opts.get("approach")))
             if part:
                 self.parting.settle(char, st, aid, part, now)
             invite = apart and (a.get("override") or {}).get("outing")
@@ -2801,6 +2807,14 @@ class App:
                 self.save_state(cid)
                 self.trace.add("deliver", "一日たったので返事は来ないことに", cid, real_now, kind=pend.get("kind"), sent=pend["t"])
                 continue
+            if self.bonds.together(cid, real_now):
+                # 目の前にいる (会っている・家に来ている・同居で家にいる): スマホで返事はしない. 読みもしない (既読も付かない).
+                # 別れたあと, まだ返す意味があれば返す (一日たてば上で消える)
+                pend["due"] = real_now + random.uniform(5, 15) * 60
+                self.save_state(cid)
+                if self.trace.every("defer_with:" + cid, 1800, real_now):
+                    self.trace.add("deliver", "延期 (いま一緒にいる)", cid, real_now, new_due=pend["due"])
+                continue
             if now < real_now:
                 self.trace.add("deliver", "閉じていた間に読めた分: さかのぼった時刻で届ける", cid, real_now, at=now,
                                due=pend.get("due"), kind=pend.get("kind"))
@@ -2997,7 +3011,7 @@ class App:
         limit = int(ic.get("max_per_prompt", 8))
         if mode == "reuse" and have and len(have) >= limit:
             return None   # 上限に達しているので生成しない
-        job = self.enqueue(cid, entry["id"], entry["pos"], entry["neg"])
+        job = self.enqueue(cid, entry["id"], entry["pos"], entry["neg"], bg=bool(have))     # 既存を出したうえで, 裏で描く
         entry["job"] = job
         return job
 
@@ -3306,8 +3320,10 @@ class App:
         if msg and not extra.get("quiet"):
             self.jlog(j, msg, level)
 
-    def enqueue(self, cid, eid, pos, neg, seed=None, kind="entry"):
-        """生成ジョブを積む. kind: entry = ログ項目の画像 / icon = 顔だけのアイコン (できたら定義に固定)."""
+    def enqueue(self, cid, eid, pos, neg, seed=None, kind="entry", bg=False):
+        """生成ジョブを積む. kind: entry = ログ項目の画像 / icon = 顔だけのアイコン (できたら定義に固定).
+        bg: 既存の画像をすぐ出したうえで, 裏で描くもの. 描き終わっても, 設定 images.swap_after_gen が無ければ
+        出している画像は切り替えない (描いた画像は保存され, ギャラリーと次からの「すぐ表示」の候補に入る)."""
         jid = uuid.uuid4().hex
         if seed in (None, "", -1):
             seed = random.randint(0, 2 ** 32 - 1)
@@ -3315,7 +3331,7 @@ class App:
         j = {"id": jid, "kind": kind, "status": "queued", "stage": "queued", "cid": cid, "entry": eid, "wid": store.WORLD,
              "action": {"icon": "顔アイコン", "icon_person": "顔アイコン", "sample": "服のサンプル"}.get(kind) or e.get("action_name", ""), "pos": pos, "neg": neg, "seed": int(seed),
              "created": time.time(), "error": None, "image": None, "prompt_id": None, "queue_pos": None,
-             "cancel": False, "events": []}
+             "cancel": False, "events": [], "bg": bool(bg)}
         self.jobs[jid] = j
         self.jlog(j, "受付 (アプリ内の待ち %d 件)" % (self.jobq.qsize()))
         self._ensure_worker()
@@ -3342,7 +3358,7 @@ class App:
         now = j.get("finished") or time.time()
         ahead = sum(1 for x in self.jobs.values() if x["status"] == "queued" and x["created"] < j["created"])
         keys = ("id", "kind", "status", "stage", "cid", "entry", "action", "seed", "error", "image", "created",
-                "prompt_id", "queue_pos")
+                "prompt_id", "queue_pos", "shown")
         out = {k: j.get(k) for k in keys}
         out["stage_label"] = self.STAGE_LABEL.get(j.get("stage"), j.get("stage"))
         out["ahead"] = ahead
@@ -3452,8 +3468,14 @@ class App:
                     self._set_stage(j, "done", "完了 %s（%.1f 秒）" % (rel, time.time() - j["started"]))
                     continue
 
+                swap = not j.get("bg") or bool((self.settings.get("images") or {}).get("swap_after_gen"))
+                j["shown"] = True
+
                 def put(e):
-                    e["image"], e["seed"], e["reused"] = rel, j["seed"], False
+                    if swap or not e.get("image"):
+                        e["image"], e["seed"], e["reused"] = rel, j["seed"], False
+                    else:
+                        j["shown"] = False          # 裏で描いた分: 出している画像はそのまま (設定で切り替えるようにできる)
                     e.pop("error", None)
                     e.setdefault("images", []).append({"path": rel, "seed": j["seed"], "pos": j["pos"],
                                                        "neg": j["neg"], "t": time.time()})
