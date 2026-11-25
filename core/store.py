@@ -40,11 +40,17 @@ def _world_setting_key(k):
 
 
 def load(p, default=None):
-    try:
-        with open(p, encoding="utf-8-sig") as f:   # メモ帳で保存した BOM 付きも読めるように
-            return json.load(f)
-    except FileNotFoundError:
-        return default
+    # 同期ソフト (BOX など) やウイルス対策ソフトが書いた直後のファイルを一瞬つかんでいると開けないので, save と同じく待ってやり直す
+    for i in range(10):
+        try:
+            with open(p, encoding="utf-8-sig") as f:   # メモ帳で保存した BOM 付きも読めるように
+                return json.load(f)
+        except FileNotFoundError:
+            return default
+        except PermissionError:
+            if i == 9 or os.path.isdir(p):
+                raise
+            time.sleep(0.05 * (i + 1))
 
 
 def save(p, obj):
