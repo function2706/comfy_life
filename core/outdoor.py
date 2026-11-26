@@ -272,7 +272,8 @@ class Outdoor:
                     p.pop("travel", None)
                 sl = p.get("solo") or {}
                 if sl.get("kind") == "out" and places_mod.solo_kind(place) == "shopping" and not sl.get("shop_done"):
-                    sl["shop_done"] = app.solo._shop_now(place, (t_out - p.get("arrived", t_out)) / 3600.0, t_out)   # 店で過ごして買い物を済ませた
+                    t_in = sl.get("shop_from") or p.get("arrived", t_out)        # 買い足しの途中なら, 買い足すと決めてから
+                    sl["shop_done"] = app.solo.merge_prev(sl, app.solo._shop_now(place, max(0.0, t_out - t_in) / 3600.0, t_out))   # 店で過ごして買い物を済ませた
                 res = app.come_back(at=t_out, quiet=True)
                 msgs.append(res.get("text") or "")
                 start, home_at, mode = place, t_out, None

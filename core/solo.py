@@ -331,15 +331,17 @@ class Solo:
         from .items import sold_at
         return sum(1 for i in self.app.items.ps()["shop_list"] if CATALOG.get(i) and sold_at(CATALOG[i], place))
 
-    def shop_minutes(self, place, now=None):
+    def shop_minutes(self, place, now=None, more=False):
         """店に着いてから買い物を済ませるまでの時間 (分): 店ごとの見て回る長さ (ふだんの長さのまわりに揺れる. 長居することも) +
-        その店に売っているリストの品の数 + レジ (混む時間は長め). 売っていない品は数えない."""
+        その店に売っているリストの品の数 + レジ (混む時間は長め). 売っていない品は数えない.
+        more: 買い足し (一度済ませたあと, 同じ店で): 見て回る長さは入れず, 品の数とレジだけ."""
         med, sigma, per = SHOP_BASE.get(place, (6, 0.35, 0.8))
         crowd = 1.0
         pl = places_mod.PLACES.get(place)
         if pl:
             crowd = float(pl["crowd"].get(self.app.phase_at(datetime.fromtimestamp(now or time.time())).get("id", "noon"), 1.0))
-        return min(random.lognormvariate(math.log(med), sigma), 3 * med) + per * random.uniform(0.8, 1.2) * min(self._shop_items_here(place), 15)             + random.uniform(0.5, 2.0) * max(0.5, crowd)
+        browse = 0.0 if more else min(random.lognormvariate(math.log(med), sigma), 3 * med)
+        return browse + per * random.uniform(0.8, 1.2) * min(self._shop_items_here(place), 15) + random.uniform(0.5, 2.0) * max(0.5, crowd)
 
     def shop_typical(self, place):
         """その店でのふだんの買い物の長さ (分. 揺れなし): 閉じていた間に「切り上げた」かを見る目安."""
@@ -357,14 +359,59 @@ class Solo:
                 or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping" or p.get("travel"):
             return None
         need = sl.setdefault("shop_need", round(self.shop_minutes(place, now), 1))
-        t_at = p.get("arrived", sl.get("t", now))          # 店に着いてから
+        t_at = sl.get("shop_from") or p.get("arrived", sl.get("t", now))      # 店に着いてから (買い足しなら, 買い足すと決めてから)
         if now - t_at < need * 60:
             return None
-        res = self._shop_now(place, (now - t_at) / 3600.0, now)
+        res = self.merge_prev(sl, self._shop_now(place, (now - t_at) / 3600.0, now))
         sl["shop_done"] = res
         app.presence.save()
-        self.note("shopping", "%sで買い物を終えた。%s" % (res["label"], res["text"]), now, place=place)
+        self.note("shopping", "%sで%sを終えた。%s" % (res["label"], "買い足し" if res.get("again") else "買い物", res["round_text"]), now, place=place)
         return res
+
+    @staticmethod
+    def merge_prev(sl, res):
+        """買い足しの結果に, それまでの買い物 (sl["shop_prev"]) を合わせる (帰ったときの記録は両方. 知らせは今回の分も分かる)."""
+        res["round_text"] = res["text"]
+        res["round"] = list(res["bought"])
+        prev = sl.pop("shop_prev", None)
+        if not prev:
+            return res
+        res["again"] = True
+        res["bought"] = list(prev.get("bought") or []) + res["bought"]
+        res["total"] = int(prev.get("total") or 0) + res["total"]
+        if not prev.get("bought"):                     # 前は何も買えなかった (リストに無かった など): 今回の分だけ
+            return res
+        res["text"] = "%s。そのあと買い足した（%s）" % (prev.get("text", ""), res["text"]) if res["round"] or not res.get("nothing") \
+            else "%s。買い足そうとしたが、%s" % (prev.get("text", ""), res["nothing"])
+        return res
+
+    def shop_more_why(self, now=None):
+        """いまの店で買い足せない理由 (買い足せるなら None): 店で一度買い物を済ませたあと, その店で売っている品がリストにあるとき."""
+        p = self.app.presence.rec()
+        sl = p.get("solo") or {}
+        place = p.get("place")
+        if p.get("mode") != "out" or sl.get("kind") != "out" or not sl.get("shop_done") or p.get("travel") \
+                or places_mod.is_home(place or "") or places_mod.solo_kind(place) != "shopping":
+            return "店で買い物を済ませたあとに買い足せます"
+        if not self._shop_items_here(place):
+            return "この店で売っている品が買うものリストにありません"
+        return None
+
+    def shop_more(self, now=None):
+        """同じ店で買い足す: 済んだ買い物を取っておき, リストのこの店の品を選び直す (品の数とレジの時間. 済んだら shop_tick で知らせる)."""
+        app = self.app
+        now = now or time.time()
+        why = self.shop_more_why(now)
+        if why:
+            raise ValueError(why)
+        p = app.presence.rec()
+        sl = p["solo"]
+        sl["shop_prev"] = sl.pop("shop_done")
+        sl["shop_from"] = now
+        sl["shop_need"] = round(self.shop_minutes(p["place"], now, more=True), 1)
+        app.presence.save()
+        self.note("shopping", "%sで買い足すことにした" % app.places.label(p["place"]), now, place=p["place"])
+        return {"ok": True, "shop_wait": int(sl["shop_need"] * 60)}
 
     def _shop_now(self, place, h, now):
         """店で買い物を済ませる. 買うものがなかったとき (リストが空・この店に売っていない・全部品切れ) も, そうと分かる結果に."""
@@ -510,9 +557,17 @@ class Solo:
             text = "%sには行かなかった" % self.app.places.label(place) if place else "出かけるのをやめた"
             self.note("out", text, ll.get("back", time.time()), hours=0, place=place)
             return {"kind": "out", "hours": 0, "place": place, "text": "（%s）" % text}
+        back = ll.get("back", time.time())
+        if not shop and sl.get("shop_prev"):          # 買い足しの途中で出た / 閉じていた: 選び終える時間がたっていれば済んでいる
+            hm = max(0.0, (min(back, ll.get("left", back)) - sl.get("shop_from", back)) / 3600.0)
+            if hm * 60 >= sl.get("shop_need", 0):
+                shop = self.merge_prev(sl, self._shop_now(ll.get("place"), hm, back))
+            else:
+                shop = dict(sl["shop_prev"])
+                shop["text"] = (shop.get("text") or "") + "（買い足しは途中でやめた）"
         if not shop and sl.get("shop_need") and h * 60 >= sl["shop_need"]:
             # 品を選び終える時間は店にいた (心拍の間に済んでいた / 画面を閉じた時点で済んでいた): そこで買い物は済んでいる
-            shop = self._shop_now(ll.get("place"), h, ll.get("back", time.time()))
+            shop = self._shop_now(ll.get("place"), h, back)
         return self.result(sl["kind"], h, ll.get("back", time.time()), sl.get("skill"), ll.get("place"), phone=bool(sl.get("phone")),
                            ate=bool(sl.get("ate")), shop=shop or "pending")
 

@@ -230,6 +230,9 @@ def route(method, path, q, body):
                 return {"meal": a.body.eat(b["how"], b["id"])}
         if path == "/api/shop/ack":
             return a.solo.shop_ack()
+        if path == "/api/shop/more":              # 同じ店で買い足す
+            with a.lock:
+                return a.solo.shop_more()
         if path == "/api/door/ack":               # 相手の家の玄関先での知らせを閉じる (F17)
             return a.solo.door_ack()
         if path == "/api/outing/move":            # 一緒に次の場所へ

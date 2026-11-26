@@ -166,7 +166,9 @@ class Presence:
             if sl.get("door"):
                 out["door"] = sl["door"]                      # 相手の家を訪ねて, 留守・出てこない・断られた (玄関先. 残件 F17)
             if sl.get("shop_done"):
-                out["shop"] = sl["shop_done"]                 # 店での買い物が済んだ (知らせる)
+                out["shop"] = dict(sl["shop_done"])           # 店での買い物が済んだ (知らせる)
+                if not self.app.solo.shop_more_why(now):      # リストにこの店の品が (あとから) 入っていれば, 買い足せる
+                    out["shop"]["addable"] = self.app.solo._shop_items_here(p.get("place"))
             elif sl.get("shop_need") and not p.get("travel"):           # 店に着いてから, 品を選ぶ
                 out["shop_wait"] = max(0, int(p.get("arrived", sl["t"]) + sl["shop_need"] * 60 - now))
             out["label"] = doing or out["label"]

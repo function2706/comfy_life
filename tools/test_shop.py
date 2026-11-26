@@ -80,6 +80,78 @@ def main():
         I.ps()["shop_list"] = {}
         print("買うものなし:", res["text"])
 
+        # ---- 3c. 買い足す: 済んだあと, この店で売っている品をリストに足すと, 同じ店で選び直せる
+        def at_shop_done(place="supermarket"):
+            S.start("out", place=place)
+            P.rec()["solo"]["t"] -= 3600
+            return S.shop_tick()
+
+        I.set_list("detergent", 1)
+        res = at_shop_done()
+        assert res["bought"] or "品切れ" in res["text"], res
+        v = P.view(time.time())["shop"]
+        assert "addable" not in v and S.shop_more_why(), "この店の品がリストに無ければ買い足せない"
+        I.set_list("game", 1)                       # スーパーに売っていない品だけ: 買い足せない
+        assert "addable" not in P.view(time.time())["shop"] and S.shop_more_why()
+        I.set_list("veggies", 2)
+        S.shop_ack()                                # 知らせを閉じたあとでも買い足せる
+        v = P.view(time.time())["shop"]
+        assert v.get("addable") == 1 and v["seen"] and S.shop_more_why() is None, v
+        r = S.shop_more()
+        sl = P.rec()["solo"]
+        assert r["ok"] and "shop_done" not in sl and sl["shop_prev"] is not None and 0 < sl["shop_need"] < 10, sl
+        assert "shop" not in P.view(time.time()) and "shop_wait" in P.view(time.time()), "買い足し中は選んでいる表示"
+        try:
+            S.shop_more()
+            raise AssertionError("二度押しで二重に買い足した")
+        except ValueError:
+            pass
+        assert S.shop_tick() is None, "選び終えるまでは済まない"
+        n_veg = I.count("veggies")
+        sl["shop_from"] -= sl["shop_need"] * 60 + 1
+        res2 = S.shop_tick()
+        assert res2["again"] and not res2["seen"] and res2["round_text"] and ("そのあと買い足した" in res2["text"] or not res["bought"]), res2
+        got = [b for b in res2["round"] if b["id"] == "veggies"]
+        assert got or "品切れ" in res2["round_text"], res2
+        assert res2["total"] == sum(b["price"] for b in res2["bought"]) and res2["bought"][:len(res["bought"])] == res["bought"]
+        assert (I.count("veggies") > n_veg) == bool(got)
+        assert S.shop_tick() is None, "一度だけ"
+        n = dict(I.ps()["items"])
+        r = app.come_back()["solo"]
+        assert dict(I.ps()["items"]) == n and r["money"] == -res2["total"] and res2["round_text"] in r["text"], r
+        print("買い足し:", r["text"])
+
+        # 買い足しの途中で帰る: 前の買い物だけ (何も足さない)
+        I.ps()["shop_list"] = {}
+        res = at_shop_done()
+        I.set_list("veggies", 1)
+        S.shop_more()
+        n = dict(I.ps()["items"])
+        r = app.come_back()["solo"]
+        assert dict(I.ps()["items"]) == n and "買い足しは途中でやめた" in r["text"] and r["money"] == -res["total"], r
+        assert I.ps()["shop_list"].get("veggies") == 1, "リストに残る"
+        print("買い足し途中:", r["text"])
+
+        # 買い足しの途中で閉じた (心拍が途絶えた): 選び終える時間がたっていれば, 閉じたときに済んでいる
+        I.ps()["shop_list"] = {}
+        res = at_shop_done()
+        I.set_list("veggies", 1)
+        S.shop_more()
+        sl = P.rec()["solo"]
+        sl["shop_from"] -= sl["shop_need"] * 60 + 120
+        P.rec()["beat"] = time.time() - 60
+        n_veg = I.count("veggies")
+        app.outdoor.check_gap(time.time() + 7200)
+        assert P.rec()["mode"] == "none" and (I.count("veggies") > n_veg or I.ps()["shop_list"].get("veggies")), P.rec()
+        P.rec()["beat"] = P.rec()["input"] = time.time()
+
+        # 家・ほかの外出 (店でない) では買い足せない
+        assert S.shop_more_why()
+        S.start("out", place="park")
+        assert S.shop_more_why() and "shop" not in P.view(time.time())
+        app.come_back()
+        I.ps()["shop_list"] = {}
+
         # ---- 4. 行動パターン (その場で買う)
         I.set_list("detergent", 1)
         n = I.count("detergent")

@@ -339,7 +339,8 @@ async function refresh() {
   if (v.arrival) { if (v.arrival.act) handleActResult(v.arrival.act); toast(`📍 ${v.arrival.text.replace(/^（|）$/g, '')}`, 'ok'); }
   for (const w of v.workplace || []) toast(`🏪 ${w}`, 'ok');
   noteMemos();
-  if (v.shop_done) toast(v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok');
+  if (v.shop_done) toast(v.shop_done.again ? `🛍 ${v.shop_done.label}で買い足しを終えた（${yen((v.shop_done.round || []).reduce((a, b) => a + b.price, 0))}）`
+    : v.shop_done.nothing ? `🛍 ${v.shop_done.label}で買うものはなかった` : `🛍 ${v.shop_done.label}で買い物を終えた（${yen(v.shop_done.total)}）`, 'ok');
   for (const m of v.replies || []) toast(`📱 ${m.name}から返信: ${m.text.replace(/\n.*/s, '').slice(0, 60)}`, 'ok');
   // 音は一度の取り直しで 1 つだけ (重なると聞き分けられない): 返信 → 約束・予定 → 終わった の順. 話しかけ・声をかけられたは notifyCall で
   if ((v.replies || []).length) playSound('message');
@@ -3009,6 +3010,15 @@ function doorCard(p) {
       h('button', { class: 'btn small ghost', disabled: S.busy, onclick: async () => { await api('/api/door/ack', {}); await refresh(); } }, '閉じる（ここにいる）')));
 }
 
+async function shopMore() {
+  if (S.busy) return;
+  S.busy = true;
+  try { await api('/api/shop/more', {}); } catch (e) { toast(e.message || String(e), 'err'); }
+  S.busy = false;
+  await refresh();
+  if (S.mapDlg && S.mapDlg.open) renderMap();
+}
+
 // 店での買い物: 品を選んでいる間は「買い物中」, 済んだら目立つ知らせ (読んだら閉じる. 帰る・ほかの店へ)
 function shopCard(p, inMap) {
   if (p.mode !== 'out') return '';
@@ -3017,18 +3027,23 @@ function shopCard(p, inMap) {
   if (!sh) {
     return p.shop_wait != null ? h('div', { class: 'shop-card wait' }, `🛒 買い物中…（品を選んでいる。${p.shop_wait > 60 ? `あと${Math.ceil(p.shop_wait / 60)}分くらい` : 'もうすぐ'}）`) : '';
   }
-  if (sh.seen) return h('div', { class: 'shop-card done small' }, `🛍 ${sh.label}での買い物は済んだ（${yen(sh.total)}）`);
-  const bought = sh.bought || [];
+  // 買い足す: 済んだあとに, この店で売っている品をリストに足したとき (core/solo.py shop_more)
+  const more = sh.addable && !p.travel ? h('button', { class: 'btn small', disabled: S.busy, onclick: shopMore }, `🛒 買い足す（リストの${sh.addable}品）`) : '';
+  if (sh.seen) return h('div', { class: 'shop-card done small' }, `🛍 ${sh.label}での買い物は済んだ（${yen(sh.total)}）`, more ? h('div', { style: 'margin-top:4px' }, more) : '');
+  const bought = sh.round || sh.bought || [];
   return h('div', { class: 'shop-card done' },
-    h('div', { class: 'shop-head' }, h('b', {}, sh.nothing ? `🛍 ${sh.label}で買うものはなかった` : `🛍 ${sh.label}で買い物を終えた`),
+    h('div', { class: 'shop-head' }, h('b', {}, sh.again ? (sh.round && sh.round.length ? `🛍 ${sh.label}で買い足した` : `🛍 ${sh.label}で買い足せるものはなかった`)
+      : sh.nothing ? `🛍 ${sh.label}で買うものはなかった` : `🛍 ${sh.label}で買い物を終えた`),
       h('span', { class: 'shop-total' }, `合計 ${yen(sh.total)}`)),
     sh.nothing ? h('div', { class: 'small' }, sh.nothing) : '',
+    sh.again ? h('div', { class: 'small muted' }, `今回 ${yen((sh.round || []).reduce((a, b) => a + b.price, 0))}（この店での合計に、前の買い物も入っている）`) : '',
     bought.filter((b) => !b.impulse).length ? h('div', { class: 'small' }, '買えた: ' + bought.filter((b) => !b.impulse).map((b) => `${b.icon || ''}${b.name}（${yen(b.price)}）`).join('、')) : '',
     bought.filter((b) => b.impulse).length ? h('div', { class: 'small' }, 'ついでに買った: ' + bought.filter((b) => b.impulse).map((b) => `${b.icon || ''}${b.name}（${yen(b.price)}）`).join('、')) : '',
     (sh.missed || []).length ? h('div', { class: 'small down' }, '買えなかった: ' + sh.missed.join('。')) : '',
     (sh.elsewhere || []).length ? h('div', { class: 'small muted' }, `この店には売っていない: ${sh.elsewhere.join('、')}（ほかの店で）`) : '',
-    h('div', { class: 'row', style: 'gap:6px;justify-content:center;margin-top:6px' },
+    h('div', { class: 'row', style: 'gap:6px;justify-content:center;margin-top:6px;flex-wrap:wrap' },
       homing || inMap ? '' : h('button', { class: 'btn small primary', disabled: S.busy, onclick: comeBack }, '帰る'),
+      more,
       inMap ? '' : h('button', { class: 'btn small', disabled: S.busy, onclick: openMap }, homing ? 'ほかの店へ（行き先を変える）' : 'ほかの店へ'),
       h('button', { class: 'btn small ghost', disabled: S.busy, onclick: async () => { await api('/api/shop/ack', {}); await refresh(); if (inMap) renderMap(); } },
         homing || inMap ? '閉じる' : '閉じる（ここにいる）')));
