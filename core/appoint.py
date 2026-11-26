@@ -1468,7 +1468,7 @@ class Appoint:
         if at and x.get("ask_now") and x["status"] in ("set", "waiting"):     # 今から家に (A25): 着いたら, すぐ迎えてくれる
             x.setdefault("arrived", now)
             r = self._meet(x, now, now - x["t"] > NOW_LATE_ME)
-            out.append((r.get("entry") or {}).get("text", "").split("\n")[0] or "%sの家に着いた" % char.get("name", ""))
+            out.append(self.meet_text(r) or "%sの家に着いた" % char.get("name", ""))
             return True
         if at and "arrived" not in x:
             x["arrived"] = now                    # 着いた時刻 (早く着いていれば, 約束の時刻より前)
@@ -1498,7 +1498,7 @@ class Appoint:
         come = x["t"] + plan.get("late", 0) * 60
         if at and now >= come:
             r = self._meet(x, now, arrived - x["t"] > LATE_ME)
-            out.append((r.get("entry") or {}).get("text", "").split("\n")[0] or "%sと会えた" % char.get("name", ""))
+            out.append(self.meet_text(r) or "%sと会えた" % char.get("name", ""))
             return True
         if at and x["status"] == "set":
             x["status"] = "waiting"               # 着いた. 相手はまだ
@@ -1527,6 +1527,15 @@ class Appoint:
             out.append("%sとの約束（%s）に行かなかった" % (char.get("name", ""), fmt_when(x["t"], now)))
             return True
         return False
+
+    @staticmethod
+    def meet_text(r):
+        """会えたときの知らせ (画面のトースト): 前置きの注 (「（〇〇は 16 分ほど遅れて来た）」など) と, 相手の最初のひとこと.
+        以前は最初の行だけで, 注が付くと相手のひとことが見えなかった."""
+        lines = [ln for ln in ((r.get("entry") or {}).get("text") or "").split("\n") if ln.strip()]
+        notes = [ln for ln in lines if ln.startswith("（") and ln.endswith("）")]
+        said = next((ln for ln in lines if ln not in notes), "")
+        return " ".join(notes + ([said] if said else []))
 
     def _meet(self, x, now, me_late=False, extra_opts=None):
         app = self.app

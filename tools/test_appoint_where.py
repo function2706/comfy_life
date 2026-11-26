@@ -193,7 +193,10 @@ def main():
             A.go(x["id"])
             x["status"] = "waiting"
             app.set_params({"energy": 10}, cid)
-            A.live(time.time())
+            ev = A.live(time.time())
+            # 画面の知らせ: 遅れて来た注のあとに, 相手のひとことも出る (以前は注の 1 行だけで, ひとことが見えなかった)
+            e = next((m for m in ev if "遅れて来た" in m), "")
+            assert e and not (e.startswith("（") and e.endswith("）")), ev
             ov = st.get("override") or {}
             assert x["status"] == "met" and (app.bonds.with_rec() or {}).get("mode") == "meet" and ov.get("outing") and ov.get("place") == place, \
                 (do, x["status"], app.bonds.with_rec(), ov, [e.get("text", "")[:40] for e in app.log(cid)[-2:]])
