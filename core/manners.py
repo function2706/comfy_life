@@ -69,7 +69,8 @@ class Manners:
                       "appoint_change_sour_again": "%sに、何度も約束を変えられた", "appoint_cancel_sour": "%sに約束を取りやめられた",
                       "appoint_cancel_sour_late": "%sに、間際になって約束を取りやめられた",
                       "appoint_cancel_sour_again": "%sに、また約束を取りやめられた", "appoint_cancel_hurt": "%sに約束を取りやめられた",
-                      "appoint_cancel_favor_sour": "当てにしていたのに、%sに頼みごとを取りやめられた"}
+                      "appoint_cancel_favor_sour": "当てにしていたのに、%sに頼みごとを取りやめられた",
+                      "appoint_where_much": "向かっているのに、%sに何度も「今どこ？」と聞かれた"}
 
     def _faults(self, st, now):
         return [r for r in st.get("reasons") or [] if r["kind"] == "player" and r["mood"] == "bad"

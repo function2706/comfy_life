@@ -1711,7 +1711,9 @@ class App:
                 ctx["hima"] = hima
                 ctx["hima_close"] = hima_mod.close(self, char, st)
                 self.trace.add("talk", "話したい (会って): " + hima_mod.LABEL[hima], cid, now, **hv)
-            r = self.pick_reaction(a, ctx, invited=bool(opts.get("approach")))
+            # 約束して会えた (appt) も, 断る反応は選ばない: 約束の中身は約束したときに決まっていて, 来てから断ると
+            # あなたの外出だけが終わって家に戻ってしまう (疲れていれば, 前もってのキャンセル・当日の反応の文で)
+            r = self.pick_reaction(a, ctx, invited=bool(opts.get("approach") or appt))
             if part:
                 self.parting.settle(char, st, aid, part, now)
             invite = apart and (a.get("override") or {}).get("outing")
@@ -2641,6 +2643,8 @@ class App:
                 key, eff, extra = self.appoint.change_reply(char, st, pend, now)
             elif kind == "late":                # 約束に遅れると伝えた への返事 (待つのは, 伝えた時点で決まっている)
                 key, eff, extra = self.appoint.late_reply(char, st, dict(pend.get("meta") or {}, sent=pend.get("kind_t") or pend.get("t")), now)
+            elif kind == "where_appoint":       # 今どこ？ への返事 (読んだときの相手の様子)
+                key, eff, extra = self.appoint.where_reply(char, st, pend.get("meta") or {}, now)
             else:
                 ctx["_meta"] = pend.get("meta") or {}
                 ctx["_sent"] = pend.get("kind_t") or pend.get("t")
@@ -2660,7 +2664,8 @@ class App:
                                      delta=deltas.get("mood") or deltas.get("affection") or -1.0, action="_chat_" + key)
             text = self.chat.line(char, key, extra)
             selfie = key == "selfie_yes" or (
-                key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester")
+                key not in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "apology_confused", "selfie_no", "selfie_pester",
+                        "appoint_where_cant", "appoint_where_much", "appoint_her_late")
                 and random.random() < self.bonds.selfie_chance(ctx) * (1.5 if kind == "photo" else 1.0))
             self.chat.add(cid, "her", text + ("\n（📷 自撮りが添えられていた）" if selfie else ""), kind=key, t=now, selfie=selfie,
                           re=self.chat.ref(cid, pend.get("kind_t") or pend.get("t"), rq),       # どのメッセージへの返事か (トークで引用)
@@ -2669,7 +2674,7 @@ class App:
                 self.manners.favor(st, "selfie", now)       # 自撮りを送ってくれた (お礼の心当たり)
             self.manners.saw_down(st, now)
             cold = key in ("too_often", "too_often_mild", "late_night", "tease_hurt", "flirt_cold", "selfie_no", "selfie_pester", "stamp_spam",
-                           "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad")
+                           "apology_refuse", "apology_irritated", "too_often_again", "what_doing_much", "nudge_bad", "appoint_where_much")
             closing = nori_mod.after_reply(self, char, st, now, deltas.get("mood", 0), bad=cold, turn=not pend.get("_no_close"))
             # ノリが下がりきった: 相手から切り上げる. ただし「今いい？」への返事 (電話していい / あとで) のすぐあとには付けない
             # (「かけてきなさい」のあとに「用事があるので, またあとで」と続くと食い違う)
@@ -2834,7 +2839,8 @@ class App:
                                due=pend.get("due"), kind=pend.get("kind"))
             self.tick(cid, now)
             scene = self.scene_at(char, st, datetime.fromtimestamp(now))
-            if scene["asleep"] or scene["busy"]:       # 寝ている・入浴中・仕事中など: 落ち着いてから
+            on_way = pend.get("kind") == "where_appoint" and self.appoint.heading(cid, now)     # 待ち合わせへ向かう途中の「今どこ？」は読める
+            if (scene["asleep"] or scene["busy"]) and not on_way:       # 寝ている・入浴中・仕事中など: 落ち着いてから
                 pend["due"] = now + random.uniform(15, 40) * 60
                 self.save_state(cid)
                 if self.trace.every("defer:" + cid, 1800, now):

@@ -119,6 +119,9 @@ def main():
             got[case] = [r["tell"] for r in st["reasons"] if r.get("action") == "_appoint"]
             got[case + "_mood"] = st["params"]["mood"] - m0
             app.act("go_home", cid)
+            if app.bonds.with_rec():                # 引き止められた (依存度が高い): 次の約束のために解散しておく
+                app.bonds.end()
+                st["override"] = None
         assert any("連絡はあった" in t for t in got["told_kept"]), got
         assert any("さらに遅れてきた" in t for t in got["told_over"]), got
         assert any(t.endswith("約束に遅れてきた") for t in got["silent"]), got

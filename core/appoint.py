@@ -1286,6 +1286,8 @@ class Appoint:
         if plan.get("noshow"):                   # もともと来ないつもりだった: 返事は当たり障りなく
             return "appoint_late_fine", {}, extra
         if her and her >= mins - 5:              # 相手も遅れそうだった: お互いさま
+            plan["told"] = True                  # 自分も遅れると, ここで伝えた (あとから改めて連絡しない)
+            self.save()
             return "appoint_late_also", {}, extra
         go = int(plan.get("go", 0))
         if x["status"] == "set" and now < x["t"] - go * 60 - 600 and s < 0.45 and random.random() < 0.6:
@@ -1297,6 +1299,99 @@ class Appoint:
         if s < 0.5:
             return "appoint_late_sad", {"mood": -1}, extra
         return "appoint_late_sour", {"mood": -2}, extra
+
+    # ------------------------------------------------------------------ 相手が遅れる (相手からの連絡・「今どこ？」)
+    @staticmethod
+    def _her_side(x):
+        """相手が約束の場所へ出向くか (相手の家での約束は, 相手は家にいる)."""
+        return not x.get("plants") and not (places_mod.is_home(x["place"]) and x["place"] != places_mod.HOME_ME)
+
+    @staticmethod
+    def her_eta(x):
+        """相手の当日の動き: (着く時刻, 家を出る時刻). 見えない値 (plan) から."""
+        plan = x.get("plan") or {}
+        come = x["t"] + int(plan.get("late", 0)) * 60
+        return come, come - int(plan.get("go", 0)) * 60
+
+    @staticmethod
+    def _guess(mins):
+        """相手が言う「◯分くらい」: 5 分きざみで, 少し甘く見積もる (言ったより遅れることもある)."""
+        return max(5, int(round(mins * random.uniform(0.7, 1.0) / 5.0)) * 5)
+
+    def _her_late_tell(self, x, char, st, now):
+        """相手が遅れる (10 分以上) とき, 本来出る時刻のころに「遅れそう」と連絡してくるか (一度だけ決める).
+        時間にきっちりな性格ほど・献身的なほど・仲がいいほど連絡してくる. 連絡したら, その文を返す."""
+        plan = x.setdefault("plan", {})
+        if "told" in plan or plan.get("noshow") or int(plan.get("late", 0)) < 10 or not self._her_side(x) \
+                or x.get("ask_now") or x["status"] not in ("set", "waiting"):
+            return None
+        go = int(plan.get("go", 0))
+        send = max(float(x.get("made", 0)), x["t"] - max(go, 10) * 60 - plan.setdefault("tell_jit", random.randint(0, 10)) * 60)
+        if now < send:
+            return None
+        punct = float(self.app.traits(char).get("punctual", 0.75))
+        p = st["params"]
+        ch = -0.2 + 1.1 * punct + 0.2 * self.app.attach.factor(char, st, "devotion") + (p.get("affection", 50) - 50) / 250.0
+        plan["told"] = random.random() < min(0.95, max(0.05, ch))
+        self.app.trace.add("appoint", "遅れる相手が連絡するか", x["cid"], now, appoint=x["id"], late=plan.get("late"), chance=round(ch, 2),
+                           told=plan["told"])
+        if not plan["told"]:
+            self.save()                           # 黙って遅れる (決めたことを残す)
+            return None
+        mins = self._guess(int(plan["late"]))
+        plan["told_min"] = mins
+        at = min(now, send)
+        self.app.chat.add(x["cid"], "her", self.app.chat.line(char, "appoint_her_late", {"min": str(mins), "place": self.app.places.label(x["place"])}),
+                          kind="appoint_her_late", t=at, appoint=x["id"])
+        self.app.picked_up_phone(char, st, at)
+        self.app.save_state(x["cid"])
+        return "%sから、%d分くらい遅れそうと連絡が来た" % (char.get("name", ""), mins)
+
+    WHERE_BEFORE = 30 * 60      # 約束のこれだけ前から「今どこ？」を聞ける
+
+    def where_target(self, cid, now=None):
+        """「今どこ？」を聞ける約束 (相手が出向いてくる決まった約束で, 30 分前〜待ってくれる時刻まで). 無ければ None."""
+        now = now or time.time()
+        hit = [x for x in self.all() if x["cid"] == cid and x["status"] in ("set", "waiting") and self._her_side(x)
+               and not x.get("ask_now") and x["t"] - self.WHERE_BEFORE <= now <= self.grace(x)]
+        return min(hit, key=lambda x: x["t"]) if hit else None
+
+    def where_why(self, cid, now=None):
+        if self.app.bonds.together(cid):
+            return "いまはそばにいます"
+        return "" if self.where_target(cid, now) else "待ち合わせの前後に聞けます（約束の 30 分前から）"
+
+    def where_reply(self, char, st, meta, now):
+        """「今どこ？」への返事 (読んだときの相手の様子で). (セリフの場面, 効果, 置き換え).
+        向かっている (時間どおり / 遅れて) / まだ出ていない (間に合う / 遅れる) / もう着いている / 来るつもりがなかった (行けないと言う)."""
+        app = self.app
+        x = self.find(meta.get("appoint"))
+        if not x or x["status"] not in ("set", "waiting"):
+            return "appoint_where_gone", {}, {}
+        plan = x.setdefault("plan", {})
+        extra = {"place": app.places.label(x["place"]), "min": "5"}
+        x["where_n"] = int(x.get("where_n", 0)) + 1
+        self.save()
+        if plan.get("noshow"):                   # 来るつもりがなかった (忘れていた・気が向かない): 聞かれて, 行けないと言う
+            x["status"] = "cancelled"
+            self.her_moved(x["cid"], now)
+            self.save()
+            app.chat.add(x["cid"], "sys", "📅 約束はなくなった（%sは来られない）" % char.get("name", ""), kind="promise", t=now + 0.001)
+            app.trace.add("appoint", "今どこ？で, 来ないと分かった", x["cid"], now, appoint=x["id"])
+            return "appoint_where_cant", {}, extra
+        come, leave = self.her_eta(x)
+        late = come - x["t"] >= 5 * 60
+        if late:
+            plan["told"] = True                  # ここで遅れると伝わった (あとから改めて連絡しない)
+            self.save()
+        if now >= come:
+            return "appoint_where_here", {}, extra
+        if x["where_n"] >= 3 and not late:       # 遅れてもいないのに, 何度も聞かれる
+            return "appoint_where_much", {"mood": -2}, extra
+        extra["min"] = str(self._guess((come - now) / 60.0) if now >= leave else self._guess((come - x["t"]) / 60.0))
+        if now >= leave:
+            return ("appoint_where_coming_late" if late else "appoint_where_coming"), {}, extra
+        return ("appoint_where_notyet" if late else "appoint_where_soon"), {}, extra
 
     def _late_cost(self, x, arrived):
         """遅れて着いたときの機嫌の下がりと理由: 伝えた見込みのうちなら軽い. (効果, 理由の文, 見立ての倍率)."""
@@ -1464,7 +1559,7 @@ class Appoint:
             self.remember(cid, x["place"], (r["entry"].get("deltas") or {}).get("mood", 0))
         notes = []
         if late:
-            notes.append("（%sは%d分ほど遅れて来た）" % (char.get("name", ""), late))
+            notes.append("（%sは%d分ほど遅れて来た%s）" % (char.get("name", ""), late, "。遅れると連絡はあった" if (x.get("plan") or {}).get("told") else ""))
         if me_late:             # あなたが遅れて行った: 少し機嫌を損ねる (性格しだい. 遅れると伝えて, そのうちに着けば軽い)
             eff, why, _ = self._late_cost(x, x.get("arrived") or now)
             with app.lock:
@@ -1557,6 +1652,10 @@ class Appoint:
                         self._relife_send(x, char, st, now, out)      # 送るのは, 相手が起きていて手が空いているとき
                         changed = True
                         continue
+            told = self._her_late_tell(x, char, st, now)         # 相手が遅れそうで, 連絡してきた (相手からの連絡なので, 閉じていても)
+            if told:
+                out.append(told)
+                changed = True
             # 今から家に (A25) の返事待ちは, 着く見込みの時刻ではなく, 聞いてからの長さで流れる (返事は遅れて届くことがある)
             if x["status"] in ("asked", "offered") and (now - x["made"] > 24 * 3600 or (now > x["t"] and not x.get("ask_now"))
                                                         or (x.get("ask_now") and now - x["made"] > NOW_STALE + 3600)):

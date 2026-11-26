@@ -48,13 +48,14 @@ KINDS = {
     "ask_bday": ("誕生日いつ？", "🎂", "（誕生日を聞いた）"),
     "tell_bday": ("誕生日を伝える", "🎁", "（自分の誕生日を伝えた）"),
     "congrats": ("おめでとう", "🎉", "（おめでとうと送った）"),
-    "late": ("遅れる", "⏰", "（約束に遅れると伝えた）"),          # 何分遅れるかを選ぶ (core/appoint.py の tell_late. 遅れそうな約束があるときだけ)
+    "late": ("遅れる", "⏰", "（約束に遅れると伝えた）"),
+    "where_appoint": ("今どこ？", "📍", "（今どこにいるか聞いた）"),     # 待ち合わせの相手に (core/appoint.py の where_target. 約束の 30 分前から)          # 何分遅れるかを選ぶ (core/appoint.py の tell_late. 遅れそうな約束があるときだけ)
 }
 # 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
 GROUPS = [
     ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "ask_single", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
     ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
-    ("invite", "📅", "誘う・約束", ["invite", "late", "ask_bday", "tell_bday"]),
+    ("invite", "📅", "誘う・約束", ["invite", "late", "where_appoint", "ask_bday", "tell_bday"]),
     ("photo", "📷", "写真", ["photo", "ask_selfie"]),
     ("call", "☎", "電話", ["may_call"]),
 ]
@@ -216,6 +217,16 @@ LINES = {
     "chat.appoint_late_also": "📱『あ、ちょうどよかった。{fp}も少し遅れそうだったんです』",
     "chat.appoint_late_adjust": "📱『わかりました。じゃあ{fp}も、ゆっくり向かいますね』",
     "chat.appoint_late_gone": "📱『あ、今見ました。もう大丈夫ですよ』",
+    # 相手が遅れる: 自分から連絡してくる / 「今どこ？」への返事 (core/appoint.py)
+    "chat.appoint_her_late": "📱『ごめんなさい、{min}分くらい遅れそうです。先に着いたら、待っていてもらえますか』",
+    "chat.appoint_where_soon": "📱『これから出るところです。時間には間に合いますよ』",
+    "chat.appoint_where_coming": "📱『今向かってます。あと{min}分くらいで着きます』",
+    "chat.appoint_where_coming_late": "📱『ごめんなさい、今向かってます。あと{min}分くらいかかりそうです』",
+    "chat.appoint_where_notyet": "📱『ごめんなさい、まだ家なんです。今から出るので、{min}分くらい遅れます』",
+    "chat.appoint_where_here": "📱『もう{place}に着いてますよ。待ってますね』",
+    "chat.appoint_where_cant": "📱『あっ……ごめんなさい、今日は行けなくなってしまって。連絡もしないで、本当にごめんなさい』",
+    "chat.appoint_where_much": "📱『さっきも言いましたけど、ちゃんと向かってますから』",
+    "chat.appoint_where_gone": "📱『あ、今見ました。もう大丈夫ですよ』",
     "chat.appoint_cancel_sad": "📱『そうですか……。楽しみにしてたんですけど。また今度ですね』",
     "chat.appoint_cancel_sour": "📱『……そうですか。わかりました』",
     "chat.appoint_cancel_sour_late": "📱『今になってですか……。……わかりました』",
@@ -331,7 +342,16 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "appoint_late_sour": "約束に遅れると伝えた (引っかかる)",
                "appoint_late_also": "約束に遅れると伝えた (相手もちょうど遅れそうだった)",
                "appoint_late_adjust": "約束に遅れると伝えた (まだ出ていないので, 合わせてゆっくり向かう)",
-               "appoint_late_gone": "約束に遅れると伝えた (読んだときには, もう会えていた・約束がなくなっていた)"}
+               "appoint_late_gone": "約束に遅れると伝えた (読んだときには, もう会えていた・約束がなくなっていた)",
+               "appoint_her_late": "相手が約束に遅れそうで, 自分から連絡してきた ({min} は遅れる見込み)",
+               "appoint_where_soon": "今どこ？ (まだ家. これから出る. 時間には間に合う)",
+               "appoint_where_coming": "今どこ？ (向かっている. 時間どおり. {min} はあと何分)",
+               "appoint_where_coming_late": "今どこ？ (向かっている. 遅れている. {min} はあと何分)",
+               "appoint_where_notyet": "今どこ？ (まだ家. 今から出るので遅れる. {min} は遅れる見込み)",
+               "appoint_where_here": "今どこ？ (もう約束の {place} に着いている. あなたがまだ)",
+               "appoint_where_cant": "今どこ？ (来るつもりがなかった. 聞かれて, 今日は行けないと謝る)",
+               "appoint_where_much": "今どこ？ (遅れてもいないのに, 何度も聞かれた)",
+               "appoint_where_gone": "今どこ？ (読んだときには, もう会えていた・約束がなくなっていた)"}
 # 相手のメッセージへの返し (core/react.py): 「返す」のまとまりにだけ出す (GROUPS には入れない)
 KINDS.update({r[0]: (r[1], r[2], r[3]) for r in react.REACTS})
 LINES.update(react.LINES)
@@ -446,6 +466,11 @@ class Chat:
             extra = dict(extra or {})
             x = self.app.appoint.tell_late(cid, extra.get("late") or 0, how="msg")
             extra["appoint"] = x["id"]
+        if kind == "where_appoint":               # 今どこ？: 待ち合わせの相手に (返事は読んだときの様子で)
+            x = self.app.appoint.where_target(cid)
+            if not x:
+                raise ValueError(self.app.appoint.where_why(cid))
+            extra = dict(extra or {}, appoint=x["id"])
         if kind == "tell_bday" and not self.app.anniv.my_birthday():
             raise ValueError("あなたの誕生日が決まっていません（設定 → あなた）")
         if kind in react.IDS or kind in react.AP_KINDS:
@@ -679,6 +704,7 @@ class Chat:
         st = app.state(cid)
         rg, tg = react.group(app, cid, st, time.time()) if not app.bonds.together(cid) else (None, None)
         late_ok = not app.bonds.together(cid) and bool(app.appoint.late_target(cid))       # 遅れそうな約束があるときだけ「遅れる」
+        where_ok = not app.bonds.together(cid) and bool(app.appoint.where_target(cid))     # 待ち合わせの前後だけ「今どこ？」
         return {"id": cid, "name": app.chars[cid].get("name", ""), "face": self.face(cid), "items": self.with_photos(cid, d["items"][-200:]),
                 "seen_t": d["seen_t"], "waiting": bool(st.get("msg_pending")), "together": app.bonds.together(cid),
                 "promise": st.get("date_promise", 0) if st.get("date_promise", 0) > time.time() else 0,
@@ -687,7 +713,7 @@ class Chat:
                 "visit_now": {"why": app.appoint.now_why(cid)} if app.bonds.stage(cid) == "visit" else None,     # 今から家に行っていい？ (A25)
                 "call_ask": app.ring.ask_view(st, time.time()),          # 電話していい？ (A23 段 2. core/ring.py)
                 "kinds": [{"id": k, "label": v[0], "icon": v[1]} for k, v in KINDS.items()],
-                "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": [k for k in ks if k != "late" or late_ok]}
+                "groups": ([rg] if rg else []) + [{"id": g, "icon": ic, "label": lb, "kinds": [k for k in ks if (k != "late" or late_ok) and (k != "where_appoint" or where_ok)]}
                                                   for g, ic, lb, ks in GROUPS],
                 "late_ok": late_ok,
                 "react": {"t": tg["t"]} if rg else None,     # 返していない相手のメッセージ (「返す」のまとまりを出す)
