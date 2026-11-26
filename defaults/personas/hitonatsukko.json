@@ -3425,6 +3425,33 @@
   ],
   "gift.gift_outfit_fussy": [
    "ありがと！ でもね、こういうのは{fp}、自分で選びたいんだ。今度一緒に選ぼ？"
+  ],
+  "chat.appoint_her_late": [
+   "📱『ごめん、{min}分くらい遅れそう。先に着いたら待ってて』"
+  ],
+  "chat.appoint_where_soon": [
+   "📱『これから出るとこだよ。時間には間に合うよ』"
+  ],
+  "chat.appoint_where_coming": [
+   "📱『今向かってるよ。あと{min}分くらいで着く』"
+  ],
+  "chat.appoint_where_coming_late": [
+   "📱『ごめん、今向かってる。あと{min}分くらいかかりそう』"
+  ],
+  "chat.appoint_where_notyet": [
+   "📱『ごめん、まだ家なんだ。今から出るから、{min}分くらい遅れる』"
+  ],
+  "chat.appoint_where_here": [
+   "📱『もう{place}に着いてるよ。早く来てね』"
+  ],
+  "chat.appoint_where_cant": [
+   "📱『あ……ごめん、今日行けなくなっちゃった。連絡しなくて、ほんとごめんね』"
+  ],
+  "chat.appoint_where_much": [
+   "📱『ちゃんと向かってるってば。さっきも言ったよ』"
+  ],
+  "chat.appoint_where_gone": [
+   "📱『あ、今見た。もう大丈夫だよ』"
   ]
  }
 }
