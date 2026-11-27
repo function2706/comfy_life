@@ -6,6 +6,7 @@
 服の暖かさ (warmth) は服の一覧に書いてあればそれ, 無ければ区分・季節の札・種類のタグ・大胆さから読むときに決める.
 暑がり / 寒がり / 外好きは性格プリセットの traits (heat / cold / outdoorsy. 1 がふつう) に, キャラごとの小さな揺れを掛ける.
 効かせるのは確率と重みだけ (気温で必ず断る・必ず喜ぶ道は作らない).
+つながり (S39): 行き先の季節の向き不向き・移動と力仕事の疲れ・雪の遅れ・熱帯夜・冬の日の短さ・贈り物の冷たい / 温かい / 旬・洗濯の乾き・株の売れ行き.
 """
 import functools
 import hashlib
@@ -212,6 +213,109 @@ def out_why(app, char, dt):
     if max(ld["hot"], ld["cold"]) < 0.3:
         return None
     return "hot" if ld["hot"] >= ld["cold"] else "cold"
+
+
+# ------------------------------------------------------------------ つながり (S39. 軽いもの)
+# 行き先の季節の向き不向き (−1〜+1. 書いていない季節・行き先は 0). 海は夏, 星は冬に澄む, 公園・河川敷は花見と紅葉の頃, 山は紅葉と避暑
+PLACE_SEASON = {
+    "beach": {"summer": 1.0, "spring": 0.0, "autumn": -0.3, "winter": -0.5},
+    "hill": {"winter": 0.8, "autumn": 0.5, "summer": 0.2},
+    "park": {"spring": 0.8, "autumn": 0.6, "summer": -0.3, "winter": -0.3},
+    "riverside": {"spring": 0.5, "autumn": 0.4, "summer": 0.2, "winter": -0.3},
+    "mountain": {"autumn": 0.8, "summer": 0.4, "spring": 0.3, "winter": -0.6},
+}
+PLACE_ASK = 0.15          # 誘いの乗り気への効き (1 + 0.15 × 向き不向き)
+PLACE_FUN = 2.5           # そこで過ごした機嫌への効き (向き不向き × これ × 0.3〜1.2 のくじ)
+
+
+def place_fit(pid, dt):
+    """行き先のいまの季節の向き不向き (−1〜+1)."""
+    return float((PLACE_SEASON.get(pid) or {}).get(season(dt), 0.0))
+
+
+def place_ask(pid, dt):
+    """誘いの乗り気・相手が誘う行き先の重みへの倍率 (0.9〜1.15)."""
+    return 1.0 + PLACE_ASK * place_fit(pid, dt)
+
+
+def place_fun(pid, dt, rnd=random):
+    """そこで過ごした機嫌の上下 (季節の合う所は少し楽しい. くじなので必ずではない. 0 のこともある)."""
+    f = place_fit(pid, dt)
+    return round(PLACE_FUN * f * rnd.uniform(0.3, 1.2), 1) if f else 0.0
+
+
+# 移動と力仕事: 猛暑・極寒は体力の減りが増える (28℃ から 1℃ ごとに 6%, 3℃ から 1℃ ごとに 4%. 上限 1.6 倍)
+def tire_mult(t):
+    return round(min(1.6, 1.0 + 0.06 * max(0.0, t - 28.0) + 0.04 * max(0.0, 3.0 - t)), 3)
+
+
+SNOW_SLOW = {"walk": 1.3, "bike": 1.5}       # 雪の日の遅れ (雨は以前のまま 徒歩 1.15・自転車 1.2)
+RAIN_SLOW = {"walk": 1.15, "bike": 1.2}
+
+
+def slow(how, wx):
+    return (SNOW_SLOW if wx == "snow" else RAIN_SLOW if wx == "rain" else {}).get(how, 1.0)
+
+
+# 眠り: 熱帯夜 (夜の気温 25℃ 以上) は寝苦しい. 寝ている間の体力の戻りと, 眠れた時間の数え方に (30℃ で 0.7)
+def sleep_mult(t):
+    return round(max(0.7, 1.0 - 0.06 * max(0.0, t - 25.0)), 3)
+
+
+def hot_night(d):
+    """その日の朝 (前の晩) の寝苦しさ: 2 時の気温."""
+    return temp(datetime(d.year, d.month, d.day, 2))
+
+
+def short_days(dt):
+    """日の短さ (冬至 12/21 で 1, 春分・秋分より日の長い時期は 0)."""
+    x = math.cos(2 * math.pi * (dt.timetuple().tm_yday - 355) / 365.25)
+    return max(0.0, x)
+
+
+WINTER_BLUE = 12.0        # 気分の落ち込みやすさ (traits.hurt.mood) が 1 を超えるぶん × 日の短さ × これ (機嫌の落ち着く先を下げる)
+
+
+def winter_blue(app, char, dt):
+    """冬の日の短さで, 気分の沈みやすい性格の機嫌の落ち着く先が下がる分 (0 以下. 沈みやすくない人は 0)."""
+    hm = float(((app.traits(char) if app is not None else {}).get("hurt") or {}).get("mood", 1.0))
+    return -round(WINTER_BLUE * max(0.0, hm - 1.0) * short_days(dt), 2)
+
+
+# 飲み物・食べ物: 暑い日は冷たいもの・寒い日は温かいもの. 旬の果物
+ITEM_TEMP = {"pudding": "cold", "ice_cream": "cold", "tea_leaves": "warm", "coffee_beans": "warm", "scarf": "warm"}
+FRUIT = {"spring": "いちご", "summer": "すいか", "autumn": "梨", "winter": "みかん"}
+
+
+def fruit_name(dt):
+    return FRUIT[season(dt)]
+
+
+def gift_season(app, char, iid, dt, rnd=random):
+    """贈り物の季節の合い方 (反応の条件 gift_season): cool 暑い日に冷たいもの / warm 寒い日に温かいもの / shun 旬の果物 / "" .
+    合っていても, 喜ぶ形で口に出るのはくじ (暑がり・寒がりほど出やすい)."""
+    t = temp(dt)
+    sn = sense(app, char)
+    kind = ITEM_TEMP.get(iid)
+    if kind == "cold" and t >= 26 and rnd.random() < min(0.75, 0.35 * sn["heat"] + 0.03 * (t - 26)):
+        return "cool"
+    if kind == "warm" and t <= 10 and rnd.random() < min(0.75, 0.35 * sn["cold"] + 0.03 * (10 - t)):
+        return "warm"
+    if iid == "fruit" and rnd.random() < 0.4:
+        return "shun"
+    return ""
+
+
+# 洗濯: 寒い日は乾きにくい (雨・雪の部屋干しは home のまま)
+def dry_mult(dt):
+    hi = day_range(dt.date())[1]
+    return (0.8, "寒くて乾きにくい") if hi <= 8 else (1.0, "")
+
+
+# 店の売れ行き (株): その日の暑さ・寒さ (market.conditions に足す)
+def day_conds(d):
+    lo, hi, _ = day_range(d)
+    return {k: 1 for k, on in (("hot", hi >= 30), ("cold", lo <= 2)) if on}
 
 
 def label(t):

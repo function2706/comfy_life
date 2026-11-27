@@ -1111,6 +1111,7 @@ class App:
                     float(m.get("add", 0)) for m in dr.get("mods") or [] if cond.check(m.get("when", ""), ctx))
                 if pid == "mood":
                     target += self.waves.mood_shift(char, st)       # 落ち込んでいる時期は, 機嫌の落ち着く先が下がる
+                    target += season_mod.winter_blue(self, char, dt)  # 冬の日の短さ: 気分の沈みやすい性格だけ (S39)
                 d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
             if d < 0 and pid in FLOORED:
                 # 時間だけで冷める分 (寂しさが続く など) は, ご無沙汰で冷めるのと同じ下限に近づくほど鈍り, そこで止まる.
@@ -1791,6 +1792,11 @@ class App:
                 self.items.add(gift_item, -1)        # 受け取ってもらえた (はっきり断られたら手元に残る)
                 if gift_item.startswith("outfit:"):  # 服: その人の持っている服になる (着るかは本人しだい)
                     self.wardrobe.give_to(char, gift_item.split(":", 1)[1], "player", now)
+            if not r.get("override") and not narrate and (a.get("override") or {}).get("outing"):
+                spl = opts.get("place") if opts.get("place") in (a.get("places") or []) else (a.get("override") or {}).get("place")
+                sf = season_mod.place_fun(spl, datetime.fromtimestamp(now)) if spl else 0.0
+                if sf:                                 # 行き先の季節の向き不向き (海は夏・星は冬・公園は春秋. S39)
+                    eff["mood"] = eff.get("mood", 0) + sf
             social = a.get("category") not in ("system", "あなたの予定") or a.get("request_answer") or aid in ("_pose", "_show", "_tryon")
             if social and not narrate:
                 # 現実的に: 好感度・信頼の上がり方は揺らぎ, 鈍り, 繰り返せばうんざりされる. 交流した日も記録する
@@ -2321,7 +2327,9 @@ class App:
             if it["outfit"] in self.wardrobe.owned_ids(char):
                 raise ValueError("%sは「%s」をもう持っています" % (char.get("name", ""), it["name"]))
             feel["gift_outfit"] = self.wardrobe.gift_feel(char, self.state(char["id"]), it["outfit"], time.time())
-        opts = {"gift_item": iid, "ctx": feel, "extra": {"item": it["name"]}}
+        now_dt = datetime.fromtimestamp(time.time())
+        feel["gift_season"] = season_mod.gift_season(self, char, iid, now_dt)     # 暑い日の冷たいもの・寒い日の温かいもの・旬 (S39)
+        opts = {"gift_item": iid, "ctx": feel, "extra": {"item": season_mod.fruit_name(now_dt) if iid == "fruit" else it["name"]}}
         if bought:
             opts.update(money={"p": -int(bought["price"])}, bought=dict(bought, name=it["name"]))
         r = self.act(aid, char["id"], opts=opts)
@@ -3641,7 +3649,7 @@ class App:
         # あなたの疲れ: 一人の移動と同じ (歩いた・こいだ区間の分. 帰りの移動の分も, ここで)
         for lg, a, b in ((go, frm, pl), (back, pl, home)):
             if lg:
-                ex, tired = self.geo.body_cost(lg, a, b)
+                ex, tired = self.geo.body_cost(lg, a, b, now)
                 self.body.add_exercise(ex)
                 self.life.tire(tired)
         return "（%sまで%sで%d分ほど%s）" % (self.places.label(pl), geo_mod.HOW_LABEL.get(go["how"], ""), round(go["min"]),

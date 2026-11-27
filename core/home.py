@@ -14,6 +14,7 @@ import random
 import time
 from datetime import datetime
 
+from . import season as season_mod
 from . import store
 
 PARTS = (("mess", "部屋の散らかり", 0.4), ("dishes", "洗い物", 0.2), ("laundry", "洗濯物", 0.2), ("trash", "ゴミ", 0.2))
@@ -130,7 +131,7 @@ class Home:
     # ------------------------------------------------------------------ 片付ける
     def clean(self, power, parts=None, now=None):
         """片付ける (power = 片付く量の合計). parts: 片付けるもの (無ければ全部). たまっているものほど多く片付く.
-        洗濯は雨・雪なら部屋干し (6 割), ゴミはゴミの日の朝でなければまとめるだけ (2 割). (前の目安, 後の目安, 添える注意) を返す."""
+        洗濯は雨・雪なら部屋干し (6 割), 最高気温 8℃ 以下の日は乾きにくい (8 割), ゴミはゴミの日の朝でなければまとめるだけ (2 割). (前の目安, 後の目安, 添える注意) を返す."""
         r = self.rec()
         before = self.score()
         keys = [k for k, _, _ in PARTS if not parts or k in parts]
@@ -141,6 +142,11 @@ class Home:
             if k == "laundry" and self.wet(now) and float(r[k]) >= 5:
                 got *= 0.6
                 notes.append("雨で部屋干し、乾きにくい")
+            elif k == "laundry" and float(r[k]) >= 5:
+                dm, why = season_mod.dry_mult(datetime.fromtimestamp(now or time.time()))     # 寒い日は乾きにくい (S39)
+                if why:
+                    got *= dm
+                    notes.append(why)
             if k == "trash" and not self.trash_ok(now) and float(r[k]) >= 5:
                 got *= 0.2
                 notes.append("ゴミの日じゃないので、まとめておいただけ")

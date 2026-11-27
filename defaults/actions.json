@@ -2949,6 +2949,39 @@
     "neg": ""
    },
    {
+    "text": "わ、{item}……！ 暑かったので、冷たいのうれしいです",
+    "when": "gift_season=cool, gift_feel>=30",
+    "key": "season_cool",
+    "priority": 2,
+    "effects": {
+     "mood": 4
+    },
+    "pos": "happy, relieved smile, holding gift",
+    "neg": ""
+   },
+   {
+    "text": "寒い日に{item}、うれしいです。これで温まれますね",
+    "when": "gift_season=warm, gift_feel>=30",
+    "key": "season_warm",
+    "priority": 2,
+    "effects": {
+     "mood": 4
+    },
+    "pos": "happy, warm smile, holding gift",
+    "neg": ""
+   },
+   {
+    "text": "{item}！ もうそんな季節なんですね。ありがとうございます",
+    "when": "gift_season=shun, gift_feel>=30",
+    "key": "season_shun",
+    "priority": 2,
+    "effects": {
+     "mood": 3
+    },
+    "pos": "happy, smile, holding fruit",
+    "neg": ""
+   },
+   {
     "text": "あ……ありがとうございます。（{item}は、あまり得意じゃないみたいだ）",
     "when": "disliked=true",
     "key": "disliked_true",

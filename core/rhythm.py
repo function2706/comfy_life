@@ -13,6 +13,8 @@
 import random
 from datetime import datetime, timedelta
 
+from . import season as season_mod
+
 WORK_ACTS = ("parttime", "work", "job", "office", "shift")
 WORK_WORDS = ("バイト", "仕事", "勤務", "出勤")
 KEEP_DAYS = 4                 # 状態に覚えておく日数
@@ -106,6 +108,9 @@ def decide(app, char, st, d, matcher, use_state=True):
     wake = max(-45, min(45, rnd.gauss(0, 12 * irr)))
     if free_morning(char, d, matcher) and rnd.random() < 0.35 * min(1.2, irr):
         wake += rnd.uniform(20, 90)                                  # 休みの日の寝坊
+    tn = season_mod.hot_night(d)
+    if tn >= 25 and rnd.random() < min(0.8, 0.15 * (tn - 24) * season_mod.sense(app, char)["heat"]):
+        wake -= rnd.uniform(15, 50)                                  # 熱帯夜で寝苦しく, 早く目が覚めた (S39)
     p_early = 0.06 + max(0, 35 - energy) / 100.0 + max(0, 60 - health) / 80.0
     p_late = (0.08 + (0.17 if free_next else 0) + max(0, mood - 60) / 200.0) * irr
     p_allnight = (0.004 + (0.006 if free_next else 0) + (0.01 if stress >= 60 else 0)) * irr

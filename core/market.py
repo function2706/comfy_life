@@ -18,19 +18,20 @@ from . import season as season_mod
 
 SESSIONS = ((9 * 60, 11 * 60 + 30), (12 * 60 + 30, 15 * 60))
 STEP = 300
-# 店の種類ごとの, 季節・天気・行楽の時期への感じやすさ (目標の上下 = 合計 × sector_scale)
+# 店の種類ごとの, 季節・天気・行楽の時期への感じやすさ (目標の上下 = 合計 × sector_scale).
+# hot 猛暑日 (最高 30℃ 以上) / cold 冷え込む日 (最低 2℃ 以下) は, その日の気温 (S39. season.day_conds)
 SECTOR_EFFECTS = {
     "supermarket": {"rain": 0.6, "snow": 1.0, "holiday": -0.3},
-    "convenience": {"summer": 0.6, "rain": 0.3, "winter": -0.3},
-    "drugstore": {"winter": 0.8, "spring": 0.4, "summer": -0.4},
+    "convenience": {"summer": 0.6, "hot": 0.5, "rain": 0.3, "winter": -0.3},
+    "drugstore": {"winter": 0.8, "cold": 0.4, "hot": 0.2, "spring": 0.4, "summer": -0.4},
     "bookstore": {"rain": 0.5, "autumn": 0.4, "summer": -0.3},
-    "electronics": {"summer": 0.5, "winter": 0.3, "holiday": 0.4, "spring": -0.3},
-    "eat": {"rain": -0.7, "snow": -0.9, "holiday": 0.4, "sunny": 0.2},
-    "mall": {"rain": 0.4, "holiday": 0.7, "summer": 0.2},
-    "cafe": {"winter": 0.4, "rain": 0.3, "summer": -0.3},
-    "amusement": {"sunny": 0.4, "rain": -1.0, "snow": -1.0, "holiday": 1.0, "winter": -0.6},
-    "aquarium": {"summer": 0.6, "rain": 0.3, "holiday": 0.8, "winter": -0.4},
-    "food": {"winter": 0.2},
+    "electronics": {"summer": 0.5, "hot": 0.5, "cold": 0.3, "winter": 0.3, "holiday": 0.4, "spring": -0.3},
+    "eat": {"rain": -0.7, "hot": -0.2, "snow": -0.9, "holiday": 0.4, "sunny": 0.2},
+    "mall": {"rain": 0.4, "hot": 0.3, "holiday": 0.7, "summer": 0.2},
+    "cafe": {"winter": 0.4, "cold": 0.3, "rain": 0.3, "summer": -0.3},
+    "amusement": {"sunny": 0.4, "hot": -0.4, "cold": -0.4, "rain": -1.0, "snow": -1.0, "holiday": 1.0, "winter": -0.6},
+    "aquarium": {"summer": 0.6, "hot": 0.3, "rain": 0.3, "holiday": 0.8, "winter": -0.4},
+    "food": {"winter": 0.2, "cold": 0.2},
 }
 SECTOR_LABEL = {"supermarket": "スーパー", "convenience": "コンビニ", "drugstore": "ドラッグストア", "bookstore": "本屋",
                 "electronics": "家電量販店", "eat": "飲食店", "mall": "ショッピングモール", "cafe": "カフェ", "amusement": "遊園地",
@@ -111,6 +112,7 @@ def holiday_season(d):
 def conditions(dt):
     w = outdoor_mod.weather(dt)["id"]
     c = {season_mod.season(dt): 1, w: 1}
+    c.update(season_mod.day_conds(dt.date()))          # 猛暑日・冷え込む日 (S39)
     if holiday_season(dt.date()):
         c["holiday"] = 1
     return c

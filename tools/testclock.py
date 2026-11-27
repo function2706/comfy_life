@@ -4,6 +4,7 @@
 移動 (core/geo.py) には時間をかけない (すぐ着く. 移動そのものは tools/test_geo.py で).
 株の市場は, いつでも開いていることにする (本物は market.is_open_real. 取引時間そのものは tools/test_market.py で).
 気温は 20℃・屋外の行き先への気持ちは 1 にする (流す季節で結果が揺れないように. 本物は season.temp_real / out_factor_real. 気温そのものは tools/test_season.py で).
+季節のつながり (行き先の向き不向き・冬の日の短さ・贈り物の季節) も効かせない (本物は season.place_ask_real など. tools/test_season_link.py で).
 
     from testclock import fix_noon; fix_noon(engine)
 """
@@ -49,6 +50,11 @@ def fix_noon(engine):
     season.temp_real, season.out_factor_real = season.temp, season.out_factor
     season.temp = lambda dt, wx=None: 20.0
     season.out_factor = lambda app, char, dt, wx=None: 1.0
+    # 季節のつながり (S39) も流す季節で揺れないように: 行き先の向き不向き・冬の日の短さ・贈り物の季節. 本物は *_real (tools/test_season_link.py)
+    for k, v in (("place_ask", lambda pid, dt: 1.0), ("place_fun", lambda pid, dt, rnd=None: 0.0),
+                 ("winter_blue", lambda app, char, dt: 0.0), ("gift_season", lambda app, char, iid, dt, rnd=None: "")):
+        setattr(season, k + "_real", getattr(season, k))
+        setattr(season, k, v)
     season.day_range.cache_clear()
     App.FORGET_RATE_real, App.FORGET_RATE = App.FORGET_RATE, 0     # うっかり返し忘れはしない (返事が届くのを確かめるテストが揺れないように. 返し忘れは tools/test_hima.py)
     App._noon_fixed = True

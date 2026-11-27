@@ -17,6 +17,7 @@ import time
 from datetime import datetime, timedelta
 
 from . import places as places_mod
+from . import season as season_mod
 from . import store
 from . import roads as roads_mod
 from . import transit as transit_mod
@@ -197,7 +198,7 @@ class Geo:
         p = self.road(a, b)
         m = p["km"] / (RUN_KMH if run else WALK_KMH) * 60
         w = self._weather(t)
-        return m * (1.15 if w in ("rain", "snow") else 1.0) + self.cross_min(p, t)
+        return m * season_mod.slow("walk", w) + self.cross_min(p, t)        # 雨 1.15 倍・雪 1.3 倍 (S39)
 
     def _weather(self, t):
         from .outdoor import weather
@@ -251,7 +252,8 @@ class Geo:
         p = self.road(a, b)
         km = p["km"]
         h = _hour(t)
-        wet = self._weather(t) in ("rain", "snow")
+        wx = self._weather(t)
+        wet = wx in ("rain", "snow")
         walk = self.walk_min(a, b, t)
         modes = {"walk": {"min": round(walk), "fare": 0, "ok": walk <= WALK_MAX_MIN,
                           "note": "" if walk <= WALK_MAX_MIN else "歩いて行くには遠すぎる（%d時間を超える）" % (WALK_MAX_MIN // 60)}}
@@ -264,11 +266,11 @@ class Geo:
         if pair:
             pass                                               # 一緒の移動: 自転車は出さない (自転車は置いた所に残る. 取りに行くのは F14)
         elif km > 0 and self._vehicle_ok("bicycle", a, t):    # 自転車は近場でも乗れる
-            m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0) + self.cross_min(p, t)
+            m = km / BIKE_KMH * 60 * season_mod.slow("bike", wx) + self.cross_min(p, t)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": m <= BIKE_MAX_MIN,
-                             "note": ("自転車で行くには遠すぎる（%d分を超える）" % BIKE_MAX_MIN) if m > BIKE_MAX_MIN else "雨の中を走る" if wet else ""}
+                             "note": ("自転車で行くには遠すぎる（%d分を超える）" % BIKE_MAX_MIN) if m > BIKE_MAX_MIN else "雪の中を走る" if wx == "snow" else "雨の中を走る" if wet else ""}
         elif km > 0 and self.app.items.count("bicycle") > 0:  # 持っているが, ここには無い: どこに置いてあるかを出す (行けば乗れる)
-            m = km / BIKE_KMH * 60 * (1.2 if wet else 1.0) + self.cross_min(p, t)
+            m = km / BIKE_KMH * 60 * season_mod.slow("bike", wx) + self.cross_min(p, t)
             modes["bike"] = {"min": round(m), "fare": 0, "ok": False,
                              "note": "自転車は%sに置いてある" % self.app.places.label(self.veh_at("bicycle", t))}
         if km > 0.3 and self._vehicle_ok("car", a, t):
@@ -456,7 +458,7 @@ class Geo:
         out = {}
         bike_here = side == "access" and not pair and self._vehicle_ok("bicycle", pid, t)
         car_here = side == "access" and self._vehicle_ok("car", pid, t)
-        wet = self._weather(t) in ("rain", "snow")
+        wx = self._weather(t)
         for sid, stn in net["stations"].items():
             if sid == pid:
                 out[sid] = (0.0, 0, "walk", None)
@@ -468,12 +470,12 @@ class Geo:
             km = p["km"]
             cw = self.cross_min(p, t)
             c = []
-            wm = km / WALK_KMH * 60 * (1.15 if wet else 1.0) + cw
+            wm = km / WALK_KMH * 60 * season_mod.slow("walk", wx) + cw
             if wm <= transit_mod.ACCESS_WALK_MAX:
                 c.append((wm, 0, "walk", None))
             if side == "access":
                 if bike_here and km > 0.3:
-                    c.append((km / BIKE_KMH * 60 * (1.2 if wet else 1.0) + cw, transit_mod.BIKE_PARK, "bike", "bicycle"))
+                    c.append((km / BIKE_KMH * 60 * season_mod.slow("bike", wx) + cw, transit_mod.BIKE_PARK, "bike", "bicycle"))
                 if car_here and km > 0.5:
                     c.append((CAR_ADD + self.drive(p, t), transit_mod.CAR_PARK, "car", "car"))
             else:                        # 駅に置いてある自転車・車で, 行き先まで
@@ -723,19 +725,20 @@ class Geo:
                 return lg
         return legs[-1]
 
-    def body_cost(self, lg, a, b):
-        """移動 1 回の運動の量と疲れ (歩く・走る・自転車をこぐ分. 電車・バスは駅まで歩く分だけ, 車・タクシーは無し)."""
+    def body_cost(self, lg, a, b, t=None):
+        """移動 1 回の運動の量と疲れ (歩く・走る・自転車をこぐ分. 電車・バスは駅まで歩く分だけ, 車・タクシーは無し).
+        歩く・こぐ・走る疲れは, 猛暑・極寒で増える (t: 移動の時刻. 区間があれば区間の時刻. S39)."""
         from .body import MOVE_PER_H
         how = lg["how"]
         if lg.get("legs"):                       # 経路: 歩いた・こいだ区間の分
-            from .body import MOVE_PER_H
             ex = tired = 0.0
             for x in lg["legs"]:
                 h = (x["t1"] - x["t0"]) / 3600.0
+                hv = self._heat(x["t0"]) if x["kind"] in ("walk", "bike") else 1.0
                 if x["kind"] == "walk":
-                    ex, tired = ex + MOVE_PER_H["walk"] * h, tired + 2.5 * h
+                    ex, tired = ex + MOVE_PER_H["walk"] * h, tired + 2.5 * h * hv
                 elif x["kind"] == "bike":
-                    ex, tired = ex + MOVE_PER_H["walk"] * 1.1 * h, tired + 3.0 * h
+                    ex, tired = ex + MOVE_PER_H["walk"] * 1.1 * h, tired + 3.0 * h * hv
                 elif x["kind"] == "ride" and x.get("crowd"):
                     tired += 1.5 * h                         # 混んだ電車・バスで立っている
                 elif x["kind"] in ("car", "taxi", "ride"):
@@ -748,7 +751,12 @@ class Geo:
         else:
             h = (lg["min"] - lg.get("wait", 0)) / 60.0
         per = {"run": (MOVE_PER_H["jog"], 6.0), "bike": (MOVE_PER_H["walk"] * 1.1, 3.0)}.get(how, (MOVE_PER_H["walk"], 2.5))
-        return per[0] * h, per[1] * h
+        return per[0] * h, per[1] * h * self._heat(t or lg.get("t0"))
+
+    @staticmethod
+    def _heat(t):
+        """猛暑・極寒の歩き・こぎの疲れの倍率 (season.tire_mult)."""
+        return season_mod.tire_mult(season_mod.temp(datetime.fromtimestamp(t or time.time())))
 
     def used(self, lg, to):
         """自転車・車で行った: 乗り物は行った先に置いてある."""
@@ -1066,7 +1074,7 @@ class Geo:
         lg = self.leg(frm, to, how, now)
         if lg["fare"]:
             app.life.move(None, dp=-lg["fare"], cat="transport", note="%s（%s）" % (FARE_NOTE[lg["how"]], app.places.label(to)))
-        ex, tired = self.body_cost(lg, frm, to)
+        ex, tired = self.body_cost(lg, frm, to, now)
         app.body.add_exercise(ex)
         app.life.tire(tired)
         self.used(lg, to)

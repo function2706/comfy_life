@@ -877,9 +877,10 @@ class Appoint:
                                      * (self.out_factor(char, pid, dt) if dt else 1.0) for pid, a in opts])[0]
 
     def out_factor(self, char, pid, dt):
-        """屋外の行き先への, その時の気持ち (暑さ・寒さ・雨と, 外好きか. 屋内の行き先・家は 1. S38)."""
+        """屋外の行き先への, その時の気持ち (暑さ・寒さ・雨と, 外好きか. 屋内の行き先・家は 1. S38).
+        行き先の季節の向き不向き (海は夏・星は冬・公園は春秋. S39) も掛ける."""
         pl = self.app.places.get(pid) or {}
-        return season_mod.out_factor(self.app, char, dt) if pl.get("outdoor") else 1.0
+        return season_mod.out_factor(self.app, char, dt) * season_mod.place_ask(pid, dt) if pl.get("outdoor") else 1.0
 
     @staticmethod
     def paid(a):

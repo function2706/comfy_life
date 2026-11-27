@@ -19,6 +19,7 @@ import time
 from datetime import datetime, timedelta
 
 from . import items as items_mod
+from . import season as season_mod
 
 
 JOBS = [
@@ -51,6 +52,7 @@ GIGS = {
 FAVORS = [("move", "引っ越しの手伝い", 4.0, 30), ("clean", "大掃除の手伝い", 3.0, 20), ("furniture", "家具の組み立て", 2.0, 12),
           ("plants", "留守中の植木の水やり", 0.5, 2), ("pc", "パソコンの設定", 1.0, 4), ("carry", "荷物運び", 1.5, 14)]
 FAVOR_KIND = {k: (k, n, h, t) for k, n, h, t in FAVORS}
+FAVOR_HEAVY = ("move", "carry")        # 力仕事: 猛暑・極寒は疲れが増える (S39. season.tire_mult)
 FAVOR_BY_LABEL = {n: k for k, n, h, t in FAVORS}
 # フリマ: 売れない種類 (食べ物・消耗品). 送料 (種類ごと). 手数料 10%
 FLEA_NG = ("food", "meal", "tea", "sweets", "medicine", "detergent")
@@ -485,7 +487,8 @@ class Earn:
         char = app.chars.get(cid) or {}
         name = char.get("name", "")
         st = app.state(cid)
-        self.L.tire(f["tire"] * min(1.0, h / max(0.25, f["h"])))
+        hv = season_mod.tire_mult(season_mod.temp(datetime.fromtimestamp(t))) if f.get("kind") in FAVOR_HEAVY else 1.0
+        self.L.tire(f["tire"] * min(1.0, h / max(0.25, f["h"])) * hv)
         if h >= f["h"] * 0.6 and char:
             app.attach.give(char, st, "me", 3, "頼まれごとを手伝った")
         if h < f["h"] * 0.6:

@@ -34,6 +34,8 @@ _C = [
     ("jelly_drink", "ゼリー飲料", "🧃", "meal", 200, ["convenience", "drugstore", "supermarket"], ["food"], False),
     ("okayu", "レトルトのおかゆ", "🍚", "meal", 260, ["convenience", "drugstore", "supermarket"], ["food"], False),
     ("pudding", "プリン", "🍮", "sweets", 180, ["convenience", "supermarket", "station"], ["sweets"], True),
+    ("ice_cream", "アイス", "🍨", "sweets", 300, ["convenience", "supermarket", "mall", "amusement"], ["sweets"], True),
+    ("fruit", "旬の果物", "🍓", "sweets", 1500, ["supermarket", "shopping_street", "mall"], ["sweets"], True),
     ("detergent", "洗剤", "🧴", "detergent", 500, ["drugstore", "supermarket", "convenience", "shopping_street", "mall"], ["practical"], False),
     ("book_talk", "話し方の本", "📕", "book_talk", 1500, ["bookstore", "station", "mall"], ["books"], True),
     ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["bookstore", "mall"], ["books"], True),

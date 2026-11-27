@@ -134,8 +134,8 @@ class Body:
         for k in NUTRI:
             b["nutri"][k] = max(0.0, b["nutri"][k] - NUTRI_PER_DAY * h / 24.0)
         td = b["today"]                       # その日の過ごし方 (日付が変わったときの体調の判定に)
-        if sleeping:
-            td["slept"] = td.get("slept", 0.0) + h
+        if sleeping:                          # 熱帯夜は寝苦しく, 眠れた時間が短く数えられる (S39)
+            td["slept"] = td.get("slept", 0.0) + h * season_mod.sleep_mult(season_mod.temp(datetime.fromtimestamp(t)))
         if b["satiety"] < 15:
             td["hungry"] = td.get("hungry", 0.0) + h
         if mode in ("out", "work"):

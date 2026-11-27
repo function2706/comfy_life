@@ -24,6 +24,7 @@ from datetime import date, datetime, timedelta
 from . import cond, llm, store
 from . import geo as geo_mod
 from . import places as places_mod
+from . import season as season_mod
 from .home import PART_LABEL
 
 KINDS = {
@@ -618,12 +619,13 @@ class Solo:
             text = "%s%s%s。%sが%s" % (_dur(h), "本を見ながら" if book else "", PRACTICE_TEXT[sk], SKILL_LABEL[sk],
                                        "少し伸びた" if gain >= 0.1 else "伸びた気はあまりしない")
         elif kind == "jog":
-            L.tire(min(40.0, 8 * h))                 # 走るのは疲れる (体は動かした: body.step)
+            hv = season_mod.tire_mult(season_mod.temp(datetime.fromtimestamp(now - h * 1800)))     # 猛暑・極寒はこたえる (S39)
+            L.tire(min(40.0 * hv, 8 * h * hv))       # 走るのは疲れる (体は動かした: body.step)
             text = "%s%sを走った。%s" % (_dur(h), where, "息が上がったけれど、すっきりした" if h < 1.5 else "走りすぎて、へとへとだ")
             text += self._wet(place, h, now)
         elif kind == "walk":
             ef = places_mod.effort(place)            # 山道・砂浜は, 同じ時間でも疲れる (運動にもなる: body.step)
-            L.tire(2 * h * ef)
+            L.tire(2 * h * ef * season_mod.tire_mult(season_mod.temp(datetime.fromtimestamp(now - h * 1800))))   # 猛暑・極寒 (S39)
             text = "%s%s一人で%s" % (_dur(h), where + "を" if where else "",
                                    "歩いた。足が重い" if ef >= 1.8 and h >= 1 else "ぶらぶらした")
             text += self._wet(place, h, now)
