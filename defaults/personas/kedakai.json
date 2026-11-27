@@ -3495,6 +3495,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見たわ。もう大丈夫よ』"
+  ],
+  "_dress.dress_temp_cold": [
+   "この寒さでそれを着ろと？ 風邪をひくのは{fp}なのよ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}はひどく暑くなるそうよ。{place}で過ごすのはお断りするわ』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}は冷え込むそうね。外で過ごすのは遠慮しておくわ』"
   ]
  }
 }

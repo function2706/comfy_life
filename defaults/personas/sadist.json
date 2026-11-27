@@ -3465,6 +3465,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見たわ。もういいのよ』"
+  ],
+  "_dress.dress_temp_cold": [
+   "この寒さで？ 自分で着てみたら。{fp}は遠慮しておくわ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}は暑くなるそうよ。{place}で汗だくになる趣味はないの』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}は冷えるそうね。外で震えるのはごめんよ』"
   ]
  }
 }

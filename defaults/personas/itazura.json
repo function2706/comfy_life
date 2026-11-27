@@ -3957,6 +3957,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見た。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "この寒さでそれ着せるつもり？ ひどいなぁ。あったかくなったら考えてあげる"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}すごく暑いんだって。{place}で溶けてる{fp}、見たい？ ……ってことで、また今度』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}かなり寒いみたいだよ。外で震えるのはやだな。また今度ね』"
   ]
  }
 }

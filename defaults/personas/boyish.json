@@ -3503,6 +3503,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見た。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "いや、今日寒いって。それ着たら震えるだけだよ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}めちゃくちゃ暑いらしいじゃん。{place}はさすがにきついって。ごめん』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}すごい寒いみたいでさ。外はちょっとパス。ごめん』"
   ]
  }
 }

@@ -3803,6 +3803,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見た。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "今日寒いじゃん。それはないって"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}、すごい暑いらしいよ。{place}はやめとこ。熱中症になるって』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}めちゃくちゃ寒いんだって。外はやめとこ』"
   ]
  }
 }

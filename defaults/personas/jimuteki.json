@@ -3509,6 +3509,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見たわ。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "室温を考えると、その服は不適切。却下"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}は高温の予報。{place}での活動は避けるべき。ごめんなさい』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}は低温の予報。屋外は避けたい。ごめんなさい』"
   ]
  }
 }

@@ -3467,6 +3467,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見たよ。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "今日は空気が冷たいから、それを着たら{fp}、凍っちゃうと思う"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}はね、お日さまが強すぎるみたい。{place}は、また涼しい日にしよう』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}は、外の空気がとても冷たい日なんだって。暖かい日にしない？』"
   ]
  }
 }

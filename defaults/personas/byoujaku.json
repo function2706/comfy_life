@@ -3534,6 +3534,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見たよ。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "ごめんね……この寒さだと、すぐ体調崩しちゃいそうで……"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}、すごく暑くなるみたいで……{place}だと、たぶん倒れちゃう。ごめんね』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}は冷えるみたいで……外にいたら、きっと熱出しちゃう。ごめんね』"
   ]
  }
 }

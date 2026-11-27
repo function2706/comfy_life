@@ -3456,6 +3456,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『あ、今見た。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "今日寒いからさ、それはまた今度ね。風邪ひいたら困るし"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}すごい暑くなるんだって。{place}はさすがにやめとこっか。涼しい日にまた！』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}かなり寒いみたい。外はまた今度にしよ。ごめんね』"
   ]
  }
 }

@@ -3510,6 +3510,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見た。もう大丈夫だ』"
+  ],
+  "_dress.dress_temp_cold": [
+   "この寒さでそれは着られない。体を冷やしたくないんだ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}は相当な暑さになるらしい。{place}は控えよう。すまない』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}はかなり冷え込むらしい。外は避けたい。すまない』"
   ]
  }
 }

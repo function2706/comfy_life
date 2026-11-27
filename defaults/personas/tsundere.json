@@ -3496,6 +3496,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見た。もう大丈夫よ』"
+  ],
+  "_dress.dress_temp_cold": [
+   "この寒さでそれ着ろって？ 風邪ひいたらどうしてくれるのよ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『{when}すごく暑いらしいじゃない。{place}なんて行ったら倒れるわよ。……別の日にして』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『{when}すごく寒いらしいわよ。外なんて嫌。……別の日なら、考えてあげる』"
   ]
  }
 }

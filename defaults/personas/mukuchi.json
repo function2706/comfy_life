@@ -3509,6 +3509,15 @@
   ],
   "chat.appoint_where_gone": [
    "📱『今見た。もう大丈夫』"
+  ],
+  "_dress.dress_temp_cold": [
+   "……寒い。今日は、やだ"
+  ],
+  "chat.appoint_no_hot": [
+   "📱『……{when}、暑すぎる。{place}は、無理。ごめん』"
+  ],
+  "chat.appoint_no_cold": [
+   "📱『……{when}、寒い。外は、やめたい』"
   ]
  }
 }
