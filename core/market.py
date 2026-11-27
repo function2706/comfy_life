@@ -14,6 +14,7 @@ import time
 from datetime import date, datetime, timedelta
 
 from . import outdoor as outdoor_mod
+from . import season as season_mod
 
 SESSIONS = ((9 * 60, 11 * 60 + 30), (12 * 60 + 30, 15 * 60))
 STEP = 300
@@ -109,7 +110,7 @@ def holiday_season(d):
 
 def conditions(dt):
     w = outdoor_mod.weather(dt)["id"]
-    c = {outdoor_mod.SEASONS[dt.month]: 1, w: 1}
+    c = {season_mod.season(dt): 1, w: 1}
     if holiday_season(dt.date()):
         c["holiday"] = 1
     return c

@@ -31,6 +31,8 @@ import random
 import time
 from datetime import datetime
 
+from . import season as season_mod
+
 from .places import kind_of as _kind_of, price_rate as _price_rate, with_branches as _with_branches
 
 NUTRI = ("staple", "protein", "veg")
@@ -91,6 +93,7 @@ EXERCISE_PER_DAY = 30.0      # 運動の蓄えの減り (1 日あたり. 30 分�
 MOVE_PER_H = {"jog": 120.0, "walk": 66.0, "outing": 48.0, "shop": 36.0, "see": 40.0, "chores": 24.0, "work": 2.0, "other": 12.0}
 EXERCISE_LOW = 20.0          # これを下回る日が続くと運動不足
 HEALTH_WORD = {0: "", 1: "少しだるい", 2: "熱っぽい。風邪をひいたみたいだ", 3: "寝込むほどつらい。病院へ行ったほうが良さそうだ"}
+HOT_OUT, COLD_OUT = 31.0, 3.0     # これより暑い / 寒い外にいた時間を数える (S38)
 HEALTH_MULT = {"stamina": (1.0, 0.85, 0.65, 0.35), "work": (1.0, 0.92, 0.75, 0.5), "train": (1.0, 0.85, 0.6, 0.3)}
 MEDICINE = "cold_medicine"
 
@@ -137,6 +140,8 @@ class Body:
             td["hungry"] = td.get("hungry", 0.0) + h
         if mode in ("out", "work"):
             td["out"] = td.get("out", 0.0) + h
+        if mode in ("out", "here", "idle"):
+            self._exposure(t, h, mode)
         sl = self.app.presence.rec().get("solo") or {}
         if mode == "busy" and sl.get("kind") == "rest":
             td["rested"] = td.get("rested", 0.0) + h
@@ -168,6 +173,21 @@ class Body:
                 return MOVE_PER_H["outing"]
         return 0.0
 
+    def _exposure(self, t, h, mode):
+        """暑い外 (31℃ 以上)・寒い外 (3℃ 以下) にいた時間を, その日の体調の判定に (wet と同じ持ち方. S38).
+        屋内の行き先 (店の中) は, 行き帰りのぶんとして 3 割だけ数える."""
+        from .places import is_home
+        cur = self.app.outdoor.current(t)
+        if not cur or (mode != "out" and cur.get("kind") != "outing") or cur.get("inside") or is_home(cur.get("place") or ""):
+            return
+        tc = season_mod.temp(datetime.fromtimestamp(t))
+        k = "hot" if tc >= HOT_OUT else "cold" if tc <= COLD_OUT else None
+        if not k:
+            return
+        pl = self.app.places.get(cur.get("place")) or {}
+        td = self.rec()["today"]
+        td[k] = round(td.get(k, 0.0) + h * (1.0 if pl.get("outdoor") else 0.3), 3)
+
     def add_wet(self, h):
         """雨・雪の中を外で過ごした時間 (その日の体調の判定に)."""
         td = self.rec()["today"]
@@ -190,7 +210,8 @@ class Body:
         b = self.rec()
         s = b["satiety"]
         lazy = 0.9 if b.get("lazy_days", 0) >= 3 else 1.0          # 運動不足が続くと戻りにくい
-        return (0.4 if s < 8 else 0.6 if s < 20 else 1.0) * HEALTH_MULT["stamina"][self.level()] * lazy
+        heat = 0.9 if (b.get("today") or {}).get("hot", 0) >= 1 else 1.0     # 暑い外に 1 時間以上いた日 (夏バテ. S38)
+        return (0.4 if s < 8 else 0.6 if s < 20 else 1.0) * HEALTH_MULT["stamina"][self.level()] * lazy * heat
 
     def train_mult(self):
         return HEALTH_MULT["train"][self.level()]
@@ -231,8 +252,13 @@ class Body:
             why["weather"] = min(0.05, 0.02 + 0.01 * td["wet"])
         elif td.get("out", 0) > 1 and wx["id"] in ("rain", "snow"):
             why["weather"] = 0.01
-        if datetime.fromtimestamp(t).month in (12, 1, 2):
+        lo, hi, _ = season_mod.day_range(datetime.fromtimestamp(t - 3600).date())       # その日の気温 (S38. 以前は冬の月で決め打ち)
+        if lo <= COLD_OUT:
             why["winter"] = 0.01
+        if td.get("hot", 0) > 0.5:          # 暑い外に長くいた (熱中症・夏バテ)
+            why["heat"] = min(0.04, 0.012 * td["hot"])
+        if td.get("cold", 0) > 0.5:         # 寒い外に長くいた
+            why["cold"] = min(0.04, 0.01 * td["cold"])
         if b.get("lazy_days", 0) >= 4:
             why["exercise"] = 0.015 if b["lazy_days"] < 10 else 0.03
         return 0.006 + sum(why.values()), why

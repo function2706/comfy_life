@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime
 
 from . import bonds as bonds_mod
+from . import season as season_mod
 from . import activity as activity_mod
 from . import remote as remote_mod
 from . import push as push_mod
@@ -91,8 +92,7 @@ DAY_JA = "月火水木金土日"
 WAVE_RATE = {"loneliness": "lonely", "boredom": "bored"}     # 生活の波で, たまる速さが変わるパラメータ (core/waves.py)
 FLOORED = ("affection", "trust")          # 時間の経過だけでは cool_floor より下がらないパラメータ
 LOG_KEEP_IN_VIEW = 60
-SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
-           6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+SEASONS = season_mod.SEASONS        # 季節の表は core/season.py に 1 つ (S38)
 # あなた一人の行動 (コマンド) → 一人の時間の記録の種類
 MY_ACTION_KIND = {"work": "work", "_back": "back", "_return": "back", "go_work": "work", "go_out": "out", "go_sleep": "sleep",
                   "go_leave": "leave", "go_busy": "busy"}
@@ -929,7 +929,7 @@ class App:
             if s["outing"]:
                 o = self.wardrobe_item(char, st["outer"].get("id"))
         elif dt is not None and s["outing"]:
-            o = self.wardrobe.outer_pick(char, st, dt)
+            o = self.wardrobe.outer_pick(char, st, dt, base=self.wardrobe.text_warmth(s["outfit"]))   # いまの服の暖かさで (S38)
         if o:
             s["outfit"] = join_tags([o.get("pos", ""), s["outfit"]])
             s["outfit_neg"] = join_tags([s["outfit_neg"], o.get("neg", "")])
@@ -1619,6 +1619,7 @@ class App:
                 ctx["dress_feel"] = self.wardrobe.accept(char, st, outfit, now, others=len(self.bonds.company(now)) > 1) \
                     if outfit else "ok"
                 ctx["dress_bold"] = int((outfit or {}).get("bold") or 0)
+                ctx["dress_temp"] = self.wardrobe.temp_feel(char, outfit, dt) if outfit else ""      # 寒すぎる服 (S38)
             pose = None
             if aid in ("_pose", "_show"):             # ポーズを取って / ○○を見せて (大人だけ. 受け入れは着せ替えと同じ考え方)
                 pose = self.posing.get(opts.get("pose") or "")

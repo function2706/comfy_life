@@ -13,6 +13,7 @@ import time
 from datetime import datetime
 
 from . import places as places_mod
+from . import season as season_mod
 from . import store
 from .stay import STAY_MORNING
 
@@ -30,8 +31,7 @@ SEASON_WEATHER = {"spring": (("sunny", 0.5), ("cloudy", 0.3), ("rain", 0.2)),
                   "summer": (("sunny", 0.55), ("cloudy", 0.2), ("rain", 0.25)),
                   "autumn": (("sunny", 0.5), ("cloudy", 0.3), ("rain", 0.2)),
                   "winter": (("sunny", 0.45), ("cloudy", 0.35), ("rain", 0.1), ("snow", 0.1))}
-SEASONS = {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring",
-           6: "summer", 7: "summer", 8: "summer", 9: "autumn", 10: "autumn", 11: "autumn"}
+SEASONS = season_mod.SEASONS        # 季節の表は core/season.py に 1 つ (S38)
 ARRIVE_GRACE = 10 * 60    # 移動中に閉じて, 着いてからこれだけの間に開けば, そのまま行き先にいる
 DEFAULTS = {"rate_out": 0.6, "rate_outing": 0.25, "rate_work": 0.3}     # 1時間あたり (人の多さ 1.0・晴れのとき)
 
@@ -50,6 +50,8 @@ def weather(dt):
         if r < acc:
             wid = w
             break
+    if wid == "snow" and season_mod.base_temp(dt) > season_mod.SNOW_MAX:
+        wid = "rain"                                        # 暖かい日の雪は雨 (S38)
     name, icon, out_m, in_m = WEATHER[wid]
     return {"id": wid, "label": name, "icon": icon, "outdoor": out_m, "indoor": in_m}
 
@@ -85,10 +87,9 @@ class Outdoor:
         pv = self.app.places.view(now)
         from .solo import JOG_PLACES
         ch = dict(CHOICES, out=self.app.places.out_choices(), jog=list(JOG_PLACES))
-        out = {"weather": weather(dt), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
+        out = {"weather": dict(weather(dt), **season_mod.view(dt)), "places": pv["places"], "groups": pv["groups"], "does": pv["does"],
                "choices": ch, "routine_choices": list(places_mod.ROUTINE_OUT), "near": pv.get("near", {}), "current": None}
-        out["season"] = ("winter", "winter", "spring", "spring", "spring", "summer", "summer", "summer", "autumn", "autumn", "autumn",
-                         "winter")[dt.month - 1]      # 服の棚の「いまの季節」(S37. wardrobe.season と同じ割り当て)
+        out["season"] = season_mod.season(dt)      # 服の棚の「いまの季節」(S37)
         out["with_home"] = {k: self.app.places.with_why(k) for k in ch["out"] if self.app.places.with_why(k)}     # 一緒にいる人の家 (F18)
         if cur:
             pl = self.app.places.get(cur["place"]) or PLACES["town"]

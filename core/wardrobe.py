@@ -34,6 +34,7 @@ import uuid
 
 from . import items as items_mod
 from . import outdoor as outdoor_mod
+from . import season as season_mod
 from . import store
 
 KINDS = {"casual": "普段着", "lounge": "部屋着", "formal": "よそ行き", "work": "仕事着", "pajamas": "パジャマ",
@@ -79,6 +80,7 @@ SAMPLE_FILL = (("top", "plain grey t-shirt"), ("bottom", "plain black long pants
 COLOR_WORDS = re.compile(r"\b(white|black|gr[ae]y|navy|blue|red|pink|yellow|green|khaki|beige|brown|purple|ivory|cream|"
                          r"orange|gold|golden|silver|denim|pastel|lavender|burgundy|camel|olive|mint|multicolored|rainbow)\b", re.I)
 OUTER = "outer"                       # 上に羽織るもの (コート・ジャケット). 着せ替えの一式ではなく, いまの服の上に重ねる
+BASE_WARMTH = 2.3                     # 服の暖かさが文から分からないときの見積もり (トップス + ボトムス + 靴 + 靴下ほど. S38)
 TRYON_MIN = 60                        # 買ってもらったアウターを「いま着てみて」と頼める時間 (分)
 SEASONS = {"spring": "春", "summer": "夏", "autumn": "秋", "winter": "冬"}
 BOLD_LABEL = ("ふつう", "少し大胆", "大胆", "かなり大胆")
@@ -578,6 +580,7 @@ class Wardrobe:
                 "name": "・".join(o["name"] for o in parts if o["slot"] != "lingerie" or not top) or "（何も着ていない）",
                 "pos": ", ".join(o["pos"] for o in d), "neg": ", ".join(o["neg"] for o in d if o.get("neg")),
                 "bold": max([o["bold"] for o in d] or [0]), "when": "", "seasons": [],
+                "warmth": season_mod.total(d),            # 重ね着の暖かさ (S38)
                 "outing_ok": top and low and all(o["outing_ok"] for o in worn),
                 "coord": pack_coord(parts)}
 
@@ -707,6 +710,15 @@ class Wardrobe:
         return "yes"
 
     # ------------------------------------------------------------------ 本人の服選び
+    def temp_feel(self, char, o, dt):
+        """家の中で着替えを頼まれたとき, 寒すぎる服か (cold / ""). 外が 15℃ 未満の時期に, ずれが −2.5 より寒い側で,
+        寒いほど断りやすい (S38. 暖かい時期の家の中では, 薄着でも寒いとは言わない)."""
+        t = season_mod.temp(dt)
+        d = season_mod.gap(self.app, char, season_mod.warmth(o or {}), t, inside=True)
+        if t >= 15 or d > -2.5:
+            return ""
+        return "cold" if random.random() < min(0.85, 0.2 * (-d - 2.0)) else ""
+
     def comfort(self, char, st):
         """本人が自分から着る服の大胆さの上限 (恥じらいと機嫌しだい)."""
         m = self.modesty(char)
@@ -722,6 +734,7 @@ class Wardrobe:
             return None
         season = self.season(dt)
         rain = outdoor_mod.weather(dt)["id"] in ("rain", "snow")
+        t = season_mod.temp(dt)
         aff = st["params"].get("affection", 40)
         cap = self.comfort(char, st)
         cands, weights = [], []
@@ -739,12 +752,21 @@ class Wardrobe:
             if outing and rain and o["kind"] == "formal":
                 w *= 0.4
             w *= max(0.3, 1.0 + 0.15 * float((st.get("prefs") or {}).get("outfit:" + o["id"], 0.0)))     # あなたの好み (着せた服)
+            w *= season_mod.fit_weight(self.temp_gap(char, o, dt, outing, t))         # その時の気温 (S38)
             cands.append(o)
             weights.append(w)
-        co = self._pick_coord(char, st, rng, season, outing, cap, aff)
-        if co:                            # 持っている部品から組んだコーデも候補に (一式 1 着と同じ重み)
+        cos, seen = [], set()
+        for _ in range(4):                # 持っている部品から組んだコーデも候補に (4 通り組んで, 気温に合うものを選びやすく)
+            co = self._pick_coord(char, st, rng, season, outing, cap, aff)
+            if not co:
+                break
+            k = tuple(sorted(co["coord"].items()))
+            if k not in seen:
+                seen.add(k)
+                cos.append(co)
+        for co in cos:                    # 合わせて一式 1 着と同じ重み
             cands.append(co)
-            weights.append(1.0)
+            weights.append(season_mod.fit_weight(self.temp_gap(char, co, dt, outing, t)) / len(cos))
         if not cands:
             return None
         return rng.choices(cands, weights)[0]
@@ -813,22 +835,41 @@ class Wardrobe:
     # ------------------------------------------------------------------ アウター (上に羽織るもの)
     @staticmethod
     def season(dt):
-        return {12: "winter", 1: "winter", 2: "winter", 3: "spring", 4: "spring", 5: "spring", 6: "summer",
-                7: "summer", 8: "summer"}.get(dt.month, "autumn")
+        return season_mod.season(dt)        # 季節の表は core/season.py に 1 つ (S38)
 
-    def outer_pick(self, char, st, dt):
-        """出かけるときに本人が羽織っていくアウター (持っていて季節が合うものから. 無ければ None). その日ごとに決まる."""
+    def _outers(self, char, dt):
+        """その日に羽織れるアウター (持っていて季節が合う. 今日手に入れたものは, 出かけるときにはまだ持っていなかった)."""
         season = self.season(dt)
         day0 = datetime.datetime.combine(dt.date(), datetime.time()).timestamp()
-        cands = [o for o in self.owned(char) if o["kind"] == OUTER and (not o["seasons"] or season in o["seasons"])
-                 and o["owned_t"] < day0]            # 今日手に入れたものは, 出かけるときにはまだ持っていなかった
+        return [o for o in self.owned(char) if o["kind"] == OUTER and (not o["seasons"] or season in o["seasons"])
+                and o["owned_t"] < day0]
+
+    def temp_gap(self, char, o, dt, outing=False, t=None):
+        """服 o のその時の気温とのずれ (+ 暑すぎ / − 寒すぎ. S38). 外では, 寒い分は持っているアウターで補える."""
+        t = season_mod.temp(dt) if t is None else t
+        d = season_mod.gap(self.app, char, season_mod.warmth(o), t, inside=not outing)
+        if outing and d < 0:
+            d = min(0.0, d + max([season_mod.warmth(x) for x in self._outers(char, dt)] or [0.0]))
+        return d
+
+    def text_warmth(self, text):
+        """文の服装の暖かさ (見つかった部品・アウターの足し算. 見つからなければ None)."""
+        found = [o for _, o in self.find_parts(text) if o and (o["slot"] in COORD_SLOTS or o["kind"] == OUTER)]
+        return season_mod.total(found) if found else None
+
+    def outer_pick(self, char, st, dt, base=None):
+        """出かけるときに本人が羽織っていくアウター (無ければ None). いまの服の暖かさ base で足りない分 (と寒がり) で羽織るかを決め,
+        足りない分に近いものを選びやすい (S38). その日ごとのくじなので, 見るたびには変わらない (気温が下がれば羽織る)."""
+        cands = self._outers(char, dt)
         if not cands:
             return None
         rng = random.Random("%s|%s|outer" % (char["id"], dt.date().isoformat()))
-        if rng.random() < (0.25 if season == "winter" else 0.5):      # 今日は羽織らない (冬はたいてい着る)
-            return None
+        short = -season_mod.gap(self.app, char, BASE_WARMTH if base is None else base, season_mod.temp(dt))   # 足りない暖かさ
+        if rng.random() >= max(0.05, min(0.97, 1.0 / (1.0 + math.exp(-2.2 * (short - 0.5))))):
+            return None                   # 今日は羽織らない (足りないほど, たいてい着る)
         aff = st["params"].get("affection", 40)
-        w = [max(0.5, min(2.5, 1 + (aff - 45) / 30.0)) if o.get("owned_from") == "player" else 1.0 for o in cands]
+        w = [(max(0.5, min(2.5, 1 + (aff - 45) / 30.0)) if o.get("owned_from") == "player" else 1.0)
+             * max(0.1, math.exp(-0.6 * (season_mod.warmth(o) - max(short, 0.8)) ** 2)) for o in cands]
         return rng.choices(cands, w)[0]
 
     def tryon_feel(self, char, st, o, dt):
@@ -837,6 +878,8 @@ class Wardrobe:
         p = st["params"]
         if o.get("seasons") and self.season(dt) not in o["seasons"]:
             return "season"
+        if season_mod.gap(self.app, char, BASE_WARMTH + season_mod.warmth(o), season_mod.temp(dt)) > 2.0 and random.random() < 0.7:
+            return "season"               # 羽織ると暑すぎる日 (S38)
         if p.get("mood", 50) < 25:
             return "mood"
         aff = p.get("affection", 40)

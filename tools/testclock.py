@@ -3,6 +3,7 @@
 離れている相手からのメッセージの時刻の重み (presence.hour_factor) も昼のもの (本物は presence.hour_factor_real. 時刻の重みは tools/test_dawn.py で).
 移動 (core/geo.py) には時間をかけない (すぐ着く. 移動そのものは tools/test_geo.py で).
 株の市場は, いつでも開いていることにする (本物は market.is_open_real. 取引時間そのものは tools/test_market.py で).
+気温は 20℃・屋外の行き先への気持ちは 1 にする (流す季節で結果が揺れないように. 本物は season.temp_real / out_factor_real. 気温そのものは tools/test_season.py で).
 
     from testclock import fix_noon; fix_noon(engine)
 """
@@ -44,6 +45,11 @@ def fix_noon(engine):
     real = places.open_state
     places.open_state_real = real
     places.open_state = offline.open_state = lambda pid, dt: real(pid, NOON)
+    from core import season
+    season.temp_real, season.out_factor_real = season.temp, season.out_factor
+    season.temp = lambda dt, wx=None: 20.0
+    season.out_factor = lambda app, char, dt, wx=None: 1.0
+    season.day_range.cache_clear()
     App.FORGET_RATE_real, App.FORGET_RATE = App.FORGET_RATE, 0     # うっかり返し忘れはしない (返事が届くのを確かめるテストが揺れないように. 返し忘れは tools/test_hima.py)
     App._noon_fixed = True
 

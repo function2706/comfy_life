@@ -4497,6 +4497,15 @@
     "neg": "smile"
    },
    {
+    "text": "今日は冷えるので、それはちょっと……。風邪ひいちゃいます。",
+    "when": "dress_temp=cold",
+    "priority": 3,
+    "override": true,
+    "effects": {},
+    "pos": "rubbing arms, cold, shivering",
+    "neg": "smile"
+   },
+   {
     "text": "ふふ、こういうのも着てみたかったんです。……どうですか？",
     "when": "dress_feel=eager",
     "priority": 1,

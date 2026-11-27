@@ -40,7 +40,10 @@
   "modesty": -2,
   "grudge": 0.85,
   "poker": 1.2,
-  "reason": 0.9
+  "reason": 0.9,
+  "heat": 0.9,
+  "cold": 1.1,
+  "outdoorsy": 1.0
  },
  "lines": {
   "chat.react_nevermind_good": [

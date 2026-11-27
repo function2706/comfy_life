@@ -15,7 +15,9 @@
 """
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from . import season as season_mod
 
 ILL_PER_DAY = 0.006          # 何もないときの, 1 日に風邪をひく割合
 CARE_ITEMS = {               # 看病の品: 治りを早める時間 (時間)
@@ -68,10 +70,21 @@ class Care:
 
     def rate(self, char, st, now):
         p = st["params"]
-        m = datetime.fromtimestamp(now).month
-        f = 2.0 if m in (12, 1, 2) else 1.3 if m in (3, 11) else 0.7 if m in (7, 8) else 1.0
+        f = self.temp_factor(char, datetime.fromtimestamp(now).date())
         f *= 1 + max(0.0, 40 - p.get("energy", 60)) / 40.0 + max(0.0, p.get("stress", 20) - 50) / 50.0
         return ILL_PER_DAY * f * self.frail(char)[0]
+
+    def temp_factor(self, char, d):
+        """気温での風邪のひきやすさ (S38. 以前は月で決め打ち): その日の平均気温が低いほど上がり (14℃ 以下. 寒がりほど),
+        暑い時期は下がる. 前の日と平均気温が 5℃ 以上違えば (寒暖差) 1.25 倍."""
+        mean = season_mod.day_range(d)[2]
+        if mean >= 24:
+            f = 0.7
+        else:
+            f = 1.0 + max(0.0, 14.0 - mean) / 9.0 * (1.0 + 0.5 * (season_mod.sense(self.app, char)["cold"] - 1.0))
+        if abs(mean - season_mod.day_range(d - timedelta(days=1))[2]) >= 5:
+            f *= 1.25
+        return f
 
     def frail(self, char):
         """体の弱さ: 崩しやすさ (性格の hurt.health) と治りの速さ (drift_speed.health)."""

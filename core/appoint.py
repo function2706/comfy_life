@@ -39,6 +39,7 @@ from datetime import datetime, timedelta
 
 from . import cond
 from . import places as places_mod
+from . import season as season_mod
 
 EARLY = 15 * 60          # 約束の時刻のこれだけ前から「もうすぐ」として知らせる
 GRACE = 45 * 60          # 約束の時刻からこれだけ過ぎても約束の場所にいなければ, すっぽかしたことに
@@ -518,6 +519,9 @@ class Appoint:
             + 0.2 * app.attach.factor(char, st, "devotion") + app.waves.accept_shift(char, st)       # 生活の波 (忙しい・人付き合い … core/waves.py)
         if places_mod.is_home(x["place"]) and app.bonds.stage(char["id"]) != "visit":
             pa = 0
+        xdt = datetime.fromtimestamp(x["t"])
+        of = self.out_factor(char, x["place"], xdt)          # 屋外の行き先: その日の暑さ・寒さ・天気 (S38)
+        pa *= of
         if random.random() < max(0.03, min(0.95, pa)):
             x["status"] = "set"
             x["plan"] = self._plan(char, st, x)
@@ -534,6 +538,9 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)      # その日は気が乗らないけど, こっちなら
         x["status"] = "declined"
         self.save()
+        why = season_mod.out_why(app, char, xdt) if of < 0.85 else None
+        if why:
+            return "appoint_no_" + why, {}, extra        # 暑い / 寒いから, その日の外はやめておく (S38)
         return app.waves.decline_key(char, st, x["t"]) or "appoint_no", {}, extra       # 忙しい・友達と約束 (時期と, その日の予定. core/waves.py)
 
     def _favor_set(self, st, x, now):
@@ -563,7 +570,7 @@ class Appoint:
             opts = [(pid, a) for pid in places_mod.OUT_PLACES for a in self.dos_at(x["cid"], pid)
                     if phase_ok(app, a, d) and places_mod.open_state(pid, d)["open"]]
             if opts:
-                pid, a = self.pick(char, st, opts)
+                pid, a = self.pick(char, st, opts, d)
                 x.update(place=pid, do=a["id"])
         x.update(t=t, status="offered", made=now, rounds=int(x.get("rounds", 0)) + 1)
         self.save()
@@ -707,7 +714,7 @@ class Appoint:
             if homes and (not opts or random.random() < HOME_INVITE + HOME_INVITE_FAM * fam):
                 pid, a = self._pick_home(cid, st, homes, now)
             elif opts:
-                pid, a = self.pick(char, st, opts)
+                pid, a = self.pick(char, st, opts, day)
             else:
                 continue
             x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": day.timestamp(), "place": pid, "do": a["id"], "by": "her",
@@ -821,7 +828,7 @@ class Appoint:
         if homes and (not opts or random.random() < NOW_HOME + HOME_INVITE_FAM * fam):
             pid, a = self._pick_home(cid, st, homes, now)
         elif opts:
-            pid, a = self.pick(char, st, opts)
+            pid, a = self.pick(char, st, opts, datetime.fromtimestamp(t))
         else:
             return None
         x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": pid, "do": a["id"], "by": "her",
@@ -862,11 +869,17 @@ class Appoint:
             w += max(-0.15, min(0.2, fun / 25.0))     # 一緒に行って楽しかった (つまらなかった)
         return max(0.8, min(1.5, w))
 
-    def pick(self, char, st, opts):
-        """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然. 所持金が苦しいときは, お金のかかることを避ける."""
+    def pick(self, char, st, opts, dt=None):
+        """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然. 所持金が苦しいときは, お金のかかることを避ける.
+        dt があれば, その時の暑さ・寒さ・天気で屋外の行き先を傾ける (S38)."""
         tight = self.app.purse.tight(char, st)
         return random.choices(opts, [self.place_weight(char, st, pid) * (TIGHT_PAID if tight and self.paid(a) else 1.0)
-                                     for pid, a in opts])[0]
+                                     * (self.out_factor(char, pid, dt) if dt else 1.0) for pid, a in opts])[0]
+
+    def out_factor(self, char, pid, dt):
+        """屋外の行き先への, その時の気持ち (暑さ・寒さ・雨と, 外好きか. 屋内の行き先・家は 1. S38)."""
+        pl = self.app.places.get(pid) or {}
+        return season_mod.out_factor(self.app, char, dt) if pl.get("outdoor") else 1.0
 
     @staticmethod
     def paid(a):

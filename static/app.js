@@ -498,11 +498,13 @@ function moodFace(p, sc) {
 }
 
 const BOND_IC = { known: '👤', contact: '📱', visit: '🔑', live: '🏠' };
+function wxTemp(wx) { return wx && wx.temp != null ? ` ${wx.temp}℃` : ''; }     // 天気に添える気温 (S38)
 function renderTop() {
   const v = S.view;
   $('#phase-chip').textContent = v.phase.label || '—';
   const wx = (v.outdoor || {}).weather;
-  $('#weather-chip').textContent = wx ? `${wx.icon} ${wx.label}` : '';
+  $('#weather-chip').textContent = wx ? `${wx.icon} ${wx.label}${wxTemp(wx)}` : '';
+  $('#weather-chip').title = wx && wx.temp != null ? `今日の最高 ${wx.hi}℃・最低 ${wx.lo}℃` : '';
   // 誰と暮らしているか・家の様子
   const live = (v.people || []).find((p) => p.stage === 'live');
   const hm = v.home || {};
@@ -2964,7 +2966,7 @@ function renderAway() {
     p.travel ? travelSteps(p.travel) : '',
     p.travel ? travelDoing(p.travel) : '',
     (() => { const c = (S.view.outdoor || {}).current; const wx = (S.view.outdoor || {}).weather || {};
-      return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}`) : ''; })(),
+      return c ? h('div', { class: 'muted' }, `${c.icon} ${c.label}・${wx.icon || ''}${wx.label || ''}${wxTemp(wx)}`) : ''; })(),
     shopCard(p),
     doorCard(p),
     streetCard() || '',
@@ -3437,7 +3439,7 @@ function renderMap() {
   const pbtn = (k, label) => h('button', { class: 'btn small' + (pv === k ? ' primary' : ''), onclick: () => { mapPreset(k); renderMap(); } }, label);
   S.mapDlg.replaceChildren(h('div', { style: 'padding:12px' },
     h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, h('b', {}, '🗺 地図'),
-      h('span', { class: 'muted small' }, `${(od.weather || {}).icon || ''}${(od.weather || {}).label || ''}`),
+      h('span', { class: 'muted small' }, `${(od.weather || {}).icon || ''}${(od.weather || {}).label || ''}${wxTemp(od.weather)}`),
       h('div', { class: 'spacer' }), h('button', { class: 'btn ghost small', onclick: close }, '✕')),
     status,
     detail,
