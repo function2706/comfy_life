@@ -3812,6 +3812,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}めちゃくちゃ寒いんだって。外はやめとこ』"
+  ],
+  "gift.season_cool": [
+   "{item}？ 暑いって言ってたの、覚えてたんだ。ありがと"
+  ],
+  "gift.season_warm": [
+   "{item}、ありがと。今日寒いもんね、助かる"
+  ],
+  "gift.season_shun": [
+   "{item}か。今年はまだ食べてなかったんだ。一緒に食べる？"
   ]
  }
 }

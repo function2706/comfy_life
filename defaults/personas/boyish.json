@@ -3512,6 +3512,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}すごい寒いみたいでさ。外はちょっとパス。ごめん』"
+  ],
+  "gift.season_cool": [
+   "お、{item}！ 暑くてしんどかったんだよ、ありがと"
+  ],
+  "gift.season_warm": [
+   "{item}か、助かる。今日はほんと冷えるからさ"
+  ],
+  "gift.season_shun": [
+   "{item}じゃん。もうそういう季節か。ありがと、食べよう"
   ]
  }
 }

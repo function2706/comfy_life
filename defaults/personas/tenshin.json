@@ -3519,6 +3519,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}、すっごく寒いんだって。外で遊ぶのは、あったかい日がいいな』"
+  ],
+  "gift.season_cool": [
+   "{item}！ 暑かったの、どうして分かったの？ ありがとう"
+  ],
+  "gift.season_warm": [
+   "{item}だ！ 寒かったから、うれしい！"
+  ],
+  "gift.season_shun": [
+   "{item}！ ねえ、今年はじめての{item}だよ。ありがとう！"
   ]
  }
 }

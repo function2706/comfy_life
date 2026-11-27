@@ -3474,6 +3474,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}は冷えるそうね。外で震えるのはごめんよ』"
+  ],
+  "gift.season_cool": [
+   "{item}ね。この暑さに気づくなんて、よく見てるじゃない"
+  ],
+  "gift.season_warm": [
+   "寒い日に{item}。気が利くようになったわね"
+  ],
+  "gift.season_shun": [
+   "{item}。季節のものを持ってくるなんて、分かってるじゃない"
   ]
  }
 }

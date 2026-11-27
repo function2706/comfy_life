@@ -3518,6 +3518,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}は低温の予報。屋外は避けたい。ごめんなさい』"
+  ],
+  "gift.season_cool": [
+   "この気温で{item}。合理的な選択ね。ありがとう"
+  ],
+  "gift.season_warm": [
+   "{item}。今日の気温を考えると助かるわ。ありがとう"
+  ],
+  "gift.season_shun": [
+   "{item}。いまが一番おいしい時期ね。ありがとう"
   ]
  }
 }

@@ -3465,6 +3465,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}かなり寒いみたい。外はまた今度にしよ。ごめんね』"
+  ],
+  "gift.season_cool": [
+   "{item}！ 暑くてどうしようかと思ってた。ありがと"
+  ],
+  "gift.season_warm": [
+   "寒い日に{item}、うれしいな。ありがと"
+  ],
+  "gift.season_shun": [
+   "{item}だ。いまの{item}っておいしいんだよね。ありがと、食べよう"
   ]
  }
 }

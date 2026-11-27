@@ -3966,6 +3966,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}かなり寒いみたいだよ。外で震えるのはやだな。また今度ね』"
+  ],
+  "gift.season_cool": [
+   "{item}？ 暑いの見越して買ってきたんだ。……やるじゃん"
+  ],
+  "gift.season_warm": [
+   "寒い日に{item}。分かってるなぁ。ありがと"
+  ],
+  "gift.season_shun": [
+   "{item}！ 季節を先取りしてきたね。半分こしよ？"
   ]
  }
 }

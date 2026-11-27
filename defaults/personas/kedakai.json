@@ -3504,6 +3504,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}は冷え込むそうね。外で過ごすのは遠慮しておくわ』"
+  ],
+  "gift.season_cool": [
+   "{item}ね。この暑さには、ちょうどいいわ。ありがたくいただく"
+  ],
+  "gift.season_warm": [
+   "寒い日に{item}。……気が利くのね。ありがとう"
+  ],
+  "gift.season_shun": [
+   "{item}。季節のものを選ぶなんて、悪くない心がけね"
   ]
  }
 }

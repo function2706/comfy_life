@@ -3506,6 +3506,15 @@
   ],
   "chat.appoint_no_cold": [
    "📱『{when}は冷える。外はやめておきたい。ごめん』"
+  ],
+  "gift.season_cool": [
+   "……{item}。暑かったから、ちょうどよかった。ありがと"
+  ],
+  "gift.season_warm": [
+   "{item}。……寒かったから、助かる"
+  ],
+  "gift.season_shun": [
+   "……{item}。もうそういう時期なんだ。ありがと"
   ]
  }
 }
