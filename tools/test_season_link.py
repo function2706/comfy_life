@@ -125,10 +125,10 @@ def main():
         assert season.sleep_mult(24) == 1.0 and season.sleep_mult(28) < 1.0 and season.sleep_mult(40) == 0.7
         B = app.body
         rec = {}
-        app.home.set_ac("off")              # 冷暖房を使わない家 (使っていれば寝苦しくない. S39. 下で確かめる)
+        app.home.set_mode("off")            # 冷暖房を使わない家 (使っていれば寝苦しくない. S39. 下で確かめる. 同居相手の反応 S58 は通さない)
         for tc in (20, 29, "eco"):
             if tc == "eco":
-                app.home.set_ac("eco")
+                app.home.set_mode("eco")
                 tc = 29.5
             fixed(tc)
             B.rec()["today"] = {}

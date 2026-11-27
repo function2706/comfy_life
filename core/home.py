@@ -86,11 +86,17 @@ class Home:
         return m if m in season_mod.AC_MODES else season_mod.AC_DEFAULT
 
     def set_ac(self, mode):
+        """あなたが「家の様子」で変える. 同居相手がそばにいれば気づく (core/aircon.py. S58)."""
         if mode not in season_mod.AC_MODES:
             raise ValueError("冷暖房の使い方が分かりません")
+        old = self.ac_mode()
+        self.set_mode(mode)
+        e = self.app.aircon.changed(old, mode)
+        return dict({"ok": True, "aircon": self.ac_view()}, **({"entry": e} if e else {}))
+
+    def set_mode(self, mode):
         self.rec()["aircon"] = mode
         self.save()
-        return {"ok": True, "aircon": self.ac_view()}
 
     def room_now(self, t=None):
         """あなたの家のいまの (室温, 冷暖房の動き)."""

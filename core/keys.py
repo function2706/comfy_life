@@ -89,6 +89,9 @@ def all_keys(actions, minigames, approaches=()):
     from .moneytalk import LINES as MT_LINES, SCENE_LABEL as MT_SCENES     # お金の使い方への口出し・どっちが出すか
     for k, t in MT_LINES.items():
         out[k] = {"scene": "お金のこと / %s" % MT_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
+    from .aircon import LINES as AC_LINES, SCENE_LABEL as AC_SCENES     # 同居のエアコン争い (S58)
+    for k, t in AC_LINES.items():
+        out[k] = {"scene": "冷暖房 / %s" % AC_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
     from .quarrel import LINES as QR_LINES, SCENE_LABEL as QR_SCENES     # 意見が割れる・言い争い・仲直り
     for k, t in QR_LINES.items():
         out[k] = {"scene": "言い合い / %s" % QR_SCENES[k.split(".", 1)[1]], "when": "", "text": t}

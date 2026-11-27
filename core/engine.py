@@ -61,6 +61,7 @@ from . import quals as quals_mod
 from . import chores as chores_mod
 from . import quarrel as quarrel_mod
 from . import moneytalk as moneytalk_mod
+from . import aircon as aircon_mod
 from . import geo as geo_mod
 from . import chat as chat_mod
 from . import home as home_mod
@@ -210,6 +211,7 @@ class App:
         self.life = life.Life(self)
         self.bonds = bonds_mod.Bonds(self)
         self.moneytalk = moneytalk_mod.MoneyTalk(self)  # お金の使い方への口出し・どっちが出すか
+        self.aircon = aircon_mod.Aircon(self)           # 同居のエアコン争い (S58)
         self.quarrel = quarrel_mod.Quarrel(self)      # 意見が割れる・言い争い・仲直り
         self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
@@ -1153,6 +1155,7 @@ class App:
             changed = True
         if self.bonds.living() == cid:
             self.chores.tick(char, st, now)    # 同居相手の家事 (自分の担当・あなたの担当を気にする・さぼりの知らせ)
+            self.aircon.tick(char, st, now)    # 同居相手が部屋の暑さ・寒さで冷暖房を言ってくる / 変える / 我慢する (S58)
         if self.bonds.stage(cid) in ("live", "visit"):
             self.moneytalk.tick(char, st, now)  # あなたのお金の使い方に気づいて口を出すか
         if st.get("fight") or st.get("chores_fight"):
@@ -3600,7 +3603,7 @@ class App:
                 "picks": {"apology": "quiz", "thanks": "quiz",          # 謝る・お礼は記憶の問い (別の窓. core/memquiz.py)
                           "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
-                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(),
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

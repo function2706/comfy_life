@@ -973,7 +973,7 @@ function drawHome() {
       h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
         ...hm.aircon.modes.map((m) => h('button', { class: 'btn small' + (hm.aircon.mode === m.id ? ' primary' : ' ghost'), disabled: S.busy || hm.aircon.mode === m.id,
           title: m.set ? `暖房 ${m.set[0]}℃・冷房 ${m.set[1]}℃` : '暑くても寒くても付けない',
-          onclick: async () => { if (S.busy) return; S.busy = true; try { await api('/api/home/aircon', { mode: m.id }); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); drawHome(); } } },
+          onclick: async () => { if (S.busy) return; S.busy = true; try { const r = await api('/api/home/aircon', { mode: m.id }); if (r.entry) handleActResult(r); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); drawHome(); } } },
           m.set ? `${m.label}（暖房${m.set[0]}℃・冷房${m.set[1]}℃）` : m.label))),
       h('p', { class: 'small', style: 'margin:6px 0 0' }, `いまの室温 ${hm.aircon.room}℃${hm.aircon.run === 'cool' ? '（冷房中）' : hm.aircon.run === 'heat' ? '（暖房中）' : ''}・今月の電気代 ${hm.aircon.bill.toLocaleString()}円（${hm.aircon.hours}時間）`),
       h('p', { class: 'hint' }, 'あなたが家にいる間、設定より暑い / 寒いときだけ動きます。電気代は動いた時間と外との差しだいで、翌月はじめに家賃と一緒に払います（同居なら生活費の分け方で）。',
@@ -1839,6 +1839,14 @@ function renderRequest() {
     box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `💴 ${mt.name}と`), h('div', { class: 'muted small' }, mt.text)),
       h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...mt.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
         onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/money/talk', { choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
+    return;
+  }
+  const at = S.view.ac_talk;                            // 同居相手が部屋が暑い / 寒いと言ってきた: どう応じるか (S58)
+  if (!req && at) {
+    box.hidden = false;
+    box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `❄ ${at.name}と`), h('div', { class: 'muted small' }, at.text)),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...at.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
+        onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/aircon/respond', { choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
     return;
   }
   const cs = S.view.chores_slack;                       // 同居相手が家事をさぼっている: 出方を選ぶ

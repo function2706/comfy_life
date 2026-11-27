@@ -162,6 +162,41 @@ def room_mood(app, char, r):
     return -round(1.5 * (hot * sn["heat"] + cold * sn["cold"]), 2)
 
 
+# ------------------------------------------------------------------ 冷暖房の好み (S58. 同居のエアコン争い: core/aircon.py)
+AC_ORDER = ("off", "eco", "strong")       # 弱い (安い) 順
+PREF_WARM, PREF_COOL = 26.0, 21.0         # ふつうの人の好みの室温 (冷房の季節 / 暖房の季節)
+FUSS_OK = 1.0                             # 好みからこれだけは気にしない (℃)
+
+
+def warm_half(t):
+    """冷房の季節の側か (冷暖房なしの家の中が 23℃ 以上)."""
+    return indoor(t) >= 23.0
+
+
+def pref_room(app, char, t):
+    """その人の好みの室温. 暑がりは低め・寒がりは高め (冷房の季節 23.5〜28℃・暖房の季節 18〜24℃)."""
+    sn = sense(app, char)
+    d = 3.0 * (sn["cold"] - sn["heat"])
+    return round(min(28.0, max(23.5, PREF_WARM + d)) if warm_half(t) else min(24.0, max(18.0, PREF_COOL + d)), 2)
+
+
+def ac_fuss(app, char, t, mode):
+    """冷暖房の使い方 mode の室温が, その人に合わない度合い (+ 暑い / − 寒い. 0 は気にならない).
+    好みから FUSS_OK ℃ を超えた分 × 暑がり / 寒がり."""
+    r = room(t, mode)[0]
+    p = pref_room(app, char, t)
+    sn = sense(app, char)
+    x = abs(r - p) - FUSS_OK
+    if x <= 0:
+        return 0.0
+    return round(x * sn["heat"], 2) if r > p else -round(x * sn["cold"], 2)
+
+
+def ac_best(app, char, t):
+    """その人がいちばん過ごしやすい使い方 (同じなら安い方)."""
+    return min(AC_ORDER, key=lambda m: (abs(ac_fuss(app, char, t, m)), AC_ORDER.index(m)))
+
+
 def need(t):
     """その気温でちょうどいい服の暖かさ (暖かさの足し算で. 28℃ で 1.5・18℃ で 3.3・5℃ で 5.6)."""
     return 1.5 + 0.18 * (28.0 - t) if t < 28 else max(0.5, 1.5 - 0.1 * (t - 28.0))
