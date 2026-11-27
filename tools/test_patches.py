@@ -71,6 +71,23 @@ def main():
         assert "w=" in open(store.dpath("server.log"), encoding="utf-8").read()
         print("対象なし・期限・例外: OK")
 
+        # ---------------------------------------------------------------- 11/28 のパッチ (F21: モール前に置かれた自転車を家に戻す)
+        real = os.path.join(BASE, "patches", "patch.py")
+        if os.path.exists(real) and "20261128_bike_home" in open(real, encoding="utf-8").read():
+            for f in os.listdir(PDIR):
+                os.remove(os.path.join(PDIR, f))
+            shutil.copy(real, os.path.join(PDIR, "patch.py"))
+            gp = lambda w: store.dpath("worlds", w, "geo.json")  # noqa: E731
+            os.makedirs(os.path.dirname(gp("wb1")), exist_ok=True)
+            os.makedirs(os.path.dirname(gp("wb2")), exist_ok=True)
+            store.save(gp("wb1"), {"pts": {}, "veh": {"bicycle": "st:mall", "car": "st:mall"}})
+            store.save(gp("wb2"), {"pts": {}, "veh": {"bicycle": "station"}})
+            assert patches.run() == [("20261128_bike_home", "家に戻した（1 件）")]
+            assert store.load(gp("wb1"))["veh"] == {"bicycle": "home:me", "car": "st:mall"}
+            assert store.load(gp("wb2"))["veh"] == {"bicycle": "station"}, "ほかの所に置いた自転車は触らない"
+            assert patches.run() == [], "二度は当てない"
+            print("11/28 のパッチ: OK | モール前の自転車だけ家に戻す・一度だけ")
+
         # ---------------------------------------------------------------- 更新での扱い (本物の git で)
         # 以前は git の出力全体を strip していて, status の 1 行目 " D patches/…" の行頭の空白が消え,
         # 当てて消したパッチを「書き換えたファイル: atches/…」として更新を止めていた (下の差し替えたテストでは見えなかった)

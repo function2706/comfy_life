@@ -502,12 +502,18 @@ class Geo:
         seen = set()
         egress_cache = {}
         ksig = T.known_sig(t, known)
+        # 歩いて行き先に着ける駅・停留所からは乗りに行かない (F21): そこまで行けば, あとは歩くだけ.
+        # 以前は降りる駅を「電車・バスで着いた駅」に限るため, 自転車で行き先の停留所まで行き, バスで 1 つ離れて歩いて戻る経路ができ,
+        # 自転車がモール前に置かれていた
+        near = frozenset(s for s, e in self._ends(b, t, "egress", False, pair).items() if e[2] == "walk")
         for vi, (vk, label, taxi, tbuf) in enumerate(self.VARIANTS):
-            ck = (store.WORLD, a, int(t // 60), vk, None if pair else self.veh_at("bicycle", t), self.veh_at("car", t), pair, ksig)
+            ck = (store.WORLD, a, int(t // 60), vk, None if pair else self.veh_at("bicycle", t), self.veh_at("car", t), pair, ksig, near)
             sc = T._csa.get(ck)
             if sc is None:
                 acc = {}
                 for sid, (m, f, kind, veh) in self._ends(a, t, "access", taxi, pair).items():
+                    if sid in near:
+                        continue
                     acc[sid] = (t + m * 60, [{"kind": kind, "from": a, "to": sid, "t0": t, "t1": t + m * 60, "fare": f, "veh": veh}])
                 sc = T.scan(self.pt(a)["xy"], t, acc, transfer=tbuf, known=known)
                 if len(T._csa) > 300:

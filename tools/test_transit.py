@@ -379,6 +379,31 @@ def roads_lines(app, geo, T, home):
     print("地図: OK")
 
 
+def no_detour(app):
+    """F21: 歩いて行き先に着ける駅・停留所からは乗りに行かない. 以前は, 自転車で行き先の停留所まで行き, バスで 1 つ離れて
+    歩いて戻る経路ができ, 自転車が行き先の停留所 (モール前) に置かれていた. 町をいくつか作り, 全行き先 × 時刻で確かめる."""
+    bad, n = [], 0
+    for k in range(6):
+        random.seed(100 + k)
+        app.create_world("寄り道%d" % k)
+        geo = app.geo
+        app.items.add("bicycle", 1)
+        home = "home:me"
+        dests = [pid for pid in app.places.table() if pid != home]
+        for h in (10, 17):
+            t = weekday_at(h, 5)
+            for b in dests:
+                geo.rec()["veh"] = {"bicycle": home}
+                near = {s for s, e in geo._ends(b, t, "egress", False).items() if e[2] == "walk"}
+                for r in geo.routes(home, b, t):
+                    n += 1
+                    rides = [lg for lg in r["legs"] if lg["kind"] == "ride"]
+                    if rides and rides[0]["from"] in near:
+                        bad.append((k, h, b, [(lg["kind"], lg["to"]) for lg in r["legs"] if lg["kind"] != "wait"]))
+    assert not bad, bad[:5]
+    print("行き先の停留所から乗りに行かない: OK | %d 経路" % n)
+
+
 def main():
     random.seed(5)
     tmp = tempfile.mkdtemp(prefix="kurashi_test_")
@@ -500,6 +525,7 @@ def main():
 
         delays(app, geo, T, home, dst, wd)
         roads_lines(app, geo, T, home)
+        no_detour(app)
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
