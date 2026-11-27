@@ -1703,7 +1703,7 @@ async function pollJobsOnce() {
     S.jobs.set(jid, j);
     if (j.status === 'done') {
       S.jobs.delete(jid);
-      if (j.kind === 'icon') { /* 顔のアイコン: ステージの画像は変えない */ }
+      if (j.kind && j.kind !== 'entry') { /* 顔のアイコン・人のアイコン・服のサンプル: ステージの画像は変えない */ }
       else if (j.shown === false) { /* 既存の画像を出したうえで裏で描いた分: 切り替えない (設定「裏で描いた画像に切り替える」) */ }
       else if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
       else if (!S.current || S.current.t <= (S.view.log.find((x) => x.id === j.entry) || {}).t) setImage(j.image);
@@ -6327,7 +6327,7 @@ function bind() {
     } catch (e) { toast(e.message, 'err'); }
   });
   $('#btn-snap').addEventListener('click', async () => {
-    try { const r = await api('/api/generate', withT({})); showEntry(r.entry, false); trackJob(r.job); await refresh(); } catch (e) { toast(e.message, 'err'); }
+    try { const r = await api('/api/generate', withT({})); showEntry(r.entry, false); if (r.job) trackJob(r.job); await refresh(); } catch (e) { toast(e.message, 'err'); }
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 }

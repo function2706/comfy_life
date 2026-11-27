@@ -3334,6 +3334,12 @@ class App:
                 p2, n2, parts = self.build_prompt(char, st, dt)
                 e = self._new_entry(cid, now, {"id": "_snapshot", "name": "スナップ", "icon": "📷"}, "",
                                     {}, self.scene_at(char, st, dt), dt, p2, n2, parts)
+                if pos is None and neg is None and seed in (None, "", -1):
+                    # 📷 スナップ (プロンプト・シードの指定なし): 行動の絵と同じく「画像の出し方」の設定に従う
+                    # (既存があればすぐ出し, 裏で描いた分に切り替えるかは images.swap_after_gen. F23)
+                    job = self._present_image(cid, e)
+                    self.save_log(cid)
+                    return {"entry": e, "job": job}
             if pos is not None:
                 e["pos"] = pos
             if neg is not None:
