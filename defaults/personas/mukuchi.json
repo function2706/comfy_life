@@ -3528,6 +3528,45 @@
   ],
   "gift.season_shun": [
    "……{item}。もう、そんな季節"
+  ],
+  "ac.ask_hot": [
+   "……暑い。{ac}も、いい？"
+  ],
+  "ac.ask_cold": [
+   "……寒い。{ac}も、いい？"
+  ],
+  "ac.self_hot": [
+   "……暑かったから、{ac}おいた"
+  ],
+  "ac.self_cold": [
+   "……寒かったから、{ac}おいた"
+  ],
+  "ac.match": [
+   "……ありがと"
+  ],
+  "ac.bill_ok": [
+   "……電気代。……わかった"
+  ],
+  "ac.bill_meh": [
+   "……でも、{feel}"
+  ],
+  "ac.push_unhappy": [
+   "……ん。がまんする"
+  ],
+  "ac.push_fight": [
+   "……{feel}って、言ったのに"
+  ],
+  "ac.undo": [
+   "……戻した？ ……変えたのに"
+  ],
+  "ac.notice_hot": [
+   "……暑く、なってきた"
+  ],
+  "ac.notice_cold": [
+   "……寒く、なってきた"
+  ],
+  "ac.thanks": [
+   "……ちょうどいい。ありがと"
   ]
  }
 }
