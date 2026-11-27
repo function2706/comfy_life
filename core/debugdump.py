@@ -176,6 +176,11 @@ class DebugDump:
                     round(float(app.body.rec().get("exercise", 0)), 1), app.body.rec().get("lazy_days"),
                     _j({k: round(v, 1) for k, v in (app.body.rec().get("nutri") or {}).items()})),
                 "with=%s" % _j(app.bonds.with_rec()),
+                # 位置と乗り物 (乗り物がどこに置いてあるか・移動の経路. 経路は区間の種類・乗り物・行き先だけ)
+                "geo: at=%s where=%s veh=%s travel=%s" % (pr.get("pos"), app.geo.where(now), _j(app.geo.rec().get("veh")),
+                                                      _j(dict({k: v for k, v in pr["travel"].items() if k != "legs"},
+                                                              legs=[(x.get("kind"), x.get("veh"), x.get("to")) for x in pr["travel"].get("legs") or []]))
+                                                      if pr.get("travel") else None),
                 "plan.items=%s" % _j(P.get("items")), "plan.fallback=%s" % _j(P.get("fallback")), "plan.auto=%s" % _j(P.get("auto")),
                 "offline.enabled=%s routine(today)=%s" % (off.get("enabled"), _j(off["days"][["mon", "tue", "wed", "thu", "fri", "sat", "sun"][
                     datetime.fromtimestamp(now).weekday()]])),
