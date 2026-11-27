@@ -61,6 +61,15 @@ def main():
                 app.life.tick_world(time.time())
                 app.tick(cid)
 
+        picked = []                    # 選ばれた反応のキー (セリフは性格で違うので, 文言ではなくキーで見る)
+        pick0 = app.pick_reaction
+
+        def pick(a, ctx, invited=False):
+            r = pick0(a, ctx, invited)
+            picked.append(r.get("key", ""))
+            return r
+        app.pick_reaction = pick
+
         def avail(aid):
             from datetime import datetime
             return app.available(char, st, datetime.fromtimestamp(time.time()))[aid]
@@ -86,18 +95,16 @@ def main():
         print("ひと休み: OK | 30 分で相手 %+.1f・あなた %+.1f / %s" % (de, ds, r["entry"]["text"].splitlines()[0][:40]))
 
         # ---- 2. 疲れているときは喜ばれる反応 / 元気なのに続けて休むと「さっき休んだばかり」(機嫌が少し下がる)
-        keys = set()
-        for _ in range(6):
-            reset(energy=25)
-            r = app.act("rest_out", cid)
-            keys.add(r["entry"].get("reaction_key") or r["entry"]["text"][:12])
+        reset(energy=25)
+        app.act("rest_out", cid)
+        assert picked[-1] == "tired", picked[-1]
         reset(energy=85)
         app.act("rest_out", cid)
         run(40)
         app.set_params({"energy": 85, "mood": 70}, cid)
         m0 = st["params"]["mood"]
         r = app.act("rest_out", cid)
-        assert "休んだばかり" in r["entry"]["text"], r["entry"]["text"]
+        assert picked[-1] == "again", (picked[-1], r["entry"]["text"])
         assert st["params"]["mood"] < m0, (m0, st["params"]["mood"])
         print("続けて休む: OK | %s" % r["entry"]["text"].splitlines()[0])
 
@@ -134,13 +141,14 @@ def main():
         hit = 0
         for _ in range(60):
             reset(energy=25)
-            r = app.act("go_home", cid)
-            hit += "気づいて" in r["entry"]["text"]
+            app.act("go_home", cid)
+            hit += picked[-1] == "noticed"
         assert 0 < hit < 60, hit
         n = 0
         for _ in range(20):
             reset(energy=80)
-            n += "気づいて" in app.act("go_home", cid)["entry"]["text"]
+            app.act("go_home", cid)
+            n += picked[-1] == "noticed"
         assert n == 0, n
         print("疲れているときの解散: OK | 60 回中 %d 回、気づいてもらえた（元気なときは 0）" % hit)
 
