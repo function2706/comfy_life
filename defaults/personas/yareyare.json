@@ -3510,6 +3510,66 @@
   ],
   "ac.thanks": [
    "あ、ちょうどよくなりました。どうも"
+  ],
+  "ap.huddle.call": [
+   "寒いですね……。くっついてていいですか。暖房代の節約ってことで"
+  ],
+  "ap.huddle.accept": [
+   "（肩を寄せ合っていると、少しずつ温まってきた）"
+  ],
+  "ap.huddle.later": [
+   "そうですか。じゃあ、あとで"
+  ],
+  "ap.huddle.ignore": [
+   "（{name}は自分の腕をさすりながら、少し離れて座った）"
+  ],
+  "ap.huddle.busy": [
+   "（{name}は邪魔をしないよう、毛布にくるまった）"
+  ],
+  "ap.umbrella.call": [
+   "傘、忘れました。入れてもらっていいですか"
+  ],
+  "ap.umbrella.accept": [
+   "（一本の傘に二人で入ると、肩が少し触れた）"
+  ],
+  "ap.umbrella.later": [
+   "……まあ、そうなりますよね"
+  ],
+  "ap.umbrella.ignore": [
+   "（{name}は、軒下を伝って小走りでついてくる）"
+  ],
+  "ap.msg_cold.call": [
+   "📱『今日寒すぎませんか。{call}、ちゃんと着込んでくださいね』"
+  ],
+  "ap.msg_cold.accept": [
+   "📱『ならいいです。{fp}も気をつけます』"
+  ],
+  "ap.msg_cold.later": [
+   "📱『はい、あとで』"
+  ],
+  "ap.msg_cold.ignore": [
+   "（{name}からの気づかいのメッセージは、返事がないまま残っている）"
+  ],
+  "ap.msg_hot.call": [
+   "📱『今日暑すぎませんか。{call}、水分とってくださいね』"
+  ],
+  "ap.msg_hot.accept": [
+   "📱『ならいいです。{fp}も気をつけます』"
+  ],
+  "ap.msg_hot.later": [
+   "📱『はい、あとで』"
+  ],
+  "ap.msg_hot.ignore": [
+   "（{name}からの気づかいのメッセージは、返事がないまま残っている）"
+  ],
+  "chat.take_care": [
+   "📱『どうも。{call}も気をつけてくださいね』"
+  ],
+  "chat.take_care_odd": [
+   "📱『今日ですか？ そこまでじゃないですよ』"
+  ],
+  "chat.take_care_again": [
+   "📱『さっきも聞きましたよ。大丈夫です』"
   ]
  }
 }

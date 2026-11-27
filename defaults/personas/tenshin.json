@@ -3568,6 +3568,66 @@
   ],
   "ac.thanks": [
    "あ、ちょうどいい！ ありがとう"
+  ],
+  "ap.huddle.call": [
+   "さむいね！ くっついたらあったかいかな？"
+  ],
+  "ap.huddle.accept": [
+   "（肩を寄せ合っていると、少しずつ温まってきた）"
+  ],
+  "ap.huddle.later": [
+   "はーい。じゃあ毛布にくるまってる"
+  ],
+  "ap.huddle.ignore": [
+   "（{name}は自分の腕をさすりながら、少し離れて座った）"
+  ],
+  "ap.huddle.busy": [
+   "（{name}は邪魔をしないよう、毛布にくるまった）"
+  ],
+  "ap.umbrella.call": [
+   "傘、どっかに置いてきちゃった！ 入れて！"
+  ],
+  "ap.umbrella.accept": [
+   "（一本の傘に二人で入ると、肩が少し触れた）"
+  ],
+  "ap.umbrella.later": [
+   "いいね、コンビニ行こ！"
+  ],
+  "ap.umbrella.ignore": [
+   "（{name}は、軒下を伝って小走りでついてくる）"
+  ],
+  "ap.msg_cold.call": [
+   "📱『今日さむいね！ {call}、あったかくしてる？』"
+  ],
+  "ap.msg_cold.accept": [
+   "📱『よかった！ {fp}も手袋していく』"
+  ],
+  "ap.msg_cold.later": [
+   "📱『はーい、あとでね』"
+  ],
+  "ap.msg_cold.ignore": [
+   "（{name}からの気づかいのメッセージは、返事がないまま残っている）"
+  ],
+  "ap.msg_hot.call": [
+   "📱『今日あついね！ {call}、お水飲んでる？』"
+  ],
+  "ap.msg_hot.accept": [
+   "📱『よかった！ {fp}はアイス食べる』"
+  ],
+  "ap.msg_hot.later": [
+   "📱『はーい、あとでね』"
+  ],
+  "ap.msg_hot.ignore": [
+   "（{name}からの気づかいのメッセージは、返事がないまま残っている）"
+  ],
+  "chat.take_care": [
+   "📱『ありがと！ {call}も気をつけてね』"
+  ],
+  "chat.take_care_odd": [
+   "📱『今日？ ふつうだよ？』"
+  ],
+  "chat.take_care_again": [
+   "📱『さっきも聞いたよ？ 大丈夫だよ』"
   ]
  }
 }
