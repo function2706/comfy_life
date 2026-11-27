@@ -1,0 +1,33 @@
+# Memory Index
+
+- [autonomy preference](autonomy-preference.md) — 合意済みタスクは逐一の確認なしで進める
+- [返答は日本語](reply-language-japanese.md) — 報告・返答は常に日本語 (圧縮後の再開時も)
+- [kurashi (comfy_life)](kurashi-comfy-life.md) — ComfyUI連携の疑似生活アプリ, GitHub function2706/comfy_life, 検証はモック. 相手の家・看病・お泊りまで実装済み(〜f6bd434)
+- [kurashi 現実性の公理](kurashi-realism-axiom.md) — 現実的に・清濁併せ呑む. 回数や贈り物で必ず深まる作りにしない, 出会いにバイアスなし
+- [kurashi 性格別セリフの手順](kurashi-persona-lines-process.md) — 聞かず・残件にせず、実装と同じ作業の中で全性格ぶん書く（別コミット）
+- [結果は本文に書く](report-results-in-chat.md) — 別セッションの結果は箱だけで済ませず中身を本文で報告
+- [エラー時は即再開](resume-on-error-immediately.md) — 別セッションのAPIエラー通知を受けたら聞かれる前にその場で再開
+- [kurashi は自分で作業](kurashi-work-here.md) — 別セッションに任せず、このセッションで直接やる
+- [箱の前に本文](body-before-wrapup-question.md) — 質問付き wrap_up の前に報告・設計案の本文を必ず書く
+- [kurashi 遡及の判断](kurashi-retroactive-judgement.md) — 仕様変更のたびに既存セーブへ遡及すべきか自分で判断し設計・報告に書く
+- [kurashi プレイヤー側の心理値は作らない](kurashi-player-status-principle.md) — 不満・我慢は操作者のもの。動かすのはキャラ側だけ、表示もしない
+- [kurashi テストの流し方](kurashi-test-cadence.md) — 変更ごとは関連テストだけ。全テストは頼まれた時だけ（版管理を参照）
+- [kurashi 残件の範囲](kurashi-remaining-list.md) — 残件に確認待ちは入れない。保留・未着手だけ
+- [kurashi 基本の堅さは先回り](kurashi-robustness-proactive.md) — 重複起動・複数画面・開き直しの穴は指示なしで直す。損には補償
+- [kurashi セリフはサンプルを本文に](kurashi-show-line-samples.md) — 性格・場面のセリフを実装したら代表的なものを必ず本文に引用
+- [kurashi キャラ付けは重視しない](kurashi-persona-tone-samples.md) — アニメ・マンガ的な口癖・決め台詞・お約束で性格を出さない。地の口調と内容で。出現数を数えて確かめる
+- [kurashi サブエージェント禁止](kurashi-cost-over-speed.md) — Agent を使わず自分で順に。クレジット節約優先、遅くてよい
+- [kurashi 版管理と進め方](kurashi-versioning.md) — VERSION/CHANGES/REMAINING、機能=minor・修正=patch・混在不可、全テストは要求時のみ、版上げは全テスト後、beta表記
+- [kurashi 途中の進捗報告](kurashi-progress-reports.md) — 全テストなど長い作業は区切りごとに進捗を一行で（全テストは分けて流す）
+- [kurashi 入力中のフォーカス](kurashi-focus-keep.md) — 30秒ごとの描き直しで欄のフォーカスが外れる。新しい欄は test_focus_keep に項目を足す
+- [kurashi セッションの進め方](kurashi-session-workflow.md) — 作業前に kurashi/docs/WORKFLOW.md を読む。作業 1 つ = 1 セッション、Fable は設計のみ
+- [kurashi テストは整合性重視](kurashi-tests-consistency.md) — 全テストはクレジットに響かない。状態×行動の総当たりなど、いくらでも足してよい
+- [kurashi コミットの件名](kurashi-commit-subject.md) — 件名は短く 1 行、本文との間に空行（-m を 2 つ）。更新チェック欄が見づらくなる
+- [kurashi は必ず push](kurashi-always-push.md) — コミットしたら聞かずに push（docs だけでも）
+- [止まったテストで撤収しない](stalled-test-no-retreat.md) — 原因を切り分ける。推測で環境のせいにせず、未確認のまま push しない
+- [kurashi S17 は段に分けない](kurashi-s17-no-more-stages.md) — A11 交通網と道の残りは一度にやる（打ち止めではない）
+- [ToDoは使わない](plan-advance-per-step.md) — update_plan は呼ばない。手順の開始・完了は本文に一行で（4回指摘された）
+- [指摘で止まらない](no-stop-on-remark.md) — ToDo等の指摘は直して一言、そのまま作業を続ける
+- [最も単純な形から](simplest-design-first.md) — 要件を一行で言い直し最小の形を。足すのは壊れる道筋を示せるときだけ
+- [kurashi 実機に届ける手順](kurashi-deliver-to-prod.md) — 届く前提を確かめる・場所/シェルを補わない・コマンドは最後の本文に (二度の不手際の是正)
+- [kurashi 実機と復旧手順](kurashi-prod-pc.md) — DESKTOP-ATKNL7Q、アプリもセーブも最初から E:\BOX\…\comfy_life (Desktop は私の誤記)。診断 1 本→修正 1 本
