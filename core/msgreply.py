@@ -96,13 +96,19 @@ OPTIONS = {
                   ("tease", "「長いよ（笑）」とからかう"), ("curt", "「へえ」とだけ返す")],
     "msg_where": [("expand", "どこで誰といるか、正直に答える"), ("worry", "「心配しなくても、すぐ帰るよ」と返す"),
                   ("cheerful", "「ちょっと出てるだけ」と軽く返す"), ("curt", "「なんで？」とだけ返す")],
+    "msg_cold": [("worry", "「そっちこそ暖かくしてね」と返す"), ("cheerful", "「ありがとう、気をつける」と返す"),
+                 ("tease", "「心配性だなぁ」とからかう"), ("curt", "「うん」とだけ返す")],
+    "msg_hot": [("worry", "「そっちこそ無理しないでね」と返す"), ("cheerful", "「ありがとう、気をつける」と返す"),
+                ("tease", "「心配性だなぁ」とからかう"), ("curt", "「うん」とだけ返す")],
 }
 DEFAULT_OPTIONS = [("cheerful", "明るく返す"), ("expand", "話を広げる"), ("tease", "からかう"), ("curt", "素っ気なく返す")]
 KIND_BASE = {"cheerful": 8, "expand": 8, "worry": 4, "tease": 0, "curt": -12}
 FIT = {"msg_chat": {"cheerful": 4, "expand": 6, "tease": 2, "curt": -4},
        "msg_miss": {"worry": 8, "cheerful": 6, "tease": -6, "curt": -10, "expand": -2},
        "msg_today": {"expand": 10, "cheerful": 5, "curt": -8, "worry": -4},
-       "msg_where": {"expand": 10, "worry": 6, "cheerful": -4, "curt": -14}}
+       "msg_where": {"expand": 10, "worry": 6, "cheerful": -4, "curt": -14},
+       "msg_cold": {"worry": 8, "cheerful": 6, "tease": -2, "curt": -8, "expand": -2},     # 気づかい (S59): 気づかい返すのがいちばん
+       "msg_hot": {"worry": 8, "cheerful": 6, "tease": -2, "curt": -8, "expand": -2}}
 # 性格ごとの好み (控えめに. 決め打ちにしない)
 TASTE = {
     "teinei": {"cheerful": 4, "worry": 4, "tease": -4}, "osananajimi": {"tease": 8, "curt": 2},

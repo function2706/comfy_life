@@ -168,6 +168,7 @@
    "f1d122c9b4e0fd802a9bf0d9a542bdcb"
   ],
   "gift": [
+   "8582c40ef2440b3ddbb0316d93fccb5c",
    "4295a09033bb3729bb226c5ac81780e6",
    "3c07522f168ad71e6f9d1a671a1abc62",
    "a534bd0a6e7e981e8399c2f0a8ce90e2",
@@ -176,8 +177,7 @@
    "58d926e65661dd17cab3e35c0f555699",
    "969c72de33d4852c32a2c6231287205c",
    "ac027832b8a5ef8d4d14a7418cc09cce",
-   "f9e9d329645f2f809e99691c3e7de004",
-   "8582c40ef2440b3ddbb0316d93fccb5c"
+   "f9e9d329645f2f809e99691c3e7de004"
   ],
   "go_busy": [
    "da3511c742b5a92faec70e329b5403c8"
@@ -426,7 +426,8 @@
    "030cd2bd75b68e9361d9a4c25f7b22fa"
   ],
   "date_cold": [
-   "c67ce46a66025c8fdbb1ab08be5f80d8"
+   "c67ce46a66025c8fdbb1ab08be5f80d8",
+   "91af554b76f90acb1445fa389b70e29d"
   ],
   "date_fun": [
    "e7011f4cb533a16cc22e02d952cb0118"
@@ -438,7 +439,8 @@
    "9e50ca904e86b6b82e72aff192bc507a"
   ],
   "date_hot": [
-   "fa9df38fd9662341d5e5441e7673c3a8"
+   "fa9df38fd9662341d5e5441e7673c3a8",
+   "7517579466f5ab4faec34cd7d40b3745"
   ],
   "date_hungry": [
    "a41965f0c0e86047b16543616e6e0a37"
@@ -458,6 +460,9 @@
   "good_news": [
    "ae26b283c2ebe9de6f9df1010525f207"
   ],
+  "huddle": [
+   "9974bbe6ea69dfda4887a2143bdaf4b8"
+  ],
   "lean": [
    "dc8516a521f4937a381b3f8497b16d5d"
   ],
@@ -469,6 +474,12 @@
    "7e6cbae056ac84f5d0c40f4a64b7f54c",
    "3e5b3520e7c1439a8923b0c510075231",
    "99a90097a656c549e9bbc67412620a10"
+  ],
+  "msg_cold": [
+   "78dd7dda0c54c0c8bfa4ace1774ce9bf"
+  ],
+  "msg_hot": [
+   "7200908e9a8cbdeafdc50a4478f5aed9"
   ],
   "msg_miss": [
    "0fcbb7dbc28836897b665fc9bf0477f0",
@@ -508,6 +519,9 @@
   "tea": [
    "f79a0603daf1ba94c2fda986e5bcb58e",
    "eee7b401544aa3234ac901faf3c00567"
+  ],
+  "umbrella": [
+   "398d197097101ab488775ec6246fc82c"
   ],
   "vent": [
    "74165d2902033283c0021433efc41f30"

@@ -31,6 +31,18 @@ AWAY_SEND = 0.35        # 相手が仕事中・出かけているときの, 送�
 MODE_LABEL = activity_mod.MODE_LABEL     # 語彙は core/activity.py の DO
 
 
+TOUCH_ACTS = ("hold_hands", "hug")
+FEEL_TOUCH = {"cold": 1.5, "hot": 0.4}      # ふれあいの働きかけ (応じると skill touch) の重み: 寒い日は寄りたがり, 暑い日は離れたがる (S59)
+
+
+def feel_weight(a, ctx):
+    """働きかけの重みの倍率 (体感. ふれあいの働きかけだけ)."""
+    acc = a.get("accept") or {}
+    if acc.get("skill") != "touch" and acc.get("action") not in TOUCH_ACTS:
+        return 1.0
+    return FEEL_TOUCH.get(ctx.get("feel") or "", 1.0)
+
+
 def hour_factor(dt):
     """離れている相手がメッセージを送ってくる時刻の現実味: 起きていても, 夜中や早朝にはまず送らない."""
     h = dt.hour + dt.minute / 60.0
@@ -311,7 +323,7 @@ class Presence:
         if not cands:
             self.app.trace.add("approach", "候補なし (条件・間隔)", char["id"], now, apart=apart, force=force)
             return None
-        a = random.choices(cands, [float(x.get("weight", 1)) for x in cands])[0]
+        a = random.choices(cands, [float(x.get("weight", 1)) * feel_weight(x, ctx) for x in cands])[0]
         self.app.trace.add("approach", "働きかけ: %s" % a["id"], char["id"], now, cands=[x["id"] for x in cands], force=force)
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60

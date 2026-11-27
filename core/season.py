@@ -384,6 +384,38 @@ def winter_blue(app, char, dt):
     return -round(WINTER_BLUE * max(0.0, hm - 1.0) * short_days(dt), 2)
 
 
+# ------------------------------------------------------------------ 体感 (S59. 寄り添い・気遣い)
+FEEL_OUT = {"cold": (10.0, 6.0, 0.35), "hot": (27.0, 5.0, 0.6)}      # 外: (基準, 幅, 境目). ふつうの人で 8℃ 以下 / 30℃ 以上
+FEEL_ROOM = 1.5            # 家の中: 過ごしやすい室温からの外れ × 寒がり / 暑がり がこれ以上 (℃)
+DAY_HOT, DAY_COLD = 32.0, 8.0       # その日の最高気温がこれ以上 / 以下なら, 極端な日 (話題・気遣いのメッセージ)
+
+
+def feel(app, char, dt, inside=None):
+    """いまの体感 ("cold" / "hot" / ""). inside: 家の中ならその家の冷暖房の使い方 (AC_MODES の名前), 外なら None / False."""
+    sn = sense(app, char)
+    t = temp(dt)
+    if inside:
+        hot, cold = room_off(room(t, inside if isinstance(inside, str) else AC_DEFAULT)[0])
+        if cold * sn["cold"] >= FEEL_ROOM:
+            return "cold"
+        if hot * sn["heat"] >= FEEL_ROOM:
+            return "hot"
+        return ""
+    b, w, lim = FEEL_OUT["cold"]
+    if (b - t) / w * sn["cold"] >= lim - 1e-9:
+        return "cold"
+    b, w, lim = FEEL_OUT["hot"]
+    if (t - b) / w * sn["heat"] >= lim - 1e-9:
+        return "hot"
+    return ""
+
+
+def day_feel(d):
+    """その日の極端さ ("hot" / "cold" / ""). 最高気温で決まる (誰にとっても同じ)."""
+    hi = day_range(d)[1]
+    return "hot" if hi >= DAY_HOT else "cold" if hi <= DAY_COLD else ""
+
+
 # 飲み物・食べ物: 暑い日は冷たいもの・寒い日は温かいもの. 旬の果物
 ITEM_TEMP = {"pudding": "cold", "ice_cream": "cold", "tea_leaves": "warm", "coffee_beans": "warm", "scarf": "warm"}
 FRUIT = {"spring": "いちご", "summer": "すいか", "autumn": "梨", "winter": "みかん"}

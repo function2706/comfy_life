@@ -40,6 +40,7 @@ KINDS = {
     "may_call": ("今いい？", "☎", "（電話していいか聞いた）"),
     "otsukare": ("お疲れさま", "🍵", "（お疲れさまと送った）"),
     "you_ok": ("大丈夫？", "🩹", "（大丈夫？と気づかった）"),
+    "take_care": ("気をつけてね", "🧣", "（暑さ・寒さに気をつけてねと送った）"),      # 判定は manners (極端に暑い・寒い日か. S59)
     "what_doing": ("今何してる？", "👀", "（今何してるか聞いた）"),
     "who_with": ("誰といたの？", "🕵", "（誰といたのか聞いた）"),
     "ask_single": ("付き合ってる人いるの？", "💭", "（付き合っている人がいるのか聞いた）"),      # 判定は manners (core/circle.py の段 2)
@@ -53,7 +54,7 @@ KINDS = {
 }
 # 送る欄の分類 (A2): (id, 印, 名前, 種類). スタンプは種類を選ぶ欄, 「返事まだ？」は返事待ちのときだけ (画面)
 GROUPS = [
-    ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "ask_single", "you_ok", "smalltalk", "topic", "tease", "flirt"]),
+    ("chat", "💬", "話す", ["greet_morning", "greet_night", "otsukare", "ask_how", "what_doing", "who_with", "ask_single", "you_ok", "take_care", "smalltalk", "topic", "tease", "flirt"]),
     ("feel", "🙏", "気持ち", ["thanks", "apology", "consult", "congrats"]),
     ("invite", "📅", "誘う・約束", ["invite", "late", "where_appoint", "ask_bday", "tell_bday"]),
     ("photo", "📷", "写真", ["photo", "ask_selfie"]),
@@ -120,6 +121,9 @@ LINES = {
     "chat.otsukare_odd": "📱『？ ……何がですか？』",
     "chat.you_ok": "📱『……気にしてくれてたんですね。ありがとうございます、少し楽になりました』",
     "chat.you_ok_what": "📱『え、何がですか？ 別に何もないですけど』",
+    "chat.take_care": "📱『ありがとうございます。{call}も、気をつけてくださいね』",
+    "chat.take_care_odd": "📱『？ 今日は、そんなにでもないですよ？』",
+    "chat.take_care_again": "📱『ふふ、さっきも聞きましたよ。大丈夫です』",
     "chat.what_doing": "📱『今ですか？ {doing}ですよ』",
     "chat.what_doing_much": "📱『……なんで、そんなにいちいち聞くんですか？』",
     "chat.who_with": "📱『{where}のときですか？ {who}と一緒でしたよ』",
@@ -267,6 +271,8 @@ SCENE_LABEL = {"greet_morning": "おはよう", "greet_night": "おやすみ", "
                "consult_jealous": "相談 (ほかの人との仲。嫉妬)", "after_call": "電話のあとのひとこと (楽しかった)", "may_call_ok": "今いい？ (いいよ)", "may_call_later": "今いい？ (あとで)",
                "otsukare": "お疲れさま (ちょうど終わった頃)", "otsukare_odd": "お疲れさま (的外れな時間)",
                "you_ok": "大丈夫？ (体調・落ち込みを知っていて)", "you_ok_what": "大丈夫？ (心当たりがない)",
+               "take_care": "気をつけてね (極端に暑い・寒い日)", "take_care_odd": "気をつけてね (ふつうの日)",
+               "take_care_again": "気をつけてね (同じ日の 2 通目)",
                "what_doing": "今何してる？ ({doing} に今していること)", "what_doing_much": "今何してる？ / 誰といたの？ (聞きすぎ. 束縛っぽい)",
                "who_with": "誰といたの？ (正直に. {who} に 職場の人・友達・名前, {where} にそのときの場面)",
                "who_with_vague": "誰といたの？ (はぐらかす)", "who_with_none": "誰といたの？ (一人だった)",

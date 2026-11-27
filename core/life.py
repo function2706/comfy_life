@@ -221,6 +221,7 @@ class Life:
                 self.app.earn.daily(t, d0.month != d1.month)      # 時給の見直し・賞与・バイトの休み (core/earn.py)
                 self.rust(t)
                 self.app.body.daily(t)                         # 体調 (その日の過ごし方しだい)
+                self.app.topics.from_weather(t)                # 極端に暑い・寒い日の話題 (S59)
                 ps["money"] += int(e.get("player_daily_income", 1000))
                 self.ledger(t, int(e.get("player_daily_income", 1000)), "income", "日々の収入")
                 live = self.app.bonds.living()

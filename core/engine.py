@@ -176,6 +176,8 @@ def join_tags(chunks):
 
 
 MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
+TOUCH_FEEL_AFF = 5.0      # 体感で, ふれあいの反応を選ぶときにずらす好感度 (× 寒がり / 暑がり. S59)
+TOUCH_FEEL_EFF = {"cold": 1.2, "hot": 0.75}      # 応じてくれたときの, うれしい向きの効き目の倍率
 MOVING_OK_IDS = ("hold_hands", "headpat", "photo", "water", "gift")     # 移動中でもできるふれあい・お世話 (歩きながら・乗りながら)
 HOME_BONDS = ("visit_start", "guest_start")    # 家に上がる / 招く (外で会っているときは, その家まで一緒に移動してから. 残件 F16)
 
@@ -1049,6 +1051,11 @@ class App:
         ctx.update(self.player_ctx())                          # player_gender / player_age / player_has_job / player_likes
         ctx["player_sick"] = self.body.level()                 # あなたの体調 (0〜3. そばにいれば顔色で分かる)
         ctx["player_hungry"] = self.body.rec()["satiety"] < 30                    # 反応を確率で分けたいとき用 (例: sk_cook<30, roll<50)
+        # 体感 (S59): そばにいるときだけ. 外は外の気温, 家の中はその家の室温 (冷暖房しだい). その日の極端さと天気は離れていても
+        ctx["feel"] = "" if ctx["apart"] else season_mod.feel(
+            self, char, dt, inside=None if self.outside_with(char["id"], dt.timestamp()) else self.wardrobe.ac_of(char, dt))
+        ctx["day_feel"] = season_mod.day_feel(dt.date())
+        ctx["wx"] = outdoor_mod.weather(dt)["id"]
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -1722,7 +1729,13 @@ class App:
                 self.trace.add("talk", "話したい (会って): " + hima_mod.LABEL[hima], cid, now, **hv)
             # 約束して会えた (appt) も, 断る反応は選ばない: 約束の中身は約束したときに決まっていて, 来てから断ると
             # あなたの外出だけが終わって家に戻ってしまう (疲れていれば, 前もってのキャンセル・当日の反応の文で)
-            r = self.pick_reaction(a, ctx, invited=bool(opts.get("approach") or appt))
+            # 体感 (S59): 寒い日はふれあいを受けやすく, 暑い日は嫌がりやすい (反応を選ぶときだけ, 好感度をずらして見る)
+            feel = ctx.get("feel") if a.get("skill") == "touch" and not apart else ""
+            rctx = ctx
+            if feel:
+                sn = season_mod.sense(self, char)
+                rctx = dict(ctx, affection=ctx.get("affection", 0) + TOUCH_FEEL_AFF * (sn["cold"] if feel == "cold" else -sn["heat"]))
+            r = self.pick_reaction(a, rctx, invited=bool(opts.get("approach") or appt))
             if part:
                 self.parting.settle(char, st, aid, part, now)
             invite = apart and (a.get("override") or {}).get("outing")
@@ -1777,6 +1790,14 @@ class App:
                     if (v < 0) == bool(pd.get("invert")) or pd.get("neutral"):
                         v *= sk_mult          # あなたのスキルで, うれしい方向の効き目が変わる
                     eff[k] = eff.get(k, 0) + v
+            feel_note = None
+            if feel and not r.get("override"):
+                for k in list(eff):
+                    pd = self.param_def(k) or {}
+                    if (eff[k] < 0) == bool(pd.get("invert")) and not pd.get("neutral"):
+                        eff[k] *= TOUCH_FEEL_EFF[feel]
+                if feel == "hot" and random.random() < min(0.6, 0.35 * season_mod.sense(self, char)["heat"]):
+                    feel_note = "（暑いからか、{name}は少しして体を離した）"
             for k, v in (r.get("effects") or {}).items():
                 eff[k] = eff.get(k, 0) + float(v)
             if narrate:
@@ -1954,6 +1975,8 @@ class App:
                 text += "\n「%s」" % hima_said
             if nursed:
                 text += "\n" + nursed
+            if feel_note and not narrate:
+                text += "\n" + feel_note.replace("{name}", char.get("name", ""))
             # 出たときは「向かった」と移動の様子だけ. 行き先での反応・絵・費用は着いたときに
             if departing:
                 st["override"]["arrive"] = {"aid": aid, "ri": rs.index(r) if r in rs else None, "text": text,

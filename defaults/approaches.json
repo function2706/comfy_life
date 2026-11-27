@@ -27,6 +27,16 @@
    "effects": {"mood": -4, "loneliness": 6}}
  },
  {
+  "id": "huddle", "label": "くっついてきた", "icon": "🧣", "when": "feel=cold, affection>=50, asleep=false", "weight": 2, "cooldown_h": 4,
+  "text": "……ちょっと寒いので、くっついててもいいですか？", "pos": "sitting close to viewer, shoulder to shoulder, rubbing hands, blush", "neg": "",
+  "accept": {"label": "いいよ", "text": "（肩を寄せ合っていると、少しずつ温まってきた）", "skill": "touch",
+   "effects": {"loneliness": -10, "mood": 4, "heart": 5, "affection": 1}, "pos": "huddling together, shoulder to shoulder, relieved smile, blush",
+   "reason_good": "寒い日に{call}とくっついて温まった"},
+  "later": {"label": "ちょっと待って", "text": "……あ、はい。", "effects": {"mood": -1, "shyness": 3}},
+  "ignore": {"text": "（{name}は自分の腕をさすりながら、少し離れて座った）", "busy_text": "（{name}は邪魔をしないよう、毛布にくるまった）",
+   "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
   "id": "bored", "talk": "bored", "label": "かまってほしそう", "icon": "🥱", "when": "boredom>=65, outing=false", "weight": 2, "cooldown_h": 3,
   "text": "暇です〜……。{call}、かまってください〜。", "pos": "lying down, bored, looking at viewer, pouting", "neg": "",
   "accept": {"label": "かまう", "text": "わーい！ じゃあ、何して遊びます？", "skill": "talk",
@@ -134,7 +144,7 @@
   "ignore": {"text": "（{name}は少しだけ照れたように前を向いた）", "effects": {"mood": -1}}
  },
  {
-  "id": "date_cold", "label": "寒そうにしている", "icon": "🥶", "when": "outing=true, season=winter", "weight": 1, "cooldown_h": 3,
+  "id": "date_cold", "label": "寒そうにしている", "icon": "🥶", "when": "outing=true, feel=cold", "weight": 1, "cooldown_h": 3,
   "text": "ちょっと寒くないですか……？", "pos": "shivering, rubbing hands, winter clothes, outdoors", "neg": "",
   "accept": {"label": "上着を貸す", "text": "え、いいんですか？ ……あったかいです。", "effects": {"heart": 4, "affection": 1, "mood": 3},
    "reason_good": "{call}が上着を貸してくれた"},
@@ -142,7 +152,7 @@
   "ignore": {"text": "（{name}は手に息を吹きかけている）", "effects": {"mood": -1}}
  },
  {
-  "id": "date_hot", "label": "暑そうにしている", "icon": "🥵", "when": "outing=true, season=summer, phase=noon", "weight": 1, "cooldown_h": 3,
+  "id": "date_hot", "label": "暑そうにしている", "icon": "🥵", "when": "outing=true, feel=hot", "weight": 1, "cooldown_h": 3,
   "text": "暑いですね……。どこかで冷たいもの、飲みません？", "pos": "fanning herself, sweat, summer clothes, outdoors", "neg": "",
   "accept": {"label": "飲みに行こう", "text": "やった。生き返りますね。", "effects": {"mood": 4, "energy": 4}},
   "later": {"label": "もう少し歩こう", "text": "……はい。", "effects": {"mood": -2, "energy": -3}},
@@ -193,6 +203,15 @@
   "ignore": {"text": "（{name}は差し出しかけた手を、そっと引っ込めた）", "effects": {"mood": -2, "shyness": 3}}
  },
  {
+  "id": "umbrella", "label": "傘に入れてほしそう", "icon": "☂", "when": "outing=true, wx=rain, affection>=40", "weight": 3, "cooldown_h": 6,
+  "text": "あ……{fp}、傘を忘れてきちゃったみたいで。入れてもらってもいいですか？", "pos": "rain, outdoors, looking at viewer, embarrassed smile, wet hair", "neg": "",
+  "accept": {"label": "入れてあげる", "text": "（一本の傘に二人で入ると、肩が少し触れた）", "skill": "touch",
+   "effects": {"heart": 6, "shyness": 4, "affection": 1, "mood": 2}, "pos": "sharing umbrella, rain, close together, blush, outdoors",
+   "reason_good": "雨の日に{call}の傘に入れてもらった"},
+  "later": {"label": "コンビニで買おう", "text": "……そうですね、そうしましょう。", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は、軒下を伝って小走りでついてくる）", "effects": {"mood": -3}}
+ },
+ {
   "id": "msg_chat", "label": "メッセージが届いた", "icon": "📱", "apart": true, "when": "affection>=35", "weight": 3,
   "cooldown_h": 4, "wait_minutes": 90, "urgency": 1.0,
   "text": "📱『{call}、いま何してます？ ちょっとお話ししたくて』",
@@ -218,6 +237,24 @@
    "effects": {"mood": 4, "loneliness": -6, "boredom": -4, "affection": 1}},
   "later": {"label": "あとで読む", "text": "📱『あとでちゃんと読んでくださいね！』", "effects": {}},
   "ignore": {"text": "（{name}からの長いメッセージが、読まれないまま残っている）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "msg_cold", "label": "寒さを気づかってくれた", "icon": "🧣", "apart": true, "when": "day_feel=cold, affection>=40", "weight": 2,
+  "cooldown_h": 20, "wait_minutes": 120, "urgency": 0.7,
+  "text": "📱『今日、すごく寒いですね。{call}、暖かくしてくださいね』",
+  "accept": {"label": "返信する", "text": "📱『ふふ、ありがとうございます。{fp}も気をつけます』", "skill": "talk",
+   "effects": {"mood": 3, "loneliness": -5, "affection": 1}, "reason_good": "{call}が気づかいに返事をくれた"},
+  "later": {"label": "あとで返す", "text": "📱『はい、またあとで』", "effects": {}},
+  "ignore": {"text": "（{name}からの気づかいのメッセージは、返事がないまま残っている）", "effects": {"mood": -2, "loneliness": 2}}
+ },
+ {
+  "id": "msg_hot", "label": "暑さを気づかってくれた", "icon": "🥤", "apart": true, "when": "day_feel=hot, affection>=40", "weight": 2,
+  "cooldown_h": 20, "wait_minutes": 120, "urgency": 0.7,
+  "text": "📱『今日、暑すぎますね……。{call}、水分ちゃんととってくださいね』",
+  "accept": {"label": "返信する", "text": "📱『ふふ、ありがとうございます。{fp}も気をつけます』", "skill": "talk",
+   "effects": {"mood": 3, "loneliness": -5, "affection": 1}, "reason_good": "{call}が気づかいに返事をくれた"},
+  "later": {"label": "あとで返す", "text": "📱『はい、またあとで』", "effects": {}},
+  "ignore": {"text": "（{name}からの気づかいのメッセージは、返事がないまま残っている）", "effects": {"mood": -2, "loneliness": 2}}
  },
  {
   "id": "need_you", "label": "離れたくないみたい", "icon": "🥺", "when": "dependence>=80, loneliness>=45, affection>=55, outing=false", "weight": 2, "cooldown_h": 6,

@@ -14,8 +14,10 @@ import math
 import random
 import time
 import uuid
+from datetime import datetime
 
 from . import nori as nori_mod
+from . import season as season_mod
 from .places import expand_keys as _expand_keys
 
 TAGS = {"books": "本", "movies": "映画", "food": "食べ物", "sweets": "甘いもの", "animals": "動物", "nature": "自然", "sea": "海",
@@ -165,6 +167,17 @@ class Topics:
             return self.add("work", random.choice(WORK), ["work"], now)
         return None
 
+    WEATHER = {"hot": "猛暑の日の話", "cold": "冷え込んだ日の話"}
+
+    def from_weather(self, t):
+        """その日が極端に暑い・寒いなら, 話題を足す (日の変わり目に一度. 同じ文の話題は 1 日以内なら足さない: add)."""
+        d = datetime.fromtimestamp(t).date()
+        k = season_mod.day_feel(d)
+        if not k:
+            return None
+        return self.add("weather", self.WEATHER[k], ["weather"], datetime(d.year, d.month, d.day, 7).timestamp(),
+                        ref=k, save=False)
+
     def from_rumor(self, text, now):
         return self.add("rumor", "噂で聞いた話（%s）" % text[:24].rstrip("、。"), ["gossip", "money"], now)
 
@@ -269,7 +282,9 @@ class Topics:
         fresh = max(0.0, 1 - age / FRESH_DAYS)
         recent = [h for h in st.get("topic_tags") or [] if now - h["t"] < 3 * 86400 and h["tag"] in x["tags"]]
         lv = nori_mod.level(st, now)
-        shared = cid in (x.get("with") or [])
+        shared = cid in (x.get("with") or []) or x.get("src") == "weather"     # 天気の話: 同じ日を過ごしている
+        if x.get("src") == "weather":           # 暑がり・寒がりほど「ほんとに」と乗る (S59)
+            taste = max(-0.6, min(0.6, 1.2 * (season_mod.sense(self.app, char)["cold" if x.get("ref") == "cold" else "heat"] - 1.0)))
         score = 26 * taste + 0.2 * (p.get("mood", 50) - 50) + (15 * (lv - 0.5) if lv is not None else 0) + 8 * fresh \
             - 9 * len(recent) - (8 if p.get("energy", 60) < 25 else 0) + (10 if shared else 0) + random.uniform(-15, 15)
         res = "hit" if score >= 14 else "ok" if score >= -6 else "bored"

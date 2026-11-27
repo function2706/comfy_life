@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from . import knowsched as ks
 from . import msgpick
 from . import regard as regard_mod
+from . import season as season_mod
 
 COUNTED_APOLOGY = ("quick", "late", "enough", "irritated")
 APOLOGY_SPAN = 4 * 3600          # この間に続けて謝ると「もういいって」
@@ -701,6 +702,18 @@ class Manners:
                 c = L.skill_soft("care")
                 return "you_ok", {"mood": 2 + 4 * c, "trust": 1 + c, "loneliness": -4, "stress": -2 - 3 * c}, {}
             return "you_ok_what", {"mood": -0.5}, {}
+        if kind == "take_care":       # 暑さ・寒さを気づかう (S59): 極端な日なら届く. ふつうの日は的外れ. 同じ日の 2 通目は流される
+            sent = ctx.get("_sent") or now
+            day = datetime.fromtimestamp(sent).strftime("%Y-%m-%d")
+            if st.get("take_care_day") == day:
+                return "take_care_again", {}, {}
+            k = season_mod.day_feel(datetime.fromtimestamp(sent).date())
+            if not k:
+                return "take_care_odd", {}, {}
+            st["take_care_day"] = day
+            sn = season_mod.sense(app, char)["cold" if k == "cold" else "heat"]      # 暑がり・寒がりほど, うれしい
+            self.app.regard.sign(char, st, "care_msg", now)
+            return "take_care", {"mood": 2 * sn, "trust": 0.5, "loneliness": -2}, {}
         if kind == "what_doing":
             if meta.get("asked", 0) >= 2:
                 L.add_reason(st, "player", "bad", "%sに何度も「今何してる？」と聞かれた" % app.pronouns(char)[2], now, told=True,
