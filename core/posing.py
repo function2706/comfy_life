@@ -1,7 +1,12 @@
 """ポーズと「見せて」: 頼む (コマンド _pose / _show)・相手からしてくる・持ちかけてくる (対価を求めることも)・好みの学習.
 
-- 一覧 (data/poses.json. 既定は defaults/poses.json. 全体で 1 つ): {id, type: pose / show, name, icon, bold 0〜3, outside_ok, pos, neg}.
-  見せて は「〜 focus」の形のプロンプト. 既定は服を着たままの範囲で, 裸・性的な行為は入れない (設定から足せる).
+- 一覧 (data/poses.json. 既定は defaults/poses.json. 全体で 1 つ): {id, type: pose / show, name, icon, bold 0〜3, outside_ok, pos, neg,
+  slot, group, with, silly, hand_ok}. 見せて は「〜 focus」の形のプロンプト. 既定は服を着たままの範囲で, 裸・性的な行為は入れない (設定から足せる).
+- 組み合わせ (S44): 部位 slot は 姿勢 body (型 group: 立つ・座る・膝・うつ伏せ・仰向け・四つん這い)・手 hand・単独 whole (組み合わせない)・
+  見せて show. 姿勢・手・見せるものから 1 つずつ (片方だけでもよい). 手と見せるものは, 組める姿勢の型を with に持つ. 見せるものに手を
+  添えられるかは hand_ok. 大胆さは「いちばん大胆なもの + 0.5 × 残りの和」(combine). ポーズが大胆なときだけ, 着ている服の大胆さも同じ式に入れる.
+  照れくささ silly 0〜2 (猫・うさぎ・ダブルピースなど. 肌は見せないが恥ずかしい) は大胆さとは別に, 性格の play (おどけへの平気さ −1〜+1) で効く.
+  部位の無い項目は, 既定に同じ id があればその値を, 無ければ単独 (見せては姿勢と組めない) として読む (データは書き換えない).
 - 大人のキャラだけ: 定義の age に 18 未満が入っている人には, 頼むことも相手からの行動も出さない. 未入力は (今までのキャラを
   使えなくしないよう) 大人として扱う. 判定は年齢の欄だけ (外見のタグ・性格・プロンプトの語からは推し量らない).
 - 頼んだとき: 着てくれるかと同じ受け入れ (wardrobe.accept. 好感度・信頼・間柄・恥じらい・機嫌・場所・揺らぎ・しつこさ. pose_asks).
@@ -12,11 +17,28 @@
   本人の服選びが, 概してそちらに寄る (重みが変わるだけで, 確定しない).
 """
 import math
+import os
 import random
 
 from . import store
 
 TYPES = {"pose": "ポーズ", "show": "見せて"}
+SLOTS = {"body": "姿勢", "hand": "手", "whole": "単独", "show": "見せて"}
+GROUPS = {"stand": "立つ", "sit": "座る", "kneel": "膝立ち・しゃがむ", "lie": "うつ伏せ・横向き", "back": "仰向け", "fours": "四つん這い"}
+SILLY_LABEL = ("ふつう", "少し照れくさい", "照れくさい")
+EXTRA = 0.5                   # 組み合わせの大胆さ: いちばん大胆なもの + EXTRA × 残りの和
+# 以前の既定 (姿勢と手が 1 つに混ざっていた・猫とうさぎを大胆さで数えていた). 手を入れていなければ, 読むときに今の既定に直す (S44)
+OLD_DEFAULT = {
+    "head_rest": {"name": "頬杖", "pos": "head rest, sitting, looking at viewer", "bold": 0},
+    "arms_behind_back": {"name": "後ろで手を組む", "pos": "arms behind back, leaning forward, looking at viewer", "bold": 0},
+    "contrapposto": {"name": "モデル立ち", "pos": "contrapposto, hand on own hip, full body, looking at viewer", "bold": 0},
+    "seiza": {"name": "正座", "pos": "seiza, hands on own knees, looking at viewer", "bold": 0},
+    "paw_pose": {"name": "猫のポーズ", "pos": "paw pose, cat pose, smile, looking at viewer", "bold": 1},
+    "rabbit_pose": {"name": "うさぎのポーズ", "pos": "rabbit pose, smile, looking at viewer", "bold": 1},
+    "on_stomach": {"name": "うつ伏せで頬杖", "pos": "lying, on stomach, head rest, looking at viewer", "bold": 1},
+    "on_side": {"name": "横向きに寝そべる", "pos": "lying, on side, head rest, looking at viewer", "bold": 2},
+    "on_back": {"name": "仰向けで手を頭の後ろに", "pos": "lying, on back, hands behind head, looking at viewer", "bold": 2},
+}
 ADULT_AGE = 18
 REACTIONS = [("praise", "「きれい」と褒める"), ("shy", "照れて目をそらす"), ("more", "「もっと見たい」と言う"),
              ("tease", "からかう"), ("stop", "「そういうのはいいよ」と止める")]
@@ -72,14 +94,58 @@ def adult(char):
         return True
 
 
+def combine(vals):
+    """組み合わせの大胆さ: いちばん大胆なもの + 0.5 × 残りの和 (0 同士は 0, 1 + 1 は 1.5)."""
+    vals = [float(v) for v in vals if v]
+    if not vals:
+        return 0.0
+    m = max(vals)
+    return round(m + EXTRA * (sum(vals) - m), 2)
+
+
+_DEFAULTS = {}
+
+
+def _default(pid):
+    if not _DEFAULTS:
+        for d in store.load(os.path.join(store.DEFAULTS, "poses.json"), []) or []:
+            _DEFAULTS[d.get("id")] = d
+    return _DEFAULTS.get(pid) or {}
+
+
 def _norm(o):
     o = dict(o)
+    d = _default(o.get("id"))
+    old = OLD_DEFAULT.get(o.get("id"))
+    if old and d and all(o.get(k) == v for k, v in old.items()):
+        o.update({k: d[k] for k in old})              # 既定のまま手を入れていない: 今の既定に (データは書き換えない)
     o["type"] = o.get("type") if o.get("type") in TYPES else "pose"
     o["bold"] = max(0, min(3, int(o.get("bold") or 0)))
     o["outside_ok"] = bool(o.get("outside_ok"))
     for k in ("name", "icon", "pos", "neg"):
         o[k] = o.get(k) or ""
+    for k, v in (("slot", ""), ("group", ""), ("with", []), ("silly", 0), ("hand_ok", False)):
+        if k not in o:
+            o[k] = d.get(k, v) if d.get("type", "pose") == o["type"] else v
+    if o["type"] == "show":
+        o["slot"] = "show"
+    elif o["slot"] not in SLOTS or o["slot"] == "show":
+        o["slot"] = "whole"
+    o["group"] = o["group"] if o["group"] in GROUPS and o["slot"] in ("body", "whole") else ""
+    o["with"] = [g for g in o["with"] or [] if g in GROUPS] if o["slot"] in ("hand", "show") else []
+    o["silly"] = max(0, min(2, int(o.get("silly") or 0)))
+    o["hand_ok"] = bool(o["hand_ok"]) and o["slot"] == "show"
     return o
+
+
+def _join(texts):
+    out = []
+    for t in texts:
+        for w in (t or "").split(","):
+            w = w.strip()
+            if w and w not in out:
+                out.append(w)
+    return ", ".join(out)
 
 
 class Posing:
@@ -110,7 +176,62 @@ class Posing:
         return out
 
     def catalog_view(self):
-        return {"items": self.all(), "types": TYPES}
+        return {"items": self.all(), "types": TYPES, "slots": SLOTS, "groups": GROUPS, "silly": SILLY_LABEL}
+
+    def combo(self, ids, typ):
+        """頼むものの組み合わせ (姿勢・手・見せるものから 1 つずつ). 無いもの・種類違いは KeyError, 合わない組み合わせは ValueError.
+        返すのは 1 つのポーズと同じ形 (name・pos・neg・bold・silly・outside_ok) + parts."""
+        ids = [ids] if isinstance(ids, str) else [i for i in ids or [] if i]
+        if not ids:
+            raise KeyError("ポーズ・見せるものを選んでください")
+        parts = []
+        for i in ids:
+            o = self.get(i)
+            if not o:
+                raise KeyError("ポーズ・見せるものが見つかりません: %s" % i)
+            parts.append(o)
+        by = {}
+        for o in parts:
+            if o["slot"] in by:
+                raise ValueError("同じ部位（%s）から 2 つは選べません" % SLOTS[o["slot"]])
+            by[o["slot"]] = o
+        if (typ == "show") != ("show" in by):
+            raise KeyError("ポーズ・見せるものが見つかりません: %s" % ",".join(ids))
+        w = by.get("whole")
+        if w and len(parts) > 1:
+            raise ValueError("「%s」はほかと組み合わせられません" % w["name"])
+        b, h, s = by.get("body"), by.get("hand"), by.get("show")
+        for x in (h, s):
+            if b and x and b["group"] not in x["with"]:
+                raise ValueError("「%s」と「%s」は組み合わせられません" % (b["name"], x["name"]))
+        if s and h and not s["hand_ok"]:
+            raise ValueError("「%s」に手のポーズは添えられません" % s["name"])
+        order = [o for o in (s, b, h, w) if o]
+        if s:
+            name = s["name"] + ("（%s）" % "・".join(o["name"] for o in (b, h) if o) if b or h else "")
+        else:
+            name = "・".join(o["name"] for o in order)
+        return {"id": "+".join(o["id"] for o in order), "type": typ, "name": name, "icon": order[0]["icon"],
+                "pos": _join(o["pos"] for o in order), "neg": _join(o["neg"] for o in order),
+                "bold": combine(o["bold"] for o in order), "silly": max(o["silly"] for o in order),
+                "outside_ok": all(o["outside_ok"] for o in order), "parts": order}
+
+    def clothes_bold(self, char, st, outing=False):
+        """いま着ている服の大胆さ (ポーズの判定に入れる分). 部品の組み合わせなら, 描かれる部品から同じ式で (一式はその服の大胆さ)."""
+        W = self.app.wardrobe
+        d = st.get("dress") or {}
+        if d.get("coord"):
+            return combine(o["bold"] for o in W.drawn(W.coord_items(char, d["coord"]), outing))
+        return float((W.worn(char, st, outing) or {}).get("bold") or 0)
+
+    @staticmethod
+    def with_clothes(bold, clothes_bold):
+        """服の大胆さも入れた大胆さ. ポーズが大胆でなければ 0 のまま (大胆な服を着ていても, ピースはふつうに頼める)."""
+        return combine([bold, clothes_bold]) if bold > 0 else 0.0
+
+    def play(self, char):
+        """おどけへの平気さ (−1 嫌がる〜+1 平気. 性格の traits の play. 無ければ 0)."""
+        return max(-1.0, min(1.0, float(self.app.traits(char).get("play", 0) or 0)))
 
     # ------------------------------------------------------------------ 好み
     @staticmethod
@@ -139,7 +260,8 @@ class Posing:
         ok, why = self.can(char, st, now)
         out = self.outside(char["id"])
         items = [dict(o, here=(not out or o["outside_ok"])) for o in self.all()]
-        return {"can": ok, "why": why, "items": items, "outside": out}
+        return {"can": ok, "why": why, "items": items, "outside": out, "clothes_bold": self.clothes_bold(char, st, out) if ok else 0,
+                "groups": GROUPS}
 
     # ------------------------------------------------------------------ 相手から
     def eagerness(self, char, st):
@@ -152,7 +274,8 @@ class Posing:
         """相手が自分から選ぶポーズ・部位 (自分から出せる大胆さまで. 覚えた好みに寄る)."""
         cap = self.app.wardrobe.comfort(char, st) + (1 if st["params"].get("heart", 0) >= 50 else 0)
         out = self.outside(char["id"])
-        cands = [o for o in self.all() if o["bold"] <= cap and (not out or o["outside_ok"])]
+        play = self.play(char)               # 照れくさいものは, おどけが平気な人ほど自分からもする
+        cands = [o for o in self.all() if o["bold"] <= cap and (not out or o["outside_ok"]) and o["silly"] * (1 - play) <= 1]
         if not cands:
             return None
         w = [max(0.2, 1.0 + 0.6 * self.pref(st, "%s:%s" % (o["type"], o["id"]))) for o in cands]

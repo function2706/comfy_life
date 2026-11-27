@@ -39,7 +39,8 @@
   "reason": 0.85,
   "heat": 1.1,
   "cold": 1.2,
-  "outdoorsy": 0.9
+  "outdoorsy": 0.9,
+  "play": 0.4
  },
  "lines": {
   "chat.react_nevermind_good": [

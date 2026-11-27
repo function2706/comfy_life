@@ -85,6 +85,18 @@ TRYON_MIN = 60                        # 買ってもらったアウターを「�
 SEASONS = {"spring": "春", "summer": "夏", "autumn": "秋", "winter": "冬"}
 BOLD_LABEL = ("ふつう", "少し大胆", "大胆", "かなり大胆")
 BOLD_NEED = (None, 12, 32, 52)        # 着てくれるのに要る気持ち (下の score) の目安
+SILLY_NEED = 8                        # 照れくさいポーズ 1 段に要る気持ち (おどけへの平気さ play が 0 のとき. +1 なら 0, −1 なら 2 倍)
+
+
+def bold_need(b):
+    """大胆さ (小数でもよい) に要る気持ち. 段のあいだは直線で補い, 3 を超えたら 1 段ごとに +20."""
+    if b <= 1:
+        return BOLD_NEED[1]
+    if b >= 3:
+        return BOLD_NEED[3] + 20 * (b - 3)
+    i = int(b)
+    return BOLD_NEED[i] + (BOLD_NEED[i + 1] - BOLD_NEED[i]) * (b - i)
+
 STAGE_BONUS = {"known": -10, "contact": 0, "visit": 8, "live": 15}
 HOME_KINDS = ("casual", "lounge")     # 家で本人が選ぶ服
 OUT_KINDS = ("casual", "formal")      # 出かけるときに本人が選ぶ服
@@ -663,17 +675,22 @@ class Wardrobe:
 
     def accept(self, char, st, o, now, outside=False, others=0, record=True, asks_key="dress_asks"):
         """大胆な服 (やポーズ・見せて) を頼まれたときの気持ち: ok (ふつう) / eager (ノリノリ) / shy (照れながら) / reluctant (渋々) /
-        refuse (断る) / angry (断ったのにしつこく頼まれて怒る). しつこさは asks_key ごとに覚える."""
-        bold = int(o.get("bold") or 0)
-        if bold <= 0:
+        refuse (断る) / angry (断ったのにしつこく頼まれて怒る). しつこさは asks_key ごとに覚える.
+        大胆さは小数でもよい (ポーズの組み合わせ. 段のあいだは補う). 照れくささ silly (ポーズ. 0〜2) は肌の大胆さとは別に,
+        おどけが平気な性格 (traits の play) ほど要る点が小さい. 照れくささには恥じらい (modesty) を数えない."""
+        bold = max(0.0, float(o.get("bold") or 0))
+        silly = int(o.get("silly") or 0)
+        play = max(-1.0, min(1.0, float(self.app.traits(char).get("play", 0) or 0)))
+        s_need = SILLY_NEED * silly * (1 - play) * (1.5 if outside else 1.0)
+        if bold <= 0 and s_need <= 0:
             return "ok"
         p = st["params"]
         asks = [a for a in st.get(asks_key) or [] if now - a["t"] < 2 * 3600]
         refused = sum(1 for a in asks if not a["ok"])
-        need = BOLD_NEED[bold] + (12 * bold if outside else 0) + (6 * bold if others else 0)
+        need = (bold_need(bold) + (12 * bold if outside else 0) + (6 * bold if others else 0) if bold > 0 else 0) + s_need
         score = 0.5 * (p.get("affection", 40) - 40) + 0.4 * (p.get("trust", 40) - 40) \
             + STAGE_BONUS.get(self.app.bonds.stage(char["id"]), 0) + 0.3 * (p.get("mood", 50) - 50) \
-            - self.modesty(char) * (1 + 0.3 * bold) - 12 * refused + random.uniform(-15, 15)
+            - (self.modesty(char) * (1 + 0.3 * bold) if bold > 0 else 0) - 12 * refused + random.uniform(-15, 15)
         if random.random() < 0.04 * bold:          # 仲が深くても, 今日はそういう気分じゃないこともある
             score = min(score, need - 13)
         if score >= need + 25:

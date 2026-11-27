@@ -1623,21 +1623,23 @@ class App:
                 ctx["dress_temp"] = self.wardrobe.temp_feel(char, outfit, dt) if outfit else ""      # 寒すぎる服 (S38)
             pose = None
             if aid in ("_pose", "_show"):             # ポーズを取って / ○○を見せて (大人だけ. 受け入れは着せ替えと同じ考え方)
-                pose = self.posing.get(opts.get("pose") or "")
-                if not pose or pose["type"] != aid[1:]:
-                    raise KeyError("ポーズ・見せるものが見つかりません: %s" % opts.get("pose"))
+                # 姿勢・手・見せるものの組み合わせ (S44. opts.poses. 1 つだけなら opts.pose でもよい)
+                pose = self.posing.combo(opts.get("poses") or opts.get("pose") or [], aid[1:])
                 ok, why = self.posing.can(char, st, now)
                 if not ok:
                     raise ValueError(why)
                 outside = self.posing.outside(cid)
                 if outside and not pose["outside_ok"]:
                     raise ValueError("「%s」は外では頼めません" % pose["name"])
+                # 大胆な服で大胆なポーズは, さらに受けにくい (部品の組み合わせは部品から同じ式で)
+                bold = self.posing.with_clothes(pose["bold"], self.posing.clothes_bold(char, st, outside))
                 ctx["pose"] = pose["id"]
-                ctx["pose_feel"] = self.wardrobe.accept(char, st, pose, now, outside=outside,
+                ctx["pose_feel"] = self.wardrobe.accept(char, st, dict(pose, bold=bold), now, outside=outside,
                                                         others=len(self.bonds.company(now)) > 1, asks_key="pose_asks")
-                ctx["pose_bold"] = pose["bold"]
+                ctx["pose_bold"] = int(round(bold))
                 opts.setdefault("extra", {})["item"] = pose["name"]
-                self.posing.learn(st, "%s:%s" % (pose["type"], pose["id"]), 1.0)     # 頼んだもの = あなたの好み
+                for o in pose["parts"]:                   # 頼んだもの = あなたの好み (組み合わせは部位ごとに少しずつ)
+                    self.posing.learn(st, "%s:%s" % (o["type"], o["id"]), 1.0 if len(pose["parts"]) == 1 else 0.5)
             if coord:
                 for k in coord.values():
                     self.posing.learn(st, "outfit:" + k, 0.5)     # 組み合わせは部品ごとに少しずつ

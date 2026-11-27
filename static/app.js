@@ -1449,16 +1449,65 @@ function poseSections(t) {
   const ps = t.posing;
   if (!ps) return [];
   if (!ps.can) return [h('div', { class: 'sect' }, '📸 ポーズ・見せて'), h('p', { class: 'muted small' }, ps.why)];
-  return [['pose', '_pose', '📸 ポーズを取って'], ['show', '_show', '👀 見せて']].map(([typ, aid, title]) => h('div', {},
-    h('div', { class: 'sect' }, title),
-    h('div', { class: 'outfits' }, ps.items.filter((o) => o.type === typ).map((o) => h('button', {
-      class: 'outfit', disabled: S.busy || !o.here, why: o.here ? '' : '外では頼めません', title: o.here ? (o.bold ? `大胆さ ${o.bold}（受けてくれるかは仲・気分・性格・場所しだい）` : o.pos) : '外では頼めません',
-      onclick: () => doPose(aid, o.id) }, h('span', { class: 'ic' }, o.icon || '📸'), h('span', {}, o.name + boldMark(o.bold)))))));
+  // 部位ごとに 1 つずつ選んで (姿勢・手. 見せてはそれに見せるもの), 「これで頼む」. 合わないものは押せない (S44)
+  if (!S.poseSel || S.poseSel.cid !== t.character) S.poseSel = { cid: t.character, pose: {}, show: {} };
+  const byId = Object.fromEntries(ps.items.map((o) => [o.id, o]));
+  const SLOT_ROWS = { pose: [['hand', '手'], ['body', '姿勢'], ['whole', 'そのほか（組み合わせない）']], show: [['show', '見せるもの'], ['body', '姿勢（添えなくてもよい）'], ['hand', '手（添えなくてもよい）']] };
+  const fits = (sel, o) => {               // いまの選びに o を入れて合うか
+    const next = { ...sel, [o.slot]: o.id };
+    if (o.slot === 'whole') return true;
+    if (next.whole) delete next.whole;
+    const b = byId[next.body], hd = byId[next.hand], sh = byId[next.show];
+    if (b && hd && !hd.with.includes(b.group)) return false;
+    if (b && sh && !sh.with.includes(b.group)) return false;
+    if (sh && hd && !sh.hand_ok) return false;
+    return true;
+  };
+  return [['pose', '_pose', '📸 ポーズを取って'], ['show', '_show', '👀 見せて']].map(([typ, aid, title]) => {
+    const sel = S.poseSel[typ];
+    Object.keys(sel).forEach((k) => { if (!byId[sel[k]]) delete sel[k]; });
+    const picked = ['show', 'body', 'hand', 'whole'].map((k) => byId[sel[k]]).filter(Boolean);
+    const rows = SLOT_ROWS[typ].filter(([slot]) => typ === 'pose' || slot === 'show' || sel.show).map(([slot, label]) => {
+      const items = ps.items.filter((o) => o.type === typ ? o.slot === slot : (typ === 'show' && o.type === 'pose' && o.slot === slot));
+      if (!items.length) return '';
+      return h('div', {}, h('div', { class: 'muted small' }, label), h('div', { class: 'outfits' }, items.map((o) => {
+        const on = sel[slot] === o.id;
+        const ok = o.here && (on || fits(sel, o)) && !(typ === 'show' && slot === 'hand' && !(byId[sel.show] || {}).hand_ok);
+        const why = !o.here ? '外では頼めません' : ok ? '' : 'いま選んでいるものとは組み合わせられません';
+        return h('button', {
+          class: 'outfit' + (on ? ' on' : ''), disabled: S.busy || !ok, why, title: why || (o.bold ? `大胆さ ${o.bold}` : '') + (o.silly ? ` 照れくささ ${o.silly}` : '') || o.pos,
+          onclick: () => {
+            if (on) delete sel[slot];
+            else {
+              sel[slot] = o.id;
+              if (slot === 'whole') { delete sel.body; delete sel.hand; } else delete sel.whole;
+              if (slot === 'show') ['body', 'hand'].forEach((k) => { if (sel[k] && !fits({ show: o.id }, byId[sel[k]])) delete sel[k]; });
+            }
+            renderDress();
+          } }, h('span', { class: 'ic' }, o.icon || '📸'), h('span', {}, o.name + boldMark(o.bold) + (o.silly ? ' 😳' : '')));
+      })));
+    });
+    const ready = typ === 'show' ? !!sel.show : picked.length > 0;
+    const ids = picked.map((o) => o.id);
+    let foot = '';
+    if (ready) {
+      const vals = picked.map((o) => o.bold).filter((v) => v > 0);
+      const pb = vals.length ? Math.max(...vals) + 0.5 * (vals.reduce((a, b) => a + b, 0) - Math.max(...vals)) : 0;
+      const cb = ps.clothes_bold || 0;
+      const tot = pb > 0 && cb > 0 ? Math.max(pb, cb) + 0.5 * Math.min(pb, cb) : pb;
+      const name = picked.map((o) => o.name).join('・');
+      foot = h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px 10px;margin-top:6px' },
+        h('span', {}, `${name}${tot ? `（大胆さ ${Math.round(tot * 10) / 10}${pb > 0 && cb > 0 ? '・服も込み' : ''}）` : ''}`),
+        h('button', { class: 'btn', disabled: S.busy, onclick: () => doPose(aid, ids) }, 'これで頼む'),
+        h('button', { class: 'btn ghost', onclick: () => { S.poseSel[typ] = {}; renderDress(); } }, '選び直す'));
+    }
+    return h('div', {}, h('div', { class: 'sect' }, title), ...rows, foot);
+  });
 }
-async function doPose(aid, pid) {
+async function doPose(aid, ids) {
   if (S.busy) return;
   S.busy = true;
-  try { handleActResult(await api('/api/act', withT({ action: aid, pose: pid }))); }
+  try { handleActResult(await api('/api/act', withT({ action: aid, poses: ids }))); }
   catch (e) { toast(e.message, 'err'); }
   finally { S.busy = false; await refresh(); }
 }
@@ -5361,15 +5410,23 @@ SEC.poses = () => {
         fld('種類', inp(o, 'type', { type: 'select', options: Object.entries(P.types) })),
         fld('大胆さ', inp(o, 'bold', { type: 'select', options: ((S.boot.outfits || {}).bold || []).map((l, b) => [String(b), `${b} ${l}`]), parse: Number })),
         h('div', { class: 'fld' }, h('span', { class: 'fl' }, '場所'), chk(o, 'outside_ok', '外でも頼める')),
+        o.type === 'show' ? '' : fld('部位', inp(o, 'slot', { type: 'select', options: Object.entries(P.slots || {}).filter(([k]) => k !== 'show'), onchange: draw })),
+        ['body', 'whole'].includes(o.slot) && o.type !== 'show' ? fld('姿勢の型', inp(o, 'group', { type: 'select', options: [['', '—'], ...Object.entries(P.groups || {})] })) : '',
+        fld('照れくささ', inp(o, 'silly', { type: 'select', options: (P.silly || []).map((l, b) => [String(b), `${b} ${l}`]), parse: Number })),
+        o.type === 'show' ? h('div', { class: 'fld' }, h('span', { class: 'fl' }, '手'), chk(o, 'hand_ok', '手のポーズを添えられる')) : '',
+        o.type === 'show' || o.slot === 'hand' ? h('div', { class: 'fld span2' }, h('span', { class: 'fl' }, '組める姿勢の型'),
+          h('div', { class: 'row', style: 'flex-wrap:wrap;gap:4px 10px' }, Object.entries(P.groups || {}).map(([g, l]) => h('label', {},
+            h('input', { type: 'checkbox', checked: (o.with || []).includes(g), onchange: (e) => {
+              o.with = (o.with || []).filter((x) => x !== g).concat(e.target.checked ? [g] : []); } }), ' ', l)))) : '',
         fld('Positive（ポーズ・「〜 focus」）', inp(o, 'pos', { type: 'textarea', rows: 2 }), null, 'span2'),
         fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2')))));
   };
   draw();
   return [
     saveBar('ポーズ・見せて', async () => { await api('/api/poses', { items }); SE.poses = null; await reloadAll('poses'); }),
-    h('p', { class: 'lead' }, '「ポーズを取って」「見せて」で頼めるものの一覧です（全員共通）。18 歳未満と設定したキャラは対象外です（判定は年齢の欄だけ。空欄なら大人として扱います）。受けてくれるかは、着せ替えの大胆さと同じく、好感度・信頼・間柄・恥じらい・機嫌・場所しだいで、しつこく頼むと怒らせます。見せては「eye focus」のように「〜 focus」の形で書きます。キャラは頼まれたもの・感想の選び方から、あなたの好みを覚えます。'),
+    h('p', { class: 'lead' }, '「ポーズを取って」「見せて」で頼めるものの一覧です（全員共通）。18 歳未満と設定したキャラは対象外です（判定は年齢の欄だけ。空欄なら大人として扱います）。受けてくれるかは、着せ替えの大胆さと同じく、好感度・信頼・間柄・恥じらい・機嫌・場所しだいで、しつこく頼むと怒らせます。見せては「eye focus」のように「〜 focus」の形で書きます。頼むときは、姿勢・手（見せてはそれに見せるもの）から 1 つずつ選んで組み合わせます。手と見せるものは「組める姿勢の型」の姿勢とだけ組めます。「単独」はほかと組み合わせません。組み合わせの大胆さは「いちばん大胆なもの + 残りの半分」で、ポーズが大胆なときは着ている服の大胆さも同じ式に入ります。照れくささ（猫のポーズなど）は肌の大胆さとは別で、おどけが平気な性格ほど気にしません。キャラは頼まれたもの・感想の選び方から、あなたの好みを覚えます。'),
     list,
-    h('button', { class: 'btn', onclick: () => { items.push({ id: 'pose' + Date.now().toString(36), type: 'pose', name: '新しいポーズ', icon: '📸', bold: 0, outside_ok: false, pos: '', neg: '' }); draw(); } }, '＋追加'),
+    h('button', { class: 'btn', onclick: () => { items.push({ id: 'pose' + Date.now().toString(36), type: 'pose', name: '新しいポーズ', icon: '📸', bold: 0, outside_ok: false, pos: '', neg: '', slot: 'whole', group: '', with: [], silly: 0, hand_ok: false }); draw(); } }, '＋追加'),
   ];
 };
 

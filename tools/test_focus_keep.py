@@ -12,6 +12,7 @@
 - 誰かと → お願いの服の棚の名前で探す欄・系統のプルダウン (S37. 以前は「部品で合わせる」のプルダウン)
 - 服の棚で選んだ服が描き直しで戻らない・コーデの下書きの色の見本 / 買うものリストの服の区分のタブと色の丸 / 服の一覧の売る色 (S35・S37)
 - 設定のキャラクター → 服の好みのプルダウンと色の丸 (S36)
+- 誰かと → お願いのポーズ: 部位ごとに選んだものが描き直しで戻らない (S44)
 - 欄を離れたら, 待っていた描き直しをする
 
     python tools/test_focus_keep.py
@@ -143,6 +144,21 @@ f.onload = () => setTimeout(async () => {
       const add = [...d.querySelectorAll('#tab-dress .cz-det button')].find((b) => b.textContent.includes('コーデに'));
       if (!add) out.push('coord-swatch:NONE');
       else { add.click(); out.push('coord-swatch' + (d.querySelector('#tab-dress .coord-bar .swatch') ? ':OK' : ':NG')); }
+    }
+    // 4f2. ポーズ (S44): 部位ごとに選んだもの (立つ + ピース) が描き直しで戻らない. 合わないもの (頬杖) は押せない
+    {
+      const pb = (t) => [...d.querySelectorAll('#tab-dress button.outfit')].find((b) => b.textContent.includes(t));
+      S.poseSel = null; w.renderDress();
+      if (!pb('立つ')) out.push('pose-sel:NONE');
+      else {
+        pb('立つ').click(); pb('ピース').click();
+        await w.refresh(); await w.refresh();
+        const on = [...d.querySelectorAll('#tab-dress button.outfit.on')].map((b) => b.textContent);
+        const ng = pb('頬杖');
+        out.push('pose-sel' + (on.some((x) => x.includes('立つ')) && on.some((x) => x.includes('ピース')) && ng && ng.classList.contains('dis')
+          && d.querySelector('#tab-dress').textContent.includes('これで頼む') ? ':OK' : ':NG(' + on.join(',') + ')'));
+        S.poseSel = null;
+      }
     }
     // スマホ幅 (375px) で, 着せ替えの部品の欄・色の見本・持っている服が, タブの欄から横にはみ出さない
     f.style.width = '375px'; await sleep(600); w.renderDress(); await sleep(100);
