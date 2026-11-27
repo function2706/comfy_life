@@ -4,7 +4,7 @@
   (散歩・見て回る 2 × 場所の疲れやすさ / 買い物 2 / 食事 1 / カフェ 0.5. 1 時間あたり)
 - 一緒の移動は, 一人の移動と同じだけ疲れる (行きも帰りも). 移動の間も回復しない
 - 相手の家にいる / 相手を招いている間は, 回復が遅い (1 時間に 2)
-- デートのあいだ相手の体力 (energy) も減っている
+- 相手の体力 (energy) も場所ですることで動く: 歩き回る所は減り, カフェで座っていれば減らない (S41)
 (一時データ. 時刻を進めて確かめる)
 
     python tools/test_stamina_with.py
@@ -73,8 +73,11 @@ def main():
             d, de = run(4)
             got[pl] = (d, de)
             assert want and want[0] == "tire" and abs(d + 4 * want[1]) < 0.3, (pl, want, d)
-            assert de < -5, ("相手の体力が減っていない", pl, de)
+            ew = app.with_energy(cid, time.time() - 1800)
+            assert ew is not None and abs(de - 4 * ew) < 1.0, ("相手の体力が場所の表どおりでない", pl, ew, de)
         assert got["amusement"][0] < got["park"][0] < got["cafe"][0] < 0, got
+        # 相手の体力も, 場所ですることで動く (S41): 見て回る (疲れやすい場所) < 歩く < 座っている (減らない・少し戻る)
+        assert got["amusement"][1] < got["park"][1] < -5 and got["cafe"][1] >= 0, got
         print("出かけた先: OK | 4 時間で %s" % " / ".join("%s %+.1f（相手 %+.1f）" % (k, v[0], v[1]) for k, v in got.items()))
 
         # ---- 2. 比べ: 家で相手のそばにいるだけなら, 回復する (変えていない)

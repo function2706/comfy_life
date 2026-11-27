@@ -2892,9 +2892,97 @@
      "mood": -3,
      "loneliness": 3
     }
+   },
+   {
+    "text": "……気づいてくれてたんですね。実はちょっと疲れてました。ありがとうございます。",
+    "when": "part=ok, noticed=true, taxi=false",
+    "pos": "tired smile, relieved, looking at viewer",
+    "neg": "",
+    "key": "noticed",
+    "priority": 2,
+    "effects": {
+     "mood": 2,
+     "affection": 1
+    }
+   },
+   {
+    "text": "タクシーですか？ ……ありがとうございます。正直、歩いて帰るのはしんどかったので。",
+    "when": "part=ok|reluctant, taxi=true, energy<35",
+    "pos": "tired smile, relieved, sitting in taxi",
+    "neg": "",
+    "key": "taxi_tired",
+    "priority": 2,
+    "effects": {
+     "mood": 3,
+     "affection": 1
+    }
+   },
+   {
+    "text": "タクシーで帰るんですか？ なんだか贅沢ですね。",
+    "when": "part=ok, taxi=true, energy>=35",
+    "pos": "surprised, smile, sitting in taxi",
+    "neg": "",
+    "key": "taxi",
+    "priority": 1
    }
   ],
   "confirm": "ここで解散して、家に帰りますか？（一緒にほかの場所へ行くなら、「移動」のほかのコマンドから）"
+ },
+ {
+  "id": "taxi_home",
+  "name": "タクシーで帰る",
+  "icon": "🚕",
+  "category": "移動",
+  "when": "outing=true",
+  "cooldown": 0,
+  "end_override": true,
+  "effects": {},
+  "pos": "",
+  "neg": "",
+  "reactions": [],
+  "confirm": "タクシーを呼んで、ここで帰りますか？（タクシー代はあなた持ち）"
+ },
+ {
+  "id": "rest_out",
+  "name": "ひと休みする",
+  "icon": "🪑",
+  "category": "移動",
+  "when": "outing=true",
+  "cooldown": 0,
+  "effects": {},
+  "pos": "sitting on bench, resting, relaxed",
+  "neg": "",
+  "reactions": [
+   {
+    "text": "いいですね、ちょっと座りましょうか。",
+    "when": "",
+    "pos": "sitting on bench, smile",
+    "neg": ""
+   },
+   {
+    "text": "……助かります。実は足がちょっと疲れてて。",
+    "when": "energy<35",
+    "pos": "sitting on bench, relieved, tired smile",
+    "neg": "",
+    "key": "tired",
+    "priority": 1,
+    "effects": {
+     "mood": 3,
+     "affection": 1
+    }
+   },
+   {
+    "text": "え、また休むんですか？ さっき休んだばかりですよ。",
+    "when": "rested=true, energy>=50",
+    "pos": "sitting on bench, puzzled, pout",
+    "neg": "",
+    "key": "again",
+    "priority": 2,
+    "effects": {
+     "mood": -2
+    }
+   }
+  ]
  },
  {
   "id": "gift",

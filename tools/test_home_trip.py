@@ -64,6 +64,9 @@ def main():
         app.save_settings({"auto_generate": False})
         app.create_world("家まで")
         cid = app.settings["active_character"]
+        # 来ている相手が泊まりを言い出す (core/stay.py の live) は本物の時刻 (22〜3 時) を見る. 夜中に流すと, 着いた記録のあとに
+        # 「泊まっていきますか？」が入って落ちていた. ここの主題ではないので止める (泊まりそのものは tools/test_stay.py)
+        app.stay.live = lambda c, now: None
         B = app.bonds
         B.set_stage(cid, "visit")
         sched = app.scheduled_scene

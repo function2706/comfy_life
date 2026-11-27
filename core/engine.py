@@ -1085,6 +1085,7 @@ class App:
         vals = st["params"]
         floor = float(self.bonds.cfg()["cool_floor"])
         t = dt.timestamp()
+        out_e = self.with_energy(char["id"], t)     # 一緒に出かけた先: 相手の体力は, そこですることで動く (予定の速さ・行動の効き目の代わり. S41)
         pres = self.presence.effects(t) if not scene["away"] and self.bonds.together(char["id"], t) else {}
         if pres and not self.bonds.alone_with(char["id"], t):
             # そばにいる効果 (寂しさが紛れる) は, あなたとその人の二人きりのときだけ. ほかの人もいる中では, あなたへの寂しさは紛れない
@@ -1105,15 +1106,19 @@ class App:
                 if cond.check(r.get("when", ""), ctx):
                     rate = float(r.get("rate", 0))
                     break
+            if pid == "energy" and out_e is not None:
+                rate = out_e
             if pid != "loneliness":
-                rate *= float(t_rate.get(pid, 1))
+                if rate < 0 or pid != "energy" or out_e is None:     # 休んで戻る分は, 性格で変えない
+                    rate *= float(t_rate.get(pid, 1))
             elif rate > 0:      # 寂しがりの性格ほど・依存しているほど, 一人だと寂しくなりやすい (外で紛れる速さは性格によらない)
                 rate *= float(t_rate.get(pid, 1)) * (1 + 0.3 * self.attach.factor(char, st, "dependence"))
             if rate > 0 and pid in WAVE_RATE:        # 生活の波: 忙しい・人付き合いが多い時期は寂しさがたまりにくい など (core/waves.py)
                 rate *= self.waves.mult(char, st, WAVE_RATE[pid])
                 if st.get("circle"):                 # 知り合いと会う予定で紛れる分を, ほかの時間でならす (core/circle.py fill_f)
                     rate *= self.circle.fill_f(char, st, t, pid)
-            d = rate * h + float(scene["effects"].get(pid, 0)) * h + float(pres.get(pid, 0)) * h
+            sfx = 0.0 if pid == "energy" and out_e is not None else float(scene["effects"].get(pid, 0))
+            d = rate * h + sfx * h + float(pres.get(pid, 0)) * h
             dr = p.get("drift")
             if dr:
                 target = float(dr.get("target", v)) + float(t_drift.get(pid, self.lonely_base(tr) if pid == "loneliness" else 0)) + sum(
@@ -1445,10 +1450,19 @@ class App:
                 out[a["id"]].update(ok=False, why="移動中です（着いてから）")
             if out[a["id"]]["ok"] and social_block and not (ctx["apart"] and a.get("category") in ("連絡", "会う")):
                 out[a["id"]].update(ok=False, why=social_block)
-            if a["id"] in parting_mod.PART_ACTIONS:      # 引き止められている: もう一度押すなら, 確かめてから
-                c = self.parting.confirm(char, st, a["id"], now)
+            pa = "go_home" if a["id"] == "taxi_home" else a["id"]
+            if pa in parting_mod.PART_ACTIONS:      # 引き止められている: もう一度押すなら, 確かめてから
+                c = self.parting.confirm(char, st, pa, now)
                 if c:
                     out[a["id"]]["confirm"] = c
+            if a["id"] == "taxi_home" and out[a["id"]]["ok"]:       # タクシー代の見込みを, 押す前に (S41)
+                try:
+                    q = self.taxi_quote(char["id"], now)
+                    out[a["id"]].setdefault("confirm", "タクシーを呼んで、ここで帰りますか？（%s円ほど・あなた持ち）" % format(q["fare"], ","))
+                except ValueError as e:
+                    out[a["id"]].update(ok=False, why=str(e))
+            if a["id"] == "rest_out" and out[a["id"]]["ok"] and self.resting(oov, now) and move_on:
+                out[a["id"]].update(ok=False, why="いまひと休みしているところです")
             if not out[a["id"]]["ok"] and "why" not in out[a["id"]]:
                 why = self.why_not(a, char, ctx, shut)
                 if why:
@@ -1517,6 +1531,8 @@ class App:
         """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す.
         opts: 呼び出し側で済ませたお金の動きなど {"money": {p, a}, "extra": 置換文字, "ctx": 条件に足す値}."""
         opts = opts or {}
+        if aid == "taxi_home":       # タクシーで帰る: 解散して家に帰る (別れぎわの判定・反応は同じ) を, タクシーで (S41)
+            aid, opts = "go_home", dict(opts, taxi=True)
         with self.lock:
             char = self.char(cid)
             cid = char["id"]
@@ -1715,9 +1731,20 @@ class App:
                     raise ValueError("いまは問い詰めることがありません")
                 ctx["confront"] = self.circle.confront(char, st, now)
             # 別れぎわ (解散・帰る・送っていく): 相手はもっといたいか, それを口に出すか (core/parting.py)
+            taxi = taxi_note = None
+            if aid == "go_home" and opts.get("taxi"):
+                taxi = self.taxi_quote(cid, now)         # 呼べないとき (近すぎる・移動中) は, ここで断る
+                if self.life.player_state().get("money", 0) < taxi["fare"]:
+                    raise ValueError("タクシー代（%s円ほど）が足りません" % format(taxi["fare"], ","))
+            if aid == "rest_out":
+                self._rest_check(cid, st, now)
+                ctx["rested"] = any(now - float(x) < self.REST_AGAIN for x in (st.get("override") or {}).get("rests") or [])
             part = self.parting.decide(char, st, aid, now) if aid in parting_mod.PART_ACTIONS and not apart else None
             if part:
                 ctx["part"] = part
+            if aid == "go_home" and not apart:
+                ctx["taxi"] = bool(taxi)
+                ctx["noticed"] = self.noticed_tired(char, st)
             if a.get("category") != "system" and not opts.get("deliver") and not opts.get("approach") \
                     and not opts.get("appointment") and not opts.get("auto_weak") and not self.from_phone():
                 self.facetalk.interrupt(now, "other")       # 会って話している途中に, ほかのことを始めた: 話は終わる (core/facetalk.py)
@@ -1887,6 +1914,10 @@ class App:
                 defer = False
             if meal_pl and not departing:
                 meal_note = self.body.eat_with(meal_pl, char, now)     # 払いは費用 (plan) で済んでいる
+            if taxi and not r.get("override"):
+                taxi_note = self._taxi_pay(cid, st, taxi, now)
+            if aid == "rest_out" and not r.get("override"):
+                self._rest_start(st, now)
             if a.get("end_override") and not r.get("override") and not home_go:
                 st["override"] = None     # 「家に帰る」「切り上げる」: 一時的な過ごし方を終えて予定に戻る
             if dress is not None and not r.get("override"):
@@ -2042,6 +2073,8 @@ class App:
             text += "\n" + self.format_text(dress_note, char, scene, dt)
         if travel_note:
             text += "\n" + travel_note
+        if taxi_note:
+            text += "\n" + taxi_note
         if meal_note:
             text += "\n" + meal_note
         with self.lock:
@@ -3723,6 +3756,32 @@ class App:
     # 歩き回る (散歩・見て回る) は 2 × 場所の疲れやすさ, 買い物は 2, 食べる・そのほかは 1, カフェで座っているのは 0.5
     JOINT_TIRE = {"walk": 2.0, "see": 2.0, "shop": 2.0, "eat": 1.0, "tea": 0.5}
     JOINT_REST = 2.0          # 相手の家にいる / 相手を招いている間の回復 (1 時間あたり. 出歩きはしないが, 気を張っている)
+    # 一緒に出かけた先で過ごしている間の, 相手の体力 (1 時間あたり. S41). あなたの疲れ (JOINT_TIRE) と同じ「そこですること」の表で向きをそろえる:
+    # 座っている (カフェ・食事) は減らない・少し戻る. 歩き回る (散歩・見て回る) は場所の疲れやすさで速く減る.
+    # ふだんの減り (params の rate) とお出かけの行動の効き目 (override.effects) の代わり. 移動の間は, ふだんどおり
+    WITH_ENERGY = {"walk": -6.0, "see": -5.0, "shop": -5.0, "eat": 0.0, "tea": 2.0}
+    REST_MIN = 30             # 出先で「ひと休みする」の長さ (分)
+    REST_ENERGY = 8.0         # ひと休みの間の, 相手の体力の戻り (1 時間あたり. 30 分で 4)
+
+    @staticmethod
+    def resting(ov, t):
+        """お出かけの記録 ov で, 時刻 t にその場でひと休みしているか."""
+        r = (ov or {}).get("rest") or []
+        return len(r) == 2 and r[0] <= t < r[1]
+
+    def with_energy(self, cid, t):
+        """時刻 t に一緒に出かけた先で過ごしている相手 cid の, 体力の 1 時間あたりの動き. 移動中・出かけていなければ None (ふだんどおり)."""
+        ocid, ov = self.outing_now(t)
+        if ocid != cid or not ov or ov.get("arr", 0) > t or t >= ov.get("leave", ov["until"]):
+            return None
+        if self.resting(ov, t):
+            return self.REST_ENERGY
+        pl = ov.get("place")
+        kind = places_mod.main_do(pl) if pl in places_mod.PLACES else "walk"
+        rate = self.WITH_ENERGY.get(kind, -3.0)
+        if kind in ("walk", "see"):
+            rate *= places_mod.effort(pl)
+        return rate
 
     def with_load(self, t):
         """時刻 t に, 誰かと一緒にいることで, あなたの体力の動きが変わるか.
@@ -3730,8 +3789,8 @@ class App:
         ("rest", 1 時間に戻る量): 相手の家にいる / 相手を招いている. どちらでもなければ None."""
         cid, ov = self.outing_now(t)
         if ov:
-            if ov.get("arr", 0) > t or t >= ov.get("leave", ov["until"]):
-                return ("tire", 0.0)
+            if ov.get("arr", 0) > t or t >= ov.get("leave", ov["until"]) or self.resting(ov, t):
+                return ("tire", 0.0)          # 移動の間 (出るときに済ませた) / その場でひと休みしている間は, 疲れない
             pl = ov.get("place")
             kind = places_mod.main_do(pl) if pl in places_mod.PLACES else "walk"
             rate = self.JOINT_TIRE.get(kind, 1.0)
@@ -3741,6 +3800,65 @@ class App:
         if (self.bonds.with_rec() or {}).get("mode") in ("visit", "guest"):
             return ("rest", self.JOINT_REST)
         return None
+
+    REST_AGAIN = 2 * 3600     # この間にもうひと休みしていれば, 元気なときは「さっきも休んだのに」
+
+    def _rest_check(self, cid, st, now):
+        """出先でひと休みできるか (できなければ ValueError)."""
+        ocid, ov = self.outing_now(now)
+        if ocid != cid:
+            raise ValueError("一緒に出かけている先でだけです")
+        if self.outing_moving(st, now):
+            raise ValueError("移動中です（着いてから）")
+        if self.resting(ov, now):
+            raise ValueError("いまひと休みしているところです")
+
+    def _rest_start(self, st, now):
+        """その場で REST_MIN 分ひと休みする (お出かけの時間はのばさない. 帰りの移動が始まるまで)."""
+        ov = st.get("override") or {}
+        end = min(now + self.REST_MIN * 60, ov.get("leave", ov.get("until", now)))
+        ov["rest"] = [now, end]
+        ov["rests"] = [x for x in ov.get("rests") or [] if now - float(x) < self.REST_AGAIN] + [now]
+
+    def noticed_tired(self, char, st):
+        """疲れているときにあなたから帰ろうと言った: 気づいてもらえたと受け取るか (性格と仲しだい. 確実ではない)."""
+        p = st["params"]
+        if p.get("energy", 60) >= 35:
+            return False
+        pr = 0.25 + (p.get("affection", 50) - 50) / 100.0 + 0.2 * self.attach.factor(char, st, "devotion") \
+            + 0.1 * (float(self.traits(char).get("approach", 1.0)) - 1.0)
+        return random.random() < max(0.1, min(0.75, pr))
+
+    def taxi_quote(self, cid, now):
+        """出先から, 相手を家までタクシーで帰す (同居なら二人であなたの家へ). {to, fare, min}. 呼べなければ ValueError."""
+        ocid, ov = self.outing_now(now)
+        if ocid != cid:
+            raise ValueError("一緒に出かけている先でだけです")
+        if self.outing_moving(self.state(cid), now):
+            raise ValueError("移動中です（着いてから）")
+        # 同居 / 泊まる約束: 二人で, 帰る家へ. そうでなければ, 相手だけ相手の家へ (あなたはいつもどおり一人で帰る)
+        both = places_mod.HOME_ME if self.bonds.stage(cid) == "live" else self.bonds.stay_home(cid, now)
+        to = both or "home:" + cid
+        frm = ov.get("place") or self.geo.where(now)
+        if frm == to:
+            raise ValueError("もう家にいます")
+        lg = self.geo.leg(frm, to, "taxi", now, rand=False, pair=True)
+        return {"to": to, "fare": int(lg.get("fare") or 0), "min": lg["min"], "both": bool(both)}
+
+    def _taxi_pay(self, cid, st, q, now):
+        """タクシー代を払う (あなた持ち). 同居相手と帰る予定だった帰りの運賃は, 二人に戻る. ナレーションを返す."""
+        ov = st.get("override") or {}
+        back = sum(int(t.get("fare") or 0) for t in ov.get("trips") or [] if t.get("dir") == "home" and t["t0"] > now)
+        self.life.move(None, dp=-q["fare"] + back, cat="transport", note="タクシー代（%sまで）" % self.places.label(q["to"]))
+        if back:
+            hm = self.life.her_money(st)
+            hm["a"] += back
+        self.apply_effects(st, {"energy": 4})         # 歩いて・乗り継いで帰る分の疲れがない
+        if q["both"]:
+            return "（タクシーを呼んで、二人で%sまで%d分ほど。%s円はあなたが払った）" % (
+                "家" if q["to"] == places_mod.HOME_ME else self.places.label(q["to"]), round(q["min"]), format(q["fare"], ","))
+        return "（タクシーを呼んで、%sを家まで乗せていってもらうことにした。%d分ほど・%s円はあなたが払った）" % (
+            self.char(cid).get("name", ""), round(q["min"]), format(q["fare"], ","))
 
     def outing_now(self, now=None):
         """いま一緒にお出かけしている相手 (cid) と, その上書き. 無ければ (None, None). (core/activity.py)"""
