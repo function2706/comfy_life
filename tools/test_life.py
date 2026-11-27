@@ -58,6 +58,7 @@ def main():
         # ---- お出かけの支払い方針 (カフェは夜には行けないので, 時間帯を昼にしておく)
         phase_at = app.phase_at
         app.phase_at = lambda dt: {"id": "noon", "label": "昼", "pos": "", "neg": ""}
+        L.her_money(st)["a"] = max(L.her_money(st)["a"], 50000)      # 苦しい (purse.tight) と, おごりが割り勘になる. それまでの揺れで境目に来ないように
         for pol in ("me", "split", "her"):
             char["pay_policy"] = pol
             m0, h0 = me(), her()

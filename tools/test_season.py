@@ -211,7 +211,7 @@ def main():
         for tc in (20, 38):
             fixed(tc)
             keys = collections.Counter()
-            for i in range(200):
+            for i in range(600):
                 day = datetime.now().replace(hour=15, minute=0, second=0, microsecond=0) + timedelta(days=3 + i % 20)
                 x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": day.timestamp(), "place": park, "do": "walk", "by": "me",
                      "status": "asked", "made": time.time(), "rounds": 9}

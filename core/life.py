@@ -2,7 +2,7 @@
 
 - あなたのお金と投資は data/player.json (キャラ共通), キャラのお金は各キャラの state["money"].
 - 暮らしのお金は家ごと: あなたが払うのは, あなたの家の分だけ. 毎日の生活費 (living_cost_per_day は二人暮らしの額.
-  一人なら半分) と, 月はじめの基本コスト (家賃・光熱費・通信費. home_cost_per_month). 一緒に暮らしている相手とは
+  一人なら半分) と, 月はじめの基本コスト (家賃・光熱費・通信費. home_cost_per_month) と, 前の月の冷暖房の電気代 (家にいて動いた時間ぶん. S39). 一緒に暮らしている相手とは
   その人の living_policy (折半 / あなた / 相手) で分ける. 一緒に暮らしていない人は, 自分の生活費を自分で払う (her_living_cost_per_day).
   キャラの収入と出費は生活の型ごと (core/purse.py. 日付が変わるときの日締め).
 - 払えなければ, 連絡先を知っている人に借りる (頼む相手・断られるか・印象がどう変わるかは間柄・仲・性格・懐具合しだい).
@@ -196,6 +196,11 @@ class Life:
             mode = self.app.presence.at(t)
             self.app.body.step(t, step / 3600.0, mode)          # お腹と栄養 (あなた)
             wl = self.app.with_load(t) if mode not in ("work", "sleep") else None
+            room = None
+            if mode not in ("work", "out") and (self.app.bonds.with_rec() or {}).get("mode") not in ("visit", "meet") \
+                    and not (wl and wl[0] == "tire"):
+                room = self.app.home.ac_add(t, step / 3600.0)        # 家にいる: 冷暖房の電気代と室温 (S39)
+                self.app.body.add_room(room[0], step / 3600.0, mode == "sleep")
             if wl and wl[0] == "tire":       # 一緒に出かけた先で過ごしている: 回復せず, 一人で同じところにいるのと同じだけ疲れる
                 ps["stamina"] = max(0.0, float(ps.get("stamina", 100)) - wl[1] * step / 3600.0)
             elif mode not in ("work", "out"):     # 仕事中・外出中 (一人で出かけている・移動中) は戻らない (画面を閉じていた間の外出と同じ)
@@ -206,8 +211,10 @@ class Life:
                 if mode == "busy" and sl.get("kind") == "rest":      # 一人で休んでいる: 寝るほどではないが早く戻る
                     rec = float(e.get("stamina_recover_rest", 9))
                 rec *= self.app.body.stamina_mult()                  # お腹がすいている・体調が悪いと戻りにくい
-                if mode == "sleep":                                  # 熱帯夜は寝苦しい (S39)
-                    rec *= season_mod.sleep_mult(season_mod.temp(datetime.fromtimestamp(t)))
+                if mode == "sleep":                                  # 熱帯夜は寝苦しい (S39). 冷房が動いていれば寝苦しくない
+                    rec *= season_mod.sleep_mult(season_mod.temp(datetime.fromtimestamp(t)), self.app.home.ac_mode() if room else "off")
+                elif room:                                           # 起きて家にいる: 暑すぎ・寒すぎの部屋では戻りにくい (S39)
+                    rec *= season_mod.room_rec(room[0])
                 ps["stamina"] = min(self.app.body.stamina_cap(), float(ps.get("stamina", 100)) + rec * step / 3600.0)
             d0, d1 = datetime.fromtimestamp(t - step).date(), datetime.fromtimestamp(t).date()
             if d0 != d1:
@@ -221,11 +228,15 @@ class Life:
                 if d0.month != d1.month:
                     self.charge_interest(t)
                     self.pay_home(int(e.get("home_cost_per_month", 60000)), t, "%d月の家賃・光熱費・通信費" % d1.month)
+                    ac = self.app.home.ac_take(t)
+                    if ac > 0:                                    # 冷暖房の電気代 (前の月に家で動いた分. S39)
+                        self.pay_home(ac, t, "%d月の冷暖房の電気代" % d0.month)
                     if self.app.items.count("car") > 0:           # 車: 駐車場・保険 (毎月)
                         self.pay(CAR_MONTHLY, t, "%d月の駐車場・保険（車）" % d1.month, cat="transport")
         ps["last_tick"] = t
         if changed:
             self.save_player()
+            self.app.home.flush()
 
     def portfolio_value(self):
         m = self.player_state()["market"]

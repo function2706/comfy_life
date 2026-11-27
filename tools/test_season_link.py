@@ -125,7 +125,11 @@ def main():
         assert season.sleep_mult(24) == 1.0 and season.sleep_mult(28) < 1.0 and season.sleep_mult(40) == 0.7
         B = app.body
         rec = {}
-        for tc in (20, 29):
+        app.home.set_ac("off")              # 冷暖房を使わない家 (使っていれば寝苦しくない. S39. 下で確かめる)
+        for tc in (20, 29, "eco"):
+            if tc == "eco":
+                app.home.set_ac("eco")
+                tc = 29.5
             fixed(tc)
             B.rec()["today"] = {}
             B.step(time.time(), 1.0, "sleep")
@@ -136,6 +140,7 @@ def main():
             app.presence.at = at0
             rec[tc] = (B.rec()["today"]["slept"], ps["stamina"] - 40.0)
         assert rec[29][0] < rec[20][0] * 0.85 and 0 < rec[29][1] < rec[20][1], rec
+        assert abs(rec[29.5][0] - rec[20][0]) < 1e-6 and abs(rec[29.5][1] - rec[20][1]) < 0.05, ("冷房を使っていれば寝苦しくない", rec)
         # 相手の寝起き: 熱帯夜の翌朝は早く目が覚めることがある (暑がりほど. 必ずではない)
         hot, weak = mk("genki", "h1"), mk("yareyare", "h2")      # 暑さに強い / 暑がり
         days = [date(2026, 7, 1) + timedelta(days=i) for i in range(200)]
@@ -198,7 +203,7 @@ def main():
             ps["items"] = {"ice_cream": 1}
             st["cooldowns"], st["gifts"] = {}, []
             e = app.give_item("ice_cream", "hina")["entry"]
-            texts["cool" if "冷た" in e["text"] else "other"] += 1
+            texts["cool" if "冷た" in e["text"] or "暑" in e["text"] else "other"] += 1     # 性格別のセリフは「暑かったので」とも言う
             assert app.items.count("ice_cream") == 0
         assert 5 < texts["cool"] < 26, texts
         season.season_real = season.season

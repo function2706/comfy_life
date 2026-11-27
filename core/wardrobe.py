@@ -727,11 +727,19 @@ class Wardrobe:
         return "yes"
 
     # ------------------------------------------------------------------ 本人の服選び
+    def ac_of(self, char, dt=None):
+        """本人がいる家の冷暖房の使い方 (S39): あなたの家にいる・あなたと暮らしているなら, あなたの家の使い方. 本人の家は控えめ."""
+        app = self.app
+        t = dt.timestamp() if dt else None
+        if app.bonds.living() == char.get("id") or app.bonds.mode(char.get("id"), t) in ("home", "guest"):
+            return app.home.ac_mode()
+        return season_mod.AC_DEFAULT
+
     def temp_feel(self, char, o, dt):
         """家の中で着替えを頼まれたとき, 寒すぎる服か (cold / ""). 外が 15℃ 未満の時期に, ずれが −2.5 より寒い側で,
-        寒いほど断りやすい (S38. 暖かい時期の家の中では, 薄着でも寒いとは言わない)."""
+        寒いほど断りやすい (S38. 暖かい時期の家の中では, 薄着でも寒いとは言わない). 室温はその家の冷暖房しだい (S39)."""
         t = season_mod.temp(dt)
-        d = season_mod.gap(self.app, char, season_mod.warmth(o or {}), t, inside=True)
+        d = season_mod.gap(self.app, char, season_mod.warmth(o or {}), t, inside=self.ac_of(char, dt))
         if t >= 15 or d > -2.5:
             return ""
         return "cold" if random.random() < min(0.85, 0.2 * (-d - 2.0)) else ""
@@ -864,7 +872,7 @@ class Wardrobe:
     def temp_gap(self, char, o, dt, outing=False, t=None):
         """服 o のその時の気温とのずれ (+ 暑すぎ / − 寒すぎ. S38). 外では, 寒い分は持っているアウターで補える."""
         t = season_mod.temp(dt) if t is None else t
-        d = season_mod.gap(self.app, char, season_mod.warmth(o), t, inside=not outing)
+        d = season_mod.gap(self.app, char, season_mod.warmth(o), t, inside=False if outing else self.ac_of(char, dt))
         if outing and d < 0:
             d = min(0.0, d + max([season_mod.warmth(x) for x in self._outers(char, dt)] or [0.0]))
         return d

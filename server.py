@@ -274,6 +274,8 @@ def route(method, path, q, body):
             return a.moneytalk.respond(b["choice"])
         if path == "/api/quarrel/respond":
             return a.quarrel.respond(b["choice"])
+        if path == "/api/home/aircon":
+            return a.home.set_ac(b.get("mode"))
         if path == "/api/chores/share":
             return a.chores.set_share(b["part"], b["who"])
         if path == "/api/chores/respond":

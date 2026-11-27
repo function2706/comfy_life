@@ -80,6 +80,69 @@ class Home:
     def save(self):
         store.save(store.wpath("home.json"), self.rec())
 
+    # ------------------------------------------------------------------ 冷暖房 (S39. 室温の式は core/season.py)
+    def ac_mode(self):
+        m = self.rec().get("aircon")
+        return m if m in season_mod.AC_MODES else season_mod.AC_DEFAULT
+
+    def set_ac(self, mode):
+        if mode not in season_mod.AC_MODES:
+            raise ValueError("冷暖房の使い方が分かりません")
+        self.rec()["aircon"] = mode
+        self.save()
+        return {"ok": True, "aircon": self.ac_view()}
+
+    def room_now(self, t=None):
+        """あなたの家のいまの (室温, 冷暖房の動き)."""
+        dt = datetime.fromtimestamp(t or time.time())
+        return season_mod.room(season_mod.temp(dt), self.ac_mode())
+
+    def ac_add(self, t, h):
+        """あなたが家にいる t から h 時間ぶんの電気代をためる (月ごと. 払うのは月はじめ: life.tick_world). 動いていれば (室温, 動き) を返す."""
+        r = self.rec()
+        tc = season_mod.temp(datetime.fromtimestamp(t))
+        yen = season_mod.ac_yen(tc, self.ac_mode()) * h
+        b = r.get("ac_bill") or {}
+        if yen > 0 and t > float(b.get("upto", 0)):            # 数えた時間は二度数えない
+            b = r.setdefault("ac_bill", {})
+            b["upto"] = t
+            mk = datetime.fromtimestamp(t).strftime("%Y-%m")
+            if b.get("month") != mk:            # 前の月の分が払われずに残っていたら, ここで足しておく (払うのは次の月はじめ)
+                b["carry"] = round(float(b.get("carry", 0)) + float(b.get("yen", 0)), 2)
+                b.update(month=mk, yen=0.0, hours=0.0)
+            b["yen"] = round(float(b.get("yen", 0)) + yen, 2)
+            b["hours"] = round(float(b.get("hours", 0)) + h, 3)
+            self._dirty = True
+        return season_mod.room(tc, self.ac_mode())
+
+    def ac_take(self, t):
+        """月はじめに払う電気代 (前の月まで. 払ったらここから消える). 円."""
+        b = self.rec().get("ac_bill") or {}
+        mk = datetime.fromtimestamp(t).strftime("%Y-%m")
+        yen = float(b.get("carry", 0)) + (float(b.get("yen", 0)) if b.get("month") != mk else 0.0)
+        if yen <= 0:
+            return 0
+        b["carry"] = 0.0
+        if b.get("month") != mk:
+            b.update(month=mk, yen=0.0, hours=0.0)
+        self.save()
+        return int(round(yen))
+
+    def flush(self):
+        if getattr(self, "_dirty", False):
+            self._dirty = False
+            self.save()
+
+    def ac_view(self):
+        r, run = self.room_now()
+        b = self.rec().get("ac_bill") or {}
+        mk = datetime.now().strftime("%Y-%m")
+        mode = self.ac_mode()
+        return {"mode": mode, "modes": [{"id": k, "label": season_mod.AC_LABEL[k], "set": season_mod.AC_MODES[k]} for k in season_mod.AC_MODES],
+                "room": int(round(r)), "run": run or "",
+                "bill": int(round(float(b.get("yen", 0)) if b.get("month") == mk else 0) + float(b.get("carry", 0))),
+                "hours": round(float(b.get("hours", 0)) if b.get("month") == mk else 0, 1)}
+
     def score(self):
         r = self.rec()
         return round(sum(float(r[k]) * w for k, _, w in PARTS), 1)
@@ -262,4 +325,4 @@ class Home:
         return {"score": s, "level": lv, "label": label, "parts": parts,
                 "hint": ("%sが気になる" % worst["label"]) if worst["value"] >= 40 else "",
                 "at": datetime.now().strftime("%H:%M"),
-                "trash_days": ["月火水木金土日"[d] for d in self.trash_days()], "trash_ok": self.trash_ok(), "wet": self.wet()}
+                "trash_days": ["月火水木金土日"[d] for d in self.trash_days()], "trash_ok": self.trash_ok(), "wet": self.wet(), "aircon": self.ac_view()}

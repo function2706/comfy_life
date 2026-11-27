@@ -6,6 +6,7 @@
 服の暖かさ (warmth) は服の一覧に書いてあればそれ, 無ければ区分・季節の札・種類のタグ・大胆さから読むときに決める.
 暑がり / 寒がり / 外好きは性格プリセットの traits (heat / cold / outdoorsy. 1 がふつう) に, キャラごとの小さな揺れを掛ける.
 効かせるのは確率と重みだけ (気温で必ず断る・必ず喜ぶ道は作らない).
+冷暖房 (S39): 家ごとの使い方で室温が決まる (room). 電気代・体力の戻り・眠り・体調・家にいる相手の機嫌・家に呼ぶ乗り気に.
 つながり (S39): 行き先の季節の向き不向き・移動と力仕事の疲れ・雪の遅れ・熱帯夜・冬の日の短さ・贈り物の冷たい / 温かい / 旬・洗濯の乾き・株の売れ行き.
 """
 import functools
@@ -95,8 +96,70 @@ def day_range(d):
 
 
 def indoor(t):
-    """家の中の温度 (外の気温をやわらげたもの. 冷暖房の細かいことは入れない)."""
-    return 21.0 + 0.4 * (t - 21.0)
+    """冷暖房を使っていない家の中の温度 (外の気温をやわらげたもの. 35℃ で 29.8℃・5℃ で 11.8℃. S39 で冷暖房なしの値に)."""
+    return 22.0 + 0.6 * (t - 22.0)
+
+
+# ------------------------------------------------------------------ 冷暖房 (S39)
+# 家の使い方 (home.json の aircon): 使わない / 控えめ / しっかり. (暖房の設定, 冷房の設定) ℃. どの家にも付いている
+AC_MODES = {"off": None, "eco": (20.0, 27.0), "strong": (22.0, 25.0)}
+AC_LABEL = {"off": "使わない", "eco": "控えめ", "strong": "しっかり"}
+AC_DEFAULT = "eco"
+AC_YEN_BASE = 6.0         # 動いている 1 時間の電気代 (円) = これ + 設定との差 1℃ ごとに AC_YEN_DEG
+AC_YEN_DEG = 2.5
+ROOM_OK = (18.0, 27.0)    # 過ごしやすい室温. 外れるほど, 家での体力の戻り・家にいる相手の機嫌・呼ばれたときの乗り気に響く
+ROOM_HOT, ROOM_COLD = 29.0, 13.0      # これを超える / 下回る室温に長くいると, 体調を崩しやすい
+
+
+def room(t, mode=AC_DEFAULT):
+    """外の気温 t のときの室温と, 冷暖房の動き ("cool" / "heat" / None). 設定の幅の中なら動かない."""
+    n = indoor(t)
+    sp = AC_MODES.get(mode)
+    if not sp:
+        return round(n, 1), None
+    if n > sp[1]:
+        return sp[1], "cool"
+    if n < sp[0]:
+        return sp[0], "heat"
+    return round(n, 1), None
+
+
+def ac_yen(t, mode):
+    """冷暖房が 1 時間動いたときの電気代 (円. 動いていなければ 0). 外との差が大きいほど・しっかりほど高い."""
+    r, run = room(t, mode)
+    return round(AC_YEN_BASE + AC_YEN_DEG * abs(indoor(t) - r), 2) if run else 0.0
+
+
+def room_off(r):
+    """室温の過ごしにくさ (℃. 過ごしやすい幅からの外れ). (暑い側, 寒い側)."""
+    return max(0.0, r - ROOM_OK[1]), max(0.0, ROOM_OK[0] - r)
+
+
+def room_rec(r):
+    """起きて家にいる間の体力の戻りの倍率 (外れ 1℃ ごとに 2.5%. 下限 0.75)."""
+    return round(max(0.75, 1.0 - 0.025 * sum(room_off(r))), 3)
+
+
+def home_ask(app, char, dt, mode):
+    """あなたの家に呼ばれたときの乗り気の倍率 (0.6〜1.1). 過ごしにくい室温ほど下がり,
+    外が暑い / 寒い日に冷暖房の効いた家なら少し上がる (くじの重みだけ. 必ず来る道は作らない)."""
+    t = temp(dt)
+    r, run = room(t, mode)
+    hot, cold = room_off(r)
+    sn = sense(app, char)
+    f = 1.0 / (1.0 + 0.08 * (hot * sn["heat"] + cold * sn["cold"]))
+    if run:
+        ld = load(app, char, dt)
+        if max(ld["hot"], ld["cold"]) >= 0.3:
+            f *= 1.1
+    return round(max(0.6, f), 3)
+
+
+def room_mood(app, char, r):
+    """家の室温で, そこにいる相手の機嫌の落ち着く先が下がる分 (0 以下). 暑がりは暑い側・寒がりは寒い側でこたえる."""
+    hot, cold = room_off(r)
+    sn = sense(app, char)
+    return -round(1.5 * (hot * sn["heat"] + cold * sn["cold"]), 2)
 
 
 def need(t):
@@ -170,8 +233,9 @@ def sense(app, char):
 
 
 def gap(app, char, w, t, inside=False):
-    """服の暖かさ w のずれ (+ 暑すぎ / − 寒すぎ). t は外の気温. 暑がりは暑い側に, 寒がりは寒い側にずれる."""
-    tt = indoor(t) if inside else t
+    """服の暖かさ w のずれ (+ 暑すぎ / − 寒すぎ). t は外の気温. 暑がりは暑い側に, 寒がりは寒い側にずれる.
+    inside: 家の中 (True はその家の冷暖房が控えめ. 冷暖房の使い方 AC_MODES の名前も渡せる)."""
+    tt = room(t, inside if isinstance(inside, str) else AC_DEFAULT)[0] if inside else t
     sn = sense(app, char)
     d = w - need(tt)
     if tt < 20:
@@ -258,7 +322,10 @@ def slow(how, wx):
 
 
 # 眠り: 熱帯夜 (夜の気温 25℃ 以上) は寝苦しい. 寝ている間の体力の戻りと, 眠れた時間の数え方に (30℃ で 0.7)
-def sleep_mult(t):
+def sleep_mult(t, mode="off"):
+    """mode: 寝ている家の冷暖房. 使っていれば, 室温が設定を超えたら冷房が動くので寝苦しくない (S39)."""
+    if AC_MODES.get(mode):
+        return 1.0
     return round(max(0.7, 1.0 - 0.06 * max(0.0, t - 25.0)), 3)
 
 

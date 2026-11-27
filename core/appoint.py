@@ -538,7 +538,7 @@ class Appoint:
                 return self._counter_back(char, st, x, alt, now, extra)      # その日は気が乗らないけど, こっちなら
         x["status"] = "declined"
         self.save()
-        why = season_mod.out_why(app, char, xdt) if of < 0.85 else None
+        why = season_mod.out_why(app, char, xdt) if of < 0.85 and x["place"] != places_mod.HOME_ME else None     # 家の室温では「外は」と言わない
         if why:
             return "appoint_no_" + why, {}, extra        # 暑い / 寒いから, その日の外はやめておく (S38)
         return app.waves.decline_key(char, st, x["t"]) or "appoint_no", {}, extra       # 忙しい・友達と約束 (時期と, その日の予定. core/waves.py)
@@ -877,8 +877,10 @@ class Appoint:
                                      * (self.out_factor(char, pid, dt) if dt else 1.0) for pid, a in opts])[0]
 
     def out_factor(self, char, pid, dt):
-        """屋外の行き先への, その時の気持ち (暑さ・寒さ・雨と, 外好きか. 屋内の行き先・家は 1. S38).
+        """屋外の行き先への, その時の気持ち (暑さ・寒さ・雨と, 外好きか. 屋内の行き先・相手の家は 1. S38). あなたの家は室温 (S39).
         行き先の季節の向き不向き (海は夏・星は冬・公園は春秋. S39) も掛ける."""
+        if pid == places_mod.HOME_ME:            # あなたの家: その時の室温 (冷暖房しだい. S39)
+            return season_mod.home_ask(self.app, char, dt, self.app.home.ac_mode())
         pl = self.app.places.get(pid) or {}
         return season_mod.out_factor(self.app, char, dt) * season_mod.place_ask(pid, dt) if pl.get("outdoor") else 1.0
 

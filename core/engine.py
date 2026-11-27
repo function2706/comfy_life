@@ -1112,6 +1112,8 @@ class App:
                 if pid == "mood":
                     target += self.waves.mood_shift(char, st)       # 落ち込んでいる時期は, 機嫌の落ち着く先が下がる
                     target += season_mod.winter_blue(self, char, dt)  # 冬の日の短さ: 気分の沈みやすい性格だけ (S39)
+                    if not scene["away"] and self.bonds.mode(char["id"], t) in ("home", "guest"):      # あなたの家の室温 (冷暖房しだい. S39)
+                        target += season_mod.room_mood(self, char, self.home.room_now(t)[0])
                 d += (target - v) * min(1.0, float(dr.get("rate", 0)) * float(t_speed.get(pid, 1)) * h)
             if d < 0 and pid in FLOORED:
                 # 時間だけで冷める分 (寂しさが続く など) は, ご無沙汰で冷めるのと同じ下限に近づくほど鈍り, そこで止まる.

@@ -135,7 +135,8 @@ class Body:
             b["nutri"][k] = max(0.0, b["nutri"][k] - NUTRI_PER_DAY * h / 24.0)
         td = b["today"]                       # その日の過ごし方 (日付が変わったときの体調の判定に)
         if sleeping:                          # 熱帯夜は寝苦しく, 眠れた時間が短く数えられる (S39)
-            td["slept"] = td.get("slept", 0.0) + h * season_mod.sleep_mult(season_mod.temp(datetime.fromtimestamp(t)))
+            ac = "eco" if (self.app.bonds.with_rec() or {}).get("mode") == "visit" else self.app.home.ac_mode()     # 冷房が動いていれば寝苦しくない
+            td["slept"] = td.get("slept", 0.0) + h * season_mod.sleep_mult(season_mod.temp(datetime.fromtimestamp(t)), ac)
         if b["satiety"] < 15:
             td["hungry"] = td.get("hungry", 0.0) + h
         if mode in ("out", "work"):
@@ -187,6 +188,14 @@ class Body:
         pl = self.app.places.get(cur.get("place")) or {}
         td = self.rec()["today"]
         td[k] = round(td.get(k, 0.0) + h * (1.0 if pl.get("outdoor") else 0.3), 3)
+
+    def add_room(self, r, h, sleeping=False):
+        """家にいた時間のうち, 暑すぎる (ROOM_HOT 超) / 寒すぎる (ROOM_COLD 未満) 部屋だった時間 (その日の体調の判定に. S39).
+        寝ている間の寒さは布団があるので数えない."""
+        k = "room_hot" if r > season_mod.ROOM_HOT else "room_cold" if r < season_mod.ROOM_COLD and not sleeping else None
+        if k:
+            td = self.rec()["today"]
+            td[k] = round(td.get(k, 0.0) + float(h), 3)
 
     def add_wet(self, h):
         """雨・雪の中を外で過ごした時間 (その日の体調の判定に)."""
@@ -259,6 +268,10 @@ class Body:
             why["heat"] = min(0.04, 0.012 * td["hot"])
         if td.get("cold", 0) > 0.5:         # 寒い外に長くいた
             why["cold"] = min(0.04, 0.01 * td["cold"])
+        if td.get("room_hot", 0) > 2:       # 冷房なしの暑い部屋で長く過ごした (S39)
+            why["room_heat"] = min(0.03, 0.003 * td["room_hot"])
+        if td.get("room_cold", 0) > 2:      # 暖房なしの寒い部屋で長く過ごした (S39)
+            why["room_cold"] = min(0.03, 0.003 * td["room_cold"])
         if b.get("lazy_days", 0) >= 4:
             why["exercise"] = 0.015 if b["lazy_days"] < 10 else 0.03
         return 0.006 + sum(why.values()), why
