@@ -193,6 +193,66 @@ def main():
         W.save_all(items)
         assert W.get("bikini")["sample"] == j["image"]
         print("サンプル画像: OK", j["image"])
+
+        # ---- 8. 一式の靴 (S54): 家の中では描かず, 外では足す. 欄の無い一式は読むときに pos から shoes へ移す (一度だけ)
+        from core import wardrobe as wmod
+        dflt = store.load(os.path.join(store.DEFAULTS, "outfits.json"))
+        bad = [o["id"] for o in dflt if wmod._norm(o)["slot"] == "set" and wmod.SHOE_RE.search(o["pos"])]
+        assert not bad, "既定の一式の pos に靴の語が残っている: %s" % bad
+        assert sum(1 for o in dflt if o.get("shoes")) == 26
+        raw = store.load(store.dpath("outfits.json"))
+        for o in raw:
+            if o["id"] == "denim":                        # 以前の一覧 (shoes の欄が無い) の形に戻す
+                o.pop("shoes", None)
+                o["pos"] = "denim jacket, striped shirt, jeans, sneakers"
+        raw.append({"id": "my_set", "name": "自作", "slot": "set", "kind": "casual", "outing_ok": True,
+                    "pos": "red dress, Black Ankle Boots, ribbon"})
+        raw.append({"id": "my_plain", "name": "自作 2", "slot": "set", "kind": "casual", "pos": "white dress, ribbon"})
+        raw.append({"id": "my_part", "name": "部品", "slot": "shoes", "kind": "part", "pos": "{color} sneakers", "shoes": "x"})
+        store.save(store.dpath("outfits.json"), raw)
+        W.load()
+        dn = W.get("denim")
+        assert dn["pos"] == "denim jacket, striped shirt, jeans" and dn["shoes"] == "sneakers", dn
+        assert W.get("my_set")["pos"] == "red dress, ribbon" and W.get("my_set")["shoes"] == "Black Ankle Boots"
+        assert W.get("my_plain")["pos"] == "white dress, ribbon" and W.get("my_plain")["shoes"] == ""
+        assert W.get("my_part")["pos"] == "{color} sneakers" and "shoes" not in W.get("my_part"), "部品の靴はそのまま"
+        W.save_all(W.all())                               # 保存すると shoes の欄が付く
+        raw = store.load(store.dpath("outfits.json"))
+        for o in raw:
+            if o["id"] == "my_set":                       # 欄があれば, あとで pos に靴の語を書いても移さない (二度はしない)
+                o["pos"] = "red dress, ribbon, rain boots"
+        store.save(store.dpath("outfits.json"), raw)
+        W.load()
+        assert W.get("my_set")["pos"] == "red dress, ribbon, rain boots" and W.get("my_set")["shoes"] == "Black Ankle Boots"
+        # 着せた一式: 家の中は靴なし, 外は靴あり (部品の靴と同じ決まり). 描く場面 (_apply_dress) でも
+        char = app.char(cid)
+        W.give_to(char, "denim", "player")
+        char = app.char(cid)
+        st["dress"] = {"id": "denim"}
+        assert "sneakers" not in W.worn(char, st, outing=False)["pos"]
+        assert W.worn(char, st, outing=True)["pos"] == "denim jacket, striped shirt, jeans, sneakers"
+        for outing in (False, True):
+            s = {"outing": outing, "fixed_outfit": False, "asleep": False, "plain_outfit": False, "outfit": "casual clothes",
+                 "outfit_neg": ""}
+            s = app._apply_dress(char, st, s)
+            assert ("sneakers" in s["outfit"]) == outing and "jeans" in s["outfit"], (outing, s["outfit"])
+        # その人用の上書きの pos も, 靴の語を分ける
+        c = store.all_characters()[cid]
+        next(x for x in c["clothes"] if x["id"] == "denim")["pos"] = "denim jacket, jeans, white sneakers"
+        app.save_character(c)
+        char = app.char(cid)
+        assert W.worn(char, st, outing=False)["pos"] == "denim jacket, jeans"
+        assert W.worn(char, st, outing=True)["pos"] == "denim jacket, jeans, white sneakers"
+        # 本人が選んだ一式も同じ (家の中で選んだ一式に靴の語が無い / 外で選んだ靴のある一式は靴を履く)
+        st["dress"] = None
+        for d in days:
+            for outing in (False, True):
+                p = W.self_pick(char, st, d, outing=outing)
+                if p and p["slot"] == "set":
+                    assert bool(wmod.SHOE_RE.search(p["pos"])) == bool(outing and p["shoes"]), (d, outing, p["id"], p["pos"])
+        # サンプル画像は外の形 (靴も描く)
+        assert "sneakers" in W.sample_prompt(W.get("denim"))[0]
+        print("一式の靴: OK")
         print("ALL OK")
     finally:
         srv.shutdown()

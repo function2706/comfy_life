@@ -17,6 +17,9 @@
   あれば色違いで売る (COLORS. 品の鍵は "<id>:<色>", 持ち物は "outfit:<鍵>"). 部品の組み合わせ (コーデ) は st.dress = {coord: {区分: 鍵}}
   (アクセサリーは 3 つまで: 鍵 acc・acc2・acc3. S37).
   靴は外にいるときだけ, ランジェリーはトップスもワンピースも無いときだけ描く. 大胆さは描かれる部品のいちばん大胆なもの.
+  一式の靴 (S54): 一式は靴の語を pos ではなく shoes に持ち, 部品の靴と同じく外にいるときだけ足す (dressed). shoes の欄の無い一式
+  (以前の一覧・古い書き出し) は, 読むときに pos の靴の語を shoes へ移す (_norm. 欄があれば移さない = 二度はしない).
+  キャラごとの上書きの pos も, 一式なら同じく靴の語を分ける.
 - 文の服装の色を固定する (resolve): いつもの服・予定の服装・一式の pos の中の部品の名前に, その人の色を付けて描く (毎回同じ色).
   いつもの服とお出かけ着の文から見つかった部品は, その色でその人の持っている服になる (seed_usual).
 - 服の好み (S36): 服に tags (系統 STYLES・種類 TYPES). キャラの定義の fashion = {styles, colors, bad_colors, types, fuss}
@@ -256,6 +259,27 @@ def _default_tags():
     return _DEF_TAGS
 
 
+# 靴の語 (S54. 一式の pos からこれを含む項目を shoes へ分ける)
+SHOE_RE = re.compile(r"\b(sneakers?|loafers?|sandals?|boots?|geta|zori|heels|slippers|shoes?|mary janes?|pumps|stilettos?|clogs)\b", re.I)
+
+
+def split_shoes(pos):
+    """pos を (靴の語を除いた pos, 靴の語) に分ける (カンマ区切りの項目ごと)."""
+    keep, shoes = [], []
+    for t in (pos or "").split(","):
+        t = t.strip()
+        if t:
+            (shoes if SHOE_RE.search(t) else keep).append(t)
+    return ", ".join(keep), ", ".join(shoes)
+
+
+def dressed(o, outing):
+    """描く形の 1 着: 一式は外にいるときだけ靴 (shoes) を足す (部品の靴と同じ決まり. S54)."""
+    if not o or o.get("slot") != "set" or not outing or not o.get("shoes"):
+        return o
+    return dict(o, pos=", ".join(x for x in (o.get("pos"), o["shoes"]) if x))
+
+
 def _norm(o):
     o = dict(o)
     o["id"] = str(o.get("id") or "o" + uuid.uuid4().hex[:6])
@@ -285,6 +309,13 @@ def _norm(o):
     o["places"] = list(o.get("places") or ["mall"])
     for k in ("when", "pos", "neg"):
         o[k] = o.get(k) or ""
+    if slot == "set":                         # 一式の靴 (S54): 欄の無い一式は pos の靴の語を移す (欄があれば移さない)
+        if "shoes" in o:
+            o["shoes"] = str(o.get("shoes") or "").strip()
+        else:
+            o["pos"], o["shoes"] = split_shoes(o["pos"])
+    else:
+        o.pop("shoes", None)
     return o
 
 
@@ -408,7 +439,7 @@ class Wardrobe:
         s = self.app.settings
         pr = s.get("prompt") or {}
         tmpl = ((s.get("images") or {}).get("sample_prompt") or SAMPLE_PROMPT)
-        pos = o.get("pos", "").replace("{color}", "white")        # 色違いの部品は白で描く
+        pos = dressed(o, True).get("pos", "").replace("{color}", "white")   # 色違いの部品は白で描く. サンプルは外の形 (一式は靴も)
         sl = o.get("slot")
         if sl not in ("set", "outer", "lingerie", "onepiece"):   # 部品 1 つ: ほかは無地の既定で (上か下が無いと裸に描かれる)
             pos = ", ".join([pos] + [f for k, f in SAMPLE_FILL if k != sl])
@@ -449,6 +480,9 @@ class Wardrobe:
             for k in ("pos", "neg"):
                 if (x.get(k) or "").strip():
                     o[k] = x[k]
+            if o["slot"] == "set" and (x.get("pos") or "").strip():     # その人用の pos も靴の語は分ける (S54)
+                o["pos"], sh = split_shoes(o["pos"])
+                o["shoes"] = sh or o.get("shoes", "")
             out.append(o)
         return out
 
@@ -626,7 +660,7 @@ class Wardrobe:
         if d.get("coord"):
             v = self.coord_view(char, d["coord"], outing)
             return v if v["pos"] else None
-        return self.item(char, d.get("id")) if d.get("id") else None
+        return dressed(self.item(char, d.get("id")), outing) if d.get("id") else None
 
     # ------------------------------------------------------------------ 移行
     def migrate(self):
@@ -794,7 +828,7 @@ class Wardrobe:
             weights.append(season_mod.fit_weight(self.temp_gap(char, co, dt, outing, t)) / len(cos))
         if not cands:
             return None
-        return rng.choices(cands, weights)[0]
+        return dressed(rng.choices(cands, weights)[0], outing)
 
     @staticmethod
     def _match(a, b):

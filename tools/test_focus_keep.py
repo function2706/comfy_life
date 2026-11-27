@@ -10,7 +10,7 @@
 - 設定の「表示」の知らせの音の欄 (A33)
 - 誰かと → ゲームの「罰ゲーム・勝負の形を選んで遊ぶ」の欄 (A12. 家に来てもらっている形にして)
 - 誰かと → お願いの服の棚の名前で探す欄・系統のプルダウン (S37. 以前は「部品で合わせる」のプルダウン)
-- 服の棚で選んだ服が描き直しで戻らない・コーデの下書きの色の見本 / 買うものリストの服の区分のタブと色の丸 / 服の一覧の売る色 (S35・S37)
+- 服の棚で選んだ服が描き直しで戻らない・コーデの下書きの色の見本 / 買うものリストの服の区分のタブと色の丸 / 服の一覧の売る色 (S35・S37)・一式の靴の欄 (S54)
 - 設定のキャラクター → 服の好みのプルダウンと色の丸 (S36)
 - 誰かと → お願いのポーズ: 部位ごとに選んだものが描き直しで戻らない (S44)
 - 欄を離れたら, 待っていた描き直しをする
@@ -202,6 +202,16 @@ f.onload = () => setTimeout(async () => {
       out.push('sell-colors' + (sc2.querySelectorAll('button.swatch.off').length === 1 && sc2.textContent.includes('13 色') ? ':OK' : ':NG'));
     }
     closeModal();
+    // 4h2. 設定の服の一覧 (S54): 一式の靴の欄 (外にいるときだけ描く). 既定のデニムは sneakers が pos から分けてある
+    S.cz = Object.assign(S.cz || {}, { olist: { tab: 'set', sel: 'denim', q: '', style: '', season: false } });
+    await w.openSettings('outfits');
+    {
+      const se = d.querySelector('#sbody .card input[placeholder="sneakers"]');
+      if (!se) out.push('outfit-shoes:NONE');
+      else if (se.value !== 'sneakers') out.push('outfit-shoes:NG(' + se.value + ')');
+      else await keep(se, 'outfit-shoes');
+    }
+    closeModal();
     // 4i. 設定のキャラクター → 服の好み (S36): 種類の好き嫌い・部位のこだわりのプルダウン. 色の丸と系統を押しても描き直しで戻らない
     await keepAll(async () => { closeModal(); await w.openSettings('char'); }, '#sbody .fashion-edit', 'fashion');
     {
@@ -316,7 +326,7 @@ def main():
     print("focus keep:", res)
     items = res.split()
     bad = [x for x in items if not (x.endswith(":OK") or x.endswith(":NONE"))]
-    assert items and not bad and {"map-select:OK", "map-time:OK", "map-top:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and {"owned:OK", "shop-tabs:OK", "sell-colors:OK", "narrow-shop:OK", "narrow-dress:OK"} <= set(items)         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
+    assert items and not bad and {"map-select:OK", "map-time:OK", "map-top:OK", "resume:OK", "gal-who:OK"} <= set(items) and any(x.startswith("plan") for x in items)         and any(x.startswith("chat") and x.endswith(":OK") for x in items)         and sum(1 for x in items if x.startswith("scroll-") and x.endswith(":OK")) >= 5 and "scroll-plan1:OK" in items         and {"quiz-apology:OK", "quiz-thanks:OK"} <= set(items) and "sound0:OK" in items         and {"owned:OK", "shop-tabs:OK", "sell-colors:OK", "outfit-shoes:OK", "narrow-shop:OK", "narrow-dress:OK"} <= set(items)         and sum(1 for x in items if x.startswith("forfeit") and x.endswith(":OK")) >= 5, res
     print("ALL OK")
 
 

@@ -5384,6 +5384,7 @@ SEC.outfits = () => {
         fld('着られる条件', inp(o, 'when', { ph: 'affection>=40' })),
         fld('Positive（服装）', inp(o, 'pos', { type: 'textarea', rows: 2 }), '部品は {color} を入れると色違いで売ります（例: {color} pleated skirt）', 'span2'),
         fld('Negative', inp(o, 'neg', { type: 'textarea', rows: 2 }), null, 'span2'),
+        o.slot === 'set' ? fld('靴（一式のとき）', inp(o, 'shoes', { ph: 'sneakers' }), '外にいるときだけ足して描きます（家の中では脱いでいる）', 'span2') : null,
         h('div', { class: 'fld span2' }, h('span', { class: 'fl' }, '売る色'), sellColors(o),
           h('span', { class: 'muted small' }, (o.pos || '').includes('{color}') ? '押して切り替え（全部消すと全色）' : 'Positive に {color} を入れた部品だけ色違いで売ります')),
         h('div', { class: 'fld span2 outfit-tags' }, h('span', { class: 'fl' }, '系統'), tagRow(o, O.styles)),
@@ -5402,7 +5403,7 @@ SEC.outfits = () => {
       '{outfit} がその服の服装（Positive）に置き換わります。空欄なら既定。共通プロンプトの前置きも付きます'),
     list,
     h('button', { class: 'btn', onclick: () => {
-      const n = { id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', slot: 'set', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', neg: '' };
+      const n = { id: 'outfit' + Date.now().toString(36), name: '新しい服', icon: '👕', kind: 'casual', slot: 'set', bold: 0, outing_ok: false, seasons: [], price: 0, places: ['mall'], when: '', pos: '', shoes: '', neg: '' };
       items.push(n);
       Object.assign((S.cz || (S.cz = {})).olist || (S.cz.olist = {}), { tab: 'set', sel: n.id, selRef: n, q: '', style: '', season: false });
       draw();

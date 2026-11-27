@@ -47,7 +47,6 @@
 | まとまり | 項目 | 重さ | 設計 | 順・前提 | 触る所の目安 |
 |---|---|---|---|---|---|
 | S60 季節の行事 | A42 段 2 の 6) | 重 | 要（行事の一覧・誘いと出来事の形・本人の服選び） | 前提なし。S37 の衣装（浴衣・振袖・サンタなど）が受け皿。新しいセリフが多いので別のコミット | `defaults/events.json`・記念日の仕組み・`core/appoint.py` の `_maybe_invite`・`core/wardrobe.py` の `self_pick`・`core/keys.py` |
-| S54 一式の服の靴を、家の中では描かない | F24 | 軽〜中 | 不要（分け方は項目に書いてある） | 前提なし（修正）。服の暖かさ（S38 で入れた `season.warmth`）は一式を一式で数えているので、靴を分けても変えなくてよい | `defaults/outfits.json`（一式 25 着）・`core/wardrobe.py` の描く部品（562 行あたり）・`tools/test_wardrobe.py` |
 | S46 書き出し・読み込みで全部を復元できる | A50 | 中 | 不要（書き出す設定の範囲を着手前に聞く。丸ごと書き出しは入れる） | 前提なし。S30（服の部品）は済（服の一覧の `slot`・`colors`・`match`、持っている服の `color` をそのまま書き出す。`slot` は読むときに補うので古い zip の移行は不要）。S44（ポーズの部位）は済（ポーズの一覧の `slot`・`group`・`with`・`silly`・`hand_ok` は読むときに既定の同じ id から補うので、古い zip の移行は不要。好みの鍵 `pose:<id>` / `show:<id>` は変えていない） | `core/transfer.py`・`core/wardrobe.py`・`core/posing.py`・`core/store.py`・`static/app.js` の「設定 → データ」・`tools/test_transfer.py` |
 
 ### 群 4 出先・約束・誘い・引っ越し
@@ -100,11 +99,6 @@
 | 状態 | 追加 | 重さ | 内容 |
 |---|---|---|---|
 | 未着手 | 11/27 | 軽〜中 | **症状（11/27 ユーザー）**: 同じプロンプトの既存の画像がある場合に、新しく描いた画像に切り替えない設定（設定 → 画像の `images.swap_after_gen`。切ってある状態）が効いていない。**分かっていること（11/27 にコードを読んだだけ。再現はまだ）**: `engine._present_image` は既存の画像を出したうえで、上限（`max_per_prompt`）未満なら `enqueue(..., bg=bool(have))` で裏で描く。`_worker` の `put` は `swap = not j["bg"] or swap_after_gen` で、切り替えないときは記録の `image` を変えずに `j["shown"] = False`。画面の `pollJobsOnce` は `j.shown === false` なら画像を変えない。この流れの上では効くはず。**疑う所**: ①`bg` が付かない経路で同じ場面を描いている（スナップ・⟳ の `regenerate` は `bg` 無し＝明示の描き直しなので切り替えてよい。それ以外に、既存の画像があるのに `bg` 無しで積む所がないか: `_base_scene`・対面の会話の絵 `facetalk`・アイコン以外の種類）②生成中の使い回し（`busy_reuse`）で既存を出した記録に、あとから別の経路のジョブが付く ③画面の 30 秒ごとの描き直しが、記録の `images` の最後（新しい画像）を出している（`image` ではなく `images[-1]` を見ている所がないか）④`/api/job` の応答に `shown` が載らない場合（古いジョブ・ワールドを切り替えた `_job_entry` の経路）。**着手のとき**: ユーザーに、切り替わった場面（どの操作のあとか・すぐか、少したってからか）を聞けたら聞く。一時データと `tools/mock_comfy.py` で、設定を切ったまま同じプロンプトを 2 回出して再現する。**テスト**: 設定を切ったときは、描き終わっても記録の `image` と画面の画像が変わらない / 入れたときは変わる、を新しいテスト（`tools/test_swap_after_gen.py` など。`--comfy-port` でモックを使う）に。**遡及**: しない（表示だけ。描いた画像はギャラリーに残っている）。**セリフ**: なし |
-
-### F24 一式の服（コスプレ・普段着の一式）が、家の中でも靴を履いて描かれる — 軽〜中
-| 状態 | 追加 | 重さ | 内容 |
-|---|---|---|---|
-| 未着手 | 11/27 | 軽〜中 | **症状（11/27 ユーザーの指摘から、コードで確かめた）**: 部品の靴は外にいるときだけ描く（`core/wardrobe.py` の描く部品の関数、562 行あたり）が、一式（`slot` が `set`）は `pos` に靴の語がそのまま入っているので、家の中でも靴を履いて描かれる。`defaults/outfits.json` の一式 69 着のうち 25 着が該当（普段着・よそ行き: denim・street_casual・athleisure の sneakers、cardigan_skirt の loafers、boho の sandals、mori・egirl の boots、kimono の geta、china・bodycon・cocktail の heels。衣装: ballet・santa・cheer・race_queen・magical・gothic・vampire・angel・princess・latex_bondage・latex_red・latex_bodysuit・catsuit・latex_bunny）。**直し方（11/27 に決めた。最小の形）**: コスプレを部品の組み合わせに作り直す（羽・角・輪などの新しい区分が要り、持っている服の移行も重い）のではなく、一式に靴の語を別の欄で持たせる（例: `"shoes": "boots"`。`pos` からは抜く）。描くときは、部品の靴と同じ決まり（外にいるときだけ）で足す。家の中では素足かソックス・タイツのまま（一式の `pos` に thighhighs などがあればそのまま）。サンプル画像（`sample`）は外にいる前提で描いているので、靴を足した形で描く。**移行**: 既定の一覧（`defaults/outfits.json`）は書き換える。ユーザーが自分で足した・書き換えた一式（`data/outfits.json`）は、起動のときに `pos` の中の靴の語（sneakers・loafers・sandals・boots・geta・heels・slippers・shoes など）を `shoes` の欄へ一度だけ移す（移した印を付けて二度はしない）。キャラごとの上書き（持っている服の `pos`）も同じ。**テスト**: `tools/test_wardrobe.py` に「一式を着て家の中 → 靴の語が入らない / 外 → 入る」「移行が一度だけ・靴の語の無い一式は変わらない」。**遡及**: する（描くときの決まりなので、移行のあとはいまのセーブにもそのまま効く。値は変わらない）。**セリフ**: なし。**ユーザーへ（着手前に聞かなくてよい）**: 「サンタの帽子だけ」のように一式の一部を外して組み合わせたくなったら、そのときに部品化を別の項目にする |
 
 ## 機能追加
 
