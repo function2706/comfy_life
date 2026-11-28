@@ -1,16 +1,20 @@
-ID = "20261128_bike_home"
-DESC = "経路の不具合でモール前に置かれた自転車を家に戻す"
-UNTIL = 1796137200
+ID = "20261128_back_to_work"
+DESC = "11/28 14:33 に画面が途切れて職場から帰った扱いを、職場にいたままに戻す"
+UNTIL = 1795874400
+T = 1795844002.4177353
 
 
 def apply(ctx):
-    n = 0
     for w in ctx.worlds():
-        p = ctx.store.dpath("worlds", w, "geo.json")
-        g = ctx.store.load(p, None)
-        v = (g or {}).get("veh") or {}
-        if v.get("bicycle") == "st:mall":
-            v["bicycle"] = "home:me"
-            ctx.store.save(p, g)
-            n += 1
-    return "家に戻した（%d 件）" % n if n else None
+        path = ctx.store.dpath("worlds", w, "player.json")
+        ps = ctx.store.load(path, None) or {}
+        p = ps.get("presence") or {}
+        ll = p.get("last_left") or {}
+        if p.get("mode") != "none" or p.get("pos") != "home:me" or ll.get("mode") != "gone" or abs(ll.get("t", 0) - T) > 2:
+            continue
+        for k in ("solo", "place", "job", "task", "travel", "left", "work_contacts", "with"):
+            p.pop(k, None)
+        p.update({"mode": "work", "since": 1795830423.1973794, "pos": "office", "arrived": T})
+        ctx.store.save(path, ps)
+        return "職場にいる形に戻した（14:33 から）"
+    return None

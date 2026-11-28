@@ -87,6 +87,24 @@ def main():
             assert store.load(gp("wb2"))["veh"] == {"bicycle": "station"}, "ほかの所に置いた自転車は触らない"
             assert patches.run() == [], "二度は当てない"
             print("11/28 のパッチ: OK | モール前の自転車だけ家に戻す・一度だけ")
+        if os.path.exists(real) and "20261128_back_to_work" in open(real, encoding="utf-8").read():
+            for f in os.listdir(PDIR):
+                os.remove(os.path.join(PDIR, f))
+            shutil.copy(real, os.path.join(PDIR, "patch.py"))
+            pp = lambda w: store.dpath("worlds", w, "player.json")  # noqa: E731
+            T = 1795844002.4177353
+            home = {"mode": "none", "pos": "home:me", "beat": T + 3000, "last_left": {"t": T, "mode": "gone", "back": T + 504}}
+            for w, pr in (("wk1", dict(home)), ("wk2", dict(home, last_left={"t": T - 9000, "mode": "gone"})),
+                          ("wk3", dict(home, mode="out", pos="mall"))):
+                os.makedirs(os.path.dirname(pp(w)), exist_ok=True)
+                store.save(pp(w), {"money": 1, "presence": pr})
+            assert patches.run() == [("20261128_back_to_work", "職場にいる形に戻した（14:33 から）")]
+            p1 = store.load(pp("wk1"))["presence"]
+            assert p1["mode"] == "work" and p1["pos"] == "office" and p1["arrived"] == T and "left" not in p1, p1
+            assert store.load(pp("wk2"))["presence"]["mode"] == "none", "ほかの時刻に途切れたものは触らない"
+            assert store.load(pp("wk3"))["presence"]["mode"] == "out", "また出かけていたら触らない"
+            assert patches.run() == [], "二度は当てない"
+            print("11/28 のパッチ: OK | 14:33 に途切れた仕事だけ職場に戻す・一度だけ")
 
         # ---------------------------------------------------------------- 更新での扱い (本物の git で)
         # 以前は git の出力全体を strip していて, status の 1 行目 " D patches/…" の行頭の空白が消え,
