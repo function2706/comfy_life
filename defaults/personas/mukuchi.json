@@ -312,7 +312,7 @@
    "……ん。（目を細めて、頭を手に寄せてきた）"
   ],
   "touch_hair.reluctant": [
-   "……崩れる。……少しだけ。"
+   "……崩れる。……いまだけ。"
   ],
   "touch_hair.refuse": [
    "……髪は、いや。"
@@ -373,6 +373,57 @@
   ],
   "pull_close.angry": [
    "……離して。……いや。"
+  ],
+  "lap_give.default": [
+   "……じゃあ、少し。"
+  ],
+  "lap_give.tired": [
+   "……あったかい。……ねむい。"
+  ],
+  "lap_give.eager": [
+   "……ん。（目を細めて、頭を預けてきた）"
+  ],
+  "lap_give.reluctant": [
+   "……今回だけ。"
+  ],
+  "lap_give.refuse": [
+   "……それは、いい。"
+  ],
+  "lap_give.angry": [
+   "……しつこい。"
+  ],
+  "lap_rest.default": [
+   "……どうぞ。"
+  ],
+  "lap_rest.carer": [
+   "……疲れてる。……休んで。"
+  ],
+  "lap_rest.eager": [
+   "……（黙って、そっと髪を撫でてきた）"
+  ],
+  "lap_rest.reluctant": [
+   "……しびれたら、どいて。"
+  ],
+  "lap_rest.refuse": [
+   "……それは、ちょっと。"
+  ],
+  "lap_rest.angry": [
+   "……いや。"
+  ],
+  "kiss.default": [
+   "……っ。（真っ赤になって、固まった）"
+  ],
+  "kiss.eager": [
+   "……もう一回。……いい。"
+  ],
+  "kiss.reluctant": [
+   "……もう少し、ゆっくり。"
+  ],
+  "kiss.refuse": [
+   "……待って。……まだ。"
+  ],
+  "kiss.angry": [
+   "……やめて。"
   ],
   "cook.default": [
    "いい匂い。……いただきます。（両手を合わせて、目がきらっとした）",
@@ -3148,6 +3199,30 @@
   ],
   "ap.date_hands.ignore": [
    "（{name}は差し出しかけた手を、そっと引っ込めた）"
+  ],
+  "ap.lap_wish.call": [
+   "……膝。……少し、貸して。"
+  ],
+  "ap.lap_wish.accept": [
+   "……ありがと。（目を閉じた）"
+  ],
+  "ap.lap_wish.later": [
+   "……そう。"
+  ],
+  "ap.lap_wish.ignore": [
+   "（{name}はソファのはしで、小さく丸くなった）"
+  ],
+  "ap.arm_link.call": [
+   "（{name}が、黙って腕をからめてきた）……だめ？"
+  ],
+  "ap.arm_link.accept": [
+   "……ん。（腕に、少し力をこめた）"
+  ],
+  "ap.arm_link.later": [
+   "……そう。"
+  ],
+  "ap.arm_link.ignore": [
+   "（{name}は、からめかけた腕をそっとほどいた）"
   ],
   "ap.msg_chat.call_unsure": [
    "📱『……{call}。最近、忙しい？』"

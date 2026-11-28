@@ -374,6 +374,57 @@
   "pull_close.angry": [
    "離して。本当に不快なの。"
   ],
+  "lap_give.default": [
+   "……了解。少しだけ借りるわ。"
+  ],
+  "lap_give.tired": [
+   "……温かいわ。睡眠に移行しそう。"
+  ],
+  "lap_give.eager": [
+   "……快適ね。しばらくこの状態を維持していい？"
+  ],
+  "lap_give.reluctant": [
+   "……短時間なら。"
+  ],
+  "lap_give.refuse": [
+   "それは結構よ。"
+  ],
+  "lap_give.angry": [
+   "しつこいわ。もうしない。"
+  ],
+  "lap_rest.default": [
+   "どうぞ。負荷は問題ないわ。"
+  ],
+  "lap_rest.carer": [
+   "疲労が見えるわ。少し休んでいって。"
+  ],
+  "lap_rest.eager": [
+   "……いいわよ。……かわいい、と記録しておく。"
+  ],
+  "lap_rest.reluctant": [
+   "……足がしびれたら、退いてもらうわ。"
+  ],
+  "lap_rest.refuse": [
+   "それは、ちょっと。"
+  ],
+  "lap_rest.angry": [
+   "同じ要求の繰り返しね。嫌よ。"
+  ],
+  "kiss.default": [
+   "……っ。……いまのは、想定外。"
+  ],
+  "kiss.eager": [
+   "……もう一回なら、許可する。"
+  ],
+  "kiss.reluctant": [
+   "……もう少し、手順を踏んでほしいわ。"
+  ],
+  "kiss.refuse": [
+   "待って。その段階には、まだ至ってないわ。"
+  ],
+  "kiss.angry": [
+   "やめて。そういう意図はないわ。"
+  ],
   "cook.default": [
    "いい匂い。ありがたくいただくわ。",
    "{call}の手料理ね。……おいしい。今日一番うれしいことかもしれない。"
@@ -3148,6 +3199,30 @@
   ],
   "ap.date_hands.ignore": [
    "（{name}は差し出しかけた手を、そっと引っ込めた）"
+  ],
+  "ap.lap_wish.call": [
+   "……膝を少し借りたいの。疲労が限界に近いわ。"
+  ],
+  "ap.lap_wish.accept": [
+   "……ありがとう。少しだけ、このままで。"
+  ],
+  "ap.lap_wish.later": [
+   "……そう。問題ないわ。"
+  ],
+  "ap.lap_wish.ignore": [
+   "（{name}はソファのはしで、小さく丸くなった）"
+  ],
+  "ap.arm_link.call": [
+   "（{name}が、腕をからめてきた）……はぐれ防止よ。"
+  ],
+  "ap.arm_link.accept": [
+   "……了解。このまま移動しましょう。"
+  ],
+  "ap.arm_link.later": [
+   "……そうね。人目があるわ。"
+  ],
+  "ap.arm_link.ignore": [
+   "（{name}は腕をほどき、何事もなかったように歩き出した）"
   ],
   "ap.msg_chat.call_unsure": [
    "📱『{call}、最近忙しいのかしら。連絡の頻度が下がっているから、確認したくて』"
