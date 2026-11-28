@@ -152,6 +152,9 @@ class Topics:
         if (r or {}).get("override"):
             return None
         ov = a.get("override") or {}
+        if a.get("id") == "tv":                 # 一緒に観たテレビ (S61 段 2): 連続ドラマの回も記録する
+            x = self.app.tv.after_together(char, self.app.state(char["id"]), opts or {}, now)
+            return self.add("with", x[0], x[1], now, with_=[char["id"]]) if x else None
         if a.get("id") == "movie":              # 一緒に観たジャンル (A44 段 1. engine.movie_genre) があれば, その中から
             g = (opts or {}).get("genre")
             title, tags = self.pick_genre(MOVIE_GENRES, g) if g else random.choice(MOVIES)

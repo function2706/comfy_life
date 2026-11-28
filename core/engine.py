@@ -63,6 +63,7 @@ from . import quarrel as quarrel_mod
 from . import moneytalk as moneytalk_mod
 from . import aircon as aircon_mod
 from . import ambience as ambience_mod
+from . import tv as tv_mod
 from . import geo as geo_mod
 from . import chat as chat_mod
 from . import home as home_mod
@@ -219,6 +220,7 @@ class App:
         self.moneytalk = moneytalk_mod.MoneyTalk(self)  # お金の使い方への口出し・どっちが出すか
         self.aircon = aircon_mod.Aircon(self)           # 同居のエアコン争い (S58)
         self.ambience = ambience_mod.Ambience(self)     # 音楽・お香 / アロマ (部屋の設定. S61)
+        self.tv = tv_mod.TV(self)                       # テレビの番組表と連続ドラマ (S61 段 2)
         self.quarrel = quarrel_mod.Quarrel(self)      # 意見が割れる・言い争い・仲直り
         self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
@@ -1062,6 +1064,8 @@ class App:
             self, char, dt, inside=None if self.outside_with(char["id"], dt.timestamp()) else self.wardrobe.ac_of(char, dt))
         ctx["day_feel"] = season_mod.day_feel(dt.date())
         ctx["wx"] = outdoor_mod.weather(dt)["id"]
+        ctx["tv_seen"] = self.tv.seen_ctx(char, st, dt.timestamp()) if ctx["apart"] else 0      # 前の晩に観た番組をまだ話していない (S61)
+        ctx["tv_serial_on"] = 0 if ctx["apart"] else self.tv.serial_on(char, st, dt.timestamp())     # 一緒に追っている連続ドラマの時間
         ctx["outside"] = False if ctx["apart"] else self.posing.outside(char["id"])     # そばにいて外か (ふれあいの場所の条件. S57)
         return ctx
 
@@ -1555,7 +1559,7 @@ class App:
         opts["genre"] = g
         opts.setdefault("extra", {})["genre"] = next(lb for i, lb, _, _ in topics_mod.MOVIE_GENRES if i == g)
 
-    LEARN_ACTS = ("hold_hands", "movie")      # ふれあい (行動の touch) のほかに覚えるもの
+    LEARN_ACTS = ("hold_hands", "movie", "tv")      # ふれあい (行動の touch) のほかに覚えるもの
 
     def learn_request(self, char, st, a, opts, apart, now):
         """あなたから頼んだ・誘ったことを, 相手が「この人はこれが好き」と覚える (A44 段 1). 相手からの誘いに応じたときは覚えない."""
@@ -1566,6 +1570,8 @@ class App:
             prefs_mod.learn(st, "act:" + aid, 1.0, now)
         if not apart and aid == "movie" and opts.get("pick"):
             prefs_mod.learn(st, "genre:" + opts["genre"], 1.0, now)
+        if not apart and aid == "tv" and (opts.get("tv") or {}).get("kind"):
+            prefs_mod.learn(st, "tv:" + opts["tv"]["kind"], 1.0, now)     # 誘って一緒に観た番組の種類 (S61 段 2)
         ov = a.get("override") or {}
         if ov.get("outing"):                      # 一緒に行こうと誘った行き先 (会っていても, メッセージで誘っても)
             pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ov.get("place")
@@ -1745,6 +1751,8 @@ class App:
                 ctx["touch_feel"] = self.touch_feel(char, st, a, ctx, now)
             if not apart and aid == "movie":          # 一緒に観る映画のジャンル (A44 段 1): 選ばなければ相手の好みで
                 self.movie_genre(char, st, opts, ctx)
+            if not apart and aid == "tv":             # 一緒に観るテレビ: いまの番組と受け止め (S61 段 2)
+                self.tv.together(char, st, opts, ctx, now)
             self.learn_request(char, st, a, opts, apart, now)     # 頼んだこと = あなたの好み (A44 段 1. core/prefs.py)
             tryon = None
             if aid == "_tryon":                       # 買ってあげたアウターを, その場で着てみてもらう (聞けるのは一度だけ)
@@ -2167,7 +2175,7 @@ class App:
                 # 会っていた相手と別れて離れた: 離席の画面 (移動中など) が会話を覆うので, 最後のやりとりをそこに出す
                 self.presence.rec()["last_words"] = {"cid": cid, "name": char.get("name", ""), "text": text, "t": now}
                 self.presence.save()
-        if entry and (a.get("id") == "movie" or (a.get("override") or {}).get("outing")) and not apart and not defer:
+        if entry and (a.get("id") in ("movie", "tv") or (a.get("override") or {}).get("outing")) and not apart and not defer:
             try:
                 self.topics.from_act(char, a, r, opts, now)     # 一緒に出かけた・観た: 思い出話になる
             except Exception:  # noqa: BLE001 - 話題が残せなくても行動は済んでいる
@@ -3743,7 +3751,7 @@ class App:
                           "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT],
                           "movie_genre": [{"id": "", "label": "おまかせ"}] + [{"id": g[0], "label": g[1]} for g in topics_mod.MOVIE_GENRES]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
-                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(), "amb_talk": self.ambience.pending(),
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(), "amb_talk": self.ambience.pending(), "tv": self.tv.view(now),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

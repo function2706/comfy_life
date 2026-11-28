@@ -336,6 +336,12 @@
   "ignore": {"text": "（{name}からの気づかいのメッセージは、返事がないまま残っている）", "effects": {"mood": -2, "loneliness": 2}}
  },
  {
+  "id": "msg_tv", "label": "テレビの話をしてきた", "icon": "📺", "apart": true, "when": "tv_seen=1, affection>=30", "weight": 1.5, "cooldown_h": 20, "wait_minutes": 120, "urgency": 0.3, "pick_tv": true, "likes": "tv:*", "text": "📱『昨日の{show}、観ました？』", "accept": {"label": "返信する", "text": "📱『観てなかったら、今度話しますね』", "skill": "talk", "effects": {"mood": 2, "loneliness": -4, "boredom": -3}, "reason_good": "{call}とテレビの話をした"}, "later": {"label": "あとで返す", "text": "📱『はい、またあとで』", "effects": {}}, "ignore": {"text": "（{name}からのテレビの話は、返事がないまま残っている）", "effects": {"mood": -1, "loneliness": 2}}
+ },
+ {
+  "id": "tv_serial", "label": "連続ドラマに誘ってきた", "icon": "📺", "when": "tv_serial_on=1, outing=false, outside=false", "weight": 3, "cooldown_h": 20, "pick_tv": true, "text": "そろそろ{show}の時間ですよ。一緒に観ます？", "pos": "holding remote control, sitting on sofa, smile, indoors", "neg": "", "accept": {"label": "観よう", "action": "tv", "effects": {"mood": 2}}, "later": {"label": "今日はいい", "text": "……そうですか。じゃあ、一人で観ますね", "effects": {"mood": -1}}, "ignore": {"text": "（{name}は一人でドラマを観ていた）", "effects": {"mood": -1}}
+ },
+ {
   "id": "need_you", "label": "離れたくないみたい", "icon": "🥺", "when": "dependence>=80, loneliness>=45, affection>=55, outing=false", "weight": 2, "cooldown_h": 6,
   "text": "……{call}。{call}がいないと、なんだかだめなんです。今日は、そばにいてくれますか？", "pos": "hugging viewer, face buried, clinging", "neg": "",
   "accept": {"label": "そばにいる", "text": "……よかった。……離さないでくださいね。", "skill": "touch",

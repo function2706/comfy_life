@@ -37,7 +37,8 @@ AMB_LIKE = {"books": {"music:jazz": 0.3, "music:classical": 0.4}, "tea": {"music
             "food": {"music:kayo": 0.3}, "practical": {"music:lofi": 0.2, "smoke": -0.3},
             "fashion": {"music:hiphop": 0.4, "music:pop": 0.2}, "accessories": {"scent:rose": 0.3, "music:jazz": 0.2}}
 SMOKE_PERSONA = {"byoujaku": -0.6}          # 体の弱い人は煙が苦手
-PROMPT = {"music": "music, speaker, relaxed", "incense": "incense, thin smoke", "aroma": "aroma diffuser, mist"}
+PROMPT = {"music": "music, speaker, relaxed", "incense": "incense, thin smoke", "aroma": "aroma diffuser, mist",
+          "tv": "light from tv screen"}
 
 CHECK_SEC = 3600            # 見る間隔
 STALE_SEC = 6 * 3600        # 言ってきたまま答えずにいたら, うやむやに
@@ -767,6 +768,9 @@ class Ambience:
         if s:
             tags.append(PROMPT[s["how"]])
             src.append(HOW[s["how"]][0])
+        if self.watching(t) and (st.get("override") or {}).get("activity") not in ("movie", "tv"):   # 行動の絵に画面の光が無いとき
+            tags.append(PROMPT["tv"])
+            src.append("テレビ")
         return {"src": "部屋: " + "・".join(src), "pos": ", ".join(tags), "neg": ""} if tags else None
 
     # ------------------------------------------------------------------ 表示

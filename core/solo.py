@@ -35,6 +35,7 @@ KINDS = {
     "jog": {"label": "ジョギング", "icon": "🏃", "mode": "out", "doing": "ジョギング中", "go": "go_out"},
     "read": {"label": "本を読む", "icon": "📖", "mode": "busy", "doing": "読書中", "go": "go_busy"},
     "movie": {"label": "映画を観る", "icon": "🎬", "mode": "busy", "doing": "映画を観ている", "go": "go_busy"},
+    "tv": {"label": "テレビを観る", "icon": "📺", "mode": "busy", "doing": "テレビを観ている", "go": "go_busy"},
 }
 # 店で買い物を済ませる時間 (分): 店ごとの, 見て回るふだんの長さ (中央値)・揺れ (長いほうに裾がある. 本屋・モールは長居しがち)・
 # リストの品 1 つあたり (その店に売っているものだけ). コンビニに 15 分いることはまず無く, モールは 30 分ほどいることが多い
@@ -64,7 +65,8 @@ PLAIN = {
 OUT_WITH_OK = ("sleep", "leave")
 START_TEXT = {"rest": "ひと休みすることにした", "chores": "家事を始めた", "practice": "{skill}の練習を始めた",
               "walk": "一人で散歩に出た", "shopping": "一人で買い物に出た", "cafe": "一人でカフェに出かけた",
-              "out": "{place}へ出かけた", "jog": "{place}へ走りに出た", "read": "本を読み始めた", "movie": "家で映画を観始めた"}
+              "out": "{place}へ出かけた", "jog": "{place}へ走りに出た", "read": "本を読み始めた", "movie": "家で映画を観始めた",
+              "tv": "テレビをつけた"}
 OWN_ACTIONS = ("_back", "work", "_return")
 SKILL_LABEL = {"talk": "会話", "touch": "スキンシップ", "cook": "料理", "work": "仕事",
                "house": "家事", "care": "気配り", "groom": "身だしなみ", "budget": "やりくり", "write": "文章"}
@@ -595,6 +597,8 @@ class Solo:
                 text = str(e)
         elif kind == "movie":                   # 家で映画を観る (配信. 観かけは続きから. 観終えると話題に)
             text = "%s%s" % (_dur(h), app.topics.watch(h, now, MOVIE_H, genre=skill))
+        elif kind == "tv":                      # テレビ: 観ていた間の番組 (時間帯で決まる). 観た番組は話題に・連続ドラマの回 (S61 段 2)
+            text = "%s%s" % (_dur(h), app.tv.watch_solo(now - h * 3600, now))
         elif kind == "chores":
             L.tire(4 * h)
             soap = app.items.use_kind("detergent")              # 洗剤があるとはかどる

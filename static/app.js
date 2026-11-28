@@ -633,6 +633,7 @@ function renderSoloTab() {
     ? btn(k.icon, k.label, () => { S.practiceOpen = !S.practiceOpen; renderSoloTab(); }, '会話・スキンシップ・料理・仕事のどれかを練習する（戻るまで）')
     : k.id === 'read' || k.id === 'movie' ? btn(k.icon, k.label, () => { S.readOpen = S.readOpen === k.id ? null : k.id; renderSoloTab(); },
       k.id === 'read' ? '小説（ジャンルを選ぶ）か、持っている技能の本（その技能の研鑽）を読む' : 'ジャンルを選んで、家で映画を観る（配信）')
+    : k.id === 'tv' ? btn(k.icon, k.label, () => soloStart(k.id), `いまは${(v.tv || {}).now || 'テレビ'}${(v.tv || {}).kind ? `（${v.tv.kind}）` : ''}。番組は時間帯で決まる（戻るまで観る）`)
     : k.id === 'out' ? btn(k.icon, k.label, openMap, '外出のウィンドウ（地図）で、行き先と行き方を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')
     : OD_CHOICES()[k.id] ? btn(k.icon, k.label, () => { S.placeFor = S.placeFor === k.id ? null : k.id; renderSoloTab(); },
       '行き先を選んで出かける。画面を開いているあいだだけ（閉じたら家に帰る）。偶然の出会いはその間に')

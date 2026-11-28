@@ -342,6 +342,8 @@ class Presence:
             if gid:
                 st["approach"]["game"] = gid
                 st["approach"]["game_label"] = self.app.games.get(gid).get("name", gid)
+        if a.get("pick_tv"):             # 「昨日の〇〇、観ました？」/「そろそろ始まりますよ」: 番組 (S61 段 2)
+            st["approach"]["show_label"] = self.app.tv.pick_seen(char, st, now) if apart else self.app.tv.serial_label(now)
         if a.get("pick_genre"):          # 「映画観ない？」: ジャンルは相手の好みとあなたの好みから (相手の苦手は選ばない)
             g = self._pick_genre(char, st, now)
             st["approach"]["genre"] = g[0]
@@ -495,6 +497,7 @@ class Presence:
         text = text.replace("{who}", (st.get("approach") or {}).get("who", "知り合い"))       # 愚痴の相手 (core/circle.py)
         text = text.replace("{game}", (st.get("approach") or {}).get("game_label", "ゲーム"))     # 覚えたゲーム (A44)
         text = text.replace("{genre}", (st.get("approach") or {}).get("genre_label", "映画"))     # 誘う映画のジャンル (A44)
+        text = text.replace("{show}", (st.get("approach") or {}).get("show_label", "あのドラマ"))     # テレビの番組 (S61 段 2)
         scene = app.scene_at(char, st, d)
         text = app.format_text(text, char, scene, d)
         act = {"id": "_ap_" + a["id"], "name": a.get("label", a["id"]), "icon": a.get("icon", "💬"),

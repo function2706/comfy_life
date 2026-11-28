@@ -3100,6 +3100,167 @@
   "pick": "movie_genre"
  },
  {
+  "id": "tv",
+  "name": "テレビを観る",
+  "icon": "📺",
+  "category": "あそび",
+  "when": "free=true",
+  "cooldown": 30,
+  "effects": {
+   "boredom": -12,
+   "loneliness": -10,
+   "heart": 2,
+   "stress": -3
+  },
+  "pos": "watching tv, sitting on couch, living room, light from tv screen",
+  "neg": "",
+  "override": {
+   "activity": "tv",
+   "label": "テレビを観ている",
+   "location": "リビング",
+   "minutes": 45,
+   "outfit": "",
+   "pos": "living room, couch, light from tv screen",
+   "neg": "",
+   "effects": {
+    "boredom": -4
+   }
+  },
+  "reactions": [
+   {
+    "key": "default",
+    "priority": 0,
+    "text": "……この時間、通販番組しかやってないですね",
+    "when": "tv_kind=none",
+    "pos": "watching tv, bored, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "boredom": 2
+    }
+   },
+   {
+    "key": "news",
+    "priority": 1,
+    "text": "……このニュース、ちょっと気になりますね",
+    "when": "tv_kind=news, tv_feel=like|ok",
+    "pos": "watching tv, serious, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "boredom": -2
+    }
+   },
+   {
+    "key": "info",
+    "priority": 1,
+    "text": "へえ、このお店、行ってみたいかも",
+    "when": "tv_kind=info, tv_feel=like|ok",
+    "pos": "watching tv, interested, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 2,
+     "boredom": -3
+    }
+   },
+   {
+    "key": "variety",
+    "priority": 1,
+    "text": "ふふっ……これ、おかしいですね",
+    "when": "tv_kind=variety, tv_feel=like|ok",
+    "pos": "watching tv, laughing, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 3,
+     "stress": -2
+    }
+   },
+   {
+    "key": "drama",
+    "priority": 1,
+    "text": "……この二人、どうなるんでしょうね",
+    "when": "tv_kind=drama, tv_feel=like|ok",
+    "pos": "watching tv, engrossed, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 2,
+     "heart": 1
+    }
+   },
+   {
+    "key": "sports",
+    "priority": 1,
+    "text": "あ、いまの惜しい……！",
+    "when": "tv_kind=sports, tv_feel=like|ok",
+    "pos": "watching tv, excited, clenched hands, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 2,
+     "boredom": -4
+    }
+   },
+   {
+    "key": "cooking",
+    "priority": 1,
+    "text": "これなら、家でも作れそうですね",
+    "when": "tv_kind=cooking, tv_feel=like|ok",
+    "pos": "watching tv, interested, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 2,
+     "boredom": -3
+    }
+   },
+   {
+    "key": "animals",
+    "priority": 1,
+    "text": "かわいい……見てください、あの子",
+    "when": "tv_kind=animals, tv_feel=like|ok",
+    "pos": "watching tv, smile, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 3,
+     "stress": -2
+    }
+   },
+   {
+    "key": "dislike",
+    "priority": 2,
+    "text": "……こういう番組、あんまり観ないんですよね",
+    "when": "tv_feel=dislike, tv_kind!=none",
+    "pos": "watching tv, bored, looking at phone, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": -1,
+     "boredom": 3
+    }
+   },
+   {
+    "key": "serial_next",
+    "priority": 3,
+    "text": "……ここで終わるんですか。来週どうなるんだろう",
+    "when": "tv_serial=next, tv_feel!=dislike",
+    "pos": "watching tv, engrossed, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 2,
+     "heart": 1
+    }
+   },
+   {
+    "key": "serial_missed",
+    "priority": 3,
+    "text": "先週の回、見逃しちゃって……ちょっと話が分からないかも",
+    "when": "tv_serial=missed",
+    "pos": "watching tv, confused, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": -1
+    }
+   }
+  ],
+  "reason_good": "{call}とテレビを観た",
+  "home_only": true
+ },
+ {
   "id": "clean",
   "name": "一緒に掃除",
   "icon": "🧹",
