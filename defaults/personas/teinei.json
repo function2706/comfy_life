@@ -4206,6 +4206,168 @@
   ],
   "leave.go": [
    "ごめんなさい、やっぱり今日は帰ります。また今度、ゆっくり"
+  ],
+  "movie.genre_like": [
+   "{genre}なんですね。{fp}、これ好きなんです。"
+  ],
+  "movie.genre_dislike": [
+   "{genre}……。いえ、観ます。{call}と一緒なら。"
+  ],
+  "ap.fond_hands.call": [
+   "（{name}が、頬を赤くしながら{call}の手に指を絡めてきた）……い、いいですか？"
+  ],
+  "ap.fond_hands.accept": [
+   "（握り返すと、{name}は少しだけ力を込めた）……えへへ。"
+  ],
+  "ap.fond_hands.later": [
+   "あ……すみません。"
+  ],
+  "ap.fond_shoulder.call": [
+   "あの、肩、もんでもらえませんか？ {call}にしてもらうの、けっこう好きで。"
+  ],
+  "ap.fond_shoulder.accept": [
+   "（肩をもむと、{name}は目を細めた）……気持ちいいです。"
+  ],
+  "ap.fond_shoulder.later": [
+   "はい。じゃあ、あとで。"
+  ],
+  "ap.fond_back.call": [
+   "背中、さすってもらえますか？ 落ち着くので。"
+  ],
+  "ap.fond_back.accept": [
+   "（背中をさすると、{name}の肩から力が抜けた）……ほっとします。ありがとうございます。"
+  ],
+  "ap.fond_back.later": [
+   "……はい。"
+  ],
+  "ap.fond_hair.call": [
+   "（{name}が、恥ずかしそうに頭を寄せてきた）……なでて、ほしいです。"
+  ],
+  "ap.fond_hair.accept": [
+   "（髪をなでると、{name}は目を閉じた）……えへへ。うれしいです。"
+  ],
+  "ap.fond_hair.later": [
+   "……ですよね。"
+  ],
+  "ap.fond_tickle.call": [
+   "（{name}が、くすくす笑って{call}の脇腹をつついた）この前のお返しです。"
+  ],
+  "ap.fond_tickle.accept": [
+   "（くすぐり合いになった）ひゃっ、ご、ごめんなさい、くすぐったいです！"
+  ],
+  "ap.fond_tickle.later": [
+   "……つまらないです。"
+  ],
+  "ap.fond_cheek.call": [
+   "（{name}が{call}の手を取って、頬に当てた）……あったかいです。"
+  ],
+  "ap.fond_cheek.accept": [
+   "（{name}は、{call}の手を頬に当てたまま目を閉じた）……もう少し、このままで。"
+  ],
+  "ap.fond_cheek.later": [
+   "……はい。"
+  ],
+  "ap.fond_hug.call": [
+   "……ぎゅって、してもらえませんか？"
+  ],
+  "ap.fond_hug.accept": [
+   "（抱き寄せると、{name}は胸に顔をうずめた）……ありがとうございます。"
+  ],
+  "ap.fond_hug.later": [
+   "……はい。"
+  ],
+  "ap.fond_lap.call": [
+   "膝、どうぞ。{call}、これ好きでしょう？"
+  ],
+  "ap.fond_lap.accept": [
+   "（膝に頭をのせると、{name}は髪をなでてくれた）ゆっくり休んでくださいね。"
+  ],
+  "ap.fond_lap.later": [
+   "はい、いつでもどうぞ。"
+  ],
+  "ap.fond_kiss.call": [
+   "（{name}が、そっと{call}の頬に唇を寄せた）……っ、な、なんでもないです。"
+  ],
+  "ap.fond_kiss.accept": [
+   "（見つめ返すと、{name}は目をそらした）……顔、熱いです。"
+  ],
+  "ap.fond_kiss.later": [
+   "……な、何か言ってください。"
+  ],
+  "ap.play_again.call": [
+   "あの、この前の{game}、もう一回やりませんか？"
+  ],
+  "ap.play_again.accept": [
+   "やった。今度は負けませんよ？"
+  ],
+  "ap.play_again.later": [
+   "約束ですよ？"
+  ],
+  "ap.movie_invite.call": [
+   "今夜、映画観ませんか？ {genre}のとか、どうです？"
+  ],
+  "ap.movie_invite.later": [
+   "……はい。また今度。"
+  ],
+  "ap.fond_hands.ignore": [
+   "（返事がないので、{name}はそっと手を離した）"
+  ],
+  "ap.fond_hands.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_shoulder.ignore": [
+   "（返事がないので、{name}は自分で肩を回していた）"
+  ],
+  "ap.fond_shoulder.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_back.ignore": [
+   "（返事がないので、{name}はクッションを抱えて丸くなった）"
+  ],
+  "ap.fond_back.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_hair.ignore": [
+   "（返事がないので、{name}は気まずそうに頭を戻した）"
+  ],
+  "ap.fond_hair.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_tickle.ignore": [
+   "（反応がないので、{name}はつまらなそうに手を引っ込めた）"
+  ],
+  "ap.fond_tickle.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_cheek.ignore": [
+   "（返事がないので、{name}はそっと手を離した）"
+  ],
+  "ap.fond_cheek.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_hug.ignore": [
+   "（返事がないので、{name}は小さくため息をついた）"
+  ],
+  "ap.fond_hug.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_lap.ignore": [
+   "（返事がないので、{name}は膝の上で手を組んだ）"
+  ],
+  "ap.fond_lap.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.fond_kiss.ignore": [
+   "（反応がないので、{name}は真っ赤になって顔をそむけた）"
+  ],
+  "ap.fond_kiss.busy": [
+   "（{name}は、作業の邪魔をしないよう、そっと離れた）"
+  ],
+  "ap.play_again.ignore": [
+   "（{name}は一人で駒を並べ始めた）"
+  ],
+  "ap.movie_invite.ignore": [
+   "（{name}は一人で配信の一覧を眺めていた）"
   ]
  }
 }

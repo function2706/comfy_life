@@ -277,7 +277,7 @@
  {
   "id": "movie_invite", "label": "映画に誘ってきた", "icon": "🎬", "when": "boredom>=35, phase=evening|night, outing=false, outside=false", "weight": 2, "cooldown_h": 12, "likes": "act:movie", "min_pref": 2, "pick_genre": true,
   "text": "今夜、映画観ません？ {genre}のとか、どうです？", "pos": "holding remote control, sitting on sofa, smile, indoors", "neg": "",
-  "accept": {"label": "観よう", "action": "movie", "text": "じゃあ、明かり落としますね。", "effects": {"mood": 3}},
+  "accept": {"label": "観よう", "action": "movie", "effects": {"mood": 3}},
   "later": {"label": "また今度", "text": "……はい。また今度。", "effects": {"mood": -1}},
   "ignore": {"text": "（{name}は一人で配信の一覧を眺めていた）", "effects": {"mood": -1, "boredom": 2}}
  },
