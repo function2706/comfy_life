@@ -78,6 +78,7 @@ from . import earn as earn_mod
 from . import rumor as rumor_mod
 from . import wardrobe as wardrobe_mod
 from . import posing as posing_mod
+from . import showoff as showoff_mod
 from . import planner as planner_mod
 from . import manners as manners_mod
 from . import calview as calview_mod
@@ -300,6 +301,7 @@ class App:
         self.wardrobe.load()                   # 服の一覧 (全体で 1 つ)
         if not hasattr(self, "posing"):
             self.posing = posing_mod.Posing(self)
+            self.showoff = showoff_mod.Showoff(self)       # 見せたくなる場面 (A44 段 2)
         self.posing.load()                     # ポーズ・見せての一覧 (全体で 1 つ)
         self.wardrobe.migrate()                # 以前のキャラごとの wardrobe を一覧へ (済んでいれば何もしない)
         # 既定に増えた項目 (economy など) も使えるよう, 既定の上に data を重ねる
@@ -3702,6 +3704,8 @@ class App:
                         self.ring.live(self.chars[oid], ost, now)
                         self.save_state(oid)
                     if oid in company and self.posing.live(self.chars[oid], ost, now):
+                        self.save_state(oid)
+                    elif oid not in company and self.showoff.photo_live(self.chars[oid], ost, now):     # 離れていて写メ (A44 段 2)
                         self.save_state(oid)
                     if oid in company:
                         self.parting.cut_live(self.chars[oid], ost, now)     # 相手から早めに帰ると言い出す (A41・S34)

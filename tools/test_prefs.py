@@ -162,6 +162,7 @@ def main():
         lo, hi = share(2.5), share(10.0)
         print("肩をもんでほしい の出る割合: 好み 2.5 → %.2f / 10 → %.2f" % (lo, hi))
         assert 0 < hi < 0.6 and hi > lo, "多く頼むほど出やすいが, ほかの働きかけも出る"
+        st["ap_last"] = {}                  # 上のくじで出た印を消してから
         w0 = P.like_weight(char, st, fs, now)
         st["ap_last"] = {"fond_shoulder": now - 3600}
         assert abs(P.like_weight(char, st, fs, now) - w0 * P.RECENT_W) < 1e-9, "直近に出たものは下げる"

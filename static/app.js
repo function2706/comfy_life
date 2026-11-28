@@ -2221,6 +2221,12 @@ async function drawChat(auto) {
       (() => {          // 返事を待たれているメッセージ: 下の「↩ 返す」(ほかの種類でも) から返す. 「あとで」だけここに
         const ap = can && (S.view.approaches || []).find((x) => x.cid === th.id && x.choices);
         if (!ap) return '';
+        if (ap.id === '_pose') {      // 写メ (A44 段 2): 感想をここで選ぶ (そばで見せてくれたときと同じ選び方)
+          return h('div', { class: 'chat-reply row', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
+            h('span', { class: 'muted small' }, `${ap.icon} ${ap.label}`),
+            ...ap.choices.map((c) => h('button', { class: 'chat-kind', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'reply', c.id); drawChat(); } }, c.label)),
+            h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later));
+        }
         return h('div', { class: 'chat-reply row', style: 'gap:8px;align-items:center' },
           h('span', { class: 'muted small' }, `${ap.icon} 返事を待っています（あと${Math.max(1, Math.ceil((ap.until - Date.now() / 1000) / 60))}分）。「↩ 返す」から選ぶか、ほかのメッセージでも返せます`),
           h('button', { class: 'chat-kind ghost', disabled: S.busy, onclick: async () => { await answerApproach(th.id, 'later'); drawChat(); } }, ap.later));
@@ -3553,7 +3559,7 @@ function renderApproach() {
         ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
           ...ap.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'reply', c.id) }, c.label)),
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))
-      : ap.choices        // メッセージ: トークを開いて「↩ 返す」から返す (どれが良く効くかは, 話の中身と相手しだい)
+      : ap.choices        // メッセージ: トークを開いて「↩ 返す」から返す (写メの感想はトークの帯から) (どれが良く効くかは, 話の中身と相手しだい)
         ? h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
           h('button', { class: 'btn small primary', disabled: S.busy, onclick: () => openChat(ap.cid) }, '📱 トークを開いて返す'),
           h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => answerApproach(ap.cid, 'later') }, ap.later))

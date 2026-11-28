@@ -21,6 +21,7 @@ import os
 import random
 
 from . import prefs as prefs_mod
+from .showoff import SHOW_KINDS
 from . import store
 
 TYPES = {"pose": "ポーズ", "show": "見せて"}
@@ -72,12 +73,27 @@ LINES = {
     "pose.react.stop.good": "あ、はい。……ふふ、{call}って真面目ですね",
     "pose.react.stop.neutral": "……そうですか",
     "pose.react.stop.bad": "……せっかく見せたのに",
+    # 見せたくなる場面 (A44 段 2. core/showoff.py)
+    "dress.self.new": "（{name}が、着替えて戻ってきた）……この前の{item}、着てみたんです。どうですか？",
+    "dress.self.costume": "（{name}が、{item}に着替えて戻ってきた）……たまには、こういうのもいいかなって",
+    "show.attention": "……ねえ、{call}。ちょっとこっち見てください",
+    "photo.pose": "📱『{item}、撮ってみました。どうですか？』",
+    "photo.show": "📱『……{call}にだけですよ。{item}』",
+    "photo.new": "📱『この前の{item}、着てみました。似合ってます？』",
+    "photo.date": "📱『今日これで行きますね。……変じゃないですか？』",
+    "photo.attention": "📱『ねえ、最近ちょっと冷たくないですか？』",
 }
 SCENE_LABEL = {
     "pose.self.pose": "相手から: ポーズを取って見せる ({item})", "pose.self.show": "相手から: 見せてくる ({item})",
     "pose.offer.free": "相手から: 見たい？と持ちかける", "pose.offer.money": "相手から: お金と引き換えに持ちかける ({amount})",
     "pose.offer.chore": "相手から: 家事の肩代わりと引き換えに持ちかける", "pose.offer.declined_ok": "持ちかけを断られた (気にしない)",
     "pose.offer.declined_bad": "持ちかけを断られた (がっかり)",
+    "dress.self.new": "相手から: 手に入れた服に着替えて見せる ({item} に服の名前)",
+    "dress.self.costume": "相手から: 衣装・水着に着替えて見せる ({item} に服の名前)",
+    "show.attention": "相手から見せる前のひとこと: 構ってもらえず, こっちを見てほしい (見せるセリフの前に付く)",
+    "photo.pose": "離れていて写メ: ポーズを撮って送る ({item})", "photo.show": "離れていて写メ: 見せて送る ({item})",
+    "photo.new": "離れていて写メ: 手に入れた服を着て送る ({item} に服の名前)",
+    "photo.date": "離れていて写メ: 会う約束の前に, 今日の服を送る", "photo.attention": "写メの前のひとこと: しばらく会えていなくて, 構ってほしい",
 }
 for _k, _l in REACTIONS:
     for _o, _ol in (("good", "よく効いた"), ("neutral", "ふつう"), ("bad", "よくなかった")):
@@ -236,6 +252,14 @@ class Posing:
 
     # ------------------------------------------------------------------ 好み
     @staticmethod
+    def adult_ok(char):
+        return adult(char)
+
+    @staticmethod
+    def line(key):
+        return LINES[key]
+
+    @staticmethod
     def learn(st, key, amount, now=None):
         """覚える (薄れは core/prefs.py. A44)."""
         prefs_mod.learn(st, key, amount, now)
@@ -271,9 +295,9 @@ class Posing:
         f = 0.2 + (p.get("heart", 0) - 20) / 60.0 + (p.get("affection", 40) - 55) / 80.0 + (p.get("mood", 50) - 50) / 150.0 - m / 20.0
         return max(0.0, min(1.5, f))
 
-    def pick(self, char, st, rng=random):
-        """相手が自分から選ぶポーズ・部位 (自分から出せる大胆さまで. 覚えた好みに寄る)."""
-        cap = self.app.wardrobe.comfort(char, st) + (1 if st["params"].get("heart", 0) >= 50 else 0)
+    def pick(self, char, st, rng=random, cap_drop=0):
+        """相手が自分から選ぶポーズ・部位 (自分から出せる大胆さまで. 覚えた好みに寄る). cap_drop: 写メは形に残るので 1 段下げる."""
+        cap = self.app.wardrobe.comfort(char, st) + (1 if st["params"].get("heart", 0) >= 50 else 0) - cap_drop
         out = self.outside(char["id"])
         play = self.play(char)               # 照れくさいものは, おどけが平気な人ほど自分からもする
         cands = [o for o in self.all() if o["bold"] <= cap and (not out or o["outside_ok"]) and o["silly"] * (1 - play) <= 1]
@@ -300,7 +324,10 @@ class Posing:
         off = st.get("pose_offer")
         if off and now >= off["until"]:
             st["pose_offer"] = None
-            self.app.apply_effects(st, {"mood": -1})
+            if off.get("kind") != "photo":
+                self.app.apply_effects(st, {"mood": -1})
+            if off.get("kind") in ("did", "dress", "photo"):
+                self.app.showoff.reacted(char, st, "ignored", now)      # 見せたのに返事がなかった
             return None
         if off or st.get("approach") or st.get("game"):
             return None
@@ -312,37 +339,81 @@ class Posing:
             return None
         if self.app.presence.at(now) not in ("here", "idle"):
             return None
-        rate = RATE_PER_HOUR * self.eagerness(char, st)
+        so = self.app.showoff                    # 見せたい気持ちと場面 (A44 段 2. 回数の上限は置かない)
+        mult, why = so.scene(char, st, now, apart=False)
+        rate = RATE_PER_HOUR * (self.eagerness(char, st) + so.base(char, st)) * so.level(char, st, now) * mult
         if rng.random() >= 1 - math.exp(-rate * dt_h):
             return None
+        dress = self._dress_pick(char, st, now, why, rng)
+        if dress:
+            return self.dress_show(char, st, dress, now, why)
         o = self.pick(char, st, rng)
         if not o:
             return None
-        if rng.random() < 0.6:
-            return self.perform(char, st, o, now, key="pose.self." + o["type"])
+        if rng.random() < 0.6 or why == "attention":
+            return self.perform(char, st, o, now, key="pose.self." + o["type"], why=why)
         pr = self.price(char, st, o, rng)
         key = "pose.offer." + (pr["kind"] if pr else "free")
         e = self._entry(char, st, now, key, o, {"amount": format((pr or {}).get("amount", 0), ",")}, image=False)
         st["pose_offer"] = {"kind": "offer", "item": o["id"], "price": pr, "t": now, "until": now + WAIT_SEC, "entry": e["id"]}
         return e
 
-    def perform(self, char, st, o, now, key):
-        """相手がポーズを取る・見せる (画像あり). 感想を待つ."""
-        e = self._entry(char, st, now, key, o, {}, image=True)
+    def perform(self, char, st, o, now, key, why=""):
+        """相手がポーズを取る・見せる (画像あり). 感想を待つ. why = attention なら, こっちを見てほしいひとことを前に."""
+        e = self._entry(char, st, now, key, o, {}, image=True, pre="show.attention" if why == "attention" else None)
         st["pose_offer"] = {"kind": "did", "item": o["id"], "t": now, "until": now + WAIT_SEC, "entry": e["id"]}
+        self.app.showoff.shown(char, st, now)
         return e
 
-    def _entry(self, char, st, now, key, o, extra, image):
+    DRESS_SHARE = 0.25          # 見せたくなったとき, 衣装・水着に着替えて見せる割合 (新しい服があれば, それを)
+
+    def _dress_pick(self, char, st, now, why, rng):
+        """着替えて見せる服 (家で・家に行ける仲から. 新しい服 > 衣装・水着). 無ければ None."""
+        app = self.app
+        cid = char["id"]
+        if self.outside(cid) or app.bonds.stage(cid) not in ("visit", "live"):
+            return None
+        so = app.showoff
+        news = so.new_clothes(char, st, now)
+        if news:
+            return rng.choice(news)
+        if rng.random() >= self.DRESS_SHARE:
+            return None
+        cap = so.cap(char, st)
+        cur = (st.get("dress") or {}).get("id")
+        cands = [o for o in app.wardrobe.owned(char) if o.get("kind") in SHOW_KINDS and o["bold"] <= cap and o["key"] != cur]
+        if not cands:
+            return None
+        from .wardrobe import fit
+        w = [max(0.2, math.exp(0.8 * fit(char, o)) * (1 + 0.15 * self.pref(st, "outfit:" + o["key"], now))) for o in cands]
+        return rng.choices(cands, w)[0]
+
+    def dress_show(self, char, st, o, now, why=""):
+        """自分から着替えて見せる (着ている間は, あなたが着せた服と同じく寝るまで). 感想を待つ."""
+        app = self.app
+        new = any(x["key"] == o["key"] for x in app.showoff.new_clothes(char, st, now))
+        st["dress"] = {"id": o["key"], "t": now, "by": "her"}
+        key = "dress.self.new" if new else "dress.self.costume"
+        act = {"id": "_dress_self", "name": "着替えて見せる（%s）" % o.get("name", ""), "icon": "👗",
+               "pos": "standing, looking at viewer, full body", "neg": ""}
+        e = self._entry(char, st, now, key, dict(o, type="dress"), {}, image=True, act=act)
+        st["pose_offer"] = {"kind": "dress", "item": o["key"], "name": o.get("name", ""), "t": now, "until": now + WAIT_SEC, "entry": e["id"]}
+        app.showoff.shown(char, st, now, o["key"])
+        return e
+
+    def _entry(self, char, st, now, key, o, extra, image, pre=None, act=None):
         from datetime import datetime
         app = self.app
         d = datetime.fromtimestamp(now)
         text = app.persona_text(char, key) or LINES[key]
+        if pre:
+            text = (app.persona_text(char, pre) or LINES[pre]) + "\n" + text
         for k, v in dict(extra, item=o["name"]).items():
             text = text.replace("{%s}" % k, str(v))
         scene = app.scene_at(char, st, d)
         text = app.format_text(text, char, scene, d)
-        act = {"id": "_pose_self", "name": "%s（%s）" % (TYPES[o["type"]], o["name"]), "icon": o["icon"] or "📸",
-               "pos": o["pos"] if image else "", "neg": o["neg"] if image else ""}
+        act = act or {"id": "_pose_self", "name": "%s（%s）" % (TYPES[o["type"]], o["name"]), "icon": o["icon"] or "📸",
+                      "pos": o["pos"] if image else "", "neg": o["neg"] if image else ""}
         pos, neg, parts = app.build_prompt(char, st, d, act if image else None)
         e = app._new_entry(char["id"], now, act, text, {}, scene, d, pos, neg, parts)
         if image and app.settings.get("auto_generate"):
@@ -355,7 +426,14 @@ class Posing:
         off = st.get("pose_offer")
         if not off:
             return None
-        o = self.get(off["item"]) or {"name": off["item"], "icon": "📸"}
+        o = self.get(off["item"]) or {"name": off.get("name") or off["item"], "icon": "📸"}
+        if off["kind"] == "photo":           # 離れていて写メ: トークの「↩ 返す」から感想を選ぶ
+            return {"id": "_pose", "entry": off.get("entry"), "until": off["until"], "label": "写真を送ってきた（感想は？）", "icon": "📷",
+                    "apart": True, "accept": "", "later": "返さない", "choices": [{"id": k, "label": l} for k, l in REACTIONS]}
+        if off["kind"] == "dress":
+            return {"id": "_pose", "entry": off.get("entry"), "until": off["until"],
+                    "label": "%sに着替えて見せてくれた（感想は？）" % (off.get("name") or o["name"]),
+                    "icon": "👗", "apart": False, "accept": "", "later": "何も言わない", "choices": [{"id": k, "label": l} for k, l in REACTIONS]}
         if off["kind"] == "did":
             choices = [{"id": k, "label": l} for k, l in REACTIONS]
             label = "%sを見せてくれた（感想は？）" % o["name"]
@@ -386,12 +464,19 @@ class Posing:
         off = st.get("pose_offer")
         if not off:
             raise ValueError("いまは何も持ちかけられていません")
-        o = self.get(off["item"]) or {"id": off["item"], "type": "pose", "name": off["item"], "bold": 0, "pos": "", "neg": "", "icon": ""}
+        o = self.get(off["item"]) or {"id": off["item"], "type": "pose", "name": off.get("name") or off["item"], "bold": 0,
+                                      "pos": "", "neg": "", "icon": ""}
         key_pref = "%s:%s" % (o["type"], o["id"])
         app = self.app
+        if off["kind"] in ("dress", "photo"):      # 着替えて見せた服・写メ (A44 段 2): 覚える鍵は服か, 写したポーズ
+            key_pref = app.showoff.pref_key(dict(off, itype="outfit") if off["kind"] == "dress" else off)
+            o = dict(o, name=off.get("name") or o["name"])
         if choice == "later":
             st["pose_offer"] = None
-            app.apply_effects(st, {"mood": -1})
+            if off["kind"] != "photo":
+                app.apply_effects(st, {"mood": -1})
+            if off["kind"] in ("did", "dress", "photo"):
+                app.showoff.reacted(char, st, "ignored", now)
             return None
         if off["kind"] == "offer":
             if choice == "yes":
@@ -423,8 +508,22 @@ class Posing:
         eff, _ = app.bonds.realize(char, st, dict(EFFECT[res]), "_pose_react", now)
         app.bonds.touch(st, now)
         deltas = app.apply_effects(st, app.trait_effects(char, eff))
-        self.learn(st, key_pref, REACT_LEARN[choice])
+        if key_pref:
+            self.learn(st, key_pref, REACT_LEARN[choice])
+        app.showoff.reacted(char, st, res, now)        # 見せたい気持ち (A44 段 2): 褒められると乗る・嫌がられると下がる
         key = "pose.react.%s.%s" % (choice, res)
+        if off["kind"] == "photo":           # 写メへの返事: トークで返し, 相手の返しもトークに
+            from datetime import datetime
+            d = datetime.fromtimestamp(now)
+            app.chat.add(char["id"], "me", "（%s）" % dict(REACTIONS)[choice], kind="photo_react", t=now)
+            app.chat.mark_read_by_her(char["id"], now)
+            said = (app.persona_text(char, key) or LINES[key]).replace("{item}", o["name"])
+            said = app.format_text(said, char, app.scene_at(char, st, d), d)
+            app.chat.add(char["id"], "her", "📱『%s』" % said, kind="photo_react", t=now + 0.001)
+            e = app.note_entry(char, st, now, "_photo_react", "写メへの返事", "📷", "📱『%s』" % said, deltas)
+            e["reply"] = {"kind": choice, "result": res}
+            app.save_log(char["id"])
+            return e
         e = self._entry(char, st, now, key, o, {}, image=False)
         e["deltas"], e["reply"] = deltas, {"kind": choice, "result": res}
         app.save_log(char["id"])
