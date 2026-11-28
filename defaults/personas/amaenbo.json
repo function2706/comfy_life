@@ -299,6 +299,78 @@
   "arm_in_arm.angry": [
    "やめてって言ったのに。なんでわかってくれないの。"
   ],
+  "touch_hair.default": [
+   "ん、髪？ 何かついてた？"
+  ],
+  "touch_hair.asleep": [
+   "（寝たまま、気持ちよさそうに頭をすり寄せてきた）"
+  ],
+  "touch_hair.eager": [
+   "えへへ、なでなでしてもらうの好き。もっと触って？"
+  ],
+  "touch_hair.reluctant": [
+   "あ、せっかくセットしたのに……ちょっとだけね。"
+  ],
+  "touch_hair.refuse": [
+   "髪はいまはやめてほしいな。"
+  ],
+  "touch_hair.angry": [
+   "やめてって言ってるのに……もう、いや。"
+  ],
+  "tickle.default": [
+   "ひゃっ、あはは！ だめ、くすぐったいってば！"
+  ],
+  "tickle.too_much": [
+   "……もうほんとにやめて。笑えないよ。"
+  ],
+  "tickle.eager": [
+   "あははっ！ もう、仕返ししちゃうんだから！"
+  ],
+  "tickle.reluctant": [
+   "っ……くすぐられるの、苦手なの……。"
+  ],
+  "tickle.refuse": [
+   "やめて。いまはそういう気分じゃないの。"
+  ],
+  "tickle.angry": [
+   "いい加減にして。ほんとに怒るよ。"
+  ],
+  "touch_cheek.default": [
+   "……っ。顔、熱くなっちゃった。"
+  ],
+  "touch_cheek.asleep": [
+   "（寝顔のまま、手のひらに頬をすり寄せてきた）"
+  ],
+  "touch_cheek.eager": [
+   "{call}の手、あったかい……。ずっとこうしてて。"
+  ],
+  "touch_cheek.reluctant": [
+   "……な、なに？ 急に。"
+  ],
+  "touch_cheek.refuse": [
+   "ほっぺはまだ……恥ずかしいよ。"
+  ],
+  "touch_cheek.angry": [
+   "やめてって言ったのに。もう知らない。"
+  ],
+  "pull_close.default": [
+   "わっ……！ びっくりした……。"
+  ],
+  "pull_close.lonely": [
+   "……ずっと、こうしてほしかったの。離さないでね。"
+  ],
+  "pull_close.eager": [
+   "えへへ、ぎゅー。もう少しこのままがいいな。"
+  ],
+  "pull_close.reluctant": [
+   "……い、いまはちょっと恥ずかしいかも。"
+  ],
+  "pull_close.refuse": [
+   "ちょっと、離して……！"
+  ],
+  "pull_close.angry": [
+   "離して。そういうの、ほんとにいやなの。"
+  ],
   "cook.default": [
    "わぁ、いい匂い〜！ いただきます！",
    "{call}のごはん、大好き。……あーんしてくれてもいいよ？"

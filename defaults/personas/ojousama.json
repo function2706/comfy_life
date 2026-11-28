@@ -298,6 +298,78 @@
   "arm_in_arm.angry": [
    "お断りしたはずですわ。しつこいのは嫌いです。"
   ],
+  "touch_hair.default": [
+   "か、髪に何かついていまして？"
+  ],
+  "touch_hair.asleep": [
+   "（眠ったまま、少しだけ眉が動いた）"
+  ],
+  "touch_hair.eager": [
+   "ふふ……撫でられるのも、悪くないですわね。"
+  ],
+  "touch_hair.reluctant": [
+   "せっかく整えましたのに……少しだけですわよ。"
+  ],
+  "touch_hair.refuse": [
+   "髪には触れないでくださる？"
+  ],
+  "touch_hair.angry": [
+   "何度も申し上げましたわ。触れないで。"
+  ],
+  "tickle.default": [
+   "きゃっ、あはは、おやめになって……！"
+  ],
+  "tickle.too_much": [
+   "……本当におやめになって。笑えませんわ。"
+  ],
+  "tickle.eager": [
+   "あはは！ 負けませんわよ、お返しです！"
+  ],
+  "tickle.reluctant": [
+   "っ……くすぐられるのは、苦手ですの……。"
+  ],
+  "tickle.refuse": [
+   "おやめになって。そういう気分ではありませんの。"
+  ],
+  "tickle.angry": [
+   "いい加減になさって。怒りますわよ。"
+  ],
+  "touch_cheek.default": [
+   "……っ。か、顔が熱いですわ……。"
+  ],
+  "touch_cheek.asleep": [
+   "（寝顔のまま、手のひらに頬を寄せた）"
+  ],
+  "touch_cheek.eager": [
+   "あなたの手、あたたかいですわね。"
+  ],
+  "touch_cheek.reluctant": [
+   "な、何ですの、急に……。"
+  ],
+  "touch_cheek.refuse": [
+   "そ、そのようなことは、まだ……。"
+  ],
+  "touch_cheek.angry": [
+   "おやめになってと申しましたわ。もう知りません。"
+  ],
+  "pull_close.default": [
+   "きゃっ……！ お、驚きましたわ……。"
+  ],
+  "pull_close.lonely": [
+   "……ずっと、こうしてほしかったのかもしれませんわ。"
+  ],
+  "pull_close.eager": [
+   "……もう少し、このままで。"
+  ],
+  "pull_close.reluctant": [
+   "い、いまは恥ずかしいですわ……。"
+  ],
+  "pull_close.refuse": [
+   "お、お離しになって……！"
+  ],
+  "pull_close.angry": [
+   "お離しになって。本当に嫌ですの。"
+  ],
   "cook.default": [
    "まあ、いい香り！ いただきます！",
    "こういうおうちのごはん、ずっと食べてみたかったの！ いただきます。"
