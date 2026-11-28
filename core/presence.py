@@ -309,6 +309,8 @@ class Presence:
             if force and a["id"] != force:
                 continue
             if not force:
+                if a.get("forced"):                    # 決めた時刻に出すだけのもの (相手からの切り上げ. core/parting.py cut_live)
+                    continue
                 if bool(a.get("apart")) != apart:      # 離れているときはメッセージだけ, 一緒のときはメッセージ以外
                     continue
                 if now - (st.get("ap_last") or {}).get(a["id"], 0) < float(a.get("cooldown_h", 3)) * 3600:
@@ -462,7 +464,10 @@ class Presence:
         self.app.trace.add("approach", "時間切れ (返事がなかった): %s" % ap["id"], char["id"], now, read=read, mult=mult, loneliness=lon,
                            presence=pres, deltas=deltas)
         busy = ap.get("presence") == "busy"
-        text = (ig.get("busy_text") if busy else None) or ig.get("text") or "（返事がないので、{name}はそっと離れていった）"
+        text = (ig.get("busy_text") if busy else None) or ig.get("text") or \
+            ("（返事がないので、{name}は帰り支度をしながら、もう一度こちらを見た）" if a.get("leave") else "（返事がないので、{name}はそっと離れていった）")
+        if a.get("leave"):
+            self.app.parting.cut_ignored(st, now)     # 返事がない: 少ししたら, もう一度だけ言う
         st["ap_quiet_until"] = now + float(self.cfg().get("approach_quiet_minutes", 20)) * 60
         call = self.app.pronouns(char)[2]
         if deltas.get("mood", 0) <= -2 and (lon >= 75 or (lon >= 50 and not busy)):
@@ -491,6 +496,8 @@ class Presence:
             return self._reply(char, st, a, choice, now), None
         if a.get("talk") and ans == "reply":          # 対面で話しかけられた: 返し方を選んで返す (メッセージと同じ判定)
             return self._reply_face(char, st, a, choice, now), None
+        if a.get("leave") and ans == "later":         # 相手からの切り上げを引き止めた: 応じるか, それでも帰るか (core/parting.py)
+            return self.app.parting.cut_hold(char, st, a, now, use_action)
         out = a.get(ans) or {}
         st["approach"] = None
         self.touch(now)

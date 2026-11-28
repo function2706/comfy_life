@@ -78,6 +78,9 @@ def all_keys(actions, minigames, approaches=()):
                         ("keep", "移動の途中で行き先を変えようと言われて, このまま行きたい"),
                         ("fickle", "何度も行き先を変えられて, うんざり")):
         out["outing.move_no_" + kind] = {"scene": "お出かけ / 次の場所へ誘われて断る (%s)" % label, "when": "", "text": App.MOVE_NO[kind]}
+    from .parting import LINES as LEAVE_LINES, SCENE as LEAVE_SCENES     # 相手からの切り上げを引き止められて (A41)
+    for k, t in LEAVE_LINES.items():
+        out[k] = {"scene": "別れぎわ / %s" % LEAVE_SCENES[k], "when": "", "text": t}
     from .msgreply import LINES as MR_LINES, SCENE_LABEL as MR_SCENES     # メッセージへの返事 (選んだ返事 x 受け取り方)
     for k, t in MR_LINES.items():
         out[k] = {"scene": "メッセージの返事 / %s" % MR_SCENES[k], "when": "", "text": t}

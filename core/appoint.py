@@ -77,6 +77,13 @@ LATE_MINS = (10, 20, 30, 45, 60)
 LATE_WAIT = 20 * 60      # 伝えた見込みから, さらにこれだけは待つ (それでも来なければすっぽかし. 黙っているときの GRACE より短くはしない)
 LATE_KEPT = 10 * 60      # 伝えた見込みからこれ以内に着けば, 「伝えたとおり」
 LATE_SPAN = 30 * 86400   # 遅れると伝えた回数を数える期間 (続くと受け取りが悪くなる)
+# 約束の相手のブレ (A41・S34). 確率は低く, 同じ人が続けて起こしにくく (直近 HER_SPAN の回数で半分ずつ)
+HER_SPAN = 30 * 86400    # 相手が遅れた・取りやめた・変えた・切り上げた回数を数える期間
+CHG_P = 0.05             # 誰でもまれに, 約束を変えたい (時刻・場所・すること) と言ってくる
+DROP_BASE = 0.012        # 直前の取りやめ (体調以外) のもと
+DROP_WHYS = ("work", "urgent", "family", "mood", "weather")
+HER_LATE_KEY = {"traffic": "appoint_her_late_traffic", "oversleep": "appoint_her_late_oversleep"}     # 無ければ appoint_her_late (支度)
+TELL_PHONE = 0.2         # 遅れる・取りやめの連絡を電話でする割合のもと (× 自分から来る度合い. 仲が近いと 1.3 倍)
 
 
 def fmt_when(t, now=None):
@@ -585,19 +592,234 @@ class Appoint:
         punctual = float(self.app.traits(char).get("punctual", 0.75)) - 0.15 * low
         noshow = random.random() < 0.02 + (1 - punctual) * 0.08 + max(0.0, 45 - p.get("affection", 50)) / 300.0 + 0.06 * low
         late = 0
+        why = None                                 # 遅れの理由 (A41): slow 支度 / oversleep 寝坊 / traffic 電車・道の遅れ
         if not noshow and random.random() > punctual:
             late = int(random.uniform(5, 40) * (1.5 - punctual))
+            hour = datetime.fromtimestamp(x["t"]).hour if x and x.get("t") else 14
+            night = float(self.app.traits(char).get("chrono", 0))
+            why = "oversleep" if hour <= 11 and random.random() < 0.15 + 0.5 * max(0.0, night) else "slow"
+        recent = self.her_recent(st)
         move = not noshow and random.random() < 0.3 * low           # 自分の都合で, 日を動かしたいと言ってくる
+        chg = not noshow and not move and random.random() < CHG_P * 0.5 ** recent       # 誰でもまれに, 時刻・場所・することを変えたい
         go = 0
-        if x and x.get("place") and (not places_mod.is_home(x["place"]) or x["place"] == places_mod.HOME_ME):    # 相手の家なら移動なし
+        her_side = bool(x and x.get("place") and (not places_mod.is_home(x["place"]) or x["place"] == places_mod.HOME_ME))
+        if her_side:                                                                       # 相手の家なら移動なし
             try:
                 lg = self.app.geo.leg("home:" + char["id"], x["place"], None, x["t"])
                 go = int(lg["min"])
                 if not noshow and lg.get("note") and lg["how"] in ("transit", "car", "taxi", "bike"):
                     late += int(random.uniform(5, 20))         # 途中の遅れ (遅延・渋滞・パンク)
+                    why = why or "traffic"
             except ValueError:
                 go = 0
-        return {"noshow": noshow, "late": late, "cancel_checked": False, "move": move, "go": go}
+        early = 0                                  # 早く着いて待っている (時間にきっちりなほど・寄りかかるほど)
+        if her_side and not noshow and not late:
+            pe = 0.08 + 0.5 * (punctual - 0.75) + 0.08 * max(0.0, self.app.attach.factor(char, st, "dependence"))
+            if random.random() < max(0.02, min(0.35, pe)):
+                early = random.randint(5, 20)
+        out = {"noshow": noshow, "late": late, "cancel_checked": False, "move": move, "go": go}
+        if why and late:
+            out["late_why"] = why
+        if early:
+            out["early"] = early
+        if chg and x and x.get("t") and x.get("made") is not None:
+            room = x["t"] - 2 * 3600 - max(float(x.get("made") or 0), time.time())
+            if room > 3600:                        # 言ってくる時期: 数日前〜2 時間前のどこか
+                out["chg_at"] = x["t"] - 2 * 3600 - random.uniform(0, min(room, 3 * 86400))
+        return out
+
+    # ------------------------------------------------------------------ 相手の側のブレ (A41・S34)
+    def her_recent(self, st, now=None):
+        """相手が最近 (HER_SPAN) 遅れた・取りやめた・変えた・切り上げた回数 (続けて起こしにくくする)."""
+        now = now or time.time()
+        return len([t for t in st.get("her_moves") or [] if 0 <= now - t < HER_SPAN])
+
+    def her_note(self, st, now):
+        """相手の側のブレを 1 回数える (お互いさまの her_moved とは別に, 起こしやすさだけに使う)."""
+        st["her_moves"] = [t for t in st.get("her_moves") or [] if 0 <= now - t < HER_SPAN] + [now]
+
+    def _tell(self, char, st, x, key, extra, now, kind=None, phone=True):
+        """相手からの連絡 (遅れる・取りやめ・変えたい・着いた): 電話にすることもある (出なければメッセージで届く. core/ring.py)."""
+        app = self.app
+        text = app.chat.line(char, key, extra)
+        p = TELL_PHONE * float(app.traits(char).get("approach", 1.0)) * (1.3 if app.phonetalk.close_rel(char, st) else 1.0)
+        if not (phone and random.random() < p and app.ring.tell(char, st, x, text, kind or key, now)):
+            app.chat.add(x["cid"], "her", text, kind=kind or key, t=now, appoint=x["id"])
+        app.picked_up_phone(char, st, now)
+        app.save_state(x["cid"])
+        return text
+
+    def drop_chance(self, char, st, x, now):
+        """直前の取りやめ (体調以外) の起きやすさと, 理由ごとの重み. 体調 (健康 45 未満) は別に 6 割.
+        仕事・急用・家のことは誰にでもまれに, 気分 (機嫌が悪い・ストレス)・天気 (屋外の行き先で, 猛暑・真冬・雨)・相手の交友関係の
+        予定と重なった (circle) が足される. 自分優先なほど起きやすく, 仲がいいほど起きにくく, 最近起こしていれば半分ずつ."""
+        app = self.app
+        p = st["params"]
+        low = max(0.0, -app.attach.factor(char, st, "devotion"))
+        w = {"work": 1.0, "urgent": 1.0, "family": 0.7}
+        mood = (0.04 if p.get("mood", 50) < 35 else 0.0) + (0.03 if p.get("stress", 0) > 70 else 0.0)
+        wx = 0.0
+        pl = app.places.get(x["place"]) or {}
+        if pl.get("outdoor"):
+            wx = 0.06 * max(0.0, 0.9 - season_mod.out_factor(app, char, datetime.fromtimestamp(x["t"]))) / 0.55
+        circle = 0.08 if app.circle.plan_over(char, st, x["t"], x["t"] + 2 * 3600) else 0.0
+        pr = (DROP_BASE + 0.03 * low + mood + wx + circle) * max(0.4, min(1.0, 1.3 - p.get("affection", 50) / 100.0)) \
+            * 0.5 ** self.her_recent(st, now)
+        w["mood"] = 20 * mood
+        w["weather"] = 20 * wx
+        w["urgent"] += 20 * circle                # 友達・家族との予定と重なった: 急な用事として言う
+        return pr, w
+
+    def _drop_plan(self, x, char, st, now):
+        """約束の 3 時間前ごろ: 直前の取りやめになるかを決め, 連絡の時刻と形を plan["drop"] に置く (見えない).
+        連絡の形: メッセージ (電話のことも) / 連絡なしで来ない (すっぽかし: 自分優先・気分のときほど).
+        気分のときは, 正直に言うか別の理由にするか (仲・機嫌しだい. 嘘を見抜く仕組みは作らない)."""
+        app = self.app
+        if x.get("care") or x.get("plants") or x.get("ask_now"):
+            return None
+        plan = x.setdefault("plan", {})
+        if plan.get("noshow"):
+            return None
+        p = st["params"]
+        if p.get("health", 90) < 45 and random.random() < 0.6:
+            why = "sick"
+        else:
+            pr, w = self.drop_chance(char, st, x, now)
+            if random.random() >= pr:
+                app.trace.add("appoint", "直前の取りやめ: なし", x["cid"], now, appoint=x["id"], chance=round(pr, 3))
+                return None
+            why = random.choices(list(w), list(w.values()))[0]
+        low = max(0.0, -app.attach.factor(char, st, "devotion"))
+        silent = why != "sick" and random.random() < 0.05 + 0.15 * low + (0.15 if why == "mood" else 0.0)
+        say = why
+        if why == "mood" and random.random() >= 0.25 + 0.3 * (p.get("affection", 50) - 50) / 50.0:
+            say = random.choice(("urgent", "family"))               # 気分が乗らないとは言わず, 別の理由にする
+        last = x["t"] - (3600 if why == "mood" else 20 * 60)
+        at = now if why == "sick" else random.uniform(now, max(now, last))
+        plan["drop"] = {"why": why, "say": say, "at": at, "silent": silent}
+        app.trace.add("appoint", "直前の取りやめになる", x["cid"], now, appoint=x["id"], why=why, say=say, silent=silent,
+                      at=datetime.fromtimestamp(at).strftime("%H:%M"))
+        return plan["drop"]
+
+    def _drop_send(self, x, char, st, dr, now, out):
+        """直前の取りやめを伝える (連絡なしなら, すっぽかしになるだけ). 代わりの日を出してくることも. 伝えたら True."""
+        app = self.app
+        cid = x["cid"]
+        plan = x.setdefault("plan", {})
+        self.her_note(st, now)
+        if dr.get("silent"):
+            plan["noshow"] = True                  # 連絡なしで来ない (今のすっぽかしと同じ流れ. あとで謝ることも)
+            app.save_state(cid)
+            return False
+        say = dr.get("say") or dr.get("why")
+        key = "appoint_cancel" if say == "sick" else "appoint_drop_" + say
+        self.her_moved(cid, now)
+        p = st["params"]
+        alt_p = 0.35 + 0.3 * app.attach.factor(char, st, "devotion") + (p.get("affection", 50) - 50) / 150.0 \
+            - (0.2 if dr["why"] == "mood" else 0.0)
+        alt = self._alt_time(char, x, now) if dr["why"] != "sick" and int(x.get("rounds", 0)) < COUNTER_MAX \
+            and random.random() < alt_p else None
+        x["status"] = "cancelled"
+        x["cancel_by"] = "her"
+        x["drop_why"] = dr["why"]
+        self._tell(char, st, x, key, {"place": app.places.label(x["place"])}, now)
+        if alt:                                    # 代わりの日を出す: 誘いとして受ける / 断る / 別の日時を返す
+            x.update(t=alt, status="offered", made=now, by="her", rounds=int(x.get("rounds", 0)) + 1, plan={})
+            x.pop("arrived", None)
+            app.chat.add(cid, "her", app.chat.line(char, "appoint_drop_alt", {"when": fmt_when(alt, now)}), kind="appoint_drop_alt",
+                         t=now + 0.002, appoint=x["id"])
+            app.save_state(cid)
+        out.append("%sから、約束のキャンセルの連絡が来た" % char.get("name", ""))
+        return True
+
+    def _her_change(self, x, char, st, now, out):
+        """相手から, 決まった約束を変えたいと言ってくる (A41): 時刻をずらす / 場所を変える (天気・店の都合) / することを変える.
+        誘いとして返事を待つ (受ける / 断る / 別の日時を返す). 断られたら, そのまま来る・渋々来る・やめる (answer). 言ったら True."""
+        app = self.app
+        cid = x["cid"]
+        if x.get("help") or x.get("care") or x.get("fixed") or x.get("plants") or x.get("now") or x["do"] == FAVOR_DO \
+                or int(x.get("rounds", 0)) >= COUNTER_MAX:
+            return False
+        dt = datetime.fromtimestamp(x["t"])
+        act = app.action(x["do"])
+        pl = app.places.get(x["place"]) or {}
+        opts = []
+        here_do = [a for a in self.dos_at(cid, x["place"]) if a["id"] != x["do"] and phase_ok(app, a, dt)]
+        if pl.get("outdoor") and season_mod.out_factor(app, char, dt) < 0.75:
+            opts.append(("place_weather", 4.0))
+        shift = next((x["t"] + d for d in (3600, -3600) if x["t"] + d > now + 2 * 3600
+                      and self._alt_ok(char, x, act, datetime.fromtimestamp(x["t"] + d), now)), None)
+        if shift:
+            opts.append(("time", 1.0))
+        if not places_mod.is_home(x["place"]):
+            opts.append(("place", 0.7))
+        if here_do:
+            opts.append(("do", 0.6))
+        if not opts:
+            return False
+        kind = random.choices([k for k, _ in opts], [w for _, w in opts])[0]
+        new = {"t": x["t"], "place": x["place"], "do": x["do"]}
+        why = "weather" if kind == "place_weather" else random.choice(("work", "urgent")) if kind == "time" else "mood"
+        if kind == "time":
+            new["t"] = shift
+        elif kind == "do":
+            new["do"] = random.choice(here_do)["id"]
+        else:
+            cands = []
+            for c in self.choices(cid):
+                if c["place"] == x["place"] or places_mod.is_home(c["place"]) or not places_mod.open_state(c["place"], dt)["open"]:
+                    continue
+                if kind == "place_weather" and (app.places.get(c["place"]) or {}).get("outdoor"):
+                    continue
+                for a in self.dos_at(cid, c["place"]):
+                    if phase_ok(app, a, dt):
+                        cands.append((c["place"], a))
+            if not cands:
+                return False
+            pid, a = self.pick(char, st, cands, dt)
+            new.update(place=pid, do=a["id"])
+        x["her_chg"] = {"old": {"t": x["t"], "place": x["place"], "do": x["do"]}, "kind": kind, "why": why}
+        x.update(new, status="offered", made=now, by="her", rounds=int(x.get("rounds", 0)) + 1, ask=False)
+        x.pop("arrived", None)
+        self.her_note(st, now)
+        self.her_moved(cid, now)
+        key = "appoint_chg_" + kind
+        self._tell(char, st, x, key, {"when": fmt_when(new["t"], now), "place": app.places.label(new["place"]),
+                                       "what": app.action(new["do"]).get("name", "")}, now)
+        app.trace.add("appoint", "約束を変えたいと言ってきた", cid, now, appoint=x["id"], kind=kind, why=why, new=new)
+        out.append("%sから、約束を変えたいと連絡が来た" % char.get("name", ""))
+        return True
+
+    def _her_change_no(self, char, st, x, now):
+        """相手からの変えたいを断った: そのまま来る (keep) / 渋々来る (grudge. 機嫌が少し下がる) / やめる (drop).
+        やむを得ない理由 (仕事・急用で時刻を・自分の都合で日を) ほど, もとのままでは来られずにやめやすい. 献身的なほど合わせる."""
+        app = self.app
+        ch = x.pop("her_chg")
+        dev = app.attach.factor(char, st, "devotion")
+        if ch["kind"] in ("time", "day"):
+            w = {"keep": 0.25, "grudge": 0.3, "drop": 0.45}
+        elif ch["kind"] == "place_weather":
+            w = {"keep": 0.45, "grudge": 0.45, "drop": 0.1}
+        else:
+            w = {"keep": 0.6, "grudge": 0.3, "drop": 0.1}
+        w["keep"] *= 1 + 0.5 * max(0.0, dev)
+        w["drop"] *= 1 + max(0.0, -dev)
+        res = random.choices(list(w), list(w.values()))[0]
+        x.update(ch["old"])
+        extra = {"when": fmt_when(x["t"], now), "place": app.places.label(x["place"])}
+        if res == "drop":
+            x["status"] = "cancelled"
+            x["cancel_by"] = "her"
+            eff = {}
+        else:
+            x["status"] = "set"
+            x["plan"] = {k: v for k, v in self._plan(char, st, x).items() if k != "chg_at"}
+            x["plan"]["move"] = False
+            eff = {"mood": -2} if res == "grudge" else {}
+        app.chat.add(x["cid"], "her", app.chat.line(char, "appoint_chg_" + res, extra), kind="appoint_chg_" + res, t=now + 0.002,
+                     appoint=x["id"])
+        app.trace.add("appoint", "変えたいを断られて: %s" % res, x["cid"], now, appoint=x["id"], kind=ch["kind"], w=w)
+        return res, eff
 
     def heading(self, cid, now=None):
         """相手がいま約束の場所へ向かっているところなら, その約束 (相手の様子に「向かっている」と出す)."""
@@ -608,7 +830,7 @@ class Appoint:
             pl = x.get("plan") or {}
             if pl.get("noshow") or not pl.get("go"):
                 continue
-            come = x["t"] + pl.get("late", 0) * 60
+            come = self.her_eta(x)[0]
             if come - pl["go"] * 60 <= now < come:
                 return x
         return None
@@ -665,6 +887,7 @@ class Appoint:
                 return {"ok": True, "status": x["status"]}
             if yes:
                 x["status"] = "set"
+                x.pop("her_chg", None)
                 x["plan"] = self._plan(char, st, x)
                 eff, _ = app.bonds.realize(char, st, {"mood": 3, "heart": 2, "affection": 0.5}, "_appoint", now)
                 app.regard.sign(char, st, "invite_yes", now)
@@ -674,6 +897,9 @@ class Appoint:
                 # お礼の心当たり: 相手が出し返した日時・相手からの誘いに応じて決まった約束も, 相手が約束してくれたこと
                 # (以前は記録しておらず, 直後に「約束してくれた」とお礼を言うと「え、何が？」と返っていた)
                 self._favor_set(st, x, now)
+            elif x.get("her_chg"):            # 相手からの変えたい (A41) を断った: もとの約束に戻して, そのまま来る・渋々来る・やめる
+                app.chat.add(x["cid"], "me", "（変えるのは断った）", kind="appoint", t=now)
+                _, eff = self._her_change_no(char, st, x, now)
             else:
                 x["status"] = "refused"
                 eff = {"mood": -2}
@@ -1080,7 +1306,8 @@ class Appoint:
         if x.get("favor"):
             x["plan"] = self._favor_plan()
         elif not x.get("help"):
-            x["plan"] = dict(self._plan(char, st, x), move=False)      # 当日の相手の側は, 決め直し (こちらが動かしたあとに動かし返さない)
+            x["plan"] = {k: v for k, v in self._plan(char, st, x).items() if k != "chg_at"}     # 当日の相手の側は, 決め直し
+            x["plan"]["move"] = False                                   # (こちらが動かしたあとに動かし返さない)
         else:
             x.setdefault("plan", {})["cancel_checked"] = False
         self.save()
@@ -1326,7 +1553,7 @@ class Appoint:
     def her_eta(x):
         """相手の当日の動き: (着く時刻, 家を出る時刻). 見えない値 (plan) から."""
         plan = x.get("plan") or {}
-        come = x["t"] + int(plan.get("late", 0)) * 60
+        come = x["t"] + (int(plan.get("late", 0)) - int(plan.get("early", 0))) * 60      # 早く着く (A41) は前へ
         return come, come - int(plan.get("go", 0)) * 60
 
     @staticmethod
@@ -1335,14 +1562,23 @@ class Appoint:
         return max(5, int(round(mins * random.uniform(0.7, 1.0) / 5.0)) * 5)
 
     def _her_late_tell(self, x, char, st, now):
-        """相手が遅れる (10 分以上) とき, 本来出る時刻のころに「遅れそう」と連絡してくるか (一度だけ決める).
-        時間にきっちりな性格ほど・献身的なほど・仲がいいほど連絡してくる. 連絡したら, その文を返す."""
+        """相手が遅れる (10 分以上) とき, 連絡してくるか (一度だけ決める). 時間にきっちりな性格ほど・献身的なほど・仲がいいほど連絡してくる.
+        連絡の時期は理由で変わる (A41): 支度 slow は本来出る時刻のころ / 電車・道の遅れ traffic は向かう途中で / 寝坊 oversleep は
+        起きてから (遅く. 出る時刻を過ぎてから). 電話のこともある (出なければメッセージ). 連絡したら, その知らせの文を返す."""
         plan = x.setdefault("plan", {})
-        if "told" in plan or plan.get("noshow") or int(plan.get("late", 0)) < 10 or not self._her_side(x) \
-                or x.get("ask_now") or x["status"] not in ("set", "waiting"):
+        if "told" in plan or plan.get("noshow") or int(plan.get("late", 0)) < 10 or not self._her_side(x)                 or x.get("ask_now") or x["status"] not in ("set", "waiting") or self.app.bonds.together(x["cid"]):
             return None
         go = int(plan.get("go", 0))
-        send = max(float(x.get("made", 0)), x["t"] - max(go, 10) * 60 - plan.setdefault("tell_jit", random.randint(0, 10)) * 60)
+        why = plan.get("late_why") or "slow"
+        jit = plan.setdefault("tell_jit", random.randint(0, 10)) * 60
+        come, leave = self.her_eta(x)
+        if why == "traffic":                      # 乗ってから・走り出してから遅れに気づく
+            send = leave + max(5 * 60, go * 60 * 0.4) + jit
+        elif why == "oversleep":                  # 起きたときには, もう出る時刻を過ぎている
+            send = leave - 5 * 60 + jit
+        else:
+            send = x["t"] - max(go, 10) * 60 - jit
+        send = max(float(x.get("made", 0)), min(send, come - 5 * 60))
         if now < send:
             return None
         punct = float(self.app.traits(char).get("punctual", 0.75))
@@ -1350,18 +1586,44 @@ class Appoint:
         ch = -0.2 + 1.1 * punct + 0.2 * self.app.attach.factor(char, st, "devotion") + (p.get("affection", 50) - 50) / 250.0
         plan["told"] = random.random() < min(0.95, max(0.05, ch))
         self.app.trace.add("appoint", "遅れる相手が連絡するか", x["cid"], now, appoint=x["id"], late=plan.get("late"), chance=round(ch, 2),
-                           told=plan["told"])
+                           told=plan["told"], why=why)
         if not plan["told"]:
             self.save()                           # 黙って遅れる (決めたことを残す)
             return None
         mins = self._guess(int(plan["late"]))
         plan["told_min"] = mins
-        at = min(now, send)
-        self.app.chat.add(x["cid"], "her", self.app.chat.line(char, "appoint_her_late", {"min": str(mins), "place": self.app.places.label(x["place"])}),
-                          kind="appoint_her_late", t=at, appoint=x["id"])
-        self.app.picked_up_phone(char, st, at)
-        self.app.save_state(x["cid"])
+        self.save()
+        self._tell(char, st, x, HER_LATE_KEY.get(why, "appoint_her_late"), {"min": str(mins), "place": self.app.places.label(x["place"])},
+                   min(now, send), kind="appoint_her_late", phone=now - send < 120)      # 閉じていた間の分は, その時刻のメッセージで
         return "%sから、%d分くらい遅れそうと連絡が来た" % (char.get("name", ""), mins)
+
+    def _her_notes(self, x, char, st, now):
+        """相手の側の短い知らせ (A41): 早く着いて「着いちゃった」/ 遅れていて, 着く直前に「もうすぐ着く」. どちらも一度だけ, ときどき."""
+        plan = x.get("plan") or {}
+        if x["status"] not in ("set", "waiting") or plan.get("noshow") or not self._her_side(x) or x.get("ask_now")                 or self.app.bonds.together(x["cid"]):
+            return None
+        come, _ = self.her_eta(x)
+        app = self.app
+        punct = float(app.traits(char).get("punctual", 0.75))
+        if plan.get("early") and "early_sent" not in plan and come <= now < x["t"]:
+            plan["early_sent"] = not self.here(x["place"], now) and random.random() < 0.3 + 0.4 * punct
+            self.save()
+            if plan["early_sent"]:
+                app.chat.add(x["cid"], "her", app.chat.line(char, "appoint_her_early", {"place": app.places.label(x["place"])}),
+                             kind="appoint_her_early", t=now, appoint=x["id"])
+                app.picked_up_phone(char, st, now)
+                app.save_state(x["cid"])
+                return "%sから、もう着いたと連絡が来た" % char.get("name", "")
+        if plan.get("told") and int(plan.get("late", 0)) >= 15 and "near_sent" not in plan and come - 6 * 60 <= now < come:
+            plan["near_sent"] = random.random() < 0.2 + 0.4 * punct
+            self.save()
+            if plan["near_sent"]:
+                app.chat.add(x["cid"], "her", app.chat.line(char, "appoint_her_near", {"place": app.places.label(x["place"])}),
+                             kind="appoint_her_near", t=now, appoint=x["id"])
+                app.picked_up_phone(char, st, now)
+                app.save_state(x["cid"])
+                return "%sから、もうすぐ着くと連絡が来た" % char.get("name", "")
+        return None
 
     WHERE_BEFORE = 30 * 60      # 約束のこれだけ前から「今どこ？」を聞ける
 
@@ -1494,6 +1756,10 @@ class Appoint:
                 return True
         elif not at and now < x["t"]:
             x.pop("arrived", None)                # 時刻の前に離れた: 着いていないことに
+        if at and now < x["t"] and not plan.get("noshow") and int(plan.get("early", 0)) and now >= self.her_eta(x)[0]:
+            r = self._meet(x, now, False)        # 二人とも早く着いた: 時刻を待たずに会える (A41)
+            out.append(self.meet_text(r) or "%sと会えた" % char.get("name", ""))
+            return True
         if now < x["t"]:
             return False
         arrived = x.get("arrived")
@@ -1677,7 +1943,7 @@ class Appoint:
                         self._relife_send(x, char, st, now, out)      # 送るのは, 相手が起きていて手が空いているとき
                         changed = True
                         continue
-            told = self._her_late_tell(x, char, st, now)         # 相手が遅れそうで, 連絡してきた (相手からの連絡なので, 閉じていても)
+            told = self._her_late_tell(x, char, st, now) or self._her_notes(x, char, st, now)   # 相手からの連絡なので, 閉じていても
             if told:
                 out.append(told)
                 changed = True
@@ -1728,8 +1994,10 @@ class Appoint:
                     changed = True
                     alt = self._alt_time(char, x, now)
                     if alt and int(x.get("rounds", 0)) < COUNTER_MAX:
+                        x["her_chg"] = {"old": {"t": x["t"], "place": x["place"], "do": x["do"]}, "kind": "day", "why": "own"}
                         x.update(t=alt, status="offered", made=now, by="her", rounds=int(x.get("rounds", 0)) + 1)
                         self.her_moved(cid, now)
+                        self.her_note(st, now)
                         app.chat.add(cid, "her", app.chat.line(char, "appoint_move_mine", {"when": fmt_when(alt, now)}),
                                      kind="appoint_move_mine", t=now, appoint=x["id"])
                         app.picked_up_phone(char, st, now)
@@ -1737,17 +2005,20 @@ class Appoint:
                         app.trace.add("appoint", "自分の都合で日を動かしたいと言ってきた", cid, now, appoint=x["id"], new_t=alt)
                         out.append("%sから、約束の日を変えたいと連絡が来た" % char.get("name", ""))
                         continue
-                if not plan.get("cancel_checked") and now >= x["t"] - 3 * 3600:
-                    plan["cancel_checked"] = True
+                if plan.get("chg_at") and not x.get("favor") and now >= plan["chg_at"]:
+                    plan.pop("chg_at")                     # 誰でもまれに: 時刻・場所・することを変えたいと言ってくる (A41)
                     changed = True
-                    sick = st["params"].get("health", 90) < 45
-                    if random.random() < (0.6 if sick else 0.03 * (1 - app.attach.factor(char, st, "devotion"))):     # 自分優先なら, 仮病も
-                        x["status"] = "cancelled"
-                        self.her_moved(cid, now)
-                        app.chat.add(cid, "her", app.chat.line(char, "appoint_cancel", {}), kind="appoint_cancel", t=now)
-                        app.picked_up_phone(char, st, now)
-                        app.save_state(cid)
-                        out.append("%sから、約束のキャンセルの連絡が来た" % char.get("name", ""))
+                    if not app.bonds.together(cid) and self._her_change(x, char, st, now, out):
+                        continue
+                if not plan.get("cancel_checked") and now >= x["t"] - 3 * 3600:
+                    plan["cancel_checked"] = True          # 直前の取りやめ (体調・急用・仕事・家のこと・気分・天気. A41) を決める
+                    changed = True
+                    self._drop_plan(x, char, st, now)
+                dr = plan.get("drop")
+                if dr and now >= dr["at"] and not app.bonds.together(cid):
+                    plan.pop("drop")
+                    changed = True
+                    if self._drop_send(x, char, st, dr, now, out):
                         continue
                 if not contact_only:
                     changed = self._tick(x, now, out) or changed

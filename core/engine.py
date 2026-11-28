@@ -3640,6 +3640,8 @@ class App:
                         self.save_state(oid)
                     if oid in company and self.posing.live(self.chars[oid], ost, now):
                         self.save_state(oid)
+                    if oid in company:
+                        self.parting.cut_live(self.chars[oid], ost, now)     # 相手から早めに帰ると言い出す (A41・S34)
             company = self.bonds.company(now)
             tid = self.target(cid)
             dt = datetime.fromtimestamp(now)
@@ -4435,6 +4437,8 @@ class App:
             ap = st.get("approach") or {}
             spec = (self.presence.find(ap.get("id")) or {}).get(ans) or {}
             aid = (ap.get("act") if ans == "accept" else None) or spec.get("action")     # 「次, あそこ行かない？」は誘われた行き先へ
+            if (self.presence.find(ap.get("id")) or {}).get("leave") and ans in ("accept", "later"):
+                aid = self.parting.cut_action(char["id"])     # 相手からの切り上げ (A41): 外なら解散, 家に来ていれば送る, 相手の家なら帰る
             if aid:           # 応じたら, そのコマンドをする (できない状況なら, ふつうに応じたことにする)
                 try:
                     a = self.action(aid)
@@ -4450,7 +4454,10 @@ class App:
                 ll = self.presence.back()          # そばで話しかけられて応じた: 一人の時間はそこまで (結果は残す)
                 if ll:
                     self.solo.finish(ll)
+            leave = (self.presence.find(ap.get("id")) or {}).get("leave")
             e, run = self.presence.answer(char, st, ans, use_action=bool(aid), choice=choice)
+            if run and leave:
+                run = aid
         if run:
             opts = {"approach": True}
             ovp = self.action(run).get("override") or {}

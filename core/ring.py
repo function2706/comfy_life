@@ -99,7 +99,7 @@ class Ring:
         return "sudden" if random.random() < direct else "asked"
 
     # ------------------------------------------------------------------ 鳴らす
-    def start(self, char, st, now, via, why=None, req=None, req_kind=None, req_text=None):
+    def start(self, char, st, now, via, why=None, req=None, req_kind=None, req_text=None, tell=None):
         """鳴らす. 鳴らせなかった (あなたが画面を閉じている / 寝ている / 話し中) ときは, その場で不在着信などにして None."""
         app = self.app
         pres = app.presence.at(now)
@@ -107,6 +107,8 @@ class Ring:
         st["ring_log"] = [t for t in st["ring_log"] if now - t < 86400] + [now]
         r = {"id": uuid.uuid4().hex[:8], "cid": char["id"], "name": char.get("name", ""), "t": now,
              "until": now + random.uniform(*RING_SEC), "via": via, "why": why, "req": req, "req_kind": req_kind, "req_text": req_text}
+        if tell:
+            r["tell"] = tell                       # 知らせ (遅れる・取りやめ・変えたい. core/appoint.py): 出れば最初のひとこと, 出なければメッセージ
         app.trace.add("call", "電話をかけてきた (%s)" % via, char["id"], now, why=why, req=req_kind, presence=pres)
         app.picked_up_phone(char, st, now)
         if pres == "gone":                         # 家の画面を閉じている (スマホで進めている間): 閉じている間と同じ決め方
@@ -179,9 +181,9 @@ class Ring:
         app.regard.note_call(char, st, r["t"], True)
         app.regard.sign(char, st, "call_answered", now)
         app.bonds.met(st, now, contact=True)
-        key = "phone.ring_req" if r.get("req") else "phone.ring_" + (r.get("via") if r.get("via") in ("back", "asked") else r.get("why") or "bored")
+        key = "phone.ring_req" if r.get("req") or r.get("tell") else "phone.ring_" + (r.get("via") if r.get("via") in ("back", "asked") else r.get("why") or "bored")
         from .phonetalk import LINES
-        said = app.phonetalk.line(char, key if key in LINES else "phone.ring_bored")
+        said = (r.get("tell") or {}).get("text") or app.phonetalk.line(char, key if key in LINES else "phone.ring_bored")
         app.chat.add(r["cid"], "sys", "📞 電話がかかってきた", kind="call", t=now)
         sys_t = app.chat.load(r["cid"])["items"][-1]["t"]
         c = app.phonetalk.begin(char, st, said, True, now, by="her", sys_t=sys_t)
@@ -216,6 +218,8 @@ class Ring:
         st.pop("call_back", None)
         if r.get("req"):                            # 頼みごと: いままでどおりメッセージで (トークから答えられる)
             app.appoint.post_offer(r["req"], t + 30, t)
+        elif r.get("tell"):                         # 知らせ: メッセージで届く
+            self.tell_msg(r, t + 30)
         elif how in ("missed", "declined") and random.random() < 0.55 + (0.2 if app.phonetalk.close_rel(char, st) else 0):
             key = "phone.ring_declined_msg" if how == "declined" else "phone.ring_missed_msg"
             app.chat.later(cid, "her", app.phonetalk.line(char, key), t + random.uniform(40, 240), t, kind="call_missed_msg")
@@ -275,6 +279,8 @@ class Ring:
                      kind="call", t=t)
         if r.get("req"):
             app.appoint.post_offer(r["req"], t + 60, t)
+        if r.get("tell"):                           # 話した中身はトークに残らないので, 知らせはメッセージでも
+            self.tell_msg(r, t + 60)
         app.trace.add("call", "閉じている間の着信に, 短く出た", cid, t, via=r.get("via"), why=r.get("why"))
         app.save_state(cid)
         return "auto"
@@ -364,6 +370,17 @@ class Ring:
             spoken = spoken[1:spoken.index("』")]
         self.start(char, st, now, "req", req=x["id"], req_kind=kind, req_text=spoken)      # 出られなければ, その場でメッセージに (_missed)
         return True
+
+    def tell(self, char, st, x, text, kind, now):
+        """知らせ (遅れる・取りやめ・変えたい・着いた. core/appoint.py の _tell) を電話でするか. 鳴らしたら True."""
+        if self.app.presence.at(now) not in ("here", "idle", "busy", "out", "work") or self.rec() or self.why_not(char, st, now, strict=False):
+            return False
+        self.start(char, st, now, "tell", tell={"text": text, "kind": kind, "appoint": x["id"]})
+        return True
+
+    def tell_msg(self, r, t):
+        tl = r["tell"]
+        self.app.chat.add(r["cid"], "her", tl["text"], kind=tl["kind"], t=t, appoint=tl.get("appoint"))
 
     # ------------------------------------------------------------------ 閉じている間
     def offline(self, t0, t1, timeline):

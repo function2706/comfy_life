@@ -280,5 +280,40 @@
              "pos": "holding bowl, rice porridge, gentle smile", "neg": ""},
   "later": {"label": "大丈夫", "text": "……ならいいんですけど。つらかったら言ってくださいね。", "effects": {"mood": -1}},
   "ignore": {"text": "（{name}は、心配そうにこちらを見ていた）", "effects": {"mood": -2}}
+ },
+ {
+  "id": "leave_tired", "forced": true, "leave": true, "label": "早めに帰りたいみたい（疲れ）", "icon": "🏠", "when": "", "weight": 1, "cooldown_h": 3,
+  "text": "ごめんなさい、ちょっと疲れちゃって……。今日はこのへんで帰ってもいいですか？", "pos": "tired smile, apologetic, looking at viewer", "neg": "",
+  "accept": {"label": "うん、帰ろう", "action": "go_home", "text": ""},
+  "later": {"label": "もう少しだけいない？", "text": ""},
+  "ignore": {"effects": {"mood": -2}}
+ },
+ {
+  "id": "leave_sick", "forced": true, "leave": true, "label": "早めに帰りたいみたい（体調）", "icon": "🤒", "when": "", "weight": 1, "cooldown_h": 3,
+  "text": "あの……少し具合がよくなくて。今日は先に帰らせてもらってもいいですか？", "pos": "pale, unwell, apologetic, looking at viewer", "neg": "",
+  "accept": {"label": "うん、帰ろう", "action": "go_home", "text": ""},
+  "later": {"label": "もう少しだけいない？", "text": ""},
+  "ignore": {"effects": {"mood": -2}}
+ },
+ {
+  "id": "leave_early", "forced": true, "leave": true, "label": "早めに帰りたいみたい（明日が早い）", "icon": "⏰", "when": "", "weight": 1, "cooldown_h": 3,
+  "text": "明日の朝が早いので、今日はそろそろ帰りますね。", "pos": "checking watch, apologetic smile", "neg": "",
+  "accept": {"label": "うん、帰ろう", "action": "go_home", "text": ""},
+  "later": {"label": "もう少しだけいない？", "text": ""},
+  "ignore": {"effects": {"mood": -2}}
+ },
+ {
+  "id": "leave_call", "forced": true, "leave": true, "label": "早めに帰りたいみたい（急な連絡）", "icon": "📱", "when": "", "weight": 1, "cooldown_h": 3,
+  "text": "ごめんなさい、今連絡が来て……急いで帰らないといけなくなりました。", "pos": "looking at smartphone, troubled, apologetic", "neg": "",
+  "accept": {"label": "うん、帰ろう", "action": "go_home", "text": ""},
+  "later": {"label": "もう少しだけいない？", "text": ""},
+  "ignore": {"effects": {"mood": -2}}
+ },
+ {
+  "id": "leave_mood", "forced": true, "leave": true, "label": "早めに帰りたいみたい（気分）", "icon": "😶", "when": "", "weight": 1, "cooldown_h": 3,
+  "text": "……今日は、もう帰ってもいいですか。", "pos": "looking away, quiet, expressionless", "neg": "",
+  "accept": {"label": "うん、帰ろう", "action": "go_home", "text": ""},
+  "later": {"label": "もう少しだけいない？", "text": ""},
+  "ignore": {"effects": {"mood": -2}}
  }
 ]
