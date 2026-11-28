@@ -177,6 +177,8 @@ class Ring:
         if app.phonetalk.rec():
             app.presence.save()
             raise ValueError(app.call_block())
+        if app.task_running():                          # 内職の途中: 一時停止して出る (内職は「ながら」にしない. 続きは再開から)
+            app.task_pause(app.task_active(), True)
         app.presence.rec()["beat"] = app.presence.rec()["input"] = now
         app.regard.note_call(char, st, r["t"], True)
         app.regard.sign(char, st, "call_answered", now)

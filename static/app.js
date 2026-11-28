@@ -2665,10 +2665,34 @@ async function faceSync(force) {
 }
 // 着信 (A23 段 2. core/ring.py): 鳴っている間は画面の上に出し, 着信音をくり返す. 出る / 出ない. 鳴り終われば不在着信
 const RING = { id: null, left: null, at: 0 };
+// 開いているモーダル (showModal) の順. モーダルの外は押せない (見えていても) ので, 着信の札はいちばん上のモーダルの中に置く (F22)
+const MODALS = [];
+{
+  const showModal = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function () {
+    showModal.call(this);
+    const i = MODALS.indexOf(this);
+    if (i >= 0) MODALS.splice(i, 1);
+    MODALS.push(this);
+    if (RING.id) drawRing();                     // 鳴っている途中に開いた窓: その中へ移す
+    this.addEventListener('close', () => { if (RING.id) drawRing(); }, { once: true });   // 閉じた: 下の窓 (か画面) へ戻す
+  };
+}
+function topModal() {
+  for (let i = MODALS.length - 1; i >= 0; i--) {
+    const d = MODALS[i];
+    if (d.open && d.isConnected && d.matches(':modal')) return d;
+    MODALS.splice(i, 1);
+  }
+  return null;
+}
 function drawRing() {
   let box = document.getElementById('ring-box');
   if (!box) { box = document.createElement('div'); box.id = 'ring-box'; box.className = 'ring-box'; box.hidden = true; document.body.append(box); }
   const r = (S.view || {}).ring;
+  const host = (r && !PHONE && topModal()) || document.body;
+  const moved = box.parentNode !== host;
+  if (moved) host.append(box);
   const pop = (on) => {            // トークなどの窓 (モーダル) より上に出す: ポップオーバー (使えないブラウザでは, ふつうの固定表示)
     try {
       if (box.popover !== 'manual') box.popover = 'manual';
@@ -2685,7 +2709,7 @@ function drawRing() {
   if (fresh) { RING.id = r.id; startRing(); notifyCall('ring:' + r.id, `📞 ${r.name}から電話`, '', true, 'silent'); }
   RING.left = r.left; RING.at = Date.now();
   box.hidden = false;
-  if (fresh || document.querySelector('dialog[open]')) pop(true);       // 後から開いた窓の上にも
+  if (fresh || moved || document.querySelector('dialog[open]')) pop(true);       // 後から開いた窓の上にも
   box.replaceChildren(h('div', { class: 'ring-card' }, avatar(r.face, r.name, 'small'),
     h('div', {}, h('b', {}, `📞 ${r.name}から電話`),
       r.catch ? h('div', { class: 'muted small' }, `（${r.catch}と話している途中の、割り込みの着信）`) : null,
@@ -2701,6 +2725,10 @@ async function answerRing(how) {
   try {
     const r = await api('/api/phone/answer', { yes: how === 'yes' || how === 'switch', how });
     if (S.view) { S.view.ring = null; if (r.call) S.view.on_call = r.call; }
+    if (r.call && S.task && !S.task.done && !S.task.paused) {      // 内職の途中に出た: サーバで一時停止した. 画面を閉じて通話へ (続きは「内職」から再開)
+      S.task.paused = true; S.task.view = null; S.task.pausedSec = (Date.now() - S.task.t0) / 1000;
+      if ($('#task-dlg').open) $('#task-dlg').close();
+    }
     const msg = { yes: '📞 つながった（返し方を選んで話す。黙っていると切れます）', switch: '📞 今の電話を切って、出た（返し方を選んで話す）',
       back: '📞 あとでかけ直すと伝えて、もとの電話に戻った', no: '📞 出なかった' }[how];
     toast(msg, how === 'no' ? 'err' : 'ok');

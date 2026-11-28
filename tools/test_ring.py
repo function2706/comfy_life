@@ -279,6 +279,34 @@ def main():
         im = next(i for i, x in enumerate(its) if x.get("kind") == "call_missed_msg" and x["t"] > now)
         assert ia < im, "並びが逆"
         print("不在着信のあとのメッセージ: 時刻が来てから届く")
+
+        # ---- 11. 内職の途中に鳴る (F22): 出ない → 内職はそのまま / 出る → 内職は一時停止・通話が始まる. 通話中は再開できない
+        for yes in (False, True):
+            now = time.time()
+            fresh(now)
+            app.phonetalk.hangup(now) if app.phonetalk.rec() else None
+            tok = app.task_start("mines", "easy")["token"]
+            assert app.task_running(), "内職が始まっていない"
+            assert R.start(char, st, now, "sudden", why="lonely"), "内職の途中に鳴らない"
+            out = R.answer(yes, now + 2)
+            if not yes:
+                assert out.get("declined") and app.task_running() and not app.phonetalk.rec(), (out, app.task_running())
+            else:
+                assert out.get("call") and app.phonetalk.rec(), out
+                assert not app.task_running() and app.task_active() == tok, "内職が一時停止していない"
+                assert app.state_view()["task_paused"], "画面に一時停止と出ない"
+                try:
+                    app.task_pause(tok, False)
+                    raise AssertionError("通話中に内職を再開できてしまう")
+                except ValueError:
+                    pass
+                app.phonetalk.hangup(now + 30)
+                assert not app.phonetalk.rec()
+                app.task_pause(tok, False)
+                assert app.task_running(), "切ったあと再開できない"
+            app.task_finish(tok)
+            assert not app.task_active()
+        print("内職の途中の着信: 出ない → そのまま / 出る → 一時停止して通話・切ったら再開できる")
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
