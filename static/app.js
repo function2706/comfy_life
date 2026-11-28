@@ -1594,6 +1594,12 @@ async function doAct(aid, outfit, place, pick) {
   }
 }
 
+// 舞台 (メインの画面) に出してよい記録か: 一人の記録・誰もそばにいないとき・そばにいない人の記録は出さない
+function onStage(e) {
+  if (e.mine || !e.who && !tid()) return false;
+  return !e.who || e.who === tid() || (S.view.company || []).some((c) => c.id === e.who);
+}
+
 function handleActResult(r) {
   if (r.llm_error) toast('LLM 失敗のため定型文を使用: ' + r.llm_error, 'err');
   if (r.encounter) toast(r.encounter.text, 'ok');
@@ -1603,7 +1609,7 @@ function handleActResult(r) {
   S.lastDeltas = r.entry.deltas || {};
   if (r.job) trackJob(r.job);
   // 一人のとき (誰もそばにいない) はステージに何も出さない: 結果は知らせとログで
-  if (r.entry.mine || !r.entry.who && !tid() || r.entry.who && r.entry.who !== tid() && !(S.view.company || []).some((c) => c.id === r.entry.who)) {
+  if (!onStage(r.entry)) {
     if (r.entry.text && !r.solo) toast(r.entry.text.replace(/\n.*/s, ''), r.missed ? 'err' : 'ok');
     return;
   }
@@ -1736,7 +1742,11 @@ async function pollJobsOnce() {
       if (j.kind && j.kind !== 'entry') { /* 顔のアイコン・人のアイコン・服のサンプル: ステージの画像は変えない */ }
       else if (j.shown === false) { /* 既存の画像を出したうえで裏で描いた分: 切り替えない (設定「裏で描いた画像に切り替える」) */ }
       else if (S.current && S.current.id === j.entry) { S.current.image = j.image; setImage(j.image); }
-      else if (!S.current || S.current.t <= (S.view.log.find((x) => x.id === j.entry) || {}).t) setImage(j.image);
+      else {
+        // 新しい記録の絵だけ差し替える. ただし離れている人の記録 (デート中に別の人から届いた自撮り・写メ など) は舞台に出さない
+        const le = S.view.log.find((x) => x.id === j.entry);
+        if (le && onStage(le) && (!S.current || S.current.t <= le.t)) setImage(j.image);
+      }
       refresh();
     } else if (['error', 'unknown', 'cancelled'].includes(j.status)) {
       S.jobs.delete(jid);
