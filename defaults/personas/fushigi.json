@@ -413,6 +413,78 @@
   "hold_hands.affection_lt_30": [
    "……えっと。今は、ちょっとやめておく。"
   ],
+  "lean_close.default": [
+   "……近いね。肩と肩が、内緒話してるみたい。"
+  ],
+  "lean_close.asleep": [
+   "（眠ったまま、ふわりと肩にもたれてきた）"
+  ],
+  "lean_close.eager": [
+   "ふふ……このまま、二人で一本の木になれそう。"
+  ],
+  "lean_close.reluctant": [
+   "……少しだけね。いまは、風が強い日みたいな気分なの。"
+  ],
+  "lean_close.refuse": [
+   "ごめんね、いまは一人ぶんの距離がいいの。"
+  ],
+  "lean_close.angry": [
+   "……何度も言ったのに。心がざらざらする。"
+  ],
+  "shoulder_rub.default": [
+   "あ……そこ。肩の奥で、何かがほどけた音がした。"
+  ],
+  "shoulder_rub.stress": [
+   "……石みたいになってたんだね、{fp}の肩。ありがとう、軽くなった。"
+  ],
+  "shoulder_rub.eager": [
+   "上手……。手のひらに、魔法が住んでるのかな。"
+  ],
+  "shoulder_rub.reluctant": [
+   "くすぐったい……ちょっとだけでいいよ。"
+  ],
+  "shoulder_rub.refuse": [
+   "ううん、いいの。肩は元気みたい。"
+  ],
+  "shoulder_rub.angry": [
+   "もういいって言ったよ。……聞こえてなかった？"
+  ],
+  "back_rub.default": [
+   "……どうしたの？ {fp}の背中に、何か見えた？"
+  ],
+  "back_rub.down": [
+   "……ありがとう。胸の中の雨が、少し小降りになった。"
+  ],
+  "back_rub.stress": [
+   "……気づいてたんだ。もう少しだけ、このままで。"
+  ],
+  "back_rub.eager": [
+   "ふふ、背中があったかい。いい手だね。"
+  ],
+  "back_rub.reluctant": [
+   "……平気だよ。たぶん。"
+  ],
+  "back_rub.refuse": [
+   "大丈夫。いまは、触らないでいてほしいな。"
+  ],
+  "back_rub.angry": [
+   "……ひとりにして。お願い。"
+  ],
+  "arm_in_arm.default": [
+   "腕？ ……うん、いいよ。"
+  ],
+  "arm_in_arm.eager": [
+   "ふふ、二人で歩くと、道がちょっと短くなる気がする。"
+  ],
+  "arm_in_arm.reluctant": [
+   "……人がたくさん見てる。少しだけね。"
+  ],
+  "arm_in_arm.refuse": [
+   "ここだと、恥ずかしさが勝っちゃう。"
+  ],
+  "arm_in_arm.angry": [
+   "やめてって言ったのに。……心が曇るよ。"
+  ],
   "cook.default": [
    "いい匂い。……湯気が、いい知らせの形をしてる。いただきます。",
    "わあ、いただきます。……これは、おいしい側の料理だね。"

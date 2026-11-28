@@ -407,6 +407,78 @@
   "hold_hands.affection_lt_30": [
    "え、えっと……今は、ちょっと……"
   ],
+  "lean_close.default": [
+   "……距離が近いね。心拍が上がってるのは、たぶん気のせいじゃない。"
+  ],
+  "lean_close.asleep": [
+   "（眠ったまま、肩にもたれかかってきた）"
+  ],
+  "lean_close.eager": [
+   "ふふ。体温が伝わってくる。……悪くない。"
+  ],
+  "lean_close.reluctant": [
+   "……少しだけね。"
+  ],
+  "lean_close.refuse": [
+   "ごめん、いまは距離をとってほしい。"
+  ],
+  "lean_close.angry": [
+   "同じことの繰り返し。不快。"
+  ],
+  "shoulder_rub.default": [
+   "あ、そこ。……効いてる。"
+  ],
+  "shoulder_rub.stress": [
+   "……筋肉、相当こわばってたみたい。ありがとう、楽になった。"
+  ],
+  "shoulder_rub.eager": [
+   "上手。ツボの位置、分かってるの？ もう少しお願い。"
+  ],
+  "shoulder_rub.reluctant": [
+   "くすぐったい……触覚が過敏な場所なの。少しだけで。"
+  ],
+  "shoulder_rub.refuse": [
+   "いいよ。凝ってないから。"
+  ],
+  "shoulder_rub.angry": [
+   "もういいって言ったよね。"
+  ],
+  "back_rub.default": [
+   "……どうしたの？ 急に。"
+  ],
+  "back_rub.down": [
+   "……ありがとう。少し、落ち着いた。"
+  ],
+  "back_rub.stress": [
+   "……気づいてたんだ。もう少し、このままで。"
+  ],
+  "back_rub.eager": [
+   "ふふ、安心する。理由は説明できないけど。"
+  ],
+  "back_rub.reluctant": [
+   "……平気。"
+  ],
+  "back_rub.refuse": [
+   "大丈夫。いまは触らないで。"
+  ],
+  "back_rub.angry": [
+   "……ひとりにして。"
+  ],
+  "arm_in_arm.default": [
+   "腕？ ……うん、いいよ。"
+  ],
+  "arm_in_arm.eager": [
+   "歩幅、合わせてくれてるんだね。……こういうの、いいな。"
+  ],
+  "arm_in_arm.reluctant": [
+   "……人目があるけど。少しだけなら。"
+  ],
+  "arm_in_arm.refuse": [
+   "ここではやめておこう。"
+  ],
+  "arm_in_arm.angry": [
+   "拒否したよね。不快。"
+  ],
   "cook.default": [
    "わぁ、いい匂い！ メイラード反応の香りだ。いただきます！"
   ],

@@ -429,6 +429,78 @@
   "hold_hands.affection_lt_30": [
    "え、えっと……今は、ちょっと……"
   ],
+  "lean_close.default": [
+   "……ちょっと、近いね。"
+  ],
+  "lean_close.asleep": [
+   "（寝息を立てたまま、そっと肩にもたれてきた）"
+  ],
+  "lean_close.eager": [
+   "ふふ……こうしてると、あったかくて落ち着くな。"
+  ],
+  "lean_close.reluctant": [
+   "……少しだけ、ね。"
+  ],
+  "lean_close.refuse": [
+   "ごめんね、いまはちょっと離れててほしいな。"
+  ],
+  "lean_close.angry": [
+   "……何度もやめてって言ってるのに。つらいよ。"
+  ],
+  "shoulder_rub.default": [
+   "あ……そこ、気持ちいい。"
+  ],
+  "shoulder_rub.stress": [
+   "……こんなに凝ってたんだ。ありがとう、体が軽くなったみたい。"
+  ],
+  "shoulder_rub.eager": [
+   "上手だね。……もう少しだけ、お願いしてもいい？"
+  ],
+  "shoulder_rub.reluctant": [
+   "くすぐったいから、ちょっとだけでいいよ。"
+  ],
+  "shoulder_rub.refuse": [
+   "ううん、大丈夫。凝ってないから。"
+  ],
+  "shoulder_rub.angry": [
+   "……もういいって、言ったのに。"
+  ],
+  "back_rub.default": [
+   "……どうしたの？ 急に。"
+  ],
+  "back_rub.down": [
+   "……ありがとう。少しだけ、楽になった。"
+  ],
+  "back_rub.stress": [
+   "……気づいてくれてたんだね。もう少しだけ、このままで。"
+  ],
+  "back_rub.eager": [
+   "ふふ、安心する。……{call}の手、やさしいね。"
+  ],
+  "back_rub.reluctant": [
+   "……平気だよ。いつものことだから。"
+  ],
+  "back_rub.refuse": [
+   "大丈夫。……触らないでほしいな。"
+  ],
+  "back_rub.angry": [
+   "……ほっといてほしいの。ごめんね。"
+  ],
+  "arm_in_arm.default": [
+   "腕？ ……うん。"
+  ],
+  "arm_in_arm.eager": [
+   "ふふ。こうして歩けるの、なんだかうれしいな。"
+  ],
+  "arm_in_arm.reluctant": [
+   "……人が見てるけど。少しだけなら。"
+  ],
+  "arm_in_arm.refuse": [
+   "ここでは、ちょっと恥ずかしいな……。"
+  ],
+  "arm_in_arm.angry": [
+   "……やめてって言ったよね。何度も言わせないで。"
+  ],
   "cook.default": [
    "わぁ、いい匂い。いただきます！ ゆっくり食べるね。",
    "{call}のごはん、やさしい味で好き。今日は全部食べられそう。"

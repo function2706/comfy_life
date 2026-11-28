@@ -226,6 +226,78 @@
   "hold_hands.affection_lt_30": [
    "え、ええと……今は、ちょっと遠慮しておくわ……"
   ],
+  "lean_close.default": [
+   "ち、近いですわ……。"
+  ],
+  "lean_close.asleep": [
+   "（眠ったまま、そっと肩にもたれかかってきた）"
+  ],
+  "lean_close.eager": [
+   "ふふ……こういうの、悪くないですわね。"
+  ],
+  "lean_close.reluctant": [
+   "……少しだけ、ですわよ。"
+  ],
+  "lean_close.refuse": [
+   "お、お離れになって。いまは、そういう気分では……。"
+  ],
+  "lean_close.angry": [
+   "何度も申し上げましたわ。おやめになって。"
+  ],
+  "shoulder_rub.default": [
+   "あ……そこ、心地いいですわ。"
+  ],
+  "shoulder_rub.stress": [
+   "こんなに凝っていたなんて……ありがとう、とても楽になりましたわ。"
+  ],
+  "shoulder_rub.eager": [
+   "お上手ね。もう少し、お願いできるかしら？"
+  ],
+  "shoulder_rub.reluctant": [
+   "く、くすぐったいですわ……少しだけになさって。"
+  ],
+  "shoulder_rub.refuse": [
+   "結構ですわ。凝っておりませんもの。"
+  ],
+  "shoulder_rub.angry": [
+   "もう結構と申しましたわ。"
+  ],
+  "back_rub.default": [
+   "……どうなさったの？ 急に。"
+  ],
+  "back_rub.down": [
+   "……ありがとう。少し、楽になりましたわ。"
+  ],
+  "back_rub.stress": [
+   "……お気づきでしたのね。もう少しだけ、このままで。"
+  ],
+  "back_rub.eager": [
+   "ふふ、安心しますわ。"
+  ],
+  "back_rub.reluctant": [
+   "……平気ですわ。"
+  ],
+  "back_rub.refuse": [
+   "大丈夫ですから。触れないでくださる？"
+  ],
+  "back_rub.angry": [
+   "放っておいてくださいな。"
+  ],
+  "arm_in_arm.default": [
+   "う、腕を？ ……よろしくてよ。"
+  ],
+  "arm_in_arm.eager": [
+   "ふふ、こうして歩くの、ずっと憧れていましたの。"
+  ],
+  "arm_in_arm.reluctant": [
+   "……人が見ていますわ。少しだけなら。"
+  ],
+  "arm_in_arm.refuse": [
+   "こ、こんな人前では、いけませんわ。"
+  ],
+  "arm_in_arm.angry": [
+   "お断りしたはずですわ。しつこいのは嫌いです。"
+  ],
   "cook.default": [
    "まあ、いい香り！ いただきます！",
    "こういうおうちのごはん、ずっと食べてみたかったの！ いただきます。"
