@@ -206,6 +206,11 @@ class Outdoor:
         tr = p.get("travel")
         if tr and p.get("mode") in ("out", "work") and now < tr["arr"] + ARRIVE_GRACE:
             return None                                # まだ移動中 / 着いたばかり: 着いたことは geo.tick で
+        # 短い離席 (オフラインモードの min_minutes 未満): 出先・職場・移動中なら, 閉じていてもそのまま (移動は geo.tick で着く).
+        # 以前は 5 分途切れただけで, 仕事を終えて家に帰ったことになっていた. 相手とのお出かけ中は下で解散する (今までどおり)
+        if p.get("mode") in ("out", "work") and now - beat < float(app.offline.cfg().get("min_minutes", 30)) * 60 \
+                and not any((app.state(c).get("override") or {}).get("outing") for c in app.chars):
+            return None
         if tr and tr.get("doing"):                     # 移動中に読んでいた・観ていた: 着くまで (閉じていても) 続けていた
             app.geo.finish_doing(tr, tr["arr"])
         msgs = []
@@ -293,6 +298,18 @@ class Outdoor:
             else:
                 home_at = min(now, app.geo.home_eta(beat))
                 p["left"] = beat
+            if not (tr and tr.get("dir") != "go") and app.geo.home_eta(t_out) > now:
+                # 家に着く前に開いた: まだ帰り道の途中 (着いたら geo.tick で戻る). 以前は開いた時刻に家に着いたことにしていた
+                frm = p.get("pos")
+                trv = app.geo.depart(places_mod.HOME_ME, None, t_out, frm=frm, direction="home")
+                if trv and trv["arr"] > now:
+                    label = app.places.label(frm)
+                    app.solo.note("out", "%sを出て家へ向かった" % label, t_out)
+                    return {"text": "（画面を閉じていたあいだ、%sに%sを出て、いま家へ向かっている。あと%d分ほど）"
+                            % (datetime.fromtimestamp(t_out).strftime("%H:%M"), label, max(1, round((trv["arr"] - now) / 60)))}
+                if trv:
+                    home_at = trv["arr"]
+                    p.pop("travel", None)
             res = app.come_back(at=t_out, quiet=True)
             msgs.append((res.get("text") or "") + ("。家に着いたのは%s" % datetime.fromtimestamp(home_at).strftime("%H:%M")
                                                    if home_at - t_out >= 300 or t_out != beat else ""))

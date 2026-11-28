@@ -266,6 +266,33 @@ def main():
         g = app.outdoor.check_gap(now)
         assert g and P.rec()["mode"] == "none" and not geo.travel() and P.rec()["pos"] == home, (g, P.rec())
         print("移動中に閉じる: OK |", g["text"][:60])
+        # ---- 13. 職場で短く閉じた (min_minutes 未満): 仕事は続く. 帰り道の途中で開いた: 家に瞬間移動せず, まだ家へ移動中
+        P.rec()["pos"] = home
+        app.life.player_state()["stamina"] = 100
+        P.rec()["beat"] = P.rec()["input"] = time.time()
+        app.solo.start("work", how="transit")
+        tr = geo.travel()
+        now = time.time()
+        tr["t0"], tr["arr"] = now - 4 * 3600, now - 3.5 * 3600            # 着いて 3 時間半
+        assert geo.tick(now) and P.rec()["pos"] == "office"
+        P.rec()["beat"] = now - 500                                      # 8 分ほど閉じていた (5 分は超える)
+        assert app.outdoor.check_gap(now) is None and P.rec()["mode"] == "work" and P.rec()["pos"] == "office", P.rec()
+        P.rec()["beat"] = now - 1500                                     # 相手とのお出かけ中でもない 25 分: まだ続く
+        assert app.outdoor.check_gap(now) is None and P.rec()["mode"] == "work"
+        eta = geo.home_eta(now) - now
+        assert eta > 660, "職場から家まで %d 秒: 帰り道の途中で開くのを試せない" % eta
+        app.settings["offline"] = {"enabled": False, "min_minutes": 5}   # 短い離席を 5 分に (閉じた扱いにする)
+        P.rec()["beat"] = now - 330                                      # 5 分半前に職場を出た: 家まではまだ
+        g = app.outdoor.check_gap(now)
+        tr = geo.travel()
+        assert g and "家へ向かっている" in g["text"] and tr and tr["dir"] == "home" and P.rec()["mode"] == "work", (g, P.rec())
+        assert abs(tr["t0"] - (now - 330)) < 1 and tr["arr"] > now, tr
+        a = geo.tick(tr["arr"] + 1)                                      # 着いたら, 仕事から帰る (給料は職場を出た時刻まで)
+        assert a and P.rec()["mode"] == "none" and P.rec()["pos"] == home, (a, P.rec())
+        ll = P.rec()["last_left"]
+        assert abs(ll["left"] - (now - 330)) < 1, ll
+        app.settings.pop("offline", None)
+        print("職場で閉じる: OK | %s / 家まで %d 分" % (g["text"][:50], eta / 60))
         print("ALL OK")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
