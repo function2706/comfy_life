@@ -4155,6 +4155,60 @@
   ],
   "sc.self": [
    "{scent}、焚いといた"
+  ],
+  "tv.default": [
+   "……通販しかやってない"
+  ],
+  "tv.news": [
+   "このニュース、気になる"
+  ],
+  "tv.info": [
+   "この店、悪くなさそう"
+  ],
+  "tv.variety": [
+   "……ふっ。これはずるい"
+  ],
+  "tv.drama": [
+   "……この二人、どうなるんだろう"
+  ],
+  "tv.sports": [
+   "今の、惜しかった"
+  ],
+  "tv.cooking": [
+   "これなら作れそう"
+  ],
+  "tv.animals": [
+   "……かわいい"
+  ],
+  "tv.dislike": [
+   "……こういうの、あまり観ない"
+  ],
+  "tv.serial_next": [
+   "ここで終わるのか。来週が気になる"
+  ],
+  "tv.serial_missed": [
+   "先週の、見逃した。話がわからないかも"
+  ],
+  "ap.msg_tv.call": [
+   "📱『昨日の{show}、観た？』"
+  ],
+  "ap.msg_tv.accept": [
+   "📱『観てないなら、今度話す』"
+  ],
+  "ap.msg_tv.later": [
+   "📱『わかった。あとで』"
+  ],
+  "ap.tv_serial.call": [
+   "そろそろ{show}の時間。観る？"
+  ],
+  "ap.tv_serial.later": [
+   "……そう。一人で観る"
+  ],
+  "ap.msg_tv.ignore": [
+   "（{name}からのテレビの話は、返事がないまま残っている）"
+  ],
+  "ap.tv_serial.ignore": [
+   "（{name}は一人でドラマを観ていた）"
   ]
  }
 }
