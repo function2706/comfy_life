@@ -36,6 +36,8 @@ _C = [
     ("pudding", "プリン", "🍮", "sweets", 180, ["convenience", "supermarket", "station"], ["sweets"], True),
     ("ice_cream", "アイス", "🍨", "sweets", 300, ["convenience", "supermarket", "mall", "amusement"], ["sweets"], True),
     ("fruit", "旬の果物", "🍓", "sweets", 1500, ["supermarket", "shopping_street", "mall"], ["sweets"], True),
+    ("incense", "お香", "🪔", "incense", 700, ["drugstore", "mall", "shopping_street"], ["practical"], False),
+    ("aroma_oil", "アロマオイル", "💧", "aroma", 1500, ["drugstore", "mall", "shopping_street"], ["practical"], False),
     ("detergent", "洗剤", "🧴", "detergent", 500, ["drugstore", "supermarket", "convenience", "shopping_street", "mall"], ["practical"], False),
     ("book_talk", "話し方の本", "📕", "book_talk", 1500, ["bookstore", "station", "mall"], ["books"], True),
     ("book_touch", "マッサージの本", "📗", "book_touch", 1500, ["bookstore", "mall"], ["books"], True),
@@ -60,12 +62,15 @@ _C = [
 ESSENTIAL_KINDS = ("food", "meal", "detergent", "medicine")      # 必需品 (借金のあいだも買える)
 # 食材の栄養 (自炊で使う. core/body.py) と, 1 個で何回分か (買うと回数ぶん持ち物に入る)
 NUT = {"rice": ("staple", 10), "bread": ("staple", 3), "veggies": ("veg", 3), "meat_fish": ("protein", 3), "eggs_tofu": ("protein", 4)}
+SERVINGS = {"incense": 10, "aroma_oil": 6}          # 1 つ買うと何回分か (お香・アロマ. S61)
 FOOD_KINDS = ("food", "meal", "tea", "sweets")             # 家計簿で「食費」にするもの
 CATALOG = {i: {"id": i, "name": n, "icon": ic, "kind": k, "price": p, "places": pl, "tags": tg, "giftable": gf,
                "essential": k in ESSENTIAL_KINDS}
            for i, n, ic, k, p, pl, tg, gf in _C}
 for _i, (_n, _s) in NUT.items():
     CATALOG[_i].update(nut=_n, servings=_s)
+for _i, _s in SERVINGS.items():
+    CATALOG[_i]["servings"] = _s
 TAG_LABEL = {"food": "食べ物", "tea": "お茶", "sweets": "甘いもの", "practical": "実用品", "books": "本", "flowers": "花",
              "cute": "かわいいもの", "accessories": "アクセサリー", "fashion": "服", "games": "ゲーム"}
 # 性格プリセットごとの, 好き・苦手の既定 (キャラクターの定義の likes / dislikes で上書きできる)

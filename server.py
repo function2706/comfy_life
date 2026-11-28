@@ -278,6 +278,14 @@ def route(method, path, q, body):
             return a.aircon.respond(b["choice"])
         if path == "/api/home/aircon":
             return a.home.set_ac(b.get("mode"))
+        if path == "/api/ambience/music":
+            return a.ambience.you_music(b.get("genre") or "off")
+        if path == "/api/ambience/scent":
+            return a.ambience.you_scent(b.get("scent") or "off", b.get("how"))
+        if path == "/api/ambience/prompt":
+            return a.ambience.set_prompt(b.get("on"))
+        if path == "/api/ambience/respond":
+            return a.ambience.respond(b.get("kind"), b["choice"])
         if path == "/api/chores/share":
             return a.chores.set_share(b["part"], b["who"])
         if path == "/api/chores/respond":

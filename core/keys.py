@@ -95,6 +95,10 @@ def all_keys(actions, minigames, approaches=()):
     from .aircon import LINES as AC_LINES, SCENE_LABEL as AC_SCENES     # 同居のエアコン争い (S58)
     for k, t in AC_LINES.items():
         out[k] = {"scene": "冷暖房 / %s" % AC_SCENES[k.split(".", 1)[1]], "when": "", "text": t}
+    from .ambience import Music as AMB_MU, Scent as AMB_SC     # 音楽・香り (S61)
+    for cls, name in ((AMB_MU, "音楽"), (AMB_SC, "香り")):
+        for k, t in cls.LINES.items():
+            out[k] = {"scene": "%s / %s" % (name, cls.SCENE_LABEL[k.split(".", 1)[1]]), "when": "", "text": t}
     from .quarrel import LINES as QR_LINES, SCENE_LABEL as QR_SCENES     # 意見が割れる・言い争い・仲直り
     for k, t in QR_LINES.items():
         out[k] = {"scene": "言い合い / %s" % QR_SCENES[k.split(".", 1)[1]], "when": "", "text": t}

@@ -124,6 +124,8 @@ class Presence:
         now = now or time.time()
         p = self.rec()
         p["mode"], p["since"] = mode, now
+        if mode in ("out", "work") and hasattr(self.app, "ambience"):
+            self.app.ambience.on_leave(now)      # 出かけると音楽は止まる (S61)
         p["input"] = now
         p.pop("solo", None)          # 一人の時間の中身は, solo.start がこのあと入れる
         p.pop("place", None)         # 外出の行き先も (solo.start で)

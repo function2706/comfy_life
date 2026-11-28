@@ -62,6 +62,7 @@ from . import chores as chores_mod
 from . import quarrel as quarrel_mod
 from . import moneytalk as moneytalk_mod
 from . import aircon as aircon_mod
+from . import ambience as ambience_mod
 from . import geo as geo_mod
 from . import chat as chat_mod
 from . import home as home_mod
@@ -217,6 +218,7 @@ class App:
         self.bonds = bonds_mod.Bonds(self)
         self.moneytalk = moneytalk_mod.MoneyTalk(self)  # お金の使い方への口出し・どっちが出すか
         self.aircon = aircon_mod.Aircon(self)           # 同居のエアコン争い (S58)
+        self.ambience = ambience_mod.Ambience(self)     # 音楽・お香 / アロマ (部屋の設定. S61)
         self.quarrel = quarrel_mod.Quarrel(self)      # 意見が割れる・言い争い・仲直り
         self.chores = chores_mod.Chores(self)         # 同居相手との家事の分担
         self.quals = quals_mod.Quals(self)            # 資格 (申し込み・勉強・試験・合否)
@@ -1172,7 +1174,10 @@ class App:
             changed = True
         if self.bonds.living() == cid:
             self.chores.tick(char, st, now)    # 同居相手の家事 (自分の担当・あなたの担当を気にする・さぼりの知らせ)
-            self.aircon.tick(char, st, now)    # 同居相手が部屋の暑さ・寒さで冷暖房を言ってくる / 変える / 我慢する (S58)
+        if self.bonds.living() == cid or self.bonds.mode(cid, now) == "guest":
+            self.aircon.tick(char, st, now)    # 部屋の暑さ・寒さで冷暖房を言ってくる / 変える / 我慢する (S58. 来ている相手も S61)
+        if self.bonds.living() == cid or self.bonds.mode(cid, now) in ("guest", "visit"):
+            self.ambience.tick(char, st, now)  # 音楽・香りの効きと反応・相手の家で流れている音楽 (S61)
         if self.bonds.stage(cid) in ("live", "visit"):
             self.moneytalk.tick(char, st, now)  # あなたのお金の使い方に気づいて口を出すか
         if st.get("fight") or st.get("chores_fight"):
@@ -1222,6 +1227,9 @@ class App:
             parts.append({"src": "あなた", "pos": looks, "neg": ""})
         if not (act and act.get("replace_scene")):
             parts.append({"src": "場面: " + scene["label"], "pos": scene["pos"], "neg": scene["neg"]})
+            amb = self.ambience.prompt_part(char, st, dt)       # 部屋の雰囲気 (音楽・お香 / アロマ. S61)
+            if amb:
+                parts.append(amb)
         parts.append({"src": "時間帯: " + phase.get("label", ""), "pos": phase.get("pos", ""), "neg": phase.get("neg", "")})
         for tg in self.active_tags(ctx):
             parts.append({"src": "状態: " + tg["label"], "pos": tg["pos"], "neg": tg["neg"]})
@@ -3735,7 +3743,7 @@ class App:
                           "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT],
                           "movie_genre": [{"id": "", "label": "おまかせ"}] + [{"id": g[0], "label": g[1]} for g in topics_mod.MOVIE_GENRES]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
-                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(),
+                "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(), "amb_talk": self.ambience.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
                 "presence": self.presence.view(now),
                 "approaches": [x for x in (self._approach_item(c) for c in self.chars) if x],

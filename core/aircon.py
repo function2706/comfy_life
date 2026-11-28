@@ -1,4 +1,6 @@
 """同居のエアコン争い (S58. A42 段 2 の 2). 冷暖房の使い方は家に 1 つ (core/home.py の ac_mode / set_ac).
+反応の作り (見る間隔・出方・答え・気づき) は部屋の設定の土台 core/ambience.py の Reactor (S61). ここは冷暖房の差し替え分だけ.
+同居相手のほか, あなたの家に来ている相手も言ってくる / 我慢する (来ている相手は自分では変えない. S61).
 
 - 好み: その人の好みの室温 (season.pref_room. 暑がりは低め・寒がりは高め) から 1℃ を超えてずれると, 暑い / 寒い (season.ac_fuss).
 - 同居相手とあなたが家で起きているとき, 1 時間に一度だけ見て, 合わない度合いしだいで (一日に一度まで):
@@ -11,14 +13,11 @@
 あなたの暑い・寒いの値は作らない (あなたが払うのは電気代だけ). 遡及なし (性格の暑がり / 寒がりから, これから起きる).
 """
 import random
-import time
 from datetime import datetime
 
+from . import ambience as amb_mod
 from . import season as season_mod
 
-CHECK_SEC = 3600            # 見る間隔
-STALE_SEC = 6 * 3600        # 言ってきたまま答えずにいたら, うやむやに
-NOTE_SEC = 1800             # あなたが変えたときの反応の間隔 (押し直しで何度も言わない)
 CHOICES = {"match": "合わせる", "bill": "電気代が気になると断る", "push": "このままがいいと言い返す"}
 LINES = {
     "ac.ask_hot": "……ちょっと暑くないですか？ {ac}もいいですか？",
@@ -54,43 +53,15 @@ def phrase(t, cur, want):
     return kind + ("を切って" if want == "off" else "を少し弱くして")
 
 
-class Aircon:
-    def __init__(self, app):
-        self.app = app
+class Aircon(amb_mod.Reactor):
+    LINES = LINES
+    CHOICES = CHOICES
 
-    def line(self, char, key, extra=None):
-        app = self.app
-        t = app.persona_text(char, "ac." + key) or LINES["ac." + key]
-        fp, _, call = app.pronouns(char)
-        for k, v in dict(extra or {}, fp=fp, call=call, name=char.get("name", "")).items():
-            t = t.replace("{%s}" % k, str(v))
-        return t
+    def current(self):
+        return self.app.home.ac_mode()
 
-    def _entry(self, char, st, t, key, text, deltas):
-        app = self.app
-        dt = datetime.fromtimestamp(t)
-        scene = app.scene_at(char, st, dt)
-        act = {"id": "_aircon", "name": "冷暖房", "icon": "❄", "pos": "", "neg": ""}
-        pos, neg, parts = app.build_prompt(char, st, dt, act)
-        e = app._new_entry(char["id"], t, act, text, deltas, scene, dt, pos, neg, parts)
-        e["aircon"] = key
-        app.save_log(char["id"])
-        return e
-
-    def _apply(self, char, st, eff, now, tag):
-        app = self.app
-        if any(v > 0 for v in eff.values()):
-            eff, _ = app.bonds.realize(char, st, eff, "_aircon_" + tag, now)
-        return app.apply_effects(st, app.trait_effects(char, eff))
-
-    def awake_home(self, cid, now):
-        """同居相手とあなたが家にいて, どちらも起きている."""
-        app = self.app
-        if app.bonds.living() != cid or app.bonds.mode(cid, now) != "home":
-            return False
-        if app.presence.at(now) not in ("here", "idle", "busy"):
-            return False
-        return not app.scene_at(app.chars[cid], app.state(cid), datetime.fromtimestamp(now))["asleep"]
+    def put(self, v, cid):
+        self.app.home.set_mode(v)
 
     def want(self, char, t):
         """(合わない度合い, 変えたい使い方). 変えても過ごしやすくならなければ使い方は None."""
@@ -103,73 +74,25 @@ class Aircon:
             return f, None
         return f, w
 
-    # ------------------------------------------------------------------ 毎時
-    def tick(self, char, st, now):
-        app = self.app
-        cid = char["id"]
-        at = st.get("ac_talk")
-        if at and now - at["t"] > STALE_SEC:          # 答えないまま: うやむや (言わないまま少しむっとする)
-            st.pop("ac_talk", None)
-            self._apply(char, st, {"mood": -1}, now, "stale")
-        if at or now - float(st.get("ac_check", 0)) < CHECK_SEC or not self.awake_home(cid, now):
-            return
-        st["ac_check"] = now
-        day = datetime.fromtimestamp(now).date().isoformat()
-        if st.get("ac_day") == day:
-            return
+    def decide(self, char, st, now):
         f, w = self.want(char, now)
         if not w or abs(f) < 0.3:
-            return
-        p = min(0.5, 0.25 * abs(f))
-        app.trace.add("aircon", "部屋が合わない", cid, now, fuss=f, want=w, mode=app.home.ac_mode(), p=round(p, 2))
-        if random.random() >= p:
-            return
-        st["ac_day"] = day
-        hot = f > 0
-        cur = app.home.ac_mode()
-        tc = season_mod.temp(datetime.fromtimestamp(now))
-        ws = {"say": 1.0 * float(app.traits(char).get("approach", 1)), "self": 1.2 * app.moneytalk.manage(char, st), "endure": 0.8}
-        how = random.choices(list(ws), weights=list(ws.values()))[0]
-        app.trace.add("aircon", "出方", cid, now, how=how, w={k: round(v, 2) for k, v in ws.items()})
-        ac = phrase(tc, cur, w)
-        if how == "say":
-            st["ac_talk"] = {"t": now, "want": w, "from": cur, "hot": hot}
-            self._entry(char, st, now, "ask_" + ("hot" if hot else "cold"), self.line(char, "ask_" + ("hot" if hot else "cold"), {"ac": ac}), {})
-        elif how == "self":
-            app.home.set_mode(w)
-            st["ac_self"] = {"t": now, "mode": w, "from": cur}
-            self._entry(char, st, now, "self_" + ("hot" if hot else "cold"), self.line(char, "self_" + ("hot" if hot else "cold"), {"ac": ac}), {})
-        else:
-            d = self._apply(char, st, {"mood": -1}, now, "endure")
-            app.life.add_reason(st, "player", "bad", "部屋が%sのを我慢した" % ("暑い" if hot else "寒い"), now, told=False,
-                                delta=d.get("mood", 0), action="_aircon")
-        app.save_state(cid)
-
-    # ------------------------------------------------------------------ 言ってきたことへの出方
-    def pending(self):
-        app = self.app
-        cid = app.bonds.living()
-        if not cid:
             return None
-        at = app.state(cid).get("ac_talk")
-        if not at or not app.bonds.together(cid):
-            return None
-        char = app.chars[cid]
-        costly = season_mod.AC_ORDER.index(at["want"]) > season_mod.AC_ORDER.index(app.home.ac_mode())
-        return {"cid": cid, "name": char.get("name", ""),
-                "text": "（%sが、部屋が%sと言っている。冷暖房を「%s」にしたいらしい）" % (
-                    char.get("name", ""), "暑い" if at["hot"] else "寒い", season_mod.AC_LABEL[at["want"]]),
-                "choices": [{"id": k, "label": v} for k, v in CHOICES.items() if k != "bill" or costly]}
+        side = "hot" if f > 0 else "cold"
+        ac = phrase(season_mod.temp(datetime.fromtimestamp(now)), self.current(), w)
+        return {"f": abs(f), "w": w, "p": min(0.5, 0.25 * abs(f)), "say": "ask_" + side, "self": "self_" + side,
+                "endure": "部屋が%sのを我慢した" % ("暑い" if f > 0 else "寒い"), "talk": {"hot": f > 0}, "extra": {"ac": ac}}
 
-    def respond(self, choice, now=None):
+    def ask_text(self, char, at):
+        return "（%sが、部屋が%sと言っている。冷暖房を「%s」にしたいらしい）" % (
+            char.get("name", ""), "暑い" if at["hot"] else "寒い", season_mod.AC_LABEL[at["want"]])
+
+    def choices(self, at):
+        costly = season_mod.AC_ORDER.index(at["want"]) > season_mod.AC_ORDER.index(self.app.home.ac_mode())
+        return {k: v for k, v in CHOICES.items() if k != "bill" or costly}
+
+    def answer(self, char, st, at, choice, now):
         app = self.app
-        now = now or time.time()
-        pv = self.pending()
-        if not pv or choice not in [c["id"] for c in pv["choices"]]:
-            raise ValueError("いまは何もありません")
-        char = app.char(pv["cid"])
-        st = app.state(char["id"])
-        at = st.pop("ac_talk")
         feel = "暑い" if at["hot"] else "寒い"
         if choice == "match":
             app.home.set_mode(at["want"])
@@ -178,50 +101,23 @@ class Aircon:
             ok = random.random() < 0.3 + 0.5 * app.life.skill_soft("talk")
             key, eff = ("bill_ok", {"mood": -0.5}) if ok else ("bill_meh", {"mood": -1.5})
         else:
-            fight = random.random() < min(0.8, 0.45 * float(app.traits(char).get("grudge", 1)))
+            fight = self.fight(char, st, now)
             key, eff = ("push_fight", {"mood": -3}) if fight else ("push_unhappy", {"mood": -2})
-            if fight:
-                app.quarrel.start(char, st, now, "冷暖房", her_fault=False)
-        d = self._apply(char, st, eff, now, choice)
         said = {"match": "（冷暖房を「%s」にした）" % season_mod.AC_LABEL[at["want"]], "bill": "（電気代が気になると断った）",
                 "push": "（このままがいいと言い返した）"}[choice]
-        e = self._entry(char, st, now, key, said + "\n" + self.line(char, key, {"feel": feel}), d)
-        app.trace.add("aircon", "言ってきたことへの出方", char["id"], now, choice=choice, key=key)
-        app.save_state(char["id"])
-        return {"entry": e, "key": key}
+        return key, eff, said, {"feel": feel}
 
-    # ------------------------------------------------------------------ あなたが変えたとき
-    def changed(self, old, new, now=None):
-        """あなたが使い方を old → new にした. 同居相手が起きてそばにいれば気づく (記録した場面を返す)."""
-        app = self.app
-        now = now or time.time()
-        cid = app.bonds.living()
-        if old == new or not cid or not self.awake_home(cid, now):
-            return None
-        char, st = app.chars[cid], app.state(cid)
+    def granted(self, char, st, at, old, new, now):
         tc = season_mod.temp(datetime.fromtimestamp(now))
-        fo, fn = season_mod.ac_fuss(app, char, tc, old), season_mod.ac_fuss(app, char, tc, new)
-        if st.get("ac_talk") and abs(fn) < abs(fo):        # 言ってきたことを, 答える前に家の様子から叶えた
-            st.pop("ac_talk", None)
-        if now - float(st.get("ac_note", 0)) < NOTE_SEC:
-            app.save_state(cid)
-            return None
-        mine = st.get("ac_self") or {}
-        undo = mine.get("mode") == old and now - float(mine.get("t", 0)) < 6 * 3600
-        key, eff, p = None, {}, 0.0
+        return abs(season_mod.ac_fuss(self.app, char, tc, new)) < abs(season_mod.ac_fuss(self.app, char, tc, old))
+
+    def react(self, char, st, old, new, undo, now):
+        tc = season_mod.temp(datetime.fromtimestamp(now))
+        fo, fn = season_mod.ac_fuss(self.app, char, tc, old), season_mod.ac_fuss(self.app, char, tc, new)
         if abs(fn) >= 0.3 and abs(fn) > abs(fo) + 0.2:
-            key = "undo" if undo else "notice_" + ("hot" if fn > 0 else "cold")
-            eff, p = ({"mood": -2}, 0.8) if undo else ({"mood": -1}, 0.4)
-        elif abs(fo) >= 0.3 and abs(fn) < abs(fo) - 0.2:
-            key, eff, p = "thanks", {"mood": 1}, 0.5
-        app.trace.add("aircon", "あなたが変えた", cid, now, old=old, new=new, fo=fo, fn=fn, key=key, p=p)
-        if not key or random.random() >= p:
-            app.save_state(cid)
-            return None
-        st["ac_note"] = now
-        if undo:
-            st.pop("ac_self", None)
-        d = self._apply(char, st, eff, now, key)
-        e = self._entry(char, st, now, key, self.line(char, key), d)
-        app.save_state(cid)
-        return e
+            if undo:
+                return "undo", {"mood": -2}, 0.8, {}
+            return "notice_" + ("hot" if fn > 0 else "cold"), {"mood": -1}, 0.4, {}
+        if abs(fo) >= 0.3 and abs(fn) < abs(fo) - 0.2:
+            return "thanks", {"mood": 1}, 0.5, {}
+        return None

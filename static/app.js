@@ -978,6 +978,7 @@ function drawHome() {
       h('p', { class: 'small', style: 'margin:6px 0 0' }, `いまの室温 ${hm.aircon.room}℃${hm.aircon.run === 'cool' ? '（冷房中）' : hm.aircon.run === 'heat' ? '（暖房中）' : ''}・今月の電気代 ${hm.aircon.bill.toLocaleString()}円（${hm.aircon.hours}時間）`),
       h('p', { class: 'hint' }, 'あなたが家にいる間、設定より暑い / 寒いときだけ動きます。電気代は動いた時間と外との差しだいで、翌月はじめに家賃と一緒に払います（同居なら生活費の分け方で）。',
         h('br'), '付けないと、暑すぎ・寒すぎの部屋では体力が戻りにくく、長くいると体調を崩しやすくなり、熱帯夜は寝苦しくなります。家に来ている相手や同居の相手も過ごしにくく、家に呼んだときの乗り気にも響きます。')) : '',
+    hm.ambience ? drawAmbience(hm.ambience) : '',
     h('p', { class: 'small' }, `🗑 ゴミの日は ${(hm.trash_days || []).join('・')}曜の朝（8時半まで）${hm.trash_ok ? '・いま出せます' : ''}${hm.wet ? '・☔ 今日の洗濯は部屋干し' : ''}`),
     v.chores ? h('div', { class: 'pgroup' }, h('h4', {}, `家事の分担（${v.chores.name}と）`),
       h('p', { class: 'hint' }, '相手の担当にするときは、引き受けてくれるかは相手しだい（そばにいるときに話します）。相手の担当がたまっていると、さぼりの知らせが出ます。'),
@@ -988,6 +989,34 @@ function drawHome() {
       h('button', { class: 'btn primary', disabled: !free || S.busy, why: free ? '' : presWhy(), title: free ? '家事をする（一人の時間）' : 'いまは始められません',
         onclick: () => { S.homeDlg.close(); soloStart('chores'); } }, '🧹 家事をする'),
       h('span', { class: 'muted small' }, soap ? `洗剤 ${soap.count} 個` : '洗剤なし（買い物で買えます）'))));
+}
+
+// 家の様子: 音楽 (かけている間もほかのことができる) と お香 / アロマ (S61). 選んだものは描き直しで戻らないよう S.ambPick に
+function drawAmbience(am) {
+  const pk = S.ambPick = S.ambPick || {};
+  const mu = am.music, sc = am.scent;
+  pk.genre = pk.genre || mu.on || (mu.genres[0] || {}).id;
+  pk.scent = pk.scent || (sc.scents[0] || {}).id;
+  pk.how = pk.how || ((sc.hows.find((x) => x.have > 0) || sc.hows[0] || {}).id);
+  const send = async (path, body) => { if (S.busy) return; S.busy = true; try { const r = await api(path, body); if (r.entry) handleActResult(r); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); drawHome(); } };
+  const sel = (id, list, key, label) => h('select', { id, style: 'width:auto;flex:0 0 auto', onchange: (ev) => { pk[key] = ev.target.value; } },
+    ...list.map((x) => h('option', { value: x.id, selected: pk[key] === x.id }, label ? label(x) : x.label)));
+  const howNow = sc.hows.find((x) => x.id === pk.how) || {};
+  return h('div', { class: 'pgroup' }, h('h4', {}, '🎵 音楽・香り'),
+    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap' },
+      h('span', {}, '音楽'), sel('amb-genre', mu.genres, 'genre'),
+      h('button', { class: 'btn small', disabled: S.busy || mu.away || mu.on === pk.genre, onclick: () => send('/api/ambience/music', { genre: pk.genre }) }, mu.on ? '変える' : 'かける'),
+      mu.on ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => send('/api/ambience/music', { genre: '' }) }, '止める') : '',
+      h('span', { class: 'muted' }, mu.on ? `いま ${mu.label}${mu.paused ? '（映画の間は止まっている）' : ''}` : mu.away ? '家にいるときだけかけられます' : '')),
+    h('div', { class: 'row small', style: 'gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px' },
+      h('span', {}, '香り'), sel('amb-scent', sc.scents, 'scent'), sel('amb-how', sc.hows, 'how', (x) => `${x.label}（手元 ${x.have}）`),
+      h('button', { class: 'btn small', disabled: S.busy || !!sc.on || !(howNow.have > 0), onclick: () => send('/api/ambience/scent', { scent: pk.scent, how: pk.how }) }, '焚く'),
+      sc.on ? h('button', { class: 'btn small ghost', disabled: S.busy, onclick: () => send('/api/ambience/scent', { scent: '' }) }, '消す') : '',
+      h('span', { class: 'muted' }, sc.on ? `いま ${sc.label}の${sc.how === 'aroma' ? 'アロマ' : 'お香'}（あと${sc.left}分ほど）` : '')),
+    h('label', { class: 'small', style: 'display:block;margin-top:6px' },
+      h('input', { type: 'checkbox', checked: am.prompt, disabled: S.busy, onchange: (ev) => send('/api/ambience/prompt', { on: ev.target.checked }) }), ' 絵に部屋の雰囲気（スピーカー・お香の煙など）を足す'),
+    h('p', { class: 'hint' }, '音楽は止めるまで流れ、その間もほかのことがふつうにできます（お金はかかりません）。出かけると止まり、映画を観ている間は鳴りません。お香は30〜40分、アロマは3〜4時間で自然に終わります（ドラッグストア・モール・商店街で買えます）。',
+      h('br'), 'そばにいる相手は好みしだいで、機嫌がよくなったり、少し下がったりします（その日によって揺れます）。苦手だと言ってくることも、黙って我慢することもあります。夜中に流したままだと、寝ている同居相手の眠りが浅くなります。'));
 }
 
 async function openDiary() {
@@ -1847,6 +1876,14 @@ function renderRequest() {
     box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `❄ ${at.name}と`), h('div', { class: 'muted small' }, at.text)),
       h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...at.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
         onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/aircon/respond', { choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
+    return;
+  }
+  const amt = S.view.amb_talk;                          // 音楽・香りのことを言ってきた: どう応じるか (S61)
+  if (!req && amt) {
+    box.hidden = false;
+    box.replaceChildren(h('div', { class: 'req-text' }, h('b', {}, `${amt.icon} ${amt.name}と`), h('div', { class: 'muted small' }, amt.text)),
+      h('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, ...amt.choices.map((c) => h('button', { class: 'btn small', disabled: S.busy,
+        onclick: async () => { if (S.busy) return; S.busy = true; try { handleActResult(await api('/api/ambience/respond', { kind: amt.kind, choice: c.id })); } catch (e) { toast(e.message, 'err'); } finally { S.busy = false; await refresh(); } } }, c.label))));
     return;
   }
   const cs = S.view.chores_slack;                       // 同居相手が家事をさぼっている: 出方を選ぶ

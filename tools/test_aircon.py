@@ -11,6 +11,7 @@ import random
 import shutil
 import sys
 import tempfile
+import time
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -208,6 +209,7 @@ def main():
         import copy
         st = app.state(cid)
         app.bonds.wrec()["with"] = {"cid": cid, "mode": "guest", "t": t0}
+        st["override"] = app._guest_override("invite", time.time())     # 招いている間の一時シーン (本物の流れと同じ. 予定の外出で外さない)
         app.set_params({"mood": 60}, cid)
         snap = copy.deepcopy(st)
         moods = {}
@@ -220,6 +222,7 @@ def main():
             app._step(char, st, datetime.now(), 1.0)
             moods[mode] = st["params"]["mood"]
         app.bonds.wrec()["with"] = None
+        st["override"] = None
         assert moods["off"] < moods["eco"] - 0.3 and abs(moods["eco"] - moods["strong"]) < 1e-6, moods
         print("家にいる相手の機嫌: OK 30℃ の部屋 %.1f・11℃ の部屋 %.1f / 36℃ で 1 時間 使わない %.2f・控えめ %.2f" % (
             season.room_mood(app, char, 30.0), season.room_mood(app, char, 11.0), moods["off"], moods["eco"]))

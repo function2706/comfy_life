@@ -331,4 +331,5 @@ class Home:
         return {"score": s, "level": lv, "label": label, "parts": parts,
                 "hint": ("%sが気になる" % worst["label"]) if worst["value"] >= 40 else "",
                 "at": datetime.now().strftime("%H:%M"),
-                "trash_days": ["月火水木金土日"[d] for d in self.trash_days()], "trash_ok": self.trash_ok(), "wet": self.wet(), "aircon": self.ac_view()}
+                "trash_days": ["月火水木金土日"[d] for d in self.trash_days()], "trash_ok": self.trash_ok(), "wet": self.wet(), "aircon": self.ac_view(),
+                "ambience": self.app.ambience.view()}
