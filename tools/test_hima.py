@@ -120,10 +120,11 @@ def main():
         print("message keys: OK")
 
         # ---- 4. 弾んで, 好き・苦手が口に出る (知っていることに残る. 二度は言わない)
+        from core.topics import TAGS
         st["known"] = []
         st["params"].update({"trust": 90, "mood": 90})
         tv = app.topics.tastes(char, st)
-        n_cand = sum(1 for v in tv.values() if abs(v) >= 0.3)
+        n_cand = sum(1 for k, v in tv.items() if abs(v) >= 0.3 and k in TAGS)   # 音楽・香りなど話題でない好み (music:… / scent:… / smoke) は口にしない
         said = [hima.settle(app, char, st, "hit", now) for _ in range(200)]
         got = [s for s in said if s]
         nk = len({(k["kind"], k["text"]) for k in st["known"]})

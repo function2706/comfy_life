@@ -43,7 +43,7 @@ def main():
         engine.hima_mod.judge = judge
         jobs = []
 
-        def enqueue(c, eid, pos, neg, seed=None, kind="entry"):
+        def enqueue(c, eid, pos, neg, seed=None, kind="entry", bg=False):
             jid = "j%d" % len(jobs)
             app.jobs[jid] = {"id": jid, "status": "queued", "kind": kind}
             jobs.append((jid, eid, pos))

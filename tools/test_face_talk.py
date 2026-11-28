@@ -29,7 +29,7 @@ def main():
         assert app.bonds.together(cid), "そばにいる前提"
         ids = [a["id"] for a in app.actions]
         assert "thank" in ids and "consult_me" in ids and app.action("apologize").get("pick") == "apology"
-        assert set(app.state_view()["picks"]) == {"apology", "thanks", "consult"}
+        assert {"apology", "thanks", "consult"} <= set(app.state_view()["picks"])   # ほかに映画のジャンルなども
         L, M = app.life, app.manners
 
         def fresh():

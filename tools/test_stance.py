@@ -154,7 +154,8 @@ def main():
         reset()
         st["known"] = []
         tv = app.topics.tastes(char, st)
-        strong = [k for k, v in tv.items() if abs(v) >= 0.3]
+        from core.topics import TAGS
+        strong = [k for k, v in tv.items() if abs(v) >= 0.3 and k in TAGS]      # 音楽・香りなど話題でない好みは口にしない
         assert strong, tv
         seen = []
         rng = random.Random(3)

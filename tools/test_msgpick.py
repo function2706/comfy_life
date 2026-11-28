@@ -44,11 +44,11 @@ def main():
 
         # ---- 1. 送る欄: 謝る・お礼は記憶の問い (別の窓. A20. 中身は tools/test_memquiz.py)
         th = C.thread(cid)
-        assert [g["id"] for g in th["groups"]] == ["chat", "feel", "invite", "photo", "call"] and set(th["pick"]) == {"apology", "thanks", "consult", "stamp"}
+        assert [g["id"] for g in th["groups"]] == ["chat", "feel", "invite", "photo", "call"] and set(th["pick"]) == {"apology", "thanks", "consult", "stamp", "late"}
         assert th["pick"]["apology"] == "quiz" and th["pick"]["thanks"] == "quiz"
         grouped = {k for g in th["groups"] for k in g["kinds"]}
         from core import react      # 相手のメッセージへの返しは「返す」のまとまりにだけ (返していないメッセージがあるとき)
-        assert grouped | {"stamp", "nudge"} | set(react.IDS) == set(k["id"] for k in th["kinds"]), set(k["id"] for k in th["kinds"]) - grouped
+        assert grouped | {"stamp", "nudge", "late", "where_appoint"} | set(react.IDS) == set(k["id"] for k in th["kinds"]), set(k["id"] for k in th["kinds"]) - grouped
         print("一覧: OK | 分類 %d" % len(th["groups"]))
 
         # ---- 2. 謝る: 以前の形 (項目 id) で送ってあったもの: 的中ならこれまでの許し方 / 外れは「何のこと？」(気にしていることがあれば下がる)

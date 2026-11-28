@@ -108,7 +108,12 @@ def main():
             sends = {"slow": t - 30 * 60, "traffic": leave + 12 * 60, "oversleep": leave - 5 * 60}
             A._her_late_tell(x, char, st, sends[why] - 120)
             assert "told" not in x["plan"], (why, "早すぎる")
-            r = A._her_late_tell(x, char, st, sends[why] + 1)
+            rr = random.random
+            random.random = lambda: 0.0           # 連絡するか (上限 95%) のくじは外さない. ここで見るのは時期と文
+            try:
+                r = A._her_late_tell(x, char, st, sends[why] + 1)
+            finally:
+                random.random = rr
             assert r and x["plan"]["told"], why
             it = [i for i in C.load(cid)["items"] if i.get("appoint") == x["id"] and i.get("kind") == "appoint_her_late"][-1]
             want = C.line(char, HER_LATE_KEY.get(why, "appoint_her_late"), {"min": str(x["plan"]["told_min"]), "place": app.places.label("cafe")})

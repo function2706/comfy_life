@@ -159,7 +159,9 @@ def main():
         # 2-2. 取りやめ (3 時間前)
         clear()
         x = appt(t=now + 2 * 3600)
+        app.set_params({"health": 30}, cid)     # 体調不良の取りやめ (くじを全部当てると, 気分の取りやめは連絡なしのすっぽかしになる)
         sure(lambda: R.step(now))
+        app.set_params({"health": 90}, cid)
         assert x["status"] == "cancelled" and [i for i in her() if i["kind"] == "appoint_cancel"], x
         # 2-3. 誘い
         clear()

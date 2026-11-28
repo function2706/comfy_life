@@ -230,7 +230,7 @@ def time_probe(d):
 
 
 # 消えてよい (その行動がそのことを終える). (状態の名前の頭 / "*", 続いている状態の頭, 行動 id の集合)
-LEAVE = {"leave_visit", "see_off", "go_home", "end_activity", "visit_end"}
+LEAVE = {"leave_visit", "see_off", "go_home", "end_activity", "visit_end", "taxi_home"}    # taxi_home: タクシーで解散して帰る (go_home と同じ)
 ENDS = [
     ("*", "一緒にいる", LEAVE),
     ("*", "一緒のお出かけ", LEAVE | {"outing_cancel"}),

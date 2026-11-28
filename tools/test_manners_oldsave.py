@@ -151,6 +151,7 @@ def main():
             meta = app.manners.on_send(app.char(cid), st, kind, now)
             app.chat.reply(app.char(cid), st, kind, now, {"_meta": meta})
         app.manners.settle(app.char(cid), st, now + 12 * 3600)
+        app.bonds.set_stage(cid, "contact")      # 同居のままだと, 家にいる時間帯は目の前にいるのでスマホで返さない (以下の節が曜日・時刻で落ちる)
         print("その場で謝る:", e["text"])
 
         # ---- 8. この扱いより前に記録された謝罪 (apology_last に s・thanked が無い) のあとのお礼も, 謝罪の結果しだい

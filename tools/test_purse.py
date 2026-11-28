@@ -337,10 +337,11 @@ def main():
         # 聞けば分かる: 「最近どう？」で話す. 話したあとは「ようす」に出る
         C = app.chat
         st["reasons"] = []
+        hm["hint"] = {"d": today, "how": "plain", "tell": purse.TELL["plain"][0]}     # その日の打ち明け方はくじ (はっきり言う日に固定)
         P.surface(char, st, now)
         key, eff, extra = C.reply(char, st, "ask_how", now + 60, {})       # 届いた「最近どう？」への返事の中身 (同居なので送る経路は通らない)
-        assert key == "ask_how" and purse.TELL["plain"][0] in extra.get("news", ""), (key, extra)
-        assert any(r["tell"] == purse.TELL["plain"][0] for r in app.life.partner_view(char, st)["reasons"])
+        assert key == "ask_how" and any(t in extra.get("news", "") for t in purse.TELL["plain"]), (key, extra)   # 言い方は 2 通りのどちらか
+        assert any(r["tell"] in purse.TELL["plain"] for r in app.life.partner_view(char, st)["reasons"])
         # 電話の話題: お金のことは「今日、」の包みにしない
         st["reasons"] = []
         hm["hint"] = {"d": today, "how": "vague", "tell": purse.TELL["vague"][0]}
@@ -353,7 +354,7 @@ def main():
             random.random = r0
         assert purse.TELL["vague"][0] in text and "今日" not in text, text
         blob = json.dumps(app.state_view(), ensure_ascii=False, default=str)
-        assert '"how": "' not in blob and '"a": %d' % hm["a"] not in blob          # その日の決め・所持金の額は出ない
+        assert not any('"how": "%s"' % h in blob for h in ("plain", "vague", "none")) and '"a": %d' % hm["a"] not in blob   # その日の決め・所持金の額は出ない (香りの欄の how は別物)
         print("苦しいことの打ち明け: OK | 打ち明ける割合 (好感度 45 / 85) " + " ".join(
             "%s %.2f/%.2f" % (pid, op[pid, 45], op[pid, 85]) for pid in ("amaenbo", "tsundere", "kedakai")))
         print("ALL OK")
