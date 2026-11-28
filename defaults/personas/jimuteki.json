@@ -4098,6 +4098,30 @@
   ],
   "ap.movie_invite.ignore": [
    "（{name}は一人で配信の一覧を眺めていた）"
+  ],
+  "dress.self.new": [
+   "（{name}が、着替えて戻ってきた）{item}、試着してみたわ。評価してもらえる？"
+  ],
+  "dress.self.costume": [
+   "（{name}が、{item}に着替えて戻ってきた）気分転換よ。意見を聞かせて"
+  ],
+  "show.attention": [
+   "{call}。少し、こちらを見てもらえるかしら。"
+  ],
+  "photo.pose": [
+   "📱『{item}、撮影したわ。意見をちょうだい』"
+  ],
+  "photo.show": [
+   "📱『……{call}にだけ共有するわ。{item}』"
+  ],
+  "photo.new": [
+   "📱『{item}、着てみたわ。似合っているかしら』"
+  ],
+  "photo.date": [
+   "📱『今日はこの服で行くわ。問題ないか確認して』"
+  ],
+  "photo.attention": [
+   "📱『最近、連絡の頻度が下がっているわね』"
   ]
  }
 }

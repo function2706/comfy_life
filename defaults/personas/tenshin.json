@@ -4099,6 +4099,30 @@
   ],
   "ap.movie_invite.ignore": [
    "（{name}は一人で配信の一覧を眺めていた）"
+  ],
+  "dress.self.new": [
+   "（{name}が、着替えて戻ってきた）見て！ {item}、着てみた！"
+  ],
+  "dress.self.costume": [
+   "（{name}が、{item}に着替えて戻ってきた）着たくなったから着ちゃった！ どう？"
+  ],
+  "show.attention": [
+   "ねえ、{call}！ こっち見て！"
+  ],
+  "photo.pose": [
+   "📱『{item}、撮ってみた！ 見て見て！』"
+  ],
+  "photo.show": [
+   "📱『{call}だけ特別ね！ {item}』"
+  ],
+  "photo.new": [
+   "📱『この前の{item}、着てみたよ！ 似合う？』"
+  ],
+  "photo.date": [
+   "📱『今日これで行くね！ わくわく！』"
+  ],
+  "photo.attention": [
+   "📱『ねえ、最近遊んでくれないじゃん』"
   ]
  }
 }

@@ -4054,6 +4054,30 @@
   ],
   "ap.movie_invite.ignore": [
    "（{name}は一人で配信の一覧を眺めていた）"
+  ],
+  "dress.self.new": [
+   "（{name}が、着替えて戻ってきた）{item}、着てみたわ。見とれていいわよ"
+  ],
+  "dress.self.costume": [
+   "（{name}が、{item}に着替えて戻ってきた）こういうの、好きでしょう？ 顔に出てるわよ"
+  ],
+  "show.attention": [
+   "{call}。こっちを見なさい。"
+  ],
+  "photo.pose": [
+   "📱『{item}、撮ってあげたわ。感想を言いなさい』"
+  ],
+  "photo.show": [
+   "📱『……{call}にだけよ。{item}』"
+  ],
+  "photo.new": [
+   "📱『{item}、着てみたわ。会うまで想像してなさい』"
+  ],
+  "photo.date": [
+   "📱『今日はこれで行くわ。遅れたら承知しないわよ』"
+  ],
+  "photo.attention": [
+   "📱『最近、{fp}を放っておくなんていい度胸ね』"
   ]
  }
 }

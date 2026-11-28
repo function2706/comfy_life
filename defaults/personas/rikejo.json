@@ -4048,6 +4048,30 @@
   ],
   "ap.movie_invite.ignore": [
    "（{name}は一人で配信の一覧を眺めていた）"
+  ],
+  "dress.self.new": [
+   "（{name}が、着替えて戻ってきた）{item}、着てみた。客観的な評価がほしいんだけど"
+  ],
+  "dress.self.costume": [
+   "（{name}が、{item}に着替えて戻ってきた）……仮説: {call}はこういうのが好き。検証させて"
+  ],
+  "show.attention": [
+   "{call}。いまの作業、あとどれくらい？ ……ちょっとこっち見て。"
+  ],
+  "photo.pose": [
+   "📱『{item}、撮ってみた。評価して』"
+  ],
+  "photo.show": [
+   "📱『……{call}にだけ。{item}』"
+  ],
+  "photo.new": [
+   "📱『この前の{item}、着てみた。似合う確率、どれくらい？』"
+  ],
+  "photo.date": [
+   "📱『今日これで行く。気温的にも問題ないはず』"
+  ],
+  "photo.attention": [
+   "📱『最近、{call}からの連絡が統計的に少ない』"
   ]
  }
 }
