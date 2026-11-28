@@ -152,8 +152,9 @@ class Topics:
         if (r or {}).get("override"):
             return None
         ov = a.get("override") or {}
-        if a.get("id") == "movie":
-            title, tags = random.choice(MOVIES)
+        if a.get("id") == "movie":              # 一緒に観たジャンル (A44 段 1. engine.movie_genre) があれば, その中から
+            g = (opts or {}).get("genre")
+            title, tags = self.pick_genre(MOVIE_GENRES, g) if g else random.choice(MOVIES)
             return self.add("with", "%sと%sを観た話" % (char.get("name", ""), title), tags, now, with_=[char["id"]])
         if ov.get("outing"):
             place = (opts or {}).get("place") if (opts or {}).get("place") in (a.get("places") or []) else ov.get("place")

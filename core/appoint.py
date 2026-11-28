@@ -39,6 +39,7 @@ from datetime import datetime, timedelta
 
 from . import cond
 from . import places as places_mod
+from . import prefs as prefs_mod
 from . import season as season_mod
 
 EARLY = 15 * 60          # 約束の時刻のこれだけ前から「もうすぐ」として知らせる
@@ -96,6 +97,7 @@ def fmt_when(t, now=None):
 
 HOME_INVITE = 0.2            # 家に行ける仲で, 誘いが家になる割合の基本 (慣れで HOME_INVITE_FAM × 慣れ 増える)
 HOME_INVITE_FAM = 0.3
+PLACE_PREF = 0.03           # あなたがよく誘う所 (覚えた好み 1 あたり. A44 段 1)
 TIGHT_INVITE = 0.6          # 所持金が苦しいときの, 誘いの起きやすさの倍率 (core/purse.py)
 TIGHT_PAID = 0.3            # 同じく, お金のかかる行き先・することの選ばれやすさの倍率
 NOW_RATE = 0.012             # 急な誘いの起きやすさ (1 時間あたり. 退屈・寂しさ・機嫌 × 性格 approach)
@@ -353,6 +355,9 @@ class Appoint:
         x = {"id": uuid.uuid4().hex[:8], "cid": cid, "t": t, "place": place, "do": do, "by": "me", "status": "asked", "made": now}
         self.all().append(x)
         self.save()
+        if place in places_mod.PLACES:       # あなたから誘った行き先 = あなたの好み (A44 段 1. 家は数えない)
+            prefs_mod.learn(app.state(cid), "place:" + place, 1.0, now)
+            app.save_state(cid)
         self._send(x, now, "（%s、%sで「%s」に誘った）" % (fmt_when(t, now), app.places.label(place), a.get("name", do)))
         return dict(x, label=STATUS_LABEL[x["status"]])
 
@@ -1081,7 +1086,8 @@ class Appoint:
         return max(0.1, min(1.5, f))
 
     def place_weight(self, char, st, pid):
-        """行き先の選ばれやすさ (気持ち傾くだけ. 0.8〜1.5): 好きなものに合う所・一緒に行って楽しかった所・まだ行ったことのない所."""
+        """行き先の選ばれやすさ (気持ち傾くだけ. 0.8〜1.8): 好きなものに合う所・一緒に行って楽しかった所・まだ行ったことのない所・
+        あなたがよく誘う所 (覚えた好み place:<id>. 世話焼きほど汲み, 機嫌が悪いと汲まない. A44 段 1)."""
         lk, dk = self.app.items.likes(char)
         w = 1.0
         if any(pid in LIKE_PLACES.get(t, ()) for t in lk):
@@ -1093,7 +1099,8 @@ class Appoint:
             w += 0.1                                  # 行ったことのない所への興味
         else:
             w += max(-0.15, min(0.2, fun / 25.0))     # 一緒に行って楽しかった (つまらなかった)
-        return max(0.8, min(1.5, w))
+        w += PLACE_PREF * max(0.0, prefs_mod.pref(st, "place:%s" % pid)) * prefs_mod.receptive(self.app, char, st)
+        return max(0.8, min(1.8, w))
 
     def pick(self, char, st, opts, dt=None):
         """誘う行き先とすること. 好みで少しだけ傾けて, あとは偶然. 所持金が苦しいときは, お金のかかることを避ける.

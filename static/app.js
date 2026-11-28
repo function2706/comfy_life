@@ -610,7 +610,7 @@ function cmdButton(a) {
   return h('button', { class: 'cmd', disabled: !st.ok || S.busy || !!why, why: why || (!st.ok && st.why) || '', title: [why, tip, pl ? `行き先: ${(a.places || []).length > 1 ? '選べます' : pl.label}` : ''].filter(Boolean).join('\n'),
     onclick: () => (['gift', 'expensive_gift'].includes(a.id) ? giftPicker(a.id) : a.id === 'talk_topic' ? topicPicker(tid(), false)
       : a.anniv ? sayAnniv(a.anniv, tid())
-      : a.pick && a.mood_action ? pickFace(a)
+      : a.pick ? pickFace(a)
       : (a.places || []).length > 1 ? pickPlace(a) : (!(st.confirm || a.confirm) || confirm(st.confirm || a.confirm)) && doAct(a.id)) },     // st.confirm: 引き止められている (別れぎわ)
     h('span', { class: 'ic' }, a.icon || '•'), h('span', {}, a.name),
     pl && !((a.places || []).length > 1) ? h('small', { class: 'muted' }, pl.open === false ? `${pl.label}・${pl.note}` : pl.label) : null,
@@ -2512,6 +2512,7 @@ async function askVisitNow(cid) {
 // 送る欄 (A2): 分類のタブ → その分類の種類. 謝る・お礼・相談・スタンプは「何を」を選ぶ欄を開いてから送る (A1).
 // 謝る理由は分類せず決まった順に 1 列 (どれのことかを自分で探して選ぶ)
 const PICK_TITLE = { apology: '何を謝る？', thanks: '何のお礼？', consult: '何を相談する？', stamp: 'どのスタンプ？',
+  movie_genre: 'どんな映画を観る？（おまかせなら相手が選ぶ）',
   late: 'どのくらい遅れる？（伝えた分は待ってくれる。そのうちに着けば、黙って遅れるより軽い）' };
 const PICK_KEY = { apology: 'reason', thanks: 'reason', consult: 'consult', stamp: 'stamp', late: 'late' };
 // 電話の対話 (A23 段 1. core/phonetalk.py): 通話中は, 相手のひとことに返し方を選んで返す. 返さずにいると「もしもし？」, それでも黙っていると相手から切れる.

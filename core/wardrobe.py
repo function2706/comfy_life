@@ -38,6 +38,7 @@ import uuid
 from . import items as items_mod
 from . import outdoor as outdoor_mod
 from . import season as season_mod
+from . import prefs as prefs_mod
 from . import store
 
 KINDS = {"casual": "普段着", "lounge": "部屋着", "formal": "よそ行き", "work": "仕事着", "pajamas": "パジャマ",
@@ -797,6 +798,7 @@ class Wardrobe:
         t = season_mod.temp(dt)
         aff = st["params"].get("affection", 40)
         cap = self.comfort(char, st)
+        day0 = dt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()     # 好みの薄れはその日の 0 時で (見るたびに変えない)
         cands, weights = [], []
         for o in self.owned(char):
             if o["kind"] not in (OUT_KINDS if outing else HOME_KINDS) or (outing and not o["outing_ok"]):
@@ -811,13 +813,13 @@ class Wardrobe:
                 w *= max(0.5, min(2.5, 1 + (aff - 45) / 30.0))
             if outing and rain and o["kind"] == "formal":
                 w *= 0.4
-            w *= max(0.3, 1.0 + 0.15 * float((st.get("prefs") or {}).get("outfit:" + o["id"], 0.0)))     # あなたの好み (着せた服)
+            w *= max(0.3, 1.0 + 0.15 * prefs_mod.pref(st, "outfit:" + o["id"], day0))     # あなたの好み (着せた服)
             w *= season_mod.fit_weight(self.temp_gap(char, o, dt, outing, t))         # その時の気温 (S38)
             cands.append(o)
             weights.append(w)
         cos, seen = [], set()
         for _ in range(4):                # 持っている部品から組んだコーデも候補に (4 通り組んで, 気温に合うものを選びやすく)
-            co = self._pick_coord(char, st, rng, season, outing, cap, aff)
+            co = self._pick_coord(char, st, rng, season, outing, cap, aff, day0)
             if not co:
                 break
             k = tuple(sorted(co["coord"].items()))
@@ -838,10 +840,9 @@ class Wardrobe:
             return 1.0
         return 0.3
 
-    def _pick_coord(self, char, st, rng, season, outing, cap, aff):
+    def _pick_coord(self, char, st, rng, season, outing, cap, aff, day0=None):
         """持っている部品から本人が組むコーデ (トップス + ボトムス か ワンピース. 外なら靴. ときどきソックス・ハット・アクセサリー).
         組めなければ None."""
-        prefs = st.get("prefs") or {}
         by = {}
         for o in self.owned(char):
             if o["slot"] not in COORD_SLOTS or o["slot"] == "lingerie" or o["bold"] > cap or o.get("when"):
@@ -862,7 +863,7 @@ class Wardrobe:
                 x = math.exp(0.8 * fx)
                 if o.get("owned_from") == "player" and fx >= -0.3:
                     x *= max(0.5, min(2.5, 1 + (aff - 45) / 30.0))
-                x *= max(0.3, 1.0 + 0.15 * float(prefs.get("outfit:" + o["key"], 0.0)))
+                x *= max(0.3, 1.0 + 0.15 * prefs_mod.pref(st, "outfit:" + o["key"], day0))
                 for b in base or []:
                     x *= self._match(o.get("color"), b.get("color"))
                 w.append(x)

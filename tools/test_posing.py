@@ -280,7 +280,7 @@ def main():
         app.set_params({"affection": 90, "trust": 90, "mood": 70}, cid)
         r = app.act("_pose", cid, opts={"poses": ["standing", "v_sign"]})
         assert "standing" in r["entry"]["pos"] and ", v," in ", " + r["entry"]["pos"] + ",", r["entry"]["pos"]
-        assert P.pref(st, "pose:standing") == 0.5 and P.pref(st, "pose:v_sign") == 0.5
+        assert round(P.pref(st, "pose:standing"), 3) == 0.5 and round(P.pref(st, "pose:v_sign"), 3) == 0.5      # 覚えてから読むまでの薄れの端数 (core/prefs.py)
         try:
             app.act("_pose", cid, opts={"poses": ["on_back", "salute"]})
             raise AssertionError("合わない組み合わせを頼めた")

@@ -18,7 +18,7 @@
    "effects": {"mood": -3, "loneliness": 3}}
  },
  {
-  "id": "lean", "label": "もたれかかってきた", "icon": "💞", "when": "affection>=60, loneliness>=40", "weight": 2, "cooldown_h": 3,
+  "id": "lean", "likes": "act:lean_close", "label": "もたれかかってきた", "icon": "💞", "when": "affection>=60, loneliness>=40", "weight": 2, "cooldown_h": 3,
   "text": "（{name}が、何も言わずにそっと肩にもたれかかってきた）", "pos": "leaning on viewer's shoulder, eyes closed, blush", "neg": "",
   "accept": {"label": "そのままにする", "text": "（しばらくそのまま寄り添っていた。{name}は小さく息をついた）", "skill": "touch",
    "effects": {"loneliness": -15, "mood": 5, "affection": 2, "heart": 6}, "reason_good": "{call}がそばで寄り添ってくれた"},
@@ -56,7 +56,7 @@
    "effects": {"mood": -6, "loneliness": 8}}
  },
  {
-  "id": "show", "talk": "happy", "label": "何か見せたいみたい", "icon": "✨", "when": "mood>=60", "weight": 1, "cooldown_h": 5,
+  "id": "show", "likes": "show:*", "talk": "happy", "label": "何か見せたいみたい", "icon": "✨", "when": "mood>=60", "weight": 1, "cooldown_h": 5,
   "text": "{call}、見てください、これ！ かわいくないですか？", "pos": "holding phone, showing screen, excited, smile", "neg": "",
   "accept": {"label": "見せて", "text": "でしょう！ ……ふふ、{call}ならわかってくれると思いました。", "skill": "talk",
    "effects": {"mood": 4, "affection": 1, "boredom": -5}},
@@ -72,7 +72,7 @@
   "ignore": {"text": "（{name}は一人分だけ作って、静かに食べた）", "effects": {"mood": -3, "loneliness": 4}}
  },
  {
-  "id": "play", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, energy>=25, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
+  "id": "play", "likes": "game:*", "label": "ゲームに誘ってきた", "icon": "🎮", "when": "boredom>=55, energy>=25, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 4,
   "text": "ねえ、一緒にゲームしません？", "pos": "holding game controller, excited, looking at viewer", "neg": "",
   "accept": {"label": "やろう", "action": "game", "text": "やった！ 負けませんよ？", "effects": {"boredom": -15, "mood": 5}},
   "later": {"label": "あとでね", "text": "約束ですよ？", "effects": {"mood": -1}},
@@ -196,14 +196,91 @@
   "ignore": {"text": "（{name}は一人で景色の写真を撮った）", "effects": {"mood": -1}}
  },
  {
-  "id": "date_hands", "label": "手をつなぎたいみたい", "icon": "🤝", "when": "outing=true, affection>=65", "weight": 1, "cooldown_h": 4,
+  "id": "date_hands", "likes": "act:hold_hands", "label": "手をつなぎたいみたい", "icon": "🤝", "when": "outing=true, affection>=65", "weight": 1, "cooldown_h": 4,
   "text": "……あの、手、つないでもいいですか？", "pos": "blush, looking away, reaching hand, outdoors", "neg": "",
   "accept": {"label": "つなぐ", "action": "hold_hands", "text": "……えへへ。", "effects": {"heart": 5, "affection": 1}},
   "later": {"label": "ちょっと照れる", "text": "……そ、そうですよね。", "effects": {"mood": -2, "shyness": 4}},
   "ignore": {"text": "（{name}は差し出しかけた手を、そっと引っ込めた）", "effects": {"mood": -2, "shyness": 3}}
  },
- {"id": "arm_link", "label": "腕を組んできた", "icon": "💞", "when": "outing=true, affection>=70, mood>=55", "weight": 1, "cooldown_h": 4, "text": "（{name}が、するっと腕をからめてきた）……だめですか？", "pos": "arm in arm, outdoors, looking up at viewer, blush, smile", "neg": "", "accept": {"label": "組んで歩く", "text": "ふふ。じゃあ、このまま行きましょう。", "skill": "touch", "effects": {"heart": 7, "shyness": 5, "affection": 1, "mood": 2}, "pos": "arm in arm, walking together, outdoors, happy", "reason_good": "{call}と腕を組んで歩いた"}, "later": {"label": "ちょっと照れる", "text": "……人前だと、そうですよね。", "effects": {"mood": -2, "shyness": 4}}, "ignore": {"text": "（{name}はからめかけた腕を、そっとほどいた）", "effects": {"mood": -2}}},
- {"id": "lap_wish", "label": "膝枕してほしそう", "icon": "😪", "when": "outside=false, energy<35, affection>=70, trust>=55", "weight": 1, "cooldown_h": 8, "text": "……{call}、少しだけ膝、借りてもいいですか。なんだか疲れちゃって。", "pos": "sleepy, tired, sitting, indoors, looking at viewer, blush", "neg": "", "accept": {"label": "どうぞ", "text": "……ありがとうございます。少しだけ、こうさせてください。", "skill": "touch", "effects": {"stress": -10, "loneliness": -12, "heart": 6, "affection": 1, "sleepiness": 4}, "pos": "lap pillow, lying on lap, closed eyes, indoors", "reason_good": "{call}に膝枕をしてもらった"}, "later": {"label": "いまはちょっと", "text": "……ですよね。大丈夫です。", "effects": {"mood": -3}}, "ignore": {"text": "（{name}はソファのはしで、小さく丸くなった）", "effects": {"mood": -2, "loneliness": 4}}},
+ {"id": "arm_link", "likes": "act:arm_in_arm", "label": "腕を組んできた", "icon": "💞", "when": "outing=true, affection>=70, mood>=55", "weight": 1, "cooldown_h": 4, "text": "（{name}が、するっと腕をからめてきた）……だめですか？", "pos": "arm in arm, outdoors, looking up at viewer, blush, smile", "neg": "", "accept": {"label": "組んで歩く", "text": "ふふ。じゃあ、このまま行きましょう。", "skill": "touch", "effects": {"heart": 7, "shyness": 5, "affection": 1, "mood": 2}, "pos": "arm in arm, walking together, outdoors, happy", "reason_good": "{call}と腕を組んで歩いた"}, "later": {"label": "ちょっと照れる", "text": "……人前だと、そうですよね。", "effects": {"mood": -2, "shyness": 4}}, "ignore": {"text": "（{name}はからめかけた腕を、そっとほどいた）", "effects": {"mood": -2}}},
+ {"id": "lap_wish", "likes": "act:lap_give", "label": "膝枕してほしそう", "icon": "😪", "when": "outside=false, energy<35, affection>=70, trust>=55", "weight": 1, "cooldown_h": 8, "text": "……{call}、少しだけ膝、借りてもいいですか。なんだか疲れちゃって。", "pos": "sleepy, tired, sitting, indoors, looking at viewer, blush", "neg": "", "accept": {"label": "どうぞ", "text": "……ありがとうございます。少しだけ、こうさせてください。", "skill": "touch", "effects": {"stress": -10, "loneliness": -12, "heart": 6, "affection": 1, "sleepiness": 4}, "pos": "lap pillow, lying on lap, closed eyes, indoors", "reason_good": "{call}に膝枕をしてもらった"}, "later": {"label": "いまはちょっと", "text": "……ですよね。大丈夫です。", "effects": {"mood": -3}}, "ignore": {"text": "（{name}はソファのはしで、小さく丸くなった）", "effects": {"mood": -2, "loneliness": 4}}},
+ {
+  "id": "fond_hands", "label": "手を重ねてきた", "icon": "🤝", "when": "outing=false, affection>=55", "weight": 1, "cooldown_h": 6, "likes": "act:hold_hands", "min_pref": 2, "touch_of": "hold_hands",
+  "text": "（{name}が、何も言わずに{call}の手に指を絡めてきた）", "pos": "holding hands, interlocked fingers, blush, sitting close, indoors", "neg": "",
+  "accept": {"label": "握り返す", "text": "（握り返すと、{name}は少しだけ力を込めた）", "skill": "touch", "effects": {"heart": 5, "loneliness": -8, "affection": 1}, "pos": "holding hands, interlocked fingers, blush, sitting close, indoors", "reason_good": "{call}と手をつないでいた"},
+  "later": {"label": "ちょっと待って", "text": "……あ、すみません。つい。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}はそっと手を離した）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_shoulder", "label": "肩をもんでほしいみたい", "icon": "💆", "when": "outing=false, affection>=55", "weight": 1, "cooldown_h": 6, "likes": "act:shoulder_rub", "min_pref": 2, "touch_of": "shoulder_rub",
+  "text": "……あの、肩、もんでもらえません？ {call}にしてもらうの、けっこう好きで。", "pos": "sitting, back to viewer, looking back over shoulder, smile, indoors", "neg": "",
+  "accept": {"label": "もんであげる", "text": "（肩をもむと、{name}は気持ちよさそうに目を細めた）", "skill": "touch", "effects": {"stress": -8, "mood": 3, "affection": 1}, "pos": "sitting, back to viewer, looking back over shoulder, smile, indoors", "reason_good": "{call}が肩をもんでくれた"},
+  "later": {"label": "あとでね", "text": "はーい。じゃあ、あとで。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}は自分で肩を回していた）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_back", "label": "背中をさすってほしいみたい", "icon": "🫶", "when": "outing=false, affection>=55", "weight": 1, "cooldown_h": 6, "likes": "act:back_rub", "min_pref": 2, "touch_of": "back_rub",
+  "text": "……ちょっとだけ、背中さすってもらえます？ 落ち着くので。", "pos": "sitting, leaning forward, eyes closed, relaxed, indoors", "neg": "",
+  "accept": {"label": "さすってあげる", "text": "（背中をさすっていると、{name}の肩から力が抜けていった）", "skill": "touch", "effects": {"stress": -8, "loneliness": -6, "affection": 1}, "pos": "sitting, leaning forward, eyes closed, relaxed, indoors", "reason_good": "{call}が背中をさすってくれた"},
+  "later": {"label": "ちょっと待って", "text": "……はい。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}はクッションを抱えて丸くなった）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_hair", "label": "頭を寄せてきた", "icon": "💇", "when": "outing=false, affection>=60", "weight": 1, "cooldown_h": 6, "likes": "act:touch_hair", "min_pref": 2, "touch_of": "touch_hair",
+  "text": "（{name}が、撫でてと言わんばかりに頭を寄せてきた）", "pos": "leaning head toward viewer, eyes closed, blush, indoors", "neg": "",
+  "accept": {"label": "髪に触れる", "text": "（髪をなでると、{name}はくすぐったそうに笑った）", "skill": "touch", "effects": {"heart": 5, "loneliness": -8, "affection": 1}, "pos": "leaning head toward viewer, eyes closed, blush, indoors", "reason_good": "{call}が髪をなでてくれた"},
+  "later": {"label": "ちょっと待って", "text": "……あ。すみません。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}は気まずそうに頭を戻した）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_tickle", "label": "くすぐり返してきた", "icon": "🤭", "when": "outing=false, mood>=55, affection>=50", "weight": 1, "cooldown_h": 6, "likes": "act:tickle", "min_pref": 2, "touch_of": "tickle",
+  "text": "（{name}がにやりとして、{call}の脇腹をつついてきた）……この前のお返しです。", "pos": "grin, poking, playful, indoors", "neg": "",
+  "accept": {"label": "やり返す", "text": "（くすぐり合いになって、二人とも息が切れるまで笑った）", "skill": "touch", "effects": {"mood": 5, "boredom": -8, "affection": 1}, "pos": "grin, poking, playful, indoors", "reason_good": "{call}とふざけ合った"},
+  "later": {"label": "やめてって", "text": "えー。……しょうがないですね。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（反応がないので、{name}はつまらなそうに手を引っ込めた）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_cheek", "label": "手を頬に当ててきた", "icon": "☺", "when": "outing=false, affection>=65", "weight": 1, "cooldown_h": 6, "likes": "act:touch_cheek", "min_pref": 2, "touch_of": "touch_cheek",
+  "text": "（{name}が{call}の手を取って、自分の頬に当てた）……あったかい。", "pos": "holding viewer's hand to cheek, eyes closed, blush, indoors", "neg": "",
+  "accept": {"label": "そのままにする", "text": "（しばらくそのままでいると、{name}は満足そうに息をついた）", "skill": "touch", "effects": {"heart": 6, "loneliness": -8, "affection": 1}, "pos": "holding viewer's hand to cheek, eyes closed, blush, indoors", "reason_good": "{call}の手を頬に当てていた"},
+  "later": {"label": "照れる", "text": "……そうですよね。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}はそっと手を離した）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_hug", "label": "くっついてきた", "icon": "🫂", "when": "outing=false, affection>=70", "weight": 1, "cooldown_h": 6, "likes": "act:pull_close", "min_pref": 2, "touch_of": "pull_close",
+  "text": "……ぎゅって、してもらえません？", "pos": "arms open, blush, looking up at viewer, indoors", "neg": "",
+  "accept": {"label": "抱き寄せる", "text": "（抱き寄せると、{name}は胸に顔をうずめてじっとしていた）", "skill": "touch", "effects": {"heart": 7, "loneliness": -12, "affection": 2}, "pos": "arms open, blush, looking up at viewer, indoors", "reason_good": "{call}が抱き寄せてくれた"},
+  "later": {"label": "ちょっと待って", "text": "……はい。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}は小さくため息をついた）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_lap", "label": "膝枕をしてくれるみたい", "icon": "🛋", "when": "outing=false, affection>=70, trust>=55", "weight": 1, "cooldown_h": 6, "likes": "act:lap_rest", "min_pref": 2, "touch_of": "lap_rest",
+  "text": "膝、どうぞ。……{call}、これ好きでしょう？", "pos": "sitting on sofa, patting lap, smile, indoors", "neg": "",
+  "accept": {"label": "甘える", "text": "（膝に頭をのせると、{name}は髪をなでてくれた）", "skill": "touch", "effects": {"heart": 6, "loneliness": -10, "affection": 2, "mood": 3}, "pos": "sitting on sofa, patting lap, smile, indoors", "reason_good": "{call}に膝枕をしてあげた"},
+  "later": {"label": "あとで", "text": "……はい。いつでもどうぞ。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（返事がないので、{name}は膝の上で手を組んだ）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "fond_kiss", "label": "キスしてきた", "icon": "💋", "when": "outing=false, affection>=80, heart>=50, trust>=60", "weight": 1, "cooldown_h": 12, "likes": "act:kiss", "min_pref": 2, "touch_of": "kiss",
+  "text": "（{name}が、ふいに{call}の頬に唇を寄せた）", "pos": "kiss on cheek, blush, eyes closed, indoors", "neg": "",
+  "accept": {"label": "返す", "text": "（見つめ返すと、{name}は照れくさそうに笑った）", "skill": "touch", "effects": {"heart": 8, "affection": 2, "mood": 4}, "pos": "kiss on cheek, blush, eyes closed, indoors", "reason_good": "{name}からキスしてくれた"},
+  "later": {"label": "照れる", "text": "……な、何か言ってください。", "effects": {"mood": -2, "shyness": 3}},
+  "ignore": {"text": "（反応がないので、{name}は真っ赤になって顔をそむけた）", "busy_text": "（{name}は、作業の邪魔をしないよう、そっと離れた）", "effects": {"mood": -2, "loneliness": 3}}
+ },
+ {
+  "id": "play_again", "label": "いつものゲームに誘ってきた", "icon": "🎲", "when": "boredom>=40, energy>=25, phase!=midnight, outing=false", "weight": 2, "cooldown_h": 6, "likes": "game:*", "min_pref": 2, "pick_game": true,
+  "text": "ねえ、この前の{game}、もう一回やりません？", "pos": "holding game, excited, looking at viewer, indoors", "neg": "",
+  "accept": {"label": "やろう", "text": "やった！ 今度は負けませんからね。", "effects": {"boredom": -10, "mood": 4}},
+  "later": {"label": "あとでね", "text": "約束ですよ？", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は一人で駒を並べ始めた）", "effects": {"mood": -2, "boredom": 2}}
+ },
+ {
+  "id": "movie_invite", "label": "映画に誘ってきた", "icon": "🎬", "when": "boredom>=35, phase=evening|night, outing=false, outside=false", "weight": 2, "cooldown_h": 12, "likes": "act:movie", "min_pref": 2, "pick_genre": true,
+  "text": "今夜、映画観ません？ {genre}のとか、どうです？", "pos": "holding remote control, sitting on sofa, smile, indoors", "neg": "",
+  "accept": {"label": "観よう", "action": "movie", "text": "じゃあ、明かり落としますね。", "effects": {"mood": 3}},
+  "later": {"label": "また今度", "text": "……はい。また今度。", "effects": {"mood": -1}},
+  "ignore": {"text": "（{name}は一人で配信の一覧を眺めていた）", "effects": {"mood": -1, "boredom": 2}}
+ },
  {
   "id": "umbrella", "label": "傘に入れてほしそう", "icon": "☂", "when": "outing=true, wx=rain, affection>=40", "weight": 3, "cooldown_h": 6,
   "text": "あ……{fp}、傘を忘れてきちゃったみたいで。入れてもらってもいいですか？", "pos": "rain, outdoors, looking at viewer, embarrassed smile, wet hair", "neg": "",

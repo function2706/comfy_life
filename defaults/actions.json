@@ -3068,10 +3068,36 @@
     "when": "sleepiness>=60",
     "pos": "sleepy",
     "neg": ""
+   },
+   {
+    "key": "genre_like",
+    "priority": 1,
+    "text": "{genre}、好きなんです。……これ、当たりかもしれません",
+    "when": "movie_feel=like",
+    "pos": "watching movie, engrossed, smile, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": 3,
+     "boredom": -5
+    }
+   },
+   {
+    "key": "genre_dislike",
+    "priority": 1,
+    "text": "……{genre}ですか。いえ、観ますけど",
+    "when": "movie_feel=dislike",
+    "pos": "watching movie, bored, looking at phone, sitting on sofa",
+    "neg": "",
+    "effects": {
+     "mood": -2,
+     "boredom": 4,
+     "heart": -2
+    }
    }
   ],
   "reason_good": "{call}と映画を観た",
-  "home_only": true
+  "home_only": true,
+  "pick": "movie_genre"
  },
  {
   "id": "clean",

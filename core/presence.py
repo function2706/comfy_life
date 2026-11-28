@@ -23,6 +23,7 @@ from . import activity as activity_mod
 from . import cond
 from . import msgreply
 from . import nori
+from . import prefs as prefs_mod
 from . import react
 
 DECLARED = ("busy", "out", "work", "sleep", "left")
@@ -321,16 +322,28 @@ class Presence:
                     continue
                 if a.get("pick_place") and not self._next_places(char, st, a, ctx):
                     continue
+                if not self._likes_ok(char, st, a, ctx, now):
+                    continue
             cands.append(a)
         if not cands:
             self.app.trace.add("approach", "候補なし (条件・間隔)", char["id"], now, apart=apart, force=force)
             return None
-        a = random.choices(cands, [float(x.get("weight", 1)) * feel_weight(x, ctx) for x in cands])[0]
+        a = random.choices(cands, [float(x.get("weight", 1)) * feel_weight(x, ctx) * self.like_weight(char, st, x, now)
+                                   for x in cands])[0]
         self.app.trace.add("approach", "働きかけ: %s" % a["id"], char["id"], now, cands=[x["id"] for x in cands], force=force)
         st.setdefault("ap_last", {})[a["id"]] = now
         wait = float(a.get("wait_minutes", self.cfg().get("approach_wait_minutes", 15))) * 60
         st["approach"] = {"id": a["id"], "t": now, "until": now + wait, "presence": ctx.get("presence")}
         text0 = a.get("text", "")
+        if a.get("pick_game"):           # 「この前の〇〇、もう一回やらない？」: 覚えたゲーム (応じれば, そのゲームを始める)
+            gid = self._pick_game(char, st, ctx, now)
+            if gid:
+                st["approach"]["game"] = gid
+                st["approach"]["game_label"] = self.app.games.get(gid).get("name", gid)
+        if a.get("pick_genre"):          # 「映画観ない？」: ジャンルは相手の好みとあなたの好みから (相手の苦手は選ばない)
+            g = self._pick_genre(char, st, now)
+            st["approach"]["genre"] = g[0]
+            st["approach"]["genre_label"] = g[1]
         if a.get("pick_place"):          # お出かけ中「次, あそこ行かない？」: 行き先はその人の好みで (応じれば, そこへ移る)
             nxt = self._next_places(char, st, a, ctx)
             if nxt:
@@ -391,6 +404,59 @@ class Presence:
         st["approach"]["entry"] = e["id"]
         return e
 
+    # ------------------------------------------------------------------ 覚えた好み (A44 段 1. core/prefs.py)
+    RECENT_SEC = 24 * 3600      # 直近に出した働きかけは下げる (同じものばかりにしない)
+    RECENT_W = 0.5
+    PICK_MIN = 2.0              # 覚えたものから選ぶとき (ゲーム・ふれあい) の, 好みの下限
+
+    def like_weight(self, char, st, a, now):
+        """働きかけの重みの倍率: 覚えた好み (likes) と, 直近に出したか."""
+        w = prefs_mod.factor(self.app, char, st, a.get("likes"), now) if a.get("likes") else 1.0
+        if now - (st.get("ap_last") or {}).get(a["id"], 0) < self.RECENT_SEC:
+            w *= self.RECENT_W
+        return w
+
+    def _likes_ok(self, char, st, a, ctx, now):
+        """好みを覚えてはじめて出る働きかけ (min_pref) と, 相手からするふれあい (touch_of: キスは大人どうしだけ)."""
+        if a.get("min_pref") is not None and a.get("likes"):
+            keys = [a["likes"]] if isinstance(a["likes"], str) else a["likes"]
+            if max(prefs_mod.pref(st, k, now) for k in keys) < float(a["min_pref"]) - 0.01:     # 0.01: 覚えた直後の薄れの端数
+                return False
+        if a.get("touch_of"):
+            try:
+                act = self.app.action(a["touch_of"])
+            except KeyError:
+                return False
+            if self.app.touch_ng(act, char) or not cond.check(act.get("when", ""), ctx):
+                return False
+        if a.get("pick_game") and not self._pick_game(char, st, ctx, now, peek=True):
+            return False
+        return True
+
+    def _pick_game(self, char, st, ctx, now, peek=False):
+        """覚えたゲーム (好みが PICK_MIN 以上で, いま遊べるもの) から, 好みの重みで 1 つ."""
+        cands = []
+        for k in list(st.get("prefs") or {}):
+            if k.startswith("game:"):
+                v = prefs_mod.pref(st, k, now)
+                if v >= self.PICK_MIN - 0.01 and self.app.games.can_play(char, k[5:], ctx, now):
+                    cands.append((k[5:], v))
+        if not cands or peek:
+            return bool(cands)
+        return random.choices([g for g, _ in cands], [v for _, v in cands])[0]
+
+    def _pick_genre(self, char, st, now):
+        """誘う映画のジャンル (id, 名前): 相手の好み × あなたがよく選ぶジャンル. 相手の苦手 (−0.3 以下) は選ばない."""
+        from . import topics as topics_mod
+        tv = self.app.topics.tastes(char, st)
+        gs = [g for g in topics_mod.MOVIE_GENRES if float(tv.get(g[0], 0)) > -0.3] or list(topics_mod.MOVIE_GENRES)
+        w = [math.exp(1.2 * float(tv.get(g[0], 0))) * (1 + 0.1 * max(0.0, prefs_mod.pref(st, "genre:" + g[0], now))) for g in gs]
+        g = random.choices(gs, w)[0]
+        return g[0], g[1]
+
+    TIRED_ENERGY = 50           # 相手の体力がこれより低いと, 「次, あそこ」は座れる店に寄せる (S41 の場所ごとの体力)
+    SIT_W, WALK_W = 1.5, 0.6
+
     def _next_places(self, char, st, a, ctx):
         """次に誘える行き先 [(コマンド, 重み)]: いまいる場所以外で, いま行けるところ (時間帯・好み)."""
         app = self.app
@@ -412,6 +478,9 @@ class Presence:
                 w = max(0.05, float(app.appoint.place_weight(char, st, ov.get("place"))))      # その人の行き先の好み (約束と同じ)
             except (KeyError, TypeError, ValueError):
                 w = 1.0
+            if ctx.get("energy", 100) < self.TIRED_ENERGY:     # 疲れている: 座れる店 (体力が減らない) に寄せる
+                rate = app.WITH_ENERGY.get(places_mod.main_do(pl), -3.0) if pl in places_mod.PLACES else -3.0
+                w *= self.SIT_W if rate >= 0 else self.WALK_W
             out.append((act, w))
         return out
 
@@ -422,6 +491,8 @@ class Presence:
         text = app.persona_text(char, "ap.%s.%s" % (a["id"], ev)) or text
         text = text.replace("{place}", (st.get("approach") or {}).get("place_label", ""))     # 「次, あそこ」の行き先 (性格のセリフにも)
         text = text.replace("{who}", (st.get("approach") or {}).get("who", "知り合い"))       # 愚痴の相手 (core/circle.py)
+        text = text.replace("{game}", (st.get("approach") or {}).get("game_label", "ゲーム"))     # 覚えたゲーム (A44)
+        text = text.replace("{genre}", (st.get("approach") or {}).get("genre_label", "映画"))     # 誘う映画のジャンル (A44)
         scene = app.scene_at(char, st, d)
         text = app.format_text(text, char, scene, d)
         act = {"id": "_ap_" + a["id"], "name": a.get("label", a["id"]), "icon": a.get("icon", "💬"),

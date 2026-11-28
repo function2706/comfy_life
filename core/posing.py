@@ -20,6 +20,7 @@ import math
 import os
 import random
 
+from . import prefs as prefs_mod
 from . import store
 
 TYPES = {"pose": "ポーズ", "show": "見せて"}
@@ -235,13 +236,13 @@ class Posing:
 
     # ------------------------------------------------------------------ 好み
     @staticmethod
-    def learn(st, key, amount):
-        prefs = st.setdefault("prefs", {})
-        prefs[key] = round(max(-10.0, min(10.0, prefs.get(key, 0.0) + amount)), 2)
+    def learn(st, key, amount, now=None):
+        """覚える (薄れは core/prefs.py. A44)."""
+        prefs_mod.learn(st, key, amount, now)
 
     @staticmethod
-    def pref(st, key):
-        return float((st.get("prefs") or {}).get(key, 0.0))
+    def pref(st, key, now=None):
+        return prefs_mod.pref(st, key, now)
 
     # ------------------------------------------------------------------ 状況
     def outside(self, cid):

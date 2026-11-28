@@ -20,6 +20,7 @@ from . import forfeit as FF
 from . import hanafuda as HF
 from . import mahjong as MJ
 from . import numeron as NM
+from . import prefs as prefs_mod
 from . import speedcards as SC
 from . import yacht as YT
 from .places import PLACES
@@ -304,9 +305,18 @@ class Games:
                 out["speed"] = self._speed_view(cur)
         return {"list": games, "current": out, "options": opts, "forfeit": fv}
 
-    def start(self, gid, cid=None, bout=None):
+    def can_play(self, char, gid, ctx, now=None):
+        """いまここで, そのゲームを遊べるか (相手から誘うときの候補. 一覧に出ない・場所が合わない・条件が合わないなら遊べない)."""
+        try:
+            g = self.get(gid)
+        except KeyError:
+            return False
+        return not g.get("hidden") and not self.place_why(g, char["id"], now or time.time()) and cond.check(g.get("require", ""), ctx)
+
+    def start(self, gid, cid=None, bout=None, learn=True):
         """gid のゲームを始める. bout: 罰ゲームと勝負の形 {pens, form, n, opt} (core/forfeit.py). 無ければ定義の既定.
-        {omakase: true, form, n} なら罰は相手が決める (forfeit.pick)."""
+        {omakase: true, form, n} なら罰は相手が決める (forfeit.pick).
+        learn: あなたが選んで始めた = あなたの好み (A44 段 1). 相手からの「もう一回やらない？」に応じたときは覚えない."""
         app = self.app
         with app.lock:
             char = app.char(cid)
@@ -352,6 +362,8 @@ class Games:
             if "strip" in b["pens"]:
                 game["outfit"] = self.stage_outfit(g, char, st, 0)
             st["game"] = game
+            if learn:
+                prefs_mod.learn(st, "game:" + gid, 1.0)
             line = self._line(g, "start", gctx)
             if say and not preset:
                 line = dict(line, text=say + "\n" + self._text(char, line), _pkey=None)

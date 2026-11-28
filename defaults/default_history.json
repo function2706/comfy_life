@@ -58,6 +58,9 @@
    "67f9d65708a075e2c35427d86676033b",
    "3425adb8015daf2ab0b478d829aa83ae"
   ],
+  "arm_in_arm": [
+   "b79dae54b41fdeef4f4d13149a3354d8"
+  ],
   "ask_bday": [
    "10e8190825e2f04473caa269ab2be882"
   ],
@@ -76,6 +79,9 @@
   "ask_visit": [
    "37df30dfe646749dad4d80303db21b8f",
    "06b8f50f56b2c8f8d7de4a07b19f2a3d"
+  ],
+  "back_rub": [
+   "a6008ae3e4f6a14e7b201e49eaa85ba8"
   ],
   "bath": [
    "4e778ff703174a5897ba64983c0546f1",
@@ -187,6 +193,7 @@
    "607e0e573e3e8f2327756eeefd09f5cb"
   ],
   "go_home": [
+   "1502dcd8e61532d3f6b76acdd210f2e9",
    "a696a8d76fe51cc977abca1c951eb724",
    "60db5583e67530141e8b2a8a699d9802",
    "480b4a648a4823290ede220803b0b523",
@@ -251,6 +258,18 @@
   "invite_home": [
    "e53aaed6c467a282f4990e169af5dc15"
   ],
+  "kiss": [
+   "a0aec2e41964f349270c4ca7b2d1f4a6"
+  ],
+  "lap_give": [
+   "ee920382cbbbb8421b21e54b8869d529"
+  ],
+  "lap_rest": [
+   "9ee86f15b4ed6a33b11659ab62191e0f"
+  ],
+  "lean_close": [
+   "bda599702d159afcef555711b5b079ad"
+  ],
   "leave_alone": [
    "c9e55b90f2ffd00ffaba1a566afc2874"
   ],
@@ -275,7 +294,8 @@
   "movie": [
    "a565d64ffdb181d9c39a9b27cbb0226c",
    "3913ed8cfda23c024c771ed15be0dcde",
-   "e002d58b2e9487d3c5d7b28ca5e6c419"
+   "e002d58b2e9487d3c5d7b28ca5e6c419",
+   "1401dded492d6da96ad68ff55eb4cd49"
   ],
   "nurse": [
    "f9938104f9c7fdc0121295f13412cb25",
@@ -301,6 +321,12 @@
    "8899358cb6f8a941def43a278a8e1838",
    "3e2c9d1524284fb316f6c5ff46c56106"
   ],
+  "pull_close": [
+   "462c988d4288eb29ad77140c04ed0c39"
+  ],
+  "rest_out": [
+   "b70bd5143ae962dd0a39e22912022179"
+  ],
   "see_off": [
    "f87a8209ee86788f31510e5e49d11535",
    "ee0439b5cd82ab6b214731ef49387a32",
@@ -315,6 +341,9 @@
    "d1c3297284c2c1ed66ebac645280b2ee",
    "63aa96df7c1130d427c079542a9ae9f5",
    "8aead86f573387c220ae1172973389c8"
+  ],
+  "shoulder_rub": [
+   "5c69089d1298ff4ad20ca03de2041f6b"
   ],
   "side_job": [
    "6ecbf3b41c33fcefa401c182d9716b44",
@@ -359,6 +388,9 @@
   "talk_topic": [
    "4157ba93f575371540e339909d4daa56"
   ],
+  "taxi_home": [
+   "ad2e8b44b2c9edaaccdaaeab45c82301"
+  ],
   "tea": [
    "fe17bcfd3d51f692ea8568477afa9ae2",
    "aae0edf3631c093cfc90afca23bc24c0",
@@ -375,6 +407,15 @@
   "thank": [
    "181cfbc8e6bb50d898299777657fbdb0",
    "d02d265f163117cc9ef618b58c63a0f9"
+  ],
+  "tickle": [
+   "936f7ef6ff87a71130ecba10fb277378"
+  ],
+  "touch_cheek": [
+   "98f6a0b974a6db302da9f61c553896b6"
+  ],
+  "touch_hair": [
+   "682409f84dd949634dbdf0da0baf9054"
   ],
   "tuck_in": [
    "a504e0dbda45df2339493435090378a1",
@@ -410,6 +451,10 @@
   ]
  },
  "approaches": {
+  "arm_link": [
+   "26657f1aa1e1b70160033d85fe7941e5",
+   "1d77a48b2636a6d2dbbb70d0d41ff011"
+  ],
   "bored": [
    "b86f3274916a230dc73989a373c4ca8a",
    "1109a6493520cd806d4fbbfcb6080647"
@@ -426,21 +471,22 @@
    "030cd2bd75b68e9361d9a4c25f7b22fa"
   ],
   "date_cold": [
-   "c67ce46a66025c8fdbb1ab08be5f80d8",
-   "91af554b76f90acb1445fa389b70e29d"
+   "91af554b76f90acb1445fa389b70e29d",
+   "c67ce46a66025c8fdbb1ab08be5f80d8"
   ],
   "date_fun": [
    "e7011f4cb533a16cc22e02d952cb0118"
   ],
   "date_hands": [
-   "792d404a3fca6f1d2e1e2ccf02c27855"
+   "792d404a3fca6f1d2e1e2ccf02c27855",
+   "08f0f52b851ab1066ad1178224ab3345"
   ],
   "date_home": [
    "9e50ca904e86b6b82e72aff192bc507a"
   ],
   "date_hot": [
-   "fa9df38fd9662341d5e5441e7673c3a8",
-   "7517579466f5ab4faec34cd7d40b3745"
+   "7517579466f5ab4faec34cd7d40b3745",
+   "fa9df38fd9662341d5e5441e7673c3a8"
   ],
   "date_hungry": [
    "a41965f0c0e86047b16543616e6e0a37"
@@ -457,18 +503,68 @@
   "date_rest": [
    "b28298e64e8c54ab00c6f69b421c0438"
   ],
+  "fond_back": [
+   "20f17ca98b2cc3f12eed0ce6a4abac78"
+  ],
+  "fond_cheek": [
+   "677e6f658e80cc5a5615615731d8f720"
+  ],
+  "fond_hair": [
+   "acf2b1ceca1a434bd033561a3ef8c9fc"
+  ],
+  "fond_hands": [
+   "f3458ea007326e86fe1de7e430ba2ef2"
+  ],
+  "fond_hug": [
+   "fb691271330ff0995a84d37d82d243b9"
+  ],
+  "fond_kiss": [
+   "1d571d79fc742b4fe5c0a0e0827843f8"
+  ],
+  "fond_lap": [
+   "b3c7a061a5394f62e1da864a7be3d630"
+  ],
+  "fond_shoulder": [
+   "d54bddd61ee34a1f74c8e044f80f003f"
+  ],
+  "fond_tickle": [
+   "4e94bb0fc55cfdab3b71cd3898806118"
+  ],
   "good_news": [
    "ae26b283c2ebe9de6f9df1010525f207"
   ],
   "huddle": [
    "9974bbe6ea69dfda4887a2143bdaf4b8"
   ],
+  "lap_wish": [
+   "428c7152c85337d2fe0f78c3976303bb",
+   "5d3fece19d62eb6cd32fd5e34de3651e"
+  ],
   "lean": [
-   "dc8516a521f4937a381b3f8497b16d5d"
+   "dc8516a521f4937a381b3f8497b16d5d",
+   "bd70816274e54c984ec9a4c3be9c2141"
+  ],
+  "leave_call": [
+   "7b9a7684a9c5bd911a8dd8cd0dcc9032"
+  ],
+  "leave_early": [
+   "887d2b32c239f64e6b2c81fd4cf449c2"
+  ],
+  "leave_mood": [
+   "2c49b1c118f1644cc4c7887370ea5617"
+  ],
+  "leave_sick": [
+   "6fcffb8217a416b9c31ef4853e9a70e2"
+  ],
+  "leave_tired": [
+   "fc2dfc80eb3bb6fe17a86ffde413e06a"
   ],
   "lonely": [
    "1bf14a6835f47ddaccd55c042cc214e4",
    "98325b9b80648caedcbd31ea8261eb21"
+  ],
+  "movie_invite": [
+   "994fbe11876818af3246fb255bfa448a"
   ],
   "msg_chat": [
    "7e6cbae056ac84f5d0c40f4a64b7f54c",
@@ -503,11 +599,16 @@
   "play": [
    "a6e24213b6242211c829e5f1bf6e85dd",
    "f405e3de50f8fc321d41c301f7bbeb1d",
-   "a5be0d343eef11772c97630eab17f9ec"
+   "a5be0d343eef11772c97630eab17f9ec",
+   "99b085abfca1a0f56c1bb7be63a86e4a"
+  ],
+  "play_again": [
+   "79837606f21d6ff166757dfa39a39188"
   ],
   "show": [
    "e99addec13a03c5bcca0e567889eaa1f",
-   "84b3475efb2a680730fa5a3b7e0d998b"
+   "84b3475efb2a680730fa5a3b7e0d998b",
+   "16335a3139c37893bd3ff5ef58af0745"
   ],
   "sleepy": [
    "7e639183d2515d1e753f48251405034a",

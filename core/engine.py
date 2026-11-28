@@ -66,6 +66,7 @@ from . import geo as geo_mod
 from . import chat as chat_mod
 from . import home as home_mod
 from . import places as places_mod
+from . import prefs as prefs_mod
 from . import appoint as appoint_mod
 from . import kakeibo as kakeibo_mod
 from . import purse as purse_mod
@@ -1531,6 +1532,36 @@ class App:
             return None if s == "ok" else s
         return self.athome.allows(a, cid) or self.askhelp.allows(a, cid)
 
+    def movie_genre(self, char, st, opts, ctx):
+        """一緒に観る映画のジャンルを決め (opts.pick か, 相手からの誘いの genre. 無ければ相手の好みで), 受け止めを反応の条件
+        movie_feel (like / ok / dislike) に. 好みどおりとは限らない (その日の気分で揺れる). opts.genre・extra.genre に入れる."""
+        ids = [g[0] for g in topics_mod.MOVIE_GENRES]
+        g = opts.get("pick") if opts.get("pick") in ids else opts.get("genre") if opts.get("genre") in ids else None
+        tv = self.topics.tastes(char, st)
+        if not g:
+            g = random.choices(ids, [math.exp(1.2 * float(tv.get(i, 0))) for i in ids])[0]
+        x = float(tv.get(g, 0)) + random.gauss(0, 0.35)
+        ctx["movie_feel"] = "like" if x >= 0.35 else "dislike" if x <= -0.35 else "ok"
+        opts["genre"] = g
+        opts.setdefault("extra", {})["genre"] = next(lb for i, lb, _, _ in topics_mod.MOVIE_GENRES if i == g)
+
+    LEARN_ACTS = ("hold_hands", "movie")      # ふれあい (行動の touch) のほかに覚えるもの
+
+    def learn_request(self, char, st, a, opts, apart, now):
+        """あなたから頼んだ・誘ったことを, 相手が「この人はこれが好き」と覚える (A44 段 1). 相手からの誘いに応じたときは覚えない."""
+        if opts.get("approach") or opts.get("appointment") or opts.get("deliver"):
+            return
+        aid = a["id"]
+        if not apart and (a.get("touch") or aid in self.LEARN_ACTS):
+            prefs_mod.learn(st, "act:" + aid, 1.0, now)
+        if not apart and aid == "movie" and opts.get("pick"):
+            prefs_mod.learn(st, "genre:" + opts["genre"], 1.0, now)
+        ov = a.get("override") or {}
+        if ov.get("outing"):                      # 一緒に行こうと誘った行き先 (会っていても, メッセージで誘っても)
+            pl = opts.get("place") if opts.get("place") in (a.get("places") or []) else ov.get("place")
+            if pl in places_mod.PLACES:
+                prefs_mod.learn(st, "place:" + pl, 1.0, now)
+
     @staticmethod
     def touch_ng(a, char):
         """大人どうしだけのふれあい (キス. 行動の touch.adult) を, 18 歳未満のキャラにはしない (S57)."""
@@ -1702,6 +1733,9 @@ class App:
                 if ng:
                     raise ValueError(ng)
                 ctx["touch_feel"] = self.touch_feel(char, st, a, ctx, now)
+            if not apart and aid == "movie":          # 一緒に観る映画のジャンル (A44 段 1): 選ばなければ相手の好みで
+                self.movie_genre(char, st, opts, ctx)
+            self.learn_request(char, st, a, opts, apart, now)     # 頼んだこと = あなたの好み (A44 段 1. core/prefs.py)
             tryon = None
             if aid == "_tryon":                       # 買ってあげたアウターを, その場で着てみてもらう (聞けるのは一度だけ)
                 tv = self.tryon_view(char, st, now)
@@ -3694,7 +3728,8 @@ class App:
                 "offline_report": self.offline.report(),
                 "chat_unread": self.chat.unread_total(), "contacts": self._contacts_view(), "topics": self.topics.view(cid),
                 "picks": {"apology": "quiz", "thanks": "quiz",          # 謝る・お礼は記憶の問い (別の窓. core/memquiz.py)
-                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT]},
+                          "consult": [{"id": k, "label": w} for k, w, _ in msgpick_mod.CONSULT],
+                          "movie_genre": [{"id": "", "label": "おまかせ"}] + [{"id": g[0], "label": g[1]} for g in topics_mod.MOVIE_GENRES]},
                 "memos_today": [m["text"] for m in self.anniv.memos_on(datetime.fromtimestamp(now).date())],
                 "chores": self.chores.view(), "chores_slack": self.chores.pending(), "quarrel": self.quarrel.pending(), "money_talk": self.moneytalk.pending(), "ac_talk": self.aircon.pending(),
                 "bonds": self.bonds.list_view(), "encounter": self.encounters.view(), "people": self.people_view(now),
@@ -4485,10 +4520,19 @@ class App:
                     self.solo.finish(ll)
             leave = (self.presence.find(ap.get("id")) or {}).get("leave")
             e, run = self.presence.answer(char, st, ans, use_action=bool(aid), choice=choice)
+            if ans == "accept" and ap.get("game") and not run:      # 「この前の〇〇、もう一回」(A44): 応じたら, そのゲームを始める
+                try:
+                    res = self.games.start(ap["game"], char["id"], learn=False)
+                    self.save_state(char["id"])
+                    return res
+                except (ValueError, KeyError):
+                    pass              # 遊べなくなっていた: ふつうに応じたことにする
             if run and leave:
                 run = aid
         if run:
             opts = {"approach": True}
+            if ap.get("genre"):       # 「映画観ない？」: 相手が言ったジャンルで (A44)
+                opts["genre"] = ap["genre"]
             ovp = self.action(run).get("override") or {}
             if ovp.get("outing") and self.outing_now(time.time())[0] == char["id"]:     # 一緒にお出かけ中, 相手から誘った次の場所へ
                 opts.update(move_on=True, place=ovp.get("place"))                   # (誘ったのは相手なので, 応じるかの判定はしない)
