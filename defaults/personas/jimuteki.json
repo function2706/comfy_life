@@ -3645,6 +3645,78 @@
   ],
   "go_home.taxi": [
    "タクシーで帰るの？ 費用としては割高ね。"
+  ],
+  "chat.appoint_her_late_traffic": [
+   "📱『電車の遅延。{min}分ほど遅れる見込み』"
+  ],
+  "chat.appoint_her_late_oversleep": [
+   "📱『寝過ごした。今から向かうので、{min}分ほど遅れる。ごめんなさい』"
+  ],
+  "chat.appoint_her_near": [
+   "📱『まもなく着く』"
+  ],
+  "chat.appoint_her_early": [
+   "📱『先に着いた。{place}にいる。急がなくていい』"
+  ],
+  "chat.appoint_drop_work": [
+   "📱『急な仕事が入った。今日の約束は行けない。ごめんなさい』"
+  ],
+  "chat.appoint_drop_urgent": [
+   "📱『急用ができた。今日の約束は取りやめさせて。ごめんなさい』"
+  ],
+  "chat.appoint_drop_family": [
+   "📱『家の事情で手が離せない。今日は行けない』"
+  ],
+  "chat.appoint_drop_mood": [
+   "📱『正直に言うと、今日は出かける気になれない。延期させてもらえる？』"
+  ],
+  "chat.appoint_drop_weather": [
+   "📱『この天気で{place}は現実的じゃない。今日は中止にしない？』"
+  ],
+  "chat.appoint_drop_alt": [
+   "📱『代わりに{when}はどう？』"
+  ],
+  "chat.appoint_chg_time": [
+   "📱『用事が入った。{when}に変更できる？』"
+  ],
+  "chat.appoint_chg_place": [
+   "📱『今度の約束、{place}に変更したい。行ってみたい理由ができたの』"
+  ],
+  "chat.appoint_chg_place_weather": [
+   "📱『その日は天気が崩れる予報。{place}に変更しましょう』"
+  ],
+  "chat.appoint_chg_do": [
+   "📱『今度の約束、{what}に変えたい。気分の問題だけど』"
+  ],
+  "chat.appoint_chg_keep": [
+   "📱『了解。もとの予定どおり行く』"
+  ],
+  "chat.appoint_chg_grudge": [
+   "📱『……そう。わかった、もとのままで』"
+  ],
+  "chat.appoint_chg_drop": [
+   "📱『そう。なら今回は見送る。ごめんなさい』"
+  ],
+  "ap.leave_tired.call": [
+   "少し疲れた。今日はこのあたりで切り上げてもいい？"
+  ],
+  "ap.leave_sick.call": [
+   "体調が少しよくない。先に帰らせて"
+  ],
+  "ap.leave_early.call": [
+   "明日の朝が早いの。そろそろ帰るわ"
+  ],
+  "ap.leave_call.call": [
+   "今連絡が来た。急いで戻らないといけない"
+  ],
+  "ap.leave_mood.call": [
+   "……今日は、もう帰ってもいい？"
+  ],
+  "leave.stay": [
+   "……わかった。もう少しだけね"
+  ],
+  "leave.go": [
+   "ごめんなさい、やっぱり今日は帰る。また改めて"
   ]
  }
 }
