@@ -177,8 +177,9 @@ def join_tags(chunks):
 
 MOVING_OK = ("会話", "見る", "連絡", "system", "あなたの予定")    # お出かけの移動中にできること
 TOUCH_FEEL_AFF = 5.0      # 体感で, ふれあいの反応を選ぶときにずらす好感度 (× 寒がり / 暑がり. S59)
+TOUCH_FEEL_SCORE = 0.5 * TOUCH_FEEL_AFF   # 同じずれを, 受け入れの式 (wardrobe.accept. 好感度の重み 0.5) の点に (S57)
 TOUCH_FEEL_EFF = {"cold": 1.2, "hot": 0.75}      # 応じてくれたときの, うれしい向きの効き目の倍率
-MOVING_OK_IDS = ("hold_hands", "headpat", "photo", "water", "gift")     # 移動中でもできるふれあい・お世話 (歩きながら・乗りながら)
+MOVING_OK_IDS = ("hold_hands", "headpat", "photo", "water", "gift", "lean_close", "arm_in_arm")     # 移動中でもできるふれあい・お世話 (歩きながら・乗りながら)
 HOME_BONDS = ("visit_start", "guest_start")    # 家に上がる / 招く (外で会っているときは, その家まで一緒に移動してから. 残件 F16)
 
 
@@ -1056,6 +1057,7 @@ class App:
             self, char, dt, inside=None if self.outside_with(char["id"], dt.timestamp()) else self.wardrobe.ac_of(char, dt))
         ctx["day_feel"] = season_mod.day_feel(dt.date())
         ctx["wx"] = outdoor_mod.weather(dt)["id"]
+        ctx["outside"] = False if ctx["apart"] else self.posing.outside(char["id"])     # そばにいて外か (ふれあいの場所の条件. S57)
         return ctx
 
     # ------------------------------------------------------------------ time
@@ -1434,7 +1436,7 @@ class App:
                                                        for p in (a.get("places") or [ovp.get("place") or places_mod.from_location(ovp.get("location"))]))
             out[a["id"]] = {"ok": cond.check(self._when(a, ctx), ctx) and not (a.get("home_only") and ctx["outing"]) and not shut
                             and (not ctx["apart"] or (self.bonds.allowed_apart(a, char["id"]) and not self.appoint.needs(a, char["id"])))
-                            and not self.guest_ng(a, char["id"]),
+                            and not self.guest_ng(a, char["id"]) and not self.touch_ng(a, char),
                             "closed": shut,
                             "cooldown": max(0, int(last + cd - now)) if cd else 0}
             ovp = a.get("override") or {}
@@ -1496,7 +1498,7 @@ class App:
         g = self.guest_ng(a, char["id"])
         if g:
             return g if isinstance(g, str) else None
-        return self.cond_why(self._when(a, ctx), ctx, name)
+        return self.touch_ng(a, char) or self.cond_why(self._when(a, ctx), ctx, name)
 
     def cond_why(self, when, ctx, name="相手"):
         """条件式のうち満たしていない項を, 押せない理由の文に (見れば分かるもの・説明しにくいものは None)."""
@@ -1518,6 +1520,8 @@ class App:
                 return "お金が足りません"
             if key == "my_stamina":
                 return "あなたの体力が足りません"
+            if key == "outside":
+                return "外にいるときにすることです" if (op == "=") == (val == "true") else "家の中でのことです（外ではできません）"
         return None
 
     def guest_ng(self, a, cid):
@@ -1526,6 +1530,26 @@ class App:
         if s:
             return None if s == "ok" else s
         return self.athome.allows(a, cid) or self.askhelp.allows(a, cid)
+
+    @staticmethod
+    def touch_ng(a, char):
+        """大人どうしだけのふれあい (キス. 行動の touch.adult) を, 18 歳未満のキャラにはしない (S57)."""
+        if (a.get("touch") or {}).get("adult") and not posing_mod.adult(char):
+            return "18 歳未満のキャラにはできません"
+        return None
+
+    def touch_feel(self, char, st, a, ctx, now):
+        """ふれあい (行動の touch: 大胆さ bold・照れくささ silly) を受けてくれるか (反応の条件 touch_feel. S57).
+        受け入れの式は大胆な服・ポーズと同じ (wardrobe.accept). しつこさはふれあいどうしで数える (touch_asks).
+        寝ていれば sleep (気づかない. 断りもしない). 体感で寄りたがる / 嫌がる (S59) は, 点の足し引きで."""
+        if ctx.get("asleep"):
+            return "sleep"
+        t = a.get("touch") or {}
+        sn = season_mod.sense(self, char) if ctx.get("feel") in ("cold", "hot") else None
+        bonus = (TOUCH_FEEL_SCORE * (sn["cold"] if ctx["feel"] == "cold" else -sn["heat"])) if sn else 0.0
+        return self.wardrobe.accept(char, st, {"bold": t.get("bold", 1), "silly": t.get("silly", 0)}, now,
+                                    outside=bool(ctx.get("outside")), others=len(self.bonds.company(now)) > 1,
+                                    asks_key="touch_asks", bonus=bonus)
 
     def act(self, aid, cid=None, dress=None, opts=None):
         """行動を実行する. aid="_dress" のときは dress に着替え先の id ("" でおまかせ) を渡す.
@@ -1673,6 +1697,11 @@ class App:
                     self.posing.learn(st, "outfit:" + k, 0.5)     # 組み合わせは部品ごとに少しずつ
             elif dress:
                 self.posing.learn(st, "outfit:" + dress, 1.0)
+            if a.get("touch") and not apart:          # 新しいふれあい (S57): 受けてくれるか
+                ng = self.touch_ng(a, char)
+                if ng:
+                    raise ValueError(ng)
+                ctx["touch_feel"] = self.touch_feel(char, st, a, ctx, now)
             tryon = None
             if aid == "_tryon":                       # 買ってあげたアウターを, その場で着てみてもらう (聞けるのは一度だけ)
                 tv = self.tryon_view(char, st, now)

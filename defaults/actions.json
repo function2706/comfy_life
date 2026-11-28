@@ -1471,6 +1471,1042 @@
   "with_player": true
  },
  {
+  "id": "lean_close",
+  "name": "肩を寄せる",
+  "icon": "🫂",
+  "category": "ふれあい",
+  "when": "away=false, busy=false",
+  "cooldown": 15,
+  "touch": {
+   "bold": 1
+  },
+  "effects": {
+   "heart": 6,
+   "shyness": 6,
+   "loneliness": -8,
+   "affection": 1
+  },
+  "pos": "leaning on shoulder, side by side, blush",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……ちょっと、近いですね。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "asleep",
+    "text": "（寝息を立てたまま、こちらの肩にもたれてきた）",
+    "when": "asleep=true",
+    "pos": "sleeping, leaning on shoulder",
+    "neg": "looking at viewer",
+    "priority": 5
+   },
+   {
+    "key": "eager",
+    "text": "ふふ。……こうしてると、落ち着きます。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……少しだけ、ですよ。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "あ、あの……ちょっと離れてもらえますか。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "さっきからなんなんですか。やめてください。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}と肩を寄せ合った",
+  "reason_bad": "{call}にくっつかれて落ち着かなかった",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "shoulder_rub",
+  "name": "肩をもむ",
+  "icon": "💆",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false, outside=false",
+  "cooldown": 60,
+  "touch": {
+   "bold": 1
+  },
+  "effects": {
+   "stress": -8,
+   "mood": 3,
+   "affection": 1,
+   "trust": 1,
+   "shyness": 3
+  },
+  "pos": "shoulder massage, sitting, from behind, relaxed",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "あ、そこ……気持ちいいです。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "stress",
+    "text": "……うわ、すごく凝ってたみたいです。ありがとうございます。",
+    "when": "stress>=50",
+    "pos": "relieved, closed eyes",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "stress": -10,
+     "mood": 3
+    }
+   },
+   {
+    "key": "eager",
+    "text": "ん……上手ですね。もう少しお願いしてもいいですか？",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……くすぐったいので、ちょっとだけで。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "いえ、大丈夫です。凝ってないので。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "もういいって言ってるじゃないですか。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に肩をもんでもらった",
+  "reason_bad": "{call}にしつこく触られた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "back_rub",
+  "name": "背中をさする",
+  "icon": "🤲",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false",
+  "cooldown": 30,
+  "touch": {
+   "bold": 1
+  },
+  "effects": {
+   "loneliness": -5,
+   "trust": 1,
+   "shyness": 3
+  },
+  "pos": "hand on back, comforting, close",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……どうしたんですか？ 急に。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "down",
+    "text": "……ありがとうございます。少し、楽になりました。",
+    "when": "mood<40",
+    "pos": "teary eyes, small smile",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "stress": -10,
+     "mood": 6,
+     "trust": 1
+    }
+   },
+   {
+    "key": "stress",
+    "text": "……気づいてたんですね。ちょっとだけ、このままで。",
+    "when": "stress>=60",
+    "pos": "closed eyes, relieved",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "stress": -12,
+     "mood": 4
+    }
+   },
+   {
+    "key": "eager",
+    "text": "ふふ、なんだか安心します。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……平気ですよ、別に。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "大丈夫ですから。触らないでください。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "そういうのはいいです。放っておいてください。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に背中をさすってもらった",
+  "reason_bad": "{call}にしつこく触られた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "arm_in_arm",
+  "name": "腕を組む",
+  "icon": "💞",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false, outside=true",
+  "cooldown": 20,
+  "touch": {
+   "bold": 1.5
+  },
+  "effects": {
+   "heart": 8,
+   "shyness": 8,
+   "affection": 1,
+   "loneliness": -6
+  },
+  "pos": "arm in arm, walking together, outdoors, blush",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……腕、ですか。はい。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "eager",
+    "text": "ふふ。こうして歩くの、ちょっと憧れてたんです。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……人が見てますけど。少しだけなら。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "ここでは、ちょっと……。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "だから、やめてくださいって言いましたよね。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}と腕を組んで歩いた",
+  "reason_bad": "人前で{call}にくっつかれた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "touch_hair",
+  "name": "髪に触れる",
+  "icon": "💇",
+  "category": "ふれあい",
+  "when": "away=false, busy=false",
+  "cooldown": 15,
+  "touch": {
+   "bold": 1.5
+  },
+  "effects": {
+   "heart": 5,
+   "shyness": 6,
+   "affection": 1
+  },
+  "pos": "touching hair, hand in hair, blush, close-up",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……髪、何かついてました？",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "asleep",
+    "text": "（寝たまま、少しだけ眉が動いた）",
+    "when": "asleep=true",
+    "pos": "sleeping",
+    "neg": "looking at viewer",
+    "priority": 5
+   },
+   {
+    "key": "eager",
+    "text": "……{call}に触られるの、嫌じゃないです。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "あ、せっかく整えたのに……。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "髪はちょっと……触らないでほしいです。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "何度言ったら分かるんですか。触らないでください。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に髪を撫でられた",
+  "reason_bad": "{call}に髪をいじられた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "tickle",
+  "name": "くすぐる",
+  "icon": "🤭",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false, outside=false",
+  "cooldown": 15,
+  "touch": {
+   "bold": 1,
+   "silly": 1
+  },
+  "effects": {
+   "mood": 4,
+   "stress": -4,
+   "boredom": -8,
+   "shyness": 4
+  },
+  "pos": "laughing, tickling, squirming, tears of laughter",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "ひゃっ……や、やめてください、あははっ！",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "too_much",
+    "text": "……もう本当にやめて。笑えないです。",
+    "when": "repeat>=2",
+    "pos": "annoyed, out of breath, glaring",
+    "neg": "laughing",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "mood": -6,
+     "stress": 4,
+     "affection": -1
+    }
+   },
+   {
+    "key": "eager",
+    "text": "あはは！ もう、仕返ししますからね！",
+    "when": "touch_feel=eager",
+    "pos": "laughing, playful, tickling back",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "っ……そういうの、苦手なんです……。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "やめてください。そういう気分じゃないです。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "いい加減にしてください。怒りますよ。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}とくすぐり合ってはしゃいだ",
+  "reason_bad": "{call}にしつこくくすぐられた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "touch_cheek",
+  "name": "頬に触れる",
+  "icon": "☺",
+  "category": "ふれあい",
+  "when": "away=false, busy=false",
+  "cooldown": 20,
+  "touch": {
+   "bold": 1.75
+  },
+  "effects": {
+   "heart": 8,
+   "shyness": 10,
+   "affection": 1
+  },
+  "pos": "hand on cheek, cheek touch, blush, looking at viewer, close-up",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……っ。顔、赤くなってません？",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "asleep",
+    "text": "（寝顔のまま、手のひらに頬をすり寄せた）",
+    "when": "asleep=true",
+    "pos": "sleeping, smile",
+    "neg": "looking at viewer",
+    "priority": 5
+   },
+   {
+    "key": "eager",
+    "text": "{call}の手、あったかいですね。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……な、なんですか、急に。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "そういうのは、まだ……。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "やめてって言ってるのに。もう知りません。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}にそっと頬を触れられた",
+  "reason_bad": "{call}に顔を触られた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "pull_close",
+  "name": "抱き寄せる",
+  "icon": "🫶",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false",
+  "cooldown": 30,
+  "touch": {
+   "bold": 2
+  },
+  "effects": {
+   "heart": 12,
+   "shyness": 12,
+   "affection": 2,
+   "loneliness": -12
+  },
+  "pos": "pulled close, embrace from side, blush, surprised",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "わっ……！ ……びっくりしました。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "lonely",
+    "text": "……ずっと、こうしてほしかったのかもしれません。",
+    "when": "loneliness>=60",
+    "pos": "closed eyes, leaning in",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "loneliness": -10
+    }
+   },
+   {
+    "key": "eager",
+    "text": "……もう少し、このままがいいです。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……い、いまはちょっと、恥ずかしいです。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "ちょっと、離してください……！",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, pushing away",
+    "neg": "embrace",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "離して。そういうの、本当に嫌です。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に抱き寄せられた",
+  "reason_bad": "{call}に無理に抱き寄せられた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "lap_give",
+  "name": "膝枕をしてあげる",
+  "icon": "🛋",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false, outside=false",
+  "cooldown": 60,
+  "touch": {
+   "bold": 2
+  },
+  "effects": {
+   "stress": -10,
+   "loneliness": -12,
+   "heart": 8,
+   "affection": 2,
+   "shyness": 8
+  },
+  "pos": "lap pillow, lying on lap, looking up, blush, indoors",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……じゃあ、少しだけ。失礼します。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "tired",
+    "text": "……あったかい。このまま寝ちゃいそうです。",
+    "when": "energy<35",
+    "pos": "sleepy, closed eyes, lying on lap",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "stress": -5,
+     "sleepiness": 5
+    }
+   },
+   {
+    "key": "eager",
+    "text": "ふふ、贅沢ですね。……しばらくこうしてていいですか？",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……ちょっとだけ、ですよ。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "いえ、それはさすがに……。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "lying on lap",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "しつこいです。もうしません。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に膝枕をしてもらった",
+  "reason_bad": "{call}に膝枕をしつこく勧められた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "lap_rest",
+  "name": "膝枕をしてもらう",
+  "icon": "😌",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false, outside=false",
+  "cooldown": 60,
+  "touch": {
+   "bold": 2
+  },
+  "effects": {
+   "heart": 8,
+   "shyness": 10,
+   "affection": 1,
+   "trust": 1,
+   "mood": 3
+  },
+  "pos": "giving lap pillow, sitting, looking down, blush, indoors",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……はい、どうぞ。重くないですから。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "carer",
+    "text": "疲れてるんですね。……少し休んでいってください。",
+    "when": "player_sick>=1",
+    "pos": "gentle smile, stroking hair, looking down",
+    "neg": "",
+    "priority": 2,
+    "effects": {
+     "trust": 1
+    }
+   },
+   {
+    "key": "eager",
+    "text": "ふふ、いいですよ。……なんだか、かわいいですね。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……足がしびれたら、どいてもらいますからね。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "え、えっと……それはちょっと。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, stepping back",
+    "neg": "lap pillow",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "さっきから、そればっかり。嫌です。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}に膝枕をしてあげた",
+  "reason_bad": "{call}に膝枕をしつこくせがまれた",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
+  "id": "kiss",
+  "name": "キスする",
+  "icon": "💋",
+  "category": "ふれあい",
+  "when": "away=false, asleep=false, busy=false",
+  "cooldown": 30,
+  "touch": {
+   "bold": 2.5,
+   "adult": true
+  },
+  "effects": {
+   "heart": 18,
+   "shyness": 18,
+   "affection": 3,
+   "trust": 1,
+   "mood": 5
+  },
+  "pos": "kiss, closed eyes, blush, close-up",
+  "neg": "",
+  "reactions": [
+   {
+    "key": "default",
+    "text": "……っ。……いま、の……。",
+    "when": "",
+    "pos": "",
+    "neg": ""
+   },
+   {
+    "key": "eager",
+    "text": "……もう一回、してもいいですよ。",
+    "when": "touch_feel=eager",
+    "pos": "happy, smile, blush",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "heart": 4,
+     "mood": 3
+    }
+   },
+   {
+    "key": "reluctant",
+    "text": "……こういうのは、もう少しゆっくり、のほうが。",
+    "when": "touch_feel=reluctant",
+    "pos": "awkward smile, looking away",
+    "neg": "",
+    "priority": 1,
+    "effects": {
+     "mood": -3,
+     "shyness": 4
+    }
+   },
+   {
+    "key": "refuse",
+    "text": "ま、待ってください……！ そういうのは、まだ……。",
+    "when": "touch_feel=refuse",
+    "pos": "flustered, turning face away, hand blocking",
+    "neg": "kiss",
+    "priority": 3,
+    "override": true,
+    "effects": {
+     "shyness": 8,
+     "trust": -1,
+     "mood": -2
+    }
+   },
+   {
+    "key": "angry",
+    "text": "やめてください。そういうつもりじゃないです。",
+    "when": "touch_feel=angry",
+    "pos": "annoyed, frown, arms crossed",
+    "neg": "smile, blush",
+    "priority": 4,
+    "override": true,
+    "effects": {
+     "mood": -8,
+     "affection": -2,
+     "trust": -2
+    }
+   }
+  ],
+  "reason_good": "{call}とキスをした",
+  "reason_bad": "{call}にいきなりキスされそうになった",
+  "skill": "touch",
+  "with_player": true
+ },
+ {
   "id": "cook",
   "name": "ご飯を作る",
   "icon": "🍳",
